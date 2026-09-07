@@ -257,6 +257,39 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     )
   end)
 
+  test("Event handlers keep RIO delta disabled when the group is gone before the delayed refresh", function()
+    -- Leaving the group between the run ending and the delayed callback means
+    -- no post-run refresh ever ran, so rule 4 forbids the delta just as it does
+    -- for an exhausted retry chain.
+    local enableCalls = 0
+    local refreshCalls = 0
+    local callbacks = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(_seconds, callback)
+        table.insert(callbacks, callback)
+      end,
+      isInGroup = function()
+        return false
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return true
+      end,
+      enableRioDeltaDisplay = function()
+        enableCalls = enableCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.NotNil(callbacks[1], "the delayed refresh must still be scheduled")
+    callbacks[1]()
+
+    Assert.Equal(refreshCalls, 0, "a group that no longer exists must not be refreshed")
+    Assert.Equal(enableCalls, 0, "delta display must stay disabled when no refresh ran")
+  end)
+
   test("Event handlers schedule follow-up refreshes after successful delayed refresh", function()
     local refreshCalls = 0
     local scheduled = {}

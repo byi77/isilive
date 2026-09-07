@@ -292,7 +292,11 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
 
   SetPendingPostChallengeRefresh(ctx, nil)
   if not ctx.isInGroup() then
-    ctx.enableRioDeltaDisplay()
+    -- Leaving the group before the delayed callback lands is the same rule-4
+    -- situation as an exhausted retry chain: no refresh ran, so no post-run
+    -- RIO was ever fetched and any delta would be computed against the pre-run
+    -- snapshot. There is nothing left to refresh either -- the roster the
+    -- delta describes is gone -- so this returns without enabling.
     return
   end
 
