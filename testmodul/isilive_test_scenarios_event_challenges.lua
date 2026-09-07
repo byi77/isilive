@@ -219,6 +219,44 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     Assert.Equal(enableCalls, 1, "delta display must enable after successful retry")
   end)
 
+  test("Event handlers keep RIO delta disabled when every post-run refresh fails", function()
+    local enableCalls = 0
+    local refreshCalls = 0
+    local callbacks = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(_seconds, callback)
+        table.insert(callbacks, callback)
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return false
+      end,
+      enableRioDeltaDisplay = function()
+        enableCalls = enableCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    -- Drain the whole retry chain. Every attempt reports failure, so the last
+    -- one runs with no retries left and falls through instead of rescheduling.
+    local index = 1
+    while callbacks[index] do
+      callbacks[index]()
+      index = index + 1
+      Assert.True(index < 20, "retry chain must terminate")
+    end
+
+    Assert.True(refreshCalls > 1, "the failing refresh must have been retried")
+    Assert.Equal(
+      enableCalls,
+      0,
+      "delta display must stay disabled when the retries run out without a successful refresh"
+    )
+  end)
+
   test("Event handlers schedule follow-up refreshes after successful delayed refresh", function()
     local refreshCalls = 0
     local scheduled = {}

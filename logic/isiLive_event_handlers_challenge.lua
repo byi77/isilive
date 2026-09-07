@@ -305,7 +305,13 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
     return
   end
 
-  ctx.enableRioDeltaDisplay()
+  -- Rule 4: the delta may only appear after a refresh that actually succeeded.
+  -- Falling through here with `refreshed == false` means the retries ran out,
+  -- not that the data arrived -- enabling the display then shows a delta
+  -- computed against a pre-run snapshot that was never updated.
+  if refreshed then
+    ctx.enableRioDeltaDisplay()
+  end
   RefreshRosterAfterRunStateChange(ctx, frame)
 
   if refreshed and followUpRefreshesRemaining > 0 and ctx.timerAfter then
