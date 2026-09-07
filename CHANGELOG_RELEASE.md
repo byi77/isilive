@@ -5,6 +5,8 @@ https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
 Current version: `0.9.386`.
 
+<!-- highlights-reviewed-for: 0.9.386 -->
+
 Highlights:
 - **Reloading inside a Mythic+ key no longer loses the ESC-menu shortcuts.**
   They stayed gone until the next client restart. Secure buttons may not be

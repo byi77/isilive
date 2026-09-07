@@ -22,6 +22,7 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
 9. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
    Das vollstaendige `CHANGELOG.md` bleibt aus dem CurseForge-Zip draussen; stattdessen wird der kurze Stub `CHANGELOG_RELEASE.md` verwendet.
 10. `CHANGELOG_RELEASE.md` mit einer kurzen user-facing Zusammenfassung der aktuellen Version aktualisieren; der Stub ist die Release-Notiz im Paket und darf nicht nur bei der Versionsnummer stehen bleiben, wenn sichtbare Features geaendert wurden.
+    Danach den Marker `<!-- highlights-reviewed-for: X.Y.Z -->` auf die neue Version setzen. Er haelt fest, fuer welche Version die Highlights zuletzt geschrieben wurden; der deterministische Test `Architecture release changelog highlights carry a current review marker` laesst hoechstens fuenf Patchversionen Abstand zur TOC-Version zu und verlangt bei jedem Minor- oder Major-Bump eine neue Durchsicht. Wenn ein Release nichts sichtbar veraendert hat, ist das Verschieben des Markers die vollstaendige Arbeit — die bewusste Entscheidung ist der Zweck. Der Marker steht als HTML-Kommentar und taucht im gerenderten CurseForge-Text nicht auf.
 11. Sprachregel fuer Dokus einhalten:
    - `README.md` und die Changelog-Dateien bleiben Englisch.
    - Alle anderen gepflegten Projektdokumente bleiben Deutsch.

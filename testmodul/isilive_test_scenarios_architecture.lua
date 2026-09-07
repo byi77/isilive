@@ -709,6 +709,65 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture release changelog highlights carry a current review marker", function()
+    -- The stub is the release note CurseForge shows. Between 0.9.373 and
+    -- 0.9.385 every release commit moved its version line and nothing else, so
+    -- it announced a twelve-release-old set of changes while claiming to
+    -- describe the current one. The highlight-count budget above could not see
+    -- that: stale bullets count exactly like fresh ones. The marker records
+    -- which version the highlights were last written for, and this gate keeps
+    -- that claim close to the shipped version. Re-reviewing is cheap -- when a
+    -- release changes nothing users can see, moving the marker is the whole
+    -- job, and it is a deliberate act rather than a silent carry-forward.
+    local MAX_REVIEW_DRIFT_IN_PATCHES = 5
+
+    local tocContent = ReadFile("isiLive.toc")
+    local changelogStub = ReadFile("CHANGELOG_RELEASE.md")
+
+    local tocMajor, tocMinor, tocPatch = tocContent:match("##%s*Version:%s*(%d+)%.(%d+)%.(%d+)")
+    Assert.NotNil(tocMajor, "isiLive.toc must declare a semver '## Version:' line")
+
+    local reviewMajor, reviewMinor, reviewPatch =
+      changelogStub:match("<!%-%-%s*highlights%-reviewed%-for:%s*(%d+)%.(%d+)%.(%d+)%s*%-%->")
+    Assert.NotNil(
+      reviewMajor,
+      "CHANGELOG_RELEASE.md must carry a '<!-- highlights-reviewed-for: X.Y.Z -->' marker "
+        .. "naming the version its highlights were written for"
+    )
+
+    Assert.Equal(
+      reviewMajor .. "." .. reviewMinor,
+      tocMajor .. "." .. tocMinor,
+      "release-note highlights must be reviewed again on every major or minor bump: "
+        .. "the marker names "
+        .. reviewMajor
+        .. "."
+        .. reviewMinor
+        .. ", isiLive.toc is "
+        .. tocMajor
+        .. "."
+        .. tocMinor
+    )
+
+    local drift = tonumber(tocPatch) - tonumber(reviewPatch)
+    Assert.True(drift >= 0, "the highlights-reviewed-for marker must not name a version newer than isiLive.toc")
+    Assert.True(
+      drift <= MAX_REVIEW_DRIFT_IN_PATCHES,
+      string.format(
+        "release-note highlights were last reviewed for %s.%s.%s but isiLive.toc is %s.%s.%s (%d releases): "
+          .. "rewrite the highlights in CHANGELOG_RELEASE.md and move the marker, "
+          .. "or move the marker alone when nothing user-facing changed",
+        reviewMajor,
+        reviewMinor,
+        reviewPatch,
+        tocMajor,
+        tocMinor,
+        tocPatch,
+        drift
+      )
+    )
+  end)
+
   test("Architecture pkgmeta keeps sound assets packaged for CurseForge release", function()
     local content = ReadFile(".pkgmeta")
 
