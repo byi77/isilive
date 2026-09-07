@@ -132,6 +132,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 109. isiLive laeuft in genau drei zentral aufgeloesten Laufzeitprofilen: `OFF` im Raid und in jeder Gruppe groesser fuenf, `KEY` im mythischen Party-Dungeon (laufender Keystone oder Difficulty-ID 23) und `IDLE` in allem uebrigen. Im `OFF`-Profil werden die Dispatcher-Events bis auf die beiden Aufweck-Events abgemeldet; im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv. Difficulty-ID 24 (Zeitwanderung) ist kein mythischer Kontext, und die Kanalaufloesung muss die Instanzgruppen-Kategorie auch ohne `LE_PARTY_CATEGORY_*`-Globals numerisch pruefen.
 110. (veraltet — zurueckgenommen in 0.9.381) isiLive registriert keinen Handler in Blizzards ESC-Kette. Blizzard ruft die Kette als `securecallfunction(entry.handler)` in einer einzigen Schleife auf: der Aufruf selbst ist isoliert, die Schleife bleibt aber durch den zuvor gelaufenen Handler getaintet. Ein Addon-Handler vor der Stufe `Casting` (4) laesst deshalb Blizzards eigenen `SpellStopCasting()`-Aufruf mit `ADDON_ACTION_FORBIDDEN` scheitern. Die Prioritaetsstufen unterhalb von `AddOn` (8) gehoeren Blizzards eigenen Systemen; ein Addon kann sich dort nicht ohne Schaden einklinken.
 111. Sichere ESC-Panel-Buttons (Travel und Mounts) schliessen das `GameMenuFrame` selbst, sobald ihre Aktion ausgeloest wurde: der Hook haengt an `PostClick`, weil die Buttons Kinder des `GameMenuFrame` sind und dessen Verstecken waehrend der laufenden Klickverarbeitung nicht verlaesslich ist. Damit entfaellt der Grund, ESC zu druecken, und der gestartete Cast ueberlebt. Im Kampf-Lockdown unterbleibt das Schliessen (Regel 47).
+112. Die persistierte Schema-Version wird vor jeder Migration validiert; unbrauchbare Werte gelten als unversioniert, neuere bleiben unangetastet.
 
 ## Regelbloecke
 
@@ -955,13 +956,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MPLUS-KILLTRACKER-LIVE-FORCES-REFRESH
 - Regelnummer: 60
 - Status: aktiv
-- Zusammenfassung: Der M+-Killtracker muss nach `PLAYER_REGEN_ENABLED` die Live-Scenario-Daten erneut lesen, den sichtbaren Gesamtfortschritt sofort aktualisieren und die aktualisierte Rohmenge als Basis fuer den naechsten Pull verwenden. Solange der Key aktiv ist, muss auch der Killtracker-Refresh-Ticker Live-Scenario-Daten neu lesen, bevor er die UI benachrichtigt. Zugriffe auf `C_ScenarioInfo` muessen ueber den geschuetzten optionalen Globalzugriff und `pcall` laufen; fehlende, fehlerhafte, ungueltige oder geheime Step-/Criteria-Daten bleiben unresolved und duerfen den letzten verifizierten Killtracker-Snapshot weder loeschen noch durch synthetische Nullwerte ersetzen. Das gilt ausdruecklich auch, wenn `quantityString` und `quantity` gleichzeitig unlesbar sind: dann bleibt die zuletzt verifizierte Rohmenge stehen. Die verzoegerte Nachanzeige nach Kampfende darf ausschliesslich das Zeitfenster beenden, fuer das sie selbst geplant wurde; ein erneuter Pull innerhalb des Fensters uebernimmt die Anzeige, und der aeltere Callback muss wirkungslos bleiben.
+- Zusammenfassung: Der M+-Killtracker muss nach `PLAYER_REGEN_ENABLED` die Live-Scenario-Daten erneut lesen, den sichtbaren Gesamtfortschritt sofort aktualisieren und die aktualisierte Rohmenge als Basis fuer den naechsten Pull verwenden. Solange der Key aktiv ist, muss auch der Killtracker-Refresh-Ticker Live-Scenario-Daten neu lesen, bevor er die UI benachrichtigt. Zugriffe auf `C_ScenarioInfo` muessen ueber den geschuetzten optionalen Globalzugriff und `pcall` laufen; fehlende, fehlerhafte, ungueltige oder geheime Step-/Criteria-Daten bleiben unresolved und duerfen den letzten verifizierten Killtracker-Snapshot weder loeschen noch durch synthetische Nullwerte ersetzen. Das gilt ausdruecklich auch, wenn `quantityString` und `quantity` gleichzeitig unlesbar sind: dann bleibt der vollstaendige vorherige Snapshot stehen, einschliesslich des bereits gelesenen Gesamtwerts: Rohmenge, Gesamtwert und Prozentwert werden nur gemeinsam fortgeschrieben, damit kein in sich widerspruechlicher Zwischenstand entsteht. Die verzoegerte Nachanzeige nach Kampfende darf ausschliesslich das Zeitfenster beenden, fuer das sie selbst geplant wurde; ein erneuter Pull innerhalb des Fensters uebernimmt die Anzeige, und der aeltere Callback muss wirkungslos bleiben.
 - Erforderliche Tests:
   - PLAYER_REGEN_ENABLED refreshes live forces before the next pull starts
   - refresh ticker callback reads live forces and notifies subscribers while state is active
   - KillTrack preserves verified live forces when scenario step reads fail
   - KillTrack preserves verified live forces when scenario criteria are unreadable
   - KillTrack keeps the verified count when both quantity sources are secret
+  - KillTrack keeps the whole snapshot when a masked update carries a new total
   - KillTrack keeps the new pull visible when the previous grace callback fires
   - Architecture combat utility refresh keeps hidden Mythic+ pre-render without visible full render
 
@@ -1794,3 +1796,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - secure travel button closes the game menu after its action fired
   - secure panel button leaves the game menu alone in combat
+
+### RULE-DB-SCHEMAVERSION-VALIDIERUNG
+- Regelnummer: 112
+- Status: aktiv
+- Zusammenfassung: Die in `IsiLiveDB.__schemaVersion` gespeicherte Version ist unvertrauenswuerdige Eingabe und muss vor jeder Migration validiert werden. Nur eine ganze Zahl groesser oder gleich null darf als Ausgangsversion uebernommen werden; fehlende, negative, gebrochene, nicht numerische und sonstige unbrauchbare Werte gelten als unversioniert, werden auf null zurueckgesetzt und als Korrektur protokolliert. Insbesondere darf kein gespeicherter Wert die Migrationsschleife ueber die Anzahl bekannter Schemaversionen hinaus verlaengern. Eine Version oberhalb der aktuell bekannten stammt aus einem neueren Client und bleibt unveraendert: sie loest keine Migration aus und wird nicht heruntergestuft.
+- Erforderliche Tests:
+  - DBSchema.Sanitize resets an unusable stored schema version instead of looping
+  - DBSchema.Sanitize leaves a newer stored schema version alone

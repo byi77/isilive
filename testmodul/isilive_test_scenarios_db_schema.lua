@@ -62,6 +62,32 @@ return function(test, ctx)
     Assert.Nil(db.inviteHintEnabled, "removed pre-accept invite hint must not create a DB default")
   end)
 
+  test("DBSchema.Sanitize resets an unusable stored schema version instead of looping", function()
+    -- A persisted -1000000000 made the migration loop count up from there:
+    -- around a billion iterations before the UI appeared. This test finishing
+    -- at all is the assertion that matters; the values confirm the reset.
+    local DBSchema = LoadSchema()
+    for _, broken in ipairs({ -1000000000, -1, 1.5, "not a version", {} }) do
+      local db = { __schemaVersion = broken }
+      local corrections = DBSchema.Sanitize(db)
+      Assert.Equal(
+        db.__schemaVersion,
+        DBSchema.GetSchemaVersion(),
+        "an unusable stored version must end up stamped with the current schema version"
+      )
+      Assert.True(corrections > 0, "resetting an unusable stored version must be logged as a correction")
+    end
+  end)
+
+  test("DBSchema.Sanitize leaves a newer stored schema version alone", function()
+    local DBSchema = LoadSchema()
+    local future = DBSchema.GetSchemaVersion() + 5
+    local db = { __schemaVersion = future }
+    local _, migrations = DBSchema.Sanitize(db)
+    Assert.Equal(migrations, 0, "a database written by a newer client must not be migrated backwards")
+    Assert.Equal(db.__schemaVersion, future, "the newer version stamp must survive untouched")
+  end)
+
   test("DBSchema.Sanitize stamps __schemaVersion on first run", function()
     local DBSchema = LoadSchema()
     local db = {}

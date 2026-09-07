@@ -486,8 +486,31 @@ local function ValidateField(parent, key, schema, log, path)
   end
 end
 
+-- SavedVariables are attacker-adjacent in the sense that matters here: any
+-- addon, any manual edit, any half-written file can leave a value of the wrong
+-- shape behind. `tonumber` alone accepts negatives, fractions and infinities,
+-- and the migration loop below counts up from whatever it gets -- a persisted
+-- -1000000000 turns the next login into a billion iterations before the UI
+-- appears. Anything that is not a whole number inside the known version range
+-- is treated as "unversioned" and migrated from scratch, which is the correct
+-- reading of a corrupted stamp anyway.
+--
+-- Values above the latest known version stay untouched on purpose: that is a
+-- database written by a newer client, and the caller's own early return leaves
+-- it alone rather than migrating it backwards.
+local function ResolveStoredSchemaVersion(db, log)
+  local raw = tonumber(db.__schemaVersion)
+  if raw and raw == math.floor(raw) and raw >= 0 then
+    return raw
+  end
+  if db.__schemaVersion ~= nil then
+    log(string.format("reset unusable __schemaVersion %s to 0", tostring(db.__schemaVersion)))
+  end
+  return 0
+end
+
 local function ApplyMigrations(db, log)
-  local from = tonumber(db.__schemaVersion) or 0
+  local from = ResolveStoredSchemaVersion(db, log)
   if from >= LATEST_SCHEMA_VERSION then
     return 0
   end
