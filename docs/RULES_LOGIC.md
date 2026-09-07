@@ -122,7 +122,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 99. Midnight S2 darf beim exakten Blizzard-S2-Mapset automatisch oder ueber den manuellen Fallback ohne passende MDT-Forces-DB aktiviert werden; Blizzard-Gesamtfortschritt bleibt sichtbar, waehrend alle MDT-abhaengigen Mob-Anzeigen und DB-Fallbacks bis zu einem exakten Season-Match mit noch gueltigem Ablaufdatum geschlossen bleiben.
 100. Live bestaetigte Dungeonportal-Freischaltungen werden accountweit persistiert; nur explizit als neue Midnight-Dungeons gepflegte Portale duerfen fuer Charaktere unter Stufe 90 einen Stufenhinweis anzeigen, waehrend alte Dungeons keine Stufe-90-Sperre erben.
 101. Saisonbezogene Runtime-Aufloesungen fuer Portale, LFG-Activities, Anzeigeinformationen und Portalraum-Belegung werden ausschliesslich aus dem normalisierten Saisonmanifest erzeugt und bleiben bei fehlenden Daten unresolved.
-102. Erfolgreiche Blizzard-API-Aufrufe mit als geheim markierten Rueckgabewerten gelten als unverifiziert und muessen geschlossen bleiben.
+102. Erfolgreiche Blizzard-API-Aufrufe mit als geheim markierten Rueckgabewerten gelten als unverifiziert und muessen geschlossen bleiben; einzige Ausnahme ist die reine Durchreichung an einen Blizzard-Renderer ohne jede Lua-seitige Auswertung.
 103. Sync-Sendecooldowns und Payload-Deduplizierung duerfen erst nach einem erfolgreichen Dispatch fortgeschrieben werden.
 104. Die Main-UI nutzt das gemeinsame kuehle isiLive-Designsystem: Readycheck und Countdown sind primaere Aktionen, Share Keys, Refresh und Countdown-Abbruch sekundaere Aktionen; Titel-Chrome und Toolbar-Buttons bleiben blau/slate, und alle addon-eigenen Fenster verwenden dasselbe moderne `×`-Schliessen-Control.
 105. Portalreihe, BR-/BL-Zeile, M+-Timer und Killtracker bilden ueber gemeinsame semantische Flaechen eine M+-Run-Zone; Center-Notice und Portal-Navigator verwenden dieselbe moderne Notice-Card-Sprache und zeigen nur verifiziert gelieferte Navigator-Zusatztexte.
@@ -1631,7 +1631,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-BLIZZARD-SECRET-VALUES-FAIL-CLOSED
 - Regelnummer: 102
 - Status: aktiv
-- Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar.
+- Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar. Einzige Ausnahme ist die reine Durchreichung an einen Blizzard-Renderer: Ein als geheim markierter Wert darf unveraendert an eine FontString-Ausgabe uebergeben werden, wenn er auf dem gesamten Weg dorthin nicht verglichen, umgeformt, in Runtime-State gespeichert, gesynct oder zur Grundlage einer Entscheidung gemacht wird, und wenn das Verwerfen die betroffene Anzeige ersatzlos leeren wuerde. Die Ausnahme deckt ausschliesslich die Darstellung selbst; jede daraus abgeleitete Aussage bleibt unverifiziert und muss geschlossen bleiben. Sie ist an der Aufrufstelle zu kommentieren und durch einen deterministischen Test zu pinnen, der die Durchreichung fordert.
 - Erforderliche Tests:
   - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
   - Validators.IsExistingUnit rejects secret existence values
@@ -1654,6 +1654,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Status rejects secret instance metadata
   - KeySync location snapshot rejects secret instance metadata
   - SeasonDebug dump hides secret instance metadata
+  - MobNameplate renders Secret-Valued percentString through to the FontString
+  - MobNameplate falls back to API path when UnitGUID is a Secret Value
 
 ### RULE-SYNC-SENDESTATUS-TRANSAKTIONAL
 - Regelnummer: 103

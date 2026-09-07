@@ -609,6 +609,12 @@ local function UpdateNameplate(unit)
     -- FontString renderer can still display the masked text — only Lua-side
     -- inspection is blocked. Filtering Secret Values out at this point would
     -- leave the nameplate empty in M+ keys.
+    --
+    -- This is the render-only exception in RULES_LOGIC rule 102, and it ends at
+    -- the FontString: the value is never compared, reformatted, stored in
+    -- runtime state, synced, or used to decide anything. BuildText only
+    -- concatenates it, and the remaining-percent half it is combined with comes
+    -- from a separately guarded path.
     percentString = ResolveMobContributionFromDB(unit, activeMapID)
     if not percentString and HasProgressAPI() then
       local api = rawget(_G, "C_ScenarioInfo")
