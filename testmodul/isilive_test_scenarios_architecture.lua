@@ -709,6 +709,27 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture release workflow verifies the tag version against the packaged TOC", function()
+    -- The zip name, the GitHub release title and the CurseForge display name
+    -- are all derived from the tag, while the addon the players install
+    -- announces the TOC version. Without this check a mistyped tag ships one
+    -- version labelled as another and nothing downstream notices.
+    local workflow = ReadFile(".github/workflows/release.yml")
+
+    AssertContains(
+      Assert,
+      workflow,
+      "Verify tag version matches the packaged TOC",
+      "release workflow must compare the release tag against the TOC it packages"
+    )
+    AssertContains(
+      Assert,
+      workflow,
+      '"${TOC_VERSION}" != "${RELEASE_VERSION}"',
+      "release workflow must fail on a tag/TOC version mismatch"
+    )
+  end)
+
   test("Architecture release changelog highlights carry a current review marker", function()
     -- The stub is the release note CurseForge shows. Between 0.9.373 and
     -- 0.9.385 every release commit moved its version line and nothing else, so

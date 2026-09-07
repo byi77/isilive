@@ -47,6 +47,25 @@ jobs:
           echo "RELEASE_TAG=${TAG}" >> "${GITHUB_ENV}"
           echo "RELEASE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+      - name: Verify tag version matches the packaged TOC
+        run: |
+          set -euo pipefail
+          # Everything user-visible about this release -- the zip name, the
+          # GitHub release title, the CurseForge display name -- is derived from
+          # the tag, while the addon the players install announces the TOC
+          # version. A mistyped tag would ship 0.9.386 labelled as 9.9.9, and
+          # nothing downstream would notice.
+          TOC_VERSION="$(awk -F': *' '/^## Version:/ { print $2; exit }' isiLive.toc | tr -d '\r')"
+          if [ -z "${TOC_VERSION}" ]; then
+            echo "isiLive.toc at ${RELEASE_TAG} declares no ## Version."
+            exit 1
+          fi
+          if [ "${TOC_VERSION}" != "${RELEASE_VERSION}" ]; then
+            echo "Tag ${RELEASE_TAG} names version ${RELEASE_VERSION}, but isiLive.toc at that tag is ${TOC_VERSION}."
+            echo "Retag the release commit instead of publishing a mislabelled package."
+            exit 1
+          fi
+          echo "Tag version ${RELEASE_VERSION} matches isiLive.toc."
       - name: Prepare GitHub/WowUp asset
         run: |
           set -euo pipefail
