@@ -201,6 +201,70 @@ return function(test, ctx)
     end)
   end)
 
+  test("factory split coverage: Power Infusion dedupe handles unknown casters, reordering, and realms", function()
+    -- Three cases one stored key could not carry:
+    --   * the local scan cannot name the caster (12.1 masks the aura source),
+    --     while the sync payload can -- still one cast, one announce
+    --   * A -> B -> A within the window: the repeat of A must not slip through
+    --     because B overwrote the slot
+    --   * two priests sharing a base name on different realms are two casts
+    local prints = {}
+    local now = 500
+
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.CombatEvents = { SetDependencies = function() end }
+
+    local factoryCtx = {
+      GetL = function()
+        return { COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI" }
+      end,
+      Print = function(line)
+        prints[#prints + 1] = line
+      end,
+      modules = {},
+    }
+
+    WithGlobals({
+      IsiLiveDB = {},
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+
+      -- Caster unresolved locally, then named by the peer payload.
+      factoryCtx.ShowPowerInfusionAnnounce(nil, "Me-Realm", true)
+      Assert.Equal(#prints, 1, "the unnamed local announce must render")
+      now = now + 0.2
+      factoryCtx.ShowPowerInfusionAnnounce({
+        caster = "Priest-RealmA",
+        recipient = "Me-Realm",
+        spellID = 10060,
+        isLocalRecipient = true,
+      })
+      Assert.Equal(#prints, 1, "the peer payload for the same cast must not announce a second time")
+
+      -- A -> B -> A inside the window.
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce("Alpha-RealmA", "Tank-RealmA", false)
+      Assert.Equal(#prints, 2, "a different caster and target must announce")
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce("Beta-RealmA", "Tank-RealmA", false)
+      Assert.Equal(#prints, 3, "a second priest on the same target must announce")
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce("Alpha-RealmA", "Tank-RealmA", false)
+      Assert.Equal(#prints, 3, "the repeat of the first caster must still be recognised as a duplicate")
+
+      -- Same base name, different realms: two players, two casts.
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce("Twin-RealmA", "Healer-RealmA", false)
+      Assert.Equal(#prints, 4, "the first Twin must announce")
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce("Twin-RealmB", "Healer-RealmA", false)
+      Assert.Equal(#prints, 5, "a same-named priest from another realm is a separate cast")
+    end)
+  end)
+
   test("factory split coverage: Power Infusion announce falls open without a usable clock", function()
     -- No GetTime in the environment: a missed call is worse than a repeated
     -- one, so the latch must not swallow anything it cannot time.

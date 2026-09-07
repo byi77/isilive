@@ -48,24 +48,49 @@ end
 -- priest cannot land inside it.
 local POWER_INFUSION_ANNOUNCE_DEDUPE_SECONDS = 25
 
--- The two paths disagree about name format: the local scan resolves the caster
--- from a unit token (often bare "Name"), the sync payload carries whatever the
--- priest's client produced (often "Name-Realm"). Comparing them raw would miss
--- every cross-realm duplicate, which is precisely where groups mix realms. The
--- realm segment is therefore dropped for the key only -- the rendered text
--- still uses the name as received. Two priests whose base names match exactly,
--- in one group, within 25 seconds, would collapse into one announce; that is
--- rarer than the format mismatch this avoids.
-local function BuildPowerInfusionAnnounceKey(casterName, recipientName)
-  local function KeyPart(name)
-    if type(name) ~= "string" or name == "" then
-      return ""
-    end
-    local dash = string.find(name, "-", 1, true)
-    local base = dash and string.sub(name, 1, dash - 1) or name
-    return string.lower(base)
+-- One stored key is not enough state for this: two priests infusing different
+-- targets in the same window would evict each other, and an A -> B -> A
+-- sequence would let the repeat of A through. Keep every announce still inside
+-- the window instead. The list cannot grow meaningfully -- it is pruned by the
+-- window on every call and hard-capped below.
+local POWER_INFUSION_ANNOUNCE_HISTORY_LIMIT = 8
+
+-- Name matching has to tolerate three different levels of knowledge about the
+-- same player:
+--   * the local aura scan resolves a unit token, often to a bare "Name"
+--   * the sync payload carries the priest's own "Name-Realm"
+--   * either side may fail to resolve the caster at all -- 12.1 masks the aura
+--     source unit inside instances, which is exactly where this runs
+-- So: two names with a realm each are compared in full, which keeps same-named
+-- priests from different realms apart. If only one carries a realm, the base
+-- names decide. An unresolved name matches anything, because a duplicate we
+-- cannot name is still a duplicate -- and a silent double announce is what
+-- this whole latch exists to prevent.
+local function SplitAnnounceName(name)
+  if type(name) ~= "string" or name == "" then
+    return nil, nil
   end
-  return KeyPart(casterName) .. ">" .. KeyPart(recipientName)
+  local lowered = string.lower(name)
+  local dash = string.find(lowered, "-", 1, true)
+  if not dash then
+    return lowered, nil
+  end
+  return string.sub(lowered, 1, dash - 1), string.sub(lowered, dash + 1)
+end
+
+local function AnnounceNamesMatch(left, right)
+  local leftBase, leftRealm = SplitAnnounceName(left)
+  local rightBase, rightRealm = SplitAnnounceName(right)
+  if not leftBase or not rightBase then
+    return true
+  end
+  if leftBase ~= rightBase then
+    return false
+  end
+  if leftRealm and rightRealm then
+    return leftRealm == rightRealm
+  end
+  return true
 end
 
 local function ReadAnnounceTime()
@@ -122,8 +147,7 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
 
   -- Latch state for the cross-path duplicate above. Per context, so a demo or
   -- a test that builds a fresh context starts clean.
-  local lastPowerInfusionAnnounceKey = nil
-  local lastPowerInfusionAnnounceAt = nil
+  local recentPowerInfusionAnnounces = {}
 
   -- Fails open: without a usable clock the announce goes out. A missed Power
   -- Infusion call is worse than a repeated one.
@@ -132,17 +156,30 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
     if not now then
       return false
     end
-    local key = BuildPowerInfusionAnnounceKey(casterName, recipientName)
-    if
-      lastPowerInfusionAnnounceKey == key
-      and lastPowerInfusionAnnounceAt
-      and now - lastPowerInfusionAnnounceAt < POWER_INFUSION_ANNOUNCE_DEDUPE_SECONDS
-    then
-      return true
+
+    local kept = {}
+    local duplicate = false
+    for _, entry in ipairs(recentPowerInfusionAnnounces) do
+      if now - entry.at < POWER_INFUSION_ANNOUNCE_DEDUPE_SECONDS then
+        kept[#kept + 1] = entry
+        if
+          not duplicate
+          and AnnounceNamesMatch(entry.recipient, recipientName)
+          and AnnounceNamesMatch(entry.caster, casterName)
+        then
+          duplicate = true
+        end
+      end
     end
-    lastPowerInfusionAnnounceKey = key
-    lastPowerInfusionAnnounceAt = now
-    return false
+
+    if not duplicate then
+      kept[#kept + 1] = { caster = casterName, recipient = recipientName, at = now }
+      while #kept > POWER_INFUSION_ANNOUNCE_HISTORY_LIMIT do
+        table.remove(kept, 1)
+      end
+    end
+    recentPowerInfusionAnnounces = kept
+    return duplicate
   end
 
   ctx.ShowPowerInfusionAnnounce = function(infoOrCasterName, recipientName, isLocalRecipient, bypassDedupe)
