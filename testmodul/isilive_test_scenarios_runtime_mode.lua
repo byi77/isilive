@@ -261,6 +261,36 @@ return function(test, ctx)
     end)
   end)
 
+  test("Raid suppression survives a raid-party-raid cycle inside one frame", function()
+    local pendingCallbacks = {}
+    WithGlobals({
+      C_Timer = {
+        After = function(_seconds, callback)
+          table.insert(pendingCallbacks, callback)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
+      local frame = NewEventFrameStub()
+      addon.Bootstrap.RegisterDispatcherEvents(frame)
+      addon.Bootstrap.ApplyRaidEventSuppression(true)
+
+      -- GROUP_ROSTER_UPDATE fires in bursts, so both transitions can land
+      -- before the deferred restore gets its tick.
+      addon.Bootstrap.ApplyRaidEventSuppression(false)
+      addon.Bootstrap.ApplyRaidEventSuppression(true)
+      Assert.True(addon.Bootstrap.IsRaidEventSuppressionActive(), "the second raid must leave the hard-off active")
+
+      Assert.Equal(#pendingCallbacks, 1, "only the lift may have scheduled a deferred restore")
+      pendingCallbacks[1]()
+
+      Assert.Nil(frame.registered.UNIT_HEALTH, "a stale deferred restore must not re-register UNIT_HEALTH in a raid")
+      Assert.Nil(frame.registered.UNIT_AURA, "a stale deferred restore must not re-register UNIT_AURA in a raid")
+      Assert.Nil(frame.registered.CHAT_MSG_ADDON, "a stale deferred restore must not restore addon sync in a raid")
+      Assert.True(addon.Bootstrap.IsRaidEventSuppressionActive(), "the reported state must still match the wiring")
+    end)
+  end)
+
   test("Raid suppression is idempotent", function()
     WithGlobals({}, function()
       local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })

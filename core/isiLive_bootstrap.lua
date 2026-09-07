@@ -291,6 +291,14 @@ function Bootstrap.ApplyRaidEventSuppression(suppressed)
   end
 
   local function RestoreDispatcherEvents()
+    -- The state was already lifted synchronously above, so a raid entered
+    -- between the schedule and this tick (raid -> party -> raid inside one
+    -- GROUP_ROSTER_UPDATE burst) has re-applied the hard-off in the meantime.
+    -- Restoring here would re-register UNIT_HEALTH and UNIT_AURA behind the
+    -- active suppression, which is exactly the traffic it exists to remove.
+    if dispatcherEventsSuppressed then
+      return
+    end
     for _, entry in ipairs(EVENT_REGISTRY) do
       if not RAID_WAKE_EVENTS[entry[1]] then
         pcall(RegisterDispatcherEntry, eventFrame, entry)
