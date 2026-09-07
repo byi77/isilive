@@ -713,6 +713,41 @@ local function RegisterKillTrackBranchTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("KillTrack keeps the whole snapshot when a masked update carries a new total", function()
+    -- Committing the readable total before knowing the count leaves a state
+    -- that contradicts itself: rawCount and percent from the old total, total
+    -- from the new one. The snapshot has to move as one piece or not at all.
+    local masked = false
+    local secret = "__ISILIVE_TEST_SECRET_QTY__"
+    local env = BuildKillTrackEnv()
+    env.globals.issecretvalue = function(value)
+      return value == secret
+    end
+    env.globals.C_ScenarioInfo = {
+      GetScenarioStepInfo = function()
+        return { numCriteria = 1 }
+      end,
+      GetCriteriaInfo = function()
+        if masked then
+          return { isWeightedProgress = true, totalQuantity = 200, quantityString = secret, quantity = secret }
+        end
+        return { isWeightedProgress = true, totalQuantity = 100, quantityString = "40", quantity = 40 }
+      end,
+    }
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+      masked = true
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+
+      local data = addon.KillTrack.GetData()
+      Assert.Equal(data.total, 100, "the new total must not be committed without a readable count")
+      Assert.Equal(data.rawCount, 40, "the verified raw count must survive")
+      Assert.Equal(data.percent, 40, "percent must stay consistent with the retained rawCount and total")
+    end)
+  end)
+
   test("KillTrack keeps the new pull visible when the previous grace callback fires", function()
     -- Combat ends, a short re-pull starts and ends inside the two-second grace
     -- window, and only then does the first pull's delayed clear run. It must

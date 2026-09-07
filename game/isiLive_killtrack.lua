@@ -180,7 +180,10 @@ local function ReadLiveData()
     state.total = 0
     return
   end
-  state.total = total
+  -- `total` is deliberately not written to state yet: the snapshot has to move
+  -- as one piece. Committing the new total before the count is known can leave
+  -- a state whose three fields contradict each other -- rawCount 40 against
+  -- total 200 while percent still reads 40 -- which no consumer can detect.
 
   -- Drift-detection: if both totals exist and disagree, surface once via the
   -- runtime-log sink. Suppresses repeat-spam by remembering the last key we
@@ -213,10 +216,11 @@ local function ReadLiveData()
   if rawCount == nil then
     -- Neither source is readable: both were masked, or the string carried no
     -- digits. Zeroing here would replace a verified 40% with a synthetic 0%
-    -- and, worse, look exactly like real progress. The last verified count
-    -- stays until a readable update arrives.
+    -- and, worse, look exactly like real progress. The complete previous
+    -- snapshot -- total included -- stays until a readable update arrives.
     return
   end
+  state.total = total
   state.rawCount = rawCount
   state.percent = (rawCount / total) * 100
 end
