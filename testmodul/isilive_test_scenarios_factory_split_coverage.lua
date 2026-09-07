@@ -123,6 +123,110 @@ return function(test, ctx)
     Assert.Equal(sent.pi.spellID, 10060, "PI broadcast must carry the PI spell id")
   end)
 
+  test("factory split coverage: Power Infusion announces once across the local and sync paths", function()
+    -- The recipient sees the same cast twice: their own aura scan resolves the
+    -- caster from a unit token ("Priest"), and the priest's sync payload
+    -- carries the full "Priest-Realm". Both must collapse into one announce.
+    local prints = {}
+    local piSounds = 0
+    local piAlerts = 0
+    local piDeps
+    local now = 100
+
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.SoundUtils = {
+      PlayPowerInfusionReceived = function()
+        piSounds = piSounds + 1
+      end,
+    }
+    addon.CombatEvents = {
+      SetDependencies = function() end,
+    }
+    addon.PiTracker = {
+      SetDependencies = function(value)
+        piDeps = value
+      end,
+    }
+    addon.DeathAlert = {
+      ShowPowerInfusion = function()
+        piAlerts = piAlerts + 1
+      end,
+    }
+
+    local factoryCtx = {
+      GetL = function()
+        return { COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI" }
+      end,
+      Print = function(line)
+        prints[#prints + 1] = line
+      end,
+      modules = {},
+    }
+
+    WithGlobals({
+      IsiLiveDB = {},
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+      Assert.Equal(type(piDeps), "table", "PI tracker dependencies must be registered")
+
+      piDeps.announcePowerInfusion("Priest", "Me-Realm", true, false)
+      Assert.Equal(#prints, 1, "the local aura path must render the announce")
+
+      now = now + 0.2
+      factoryCtx.ShowPowerInfusionAnnounce({
+        caster = "Priest-Realm",
+        recipient = "Me-Realm",
+        spellID = 10060,
+        isLocalRecipient = true,
+      })
+      Assert.Equal(#prints, 1, "the sync arrival for the same cast must not render a second line")
+      Assert.Equal(piSounds, 1, "the sync arrival for the same cast must not replay the sound")
+      Assert.Equal(piAlerts, 1, "the sync arrival for the same cast must not replay the center alert")
+
+      now = now + 60
+      factoryCtx.ShowPowerInfusionAnnounce({
+        caster = "Priest-Realm",
+        recipient = "Me-Realm",
+        spellID = 10060,
+        isLocalRecipient = true,
+      })
+      Assert.Equal(#prints, 2, "a later cast on the same target must render again")
+
+      now = now + 0.1
+      factoryCtx.ShowPowerInfusionAnnounce("Priest-Realm", "Me-Realm", true, true)
+      Assert.Equal(#prints, 3, "an explicit bypass (demo preview) must render even inside the window")
+    end)
+  end)
+
+  test("factory split coverage: Power Infusion announce falls open without a usable clock", function()
+    -- No GetTime in the environment: a missed call is worse than a repeated
+    -- one, so the latch must not swallow anything it cannot time.
+    local prints = {}
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.CombatEvents = { SetDependencies = function() end }
+
+    local factoryCtx = {
+      GetL = function()
+        return { COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI" }
+      end,
+      Print = function(line)
+        prints[#prints + 1] = line
+      end,
+      modules = {},
+    }
+
+    WithGlobals({ IsiLiveDB = {}, GetTime = nil }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+      factoryCtx.ShowPowerInfusionAnnounce("Priest-Realm", "Me-Realm", true)
+      factoryCtx.ShowPowerInfusionAnnounce("Priest-Realm", "Me-Realm", true)
+    end)
+
+    Assert.Equal(#prints, 2, "without a clock the announce must render rather than be swallowed")
+  end)
+
   test("factory split coverage: combat announce in-key gate uses running M+ timer when map API is masked", function()
     local deps
     local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })

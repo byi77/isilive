@@ -219,7 +219,9 @@ local function ApplyDemoAlertAndSoundPreview(ctx, _L)
   end
 
   if type(ctx.ShowPowerInfusionAnnounce) == "function" then
-    ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true)
+    -- Demo previews bypass the duplicate latch: the same fixed caster/recipient
+    -- pair is replayed on demand and must render every time.
+    ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true, true)
   end
 
   local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
@@ -933,7 +935,8 @@ local function BuildSimulationTabletActions(ctx)
       description = "Shows the local Power Infusion chat and center-alert preview.",
       run = function()
         if type(ctx.ShowPowerInfusionAnnounce) == "function" then
-          ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true)
+          -- Replayable preview: bypass the duplicate latch, see above.
+          ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true, true)
         end
         return done("SIM_ACTION_E3_DONE")
       end,
