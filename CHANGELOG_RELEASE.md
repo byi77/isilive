@@ -3,36 +3,34 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.386`.
+Current version: `0.9.387`.
 
-<!-- highlights-reviewed-for: 0.9.386 -->
+<!-- highlights-reviewed-for: 0.9.387 -->
 
 Highlights:
+- **Power Infusion is announced exactly once when you receive it.** Your own
+  client sees the buff and the casting priest's addon message arrives moments
+  later; only the local paths knew about each other, so the chat line, the
+  sound and the center alert all came twice. Recognising both reports as one
+  cast is the hard part, because 12.1 hides the caster from your client inside
+  instances and the two sides spell names differently. Priests from different
+  realms stay apart, the same cast under two different names is recognised,
+  and when it genuinely cannot tell, it announces rather than staying silent.
+- **The per-run RIO delta only appears when the data behind it arrived.** It
+  was also shown after every refresh attempt had failed, and after you left the
+  group before the refresh ran -- computed against the pre-run values, and
+  indistinguishable from a real number.
+- **The enemy-forces tracker keeps what it has confirmed.** WoW 12.1 can mask
+  the kill count inside a key, and a confirmed 40% then became a synthetic 0%.
+  The last verified reading now stands until a readable one arrives, and the
+  count, total and percentage always move together. A quick second pull also
+  keeps its own numbers instead of being cleared by the previous pull's timer.
 - **Reloading inside a Mythic+ key no longer loses the ESC-menu shortcuts.**
-  They stayed gone until the next client restart. Secure buttons may not be
-  rebuilt during combat, and, as it turns out, not while a key is running
-  either -- so a reload in a dungeon always rebuilt the panel in a blocked
-  state. The refresh was queued for later and then thrown away before it could
-  ever be applied. The queue now survives what could not be applied, and the
-  shortcuts come back on their own as soon as neither combat nor a key blocks
-  them -- at the latest when the ESC menu is next opened.
-- **Power Infusion is announced again when you receive it.** WoW 12.1 masks the
-  aura fields the tracker read, and it masks them exactly where Power Infusion
-  matters: inside restricted instances. A second, independent path now asks
-  Blizzard directly whether you carry the buff. When the caster is readable the
-  name still appears; when it is not, the message goes out without one rather
-  than inventing it. Both paths share a latch, so it never arrives twice.
-- **The ESC panel closes the game menu once a travel or mount shortcut fires.**
-  There is no ESC press left that could cancel the hearthstone or mount cast.
-  During combat lockdown the menu stays open, because hiding it is not allowed
-  there.
+  They stayed gone until the next client restart, because a reload in a
+  dungeon always rebuilt that panel in a blocked state and the queued refresh
+  was thrown away before it could be applied. It now survives until it can run.
 - **Season 2 is the active season, and mob percentages are back in Mythic+.**
   They had disappeared for everyone on S2 keys: the season carried no enemy
   forces data at all, so every S2 dungeon was left without values. The bundled
   database now covers all 8 S2 dungeons with 145 mobs. Season 1 stays fully
   usable as the manual fallback -- everything except mob percentages.
-- **The Mythic+ display got a round of polish.** The portal navigator no longer
-  clips its outer slots, the enemy-forces nameplate sits directly on the plate
-  without a surface of its own, and its refreshes are coalesced into one pass
-  per 0.25 s instead of one per scrap of key progress -- a sweep that became
-  markedly more expensive in 12.1.

@@ -1,5 +1,59 @@
 # Changelog
 
+## 2026-09-07 - Version 0.9.387 (patch)
+
+Closes seven findings from two audit rounds: Power Infusion announced twice or
+not at all, a RIO delta shown without data behind it, a killtracker that
+invented zeros and cut its own display short, a corrupted database stamp that
+could freeze the login, and a release tag nobody checked against the package.
+
+- **Power Infusion is announced exactly once, and never suppressed for the
+  wrong reason.** The recipient learns about the same cast twice -- their own
+  aura scan sees the buff, the casting priest's addon message follows a few
+  frames later -- and only the local paths shared a latch, so the sync arrival
+  repeated the line, the sound and the center alert. The latch now sits where
+  every path meets. Matching names across those paths is the hard part: the
+  local scan resolves a unit token to a bare name, the payload carries the
+  priest's full name-realm, and 12.1 masks the aura source inside instances, so
+  the caster is often not resolvable locally at all. Two names carrying a realm
+  are compared in full, which keeps same-named priests from different realms
+  apart; if only one has a realm, the base names decide; an unresolved name
+  matches anything -- but only until the payload names it, after which that
+  announce is pinned to the priest it belongs to, so a second priest's
+  infusion is no longer swallowed. Without a usable clock nothing is
+  deduplicated: a missed call is worse than a repeated one.
+- **The per-run RIO delta only appears when the data behind it actually
+  arrived.** The delayed post-run refresh retries when it is blocked, but both
+  exits ignored the outcome: an exhausted retry chain enabled the display
+  anyway, and leaving the group before the callback landed enabled it without
+  any refresh at all. In both cases the delta was computed against the pre-run
+  snapshot -- a number that looks exactly like a real one.
+- **The killtracker no longer replaces verified progress with zeros.** WoW 12.1
+  can mask the enemy-forces count and its string form at the same time, inside
+  keys, which is the only place this runs. The reader started at zero and fell
+  through both guards, so a confirmed 40% became a synthetic 0%. The last
+  verified reading now stands until a readable update arrives, and the count,
+  the total and the percentage are only ever written together -- a half-applied
+  update left the three contradicting each other, which nothing downstream
+  could have noticed.
+- **A short re-pull keeps its own numbers.** The two-second post-combat display
+  is ended by a delayed callback that only asked whether combat was running. A
+  new pull starting and ending inside that window inherited the old callback,
+  which then wiped the new pull's percentage off the row mid-display. Each
+  scheduled clear now only ends the window it was scheduled for.
+- **A corrupted saved schema stamp can no longer freeze the login.** The
+  migration loop counted up from whatever was stored, so a persisted
+  `-1000000000` meant roughly a billion iterations before the UI appeared. Only
+  a whole number of at least zero is accepted now; anything else is read as
+  unversioned and reset. A stamp from a newer client is still left alone rather
+  than migrated backwards.
+- **A release tag that disagrees with the packaged version is refused.** The
+  trigger validator checked only the tag prefix, so `isiLive_release_9.9.9` on
+  a 0.9.386 tree would have passed -- and the zip name, the release title and
+  the CurseForge display name all come from the tag, while the addon itself
+  announces the TOC version. The release job now compares the two before
+  anything is built.
+
 ## 2026-09-07 - Version 0.9.386 (patch)
 
 Closes a raid-transition hole in the hard-off and makes the manual pre-release
