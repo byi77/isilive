@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.387`
-Zuletzt aktualisiert: `2026-09-07`
+Versionsbasis: `0.9.388`
+Zuletzt aktualisiert: `2026-09-08`
 
 ## Akteure
 
@@ -422,13 +422,15 @@ Ziel: Optionale VIP-Schalter bieten lokale Unholy-Death-Knight-Hilfen fuer Seele
 
 1. Trigger: `UNIT_SPELLCAST_SUCCEEDED` meldet fuer den lokalen Spieler die Spell-ID `1233448` fuer Dark Transformation.
 2. Voraussetzung: Mindestens einer der Schalter `vipDkSoulReaperWarningEnabled`, `vipDkPutrefyWarningEnabled`, `vipDkApocalypseHorseSoundMuted` oder `vipDkGhoulReminderEnabled` ist aktiv. Warnungen und Ghoul-Reminder wirken nur, wenn der lokale Spieler verifiziert Death Knight und die aktuelle Spezialisierung verifiziert Unholy ist.
-3. Verarbeitung: Nach dem eigenen Dark-Transformation-Cast startet ein 30-Sekunden-Timer. Danach wird fuer 15 Sekunden eine rote Warnung auf den aktuell eindeutig gefundenen Actionbar-Buttons der aktivierten Optionen angezeigt.
+3. Verarbeitung: Nach dem eigenen Dark-Transformation-Cast wird die verifizierte Restcooldownzeit von `1233448` gelesen und daraus ein Timer so gesetzt, dass die anschliessende 15-Sekunden-Warnung genau die letzten 15 Sekunden vor der Wiederverfuegbarkeit abdeckt. Fehlende, maskierte oder unplausible Restzeiten ausserhalb von 5 bis 300 Sekunden fallen auf die feste Verzoegerung von 30 Sekunden zurueck. Danach wird fuer 15 Sekunden eine rote Warnung auf den aktuell eindeutig gefundenen Actionbar-Buttons der aktivierten Optionen angezeigt; entsteht dabei kein einziges Overlay, meldet sich die Warnung nicht als aktiv.
+   - Simulator: Das Demo-Simulations-Tablet bietet die Warnung als Aktion `E5` in der Kategorie `alerts` an. Die Vorschau ueberspringt nur die Cooldown-Wartezeit; Klassen-/Spec-Pruefung, VIP-Schalter, Button-Erkennung und Ladungsguard laufen unveraendert, und die Vorschau verschwindet nach denselben 15 Sekunden. Zeigt sie dadurch nichts an, gibt das Tablet die lokalisierte Meldung `SIM_ACTION_E5_SKIPPED` aus.
+   - Ladungsguard Putrefy: Die Putrefy-Warnung erscheint nur bei hoechstens 1 verifiziert gelesener Ladung (`C_Spell.GetSpellCharges` mit Struct-Return, Secret-Value-geschuetzt). Putrefy hat laut Tooltip 3 Ladungen mit 30 Sekunden Wiederaufladezeit; ab 2 Ladungen wuerde Aufsparen in die Ladungsgrenze laufen. Nicht lesbare Ladungen behalten das bisherige Warnverhalten. Der Guard wirkt ausschliesslich auf Putrefy, nie auf Soul Reaper.
 4. Regel: Soul Reaper wird nur ueber Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `343294` erkannt. Putrefy wird nur ueber Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt. Icon-, Textur-, Namens- und Cooldown-Ratefallbacks sind nicht erlaubt.
 5. Ghoul-Reminder: Der eingerueckte Schalter `vipDkGhoulReminderEnabled` ist standardmaessig aus, persistiert zusammen mit `vipDkGhoulReminderPosition` und zeigt einen frei verschiebbaren Reminder ueber den Blizzard-State-Driver `[spec:3,nopet,nomounted,novehicleui] show; hide`. Der Text kommt aus der aktiven Addon-Lokalisierung, zum Beispiel `Ghoul beschwören` auf `deDE`; alle acht gepflegten Locale-Tabellen enthalten denselben Key.
 6. Event-Pfad: Der Ghoul-Reminder aktualisiert sich ueber Login-/World-/Spec-Refreshes und ueber `UNIT_PET`. Ausserhalb von Raid-Hard-off wird `UNIT_PET` sowohl an den KickTracker als auch an die VIP-DK-Hilfe weitergeleitet; im Raidmodus bleibt die VIP-DK-Verarbeitung unterdrueckt.
 7. Pferdeklang-Mute: Der eingerueckte Schalter `vipDkApocalypseHorseSoundMuted` ist standardmaessig aus und mutet ausschliesslich die fest gepflegten DK-Pferde-SoundFile-IDs.
 8. Settings: Der DK-Block sitzt im abschliessenden VIP-Settings-Abschnitt nach einer duennen blauen Trennlinie, bleibt auch fuer Nicht-DKs sichtbar und ist standardmaessig aus; Pferdeklang-Mute und Ghoul-Reminder sind eingerueckte DK-Child-Optionen.
-9. Stop-Bedingungen: Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding und Spec-Wechsel bleiben stumm beziehungsweise stoppen aktive Warnungen. `PLAYER_REGEN_ENABLED` darf sichtbare Warnoverlays schliessen und Ghoul-Reminder-Deferreds anwenden, darf aber einen nach Dark Transformation bereits geplanten 30-Sekunden-Warntimer nicht abbrechen.
+9. Stop-Bedingungen: Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding und Spec-Wechsel bleiben stumm beziehungsweise stoppen aktive Warnungen. `PLAYER_REGEN_ENABLED` darf sichtbare Warnoverlays schliessen und Ghoul-Reminder-Deferreds anwenden, darf aber einen nach Dark Transformation bereits geplanten Warntimer nicht abbrechen.
 10. Erfolgskriterium: Nur ein verifizierter lokaler Unholy-DK mit aktivierter VIP-Option sieht nach eigenem Dark-Transformation-Cast eine 15-Sekunden-Warnung auf eindeutig erkanntem Soul Reaper und/oder Putrefy; der Ghoul-Reminder erscheint nur ohne Pet, ohne Mount und ohne Vehicle-UI und nutzt den aktiven lokalisierten Text.
 
 ## UC-26 VIP-Bloodlust-Debuff-Button-Warnung

@@ -23,6 +23,12 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       scanPutrefyButtons = function()
         return overrides.putrefyButtons or { { id = "putrefy-button" } }
       end,
+      getPutrefyCharges = function()
+        return overrides.putrefyCharges
+      end,
+      getDarkTransformationCooldownRemaining = function()
+        return overrides.cooldownRemaining
+      end,
       createOverlay = function(button)
         local overlay = {
           button = button,
@@ -108,6 +114,179 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.Equal(#overlays, 2, "both enabled VIP DK warnings should create overlays")
       Assert.Equal(overlays[1].button.id, "soul-reaper-button", "Soul Reaper overlay should be created first")
       Assert.Equal(overlays[2].button.id, "putrefy-button", "Putrefy overlay should be created second")
+    end)
+  end)
+
+  test("VipDkAssist suppresses the Putrefy warning while 2 or more charges are banked", function()
+    WithGlobals({}, function()
+      for _, charges in ipairs({ 2, 3 }) do
+        local controller, scheduled, overlays = BuildHarness({
+          db = { vipDkPutrefyWarningEnabled = true },
+          buttons = {},
+          putrefyCharges = charges,
+        })
+
+        controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+        scheduled[1].callback()
+
+        Assert.Equal(#overlays, 0, "banked Putrefy charges must not be held back into the recharge cap")
+        Assert.False(controller.IsWarningActive(), "a warning without any overlay must not report itself active")
+      end
+    end)
+  end)
+
+  test("VipDkAssist warns Putrefy while a single charge is left", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness({
+        db = { vipDkPutrefyWarningEnabled = true },
+        buttons = {},
+        putrefyCharges = 1,
+      })
+
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      scheduled[1].callback()
+
+      Assert.Equal(#overlays, 1, "the last Putrefy charge should be banked for Dark Transformation")
+      Assert.True(overlays[1].shown, "Putrefy overlay should be shown for the last charge")
+    end)
+  end)
+
+  test("VipDkAssist keeps the Putrefy warning when charges are unreadable", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness({
+        db = { vipDkPutrefyWarningEnabled = true },
+        buttons = {},
+        putrefyCharges = nil,
+      })
+
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      scheduled[1].callback()
+
+      Assert.Equal(#overlays, 1, "unreadable charges must fall back to the previous warning behaviour")
+    end)
+  end)
+
+  test("VipDkAssist charge guard leaves the Soul Reaper warning untouched", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness({
+        db = {
+          vipDkSoulReaperWarningEnabled = true,
+          vipDkPutrefyWarningEnabled = true,
+        },
+        putrefyCharges = 3,
+      })
+
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      scheduled[1].callback()
+
+      Assert.Equal(#overlays, 1, "only the Putrefy overlay may be suppressed by the charge guard")
+      Assert.Equal(overlays[1].button.id, "soul-reaper-button", "Soul Reaper must warn independently of Putrefy")
+    end)
+  end)
+
+  test("VipDkAssist anchors the warning window to the live Dark Transformation cooldown", function()
+    WithGlobals({}, function()
+      local controller, scheduled = BuildHarness({ cooldownRemaining = 60 })
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(scheduled[1].delay, 45, "a 60s cooldown should warn during its last 15 seconds")
+
+      local shortened, shortenedScheduled = BuildHarness({ cooldownRemaining = 20 })
+      shortened.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(shortenedScheduled[1].delay, 5, "a shortened cooldown must move the window with it")
+
+      local immediate, immediateScheduled = BuildHarness({ cooldownRemaining = 12 })
+      immediate.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(immediateScheduled[1].delay, 0, "a cooldown below the window length must warn immediately")
+    end)
+  end)
+
+  test("VipDkAssist falls back to the fixed delay for untrusted cooldown reads", function()
+    WithGlobals({}, function()
+      for _, remaining in ipairs({ 1.5, 400 }) do
+        local controller, scheduled = BuildHarness({ cooldownRemaining = remaining })
+        controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+        Assert.Equal(scheduled[1].delay, 30, "a GCD-sized or absurd cooldown read must fall back to 30 seconds")
+      end
+
+      local unreadable, unreadableScheduled = BuildHarness({ cooldownRemaining = nil })
+      unreadable.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(unreadableScheduled[1].delay, 30, "an unreadable cooldown must fall back to 30 seconds")
+    end)
+  end)
+
+  test("VipDkAssist preview shows the warning without waiting for the cooldown", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness()
+
+      Assert.True(controller.ShowWarningPreview(), "preview should report the warning as visible")
+      Assert.True(controller.IsWarningActive(), "preview should activate the warning immediately")
+      Assert.Equal(#overlays, 1, "preview should build the same overlay as a real Dark Transformation")
+      Assert.Equal(#scheduled, 1, "preview should only schedule the hide timer")
+      Assert.Equal(scheduled[1].delay, 15, "preview should expire after the normal warning duration")
+
+      scheduled[1].callback()
+      Assert.False(controller.IsWarningActive(), "preview should clear itself like the real warning")
+    end)
+  end)
+
+  test("VipDkAssist preview keeps every guard that the real warning has", function()
+    WithGlobals({}, function()
+      local disabled = BuildHarness({ db = { vipDkSoulReaperWarningEnabled = false } })
+      Assert.False(disabled.ShowWarningPreview(), "preview must stay silent while the VIP toggle is off")
+
+      local wrongSpec = BuildHarness({ isUnholy = false })
+      Assert.False(wrongSpec.ShowWarningPreview(), "preview must stay silent for a non-Unholy player")
+
+      local banked = BuildHarness({
+        db = { vipDkPutrefyWarningEnabled = true },
+        buttons = {},
+        putrefyCharges = 3,
+      })
+      Assert.False(banked.ShowWarningPreview(), "preview must respect the Putrefy charge guard")
+
+      local noButtons = BuildHarness({ buttons = {} })
+      Assert.False(noButtons.ShowWarningPreview(), "preview must stay silent when no action button resolves")
+    end)
+  end)
+
+  test("VipDkAssist preview replaces a pending warning instead of stacking it", function()
+    WithGlobals({}, function()
+      local controller, scheduled = BuildHarness()
+
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(#scheduled, 1, "the cast should schedule the delayed warning")
+
+      controller.ShowWarningPreview()
+      Assert.True(scheduled[1].canceled, "the preview must cancel the pending delayed warning")
+    end)
+  end)
+
+  test("VipDkAssist module-level preview needs a wired controller", function()
+    WithGlobals({}, function()
+      local VipDkAssist = LoadController()
+      Assert.False(VipDkAssist.ShowWarningPreview(), "preview must fail closed before dependencies are set")
+
+      VipDkAssist.SetDependencies({
+        getDB = function()
+          return { vipDkSoulReaperWarningEnabled = true }
+        end,
+        isLocalUnholyDeathKnight = function()
+          return true
+        end,
+        scanSoulReaperButtons = function()
+          return { { id = "soul-reaper-button" } }
+        end,
+        createOverlay = function(button)
+          return {
+            button = button,
+            Show = function() end,
+            Hide = function() end,
+          }
+        end,
+        timerAfter = function() end,
+      })
+
+      Assert.True(VipDkAssist.ShowWarningPreview(), "a wired controller should expose the preview")
     end)
   end)
 
@@ -356,6 +535,36 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.True(controller.IsWarningActive(), "macro spell should resolve to the Putrefy warning")
       Assert.Equal(#overlays, 1, "macro-backed Putrefy button should receive an overlay")
     end)
+  end)
+
+  test("VipDkAssist default charge reader unpacks the GetSpellCharges struct return", function()
+    for _, case in ipairs({
+      { charges = 3, expectedOverlays = 0, message = "3 banked charges must suppress the default Putrefy warning" },
+      { charges = 1, expectedOverlays = 1, message = "a single charge must still warn through the default reader" },
+    }) do
+      local globals, scheduled, overlays = BuildDefaultGlobals({
+        vipDkPutrefyWarningEnabled = true,
+      }, {
+        ActionButton1 = BuildVisibleActionButton(1247378),
+      })
+      globals.C_Spell = {
+        GetSpellCharges = function(spellID)
+          if spellID ~= 1247378 then
+            return nil
+          end
+          return { currentCharges = case.charges, maxCharges = 3, cooldownStartTime = 100, cooldownDuration = 30 }
+        end,
+      }
+
+      WithGlobals(globals, function()
+        local controller = LoadController().CreateController()
+
+        controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+        scheduled[1].callback()
+
+        Assert.Equal(#overlays, case.expectedOverlays, case.message)
+      end)
+    end
   end)
 
   test("VipDkAssist default spell resolver reads secure action button attributes", function()

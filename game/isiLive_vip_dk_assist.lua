@@ -4,13 +4,27 @@ addonTable = addonTable or {}
 local VipDkAssist = {}
 addonTable.VipDkAssist = VipDkAssist
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
 local DARK_TRANSFORMATION_SPELL_ID = 1233448
 local SOUL_REAPER_SPELL_ID = 343294
 local PUTREFY_SPELL_ID = 1247378
 local UNHOLY_DEATH_KNIGHT_SPEC_ID = 252
-local WARNING_DELAY_SECONDS = 30
+-- Used only when the live Dark Transformation cooldown cannot be read: the
+-- tooltip cooldown (45s) minus the warning window, i.e. the pre-12.1 constant.
+local FALLBACK_WARNING_DELAY_SECONDS = 30
 local WARNING_DURATION_SECONDS = 15
+-- A cooldown read right after the cast can still report the GCD or a not yet
+-- registered cooldown. Anything outside this band is treated as unreadable.
+local MIN_TRUSTED_COOLDOWN_SECONDS = 5
+local MAX_TRUSTED_COOLDOWN_SECONDS = 300
+-- Putrefy (tooltip: 3 charges, 30s recharge) is only worth banking while a
+-- single charge is left. At 2+ charges the recharge runs into the cap, so
+-- holding the button wastes uses instead of saving one for Dark Transformation.
+-- Deliberate decision 2026-09-08: guides disagree here -- one recommends
+-- banking 2 charges for the Soul Reaper window, the other calls that wasted
+-- uses. The user plays the spec and settled on 1. Do not "fix" this to 2.
+local PUTREFY_BANK_CHARGE_LIMIT = 1
 local GHOUL_REMINDER_WIDTH = 300
 local GHOUL_REMINDER_HEIGHT = 60
 local GHOUL_REMINDER_FONT_SIZE = 32
@@ -48,6 +62,58 @@ local function DefaultIsInCombat()
   end
   local ok, result = pcall(inCombatLockdown)
   return ok and result == true
+end
+
+-- Live remaining cooldown of Dark Transformation, or nil when it cannot be
+-- trusted. The warning window is anchored to the real cooldown so a shortened
+-- or reset Dark Transformation moves the window with it.
+local function DefaultGetDarkTransformationCooldownRemaining()
+  local spellUtils = addonTable.SpellUtils
+  if type(spellUtils) ~= "table" or type(spellUtils.GetSpellCooldownSafe) ~= "function" then
+    return nil
+  end
+  local okCooldown, start, duration, enabled = pcall(spellUtils.GetSpellCooldownSafe, DARK_TRANSFORMATION_SPELL_ID)
+  if not okCooldown or enabled == false or enabled == 0 then
+    return nil
+  end
+  if type(start) ~= "number" or type(duration) ~= "number" or start <= 0 or duration <= 0 then
+    return nil
+  end
+
+  local getTime = rawget(_G, "GetTime")
+  if type(getTime) ~= "function" then
+    return nil
+  end
+  local okNow, now = pcall(getTime)
+  if not okNow or IsSecretValue(now) or type(now) ~= "number" then
+    return nil
+  end
+
+  local remaining = start + duration - now
+  if remaining <= 0 then
+    return nil
+  end
+  return remaining
+end
+
+-- Current Putrefy charges, or nil when the API is missing or masked.
+local function DefaultGetPutrefyCharges()
+  local cSpell = rawget(_G, "C_Spell")
+  if type(cSpell) ~= "table" or type(cSpell.GetSpellCharges) ~= "function" then
+    return nil
+  end
+  local ok, chargeInfoOrCharges = pcall(cSpell.GetSpellCharges, PUTREFY_SPELL_ID)
+  if not ok or chargeInfoOrCharges == nil then
+    return nil
+  end
+  -- Struct return since 11.0; the flat multi-return is kept for older stubs.
+  if type(chargeInfoOrCharges) == "table" then
+    return ReadPlainNumber(chargeInfoOrCharges, "currentCharges")
+  end
+  if IsSecretValue(chargeInfoOrCharges) or type(chargeInfoOrCharges) ~= "number" then
+    return nil
+  end
+  return chargeInfoOrCharges
 end
 
 local function DefaultIsLocalUnholyDeathKnight()
@@ -220,6 +286,11 @@ function VipDkAssist.CreateController(opts)
   local unregisterStateDriver = type(opts.unregisterStateDriver) == "function" and opts.unregisterStateDriver
     or rawget(_G, "UnregisterStateDriver")
   local isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or DefaultIsInCombat
+  local getDarkTransformationCooldownRemaining = type(opts.getDarkTransformationCooldownRemaining) == "function"
+      and opts.getDarkTransformationCooldownRemaining
+    or DefaultGetDarkTransformationCooldownRemaining
+  local getPutrefyCharges = type(opts.getPutrefyCharges) == "function" and opts.getPutrefyCharges
+    or DefaultGetPutrefyCharges
 
   local controller = {}
   local warningTimer = nil
@@ -247,16 +318,46 @@ function VipDkAssist.CreateController(opts)
     return db.vipDkGhoulReminderEnabled == true and isLocalUnholyDeathKnight() == true
   end
 
+  -- Since 12.1 Soul Reaper no longer consumes Putrefy charges, so the Putrefy
+  -- warning has to stand on its own charge economy: bank the last charge for
+  -- Dark Transformation, but never hold 2+ charges into the recharge cap.
+  -- Unreadable charges keep the pre-12.1 behaviour rather than going silent.
+  local function ShouldWarnPutrefy()
+    local charges = getPutrefyCharges()
+    if type(charges) ~= "number" then
+      return true
+    end
+    return charges <= PUTREFY_BANK_CHARGE_LIMIT
+  end
+
   local function GetEnabledScanners()
     local db = getDB() or {}
     local scanners = {}
     if db.vipDkSoulReaperWarningEnabled == true then
       scanners[#scanners + 1] = scanSoulReaperButtons
     end
-    if db.vipDkPutrefyWarningEnabled == true then
+    if db.vipDkPutrefyWarningEnabled == true and ShouldWarnPutrefy() then
       scanners[#scanners + 1] = scanPutrefyButtons
     end
     return scanners
+  end
+
+  -- Anchor the window to the live cooldown so it always covers the last
+  -- WARNING_DURATION_SECONDS before Dark Transformation is actually ready.
+  local function ResolveWarningDelay()
+    local remaining = getDarkTransformationCooldownRemaining()
+    if
+      type(remaining) ~= "number"
+      or remaining < MIN_TRUSTED_COOLDOWN_SECONDS
+      or remaining > MAX_TRUSTED_COOLDOWN_SECONDS
+    then
+      return FALLBACK_WARNING_DELAY_SECONDS
+    end
+    local delay = remaining - WARNING_DURATION_SECONDS
+    if delay < 0 then
+      return 0
+    end
+    return delay
   end
 
   local function HideWarning()
@@ -290,7 +391,7 @@ function VipDkAssist.CreateController(opts)
     end
 
     RebuildOverlays()
-    warningActive = true
+    warningActive = #overlays > 0
     for _, overlay in ipairs(overlays) do
       if type(overlay.Show) == "function" then
         overlay:Show()
@@ -321,7 +422,7 @@ function VipDkAssist.CreateController(opts)
       return
     end
 
-    warningTimer = timerAfter(WARNING_DELAY_SECONDS, function()
+    warningTimer = timerAfter(ResolveWarningDelay(), function()
       warningTimer = nil
       ShowWarning()
     end)
@@ -351,6 +452,19 @@ function VipDkAssist.CreateController(opts)
   end
 
   function controller.IsWarningActive()
+    return warningActive
+  end
+
+  -- Simulator entry point: skips only the cooldown wait, never the guards. The
+  -- class/spec check, the button resolution and the Putrefy charge guard all
+  -- still run, so the preview shows what a real Dark Transformation would.
+  -- Returns whether the warning actually became visible.
+  function controller.ShowWarningPreview()
+    CancelTimer(warningTimer)
+    CancelTimer(hideTimer)
+    warningTimer = nil
+    hideTimer = nil
+    ShowWarning()
     return warningActive
   end
 
@@ -416,6 +530,15 @@ function VipDkAssist.SetDependencies(deps)
   end
   controllerInstance = VipDkAssist.CreateController(deps)
   controllerInstance.ApplyGhoulReminder()
+end
+
+-- Used by the demo simulation tablet. Returns false when the controller is not
+-- wired or the guards suppressed the preview.
+function VipDkAssist.ShowWarningPreview()
+  if not controllerInstance or type(controllerInstance.ShowWarningPreview) ~= "function" then
+    return false
+  end
+  return controllerInstance.ShowWarningPreview() == true
 end
 
 function VipDkAssist.HandleEvent(event, ...)

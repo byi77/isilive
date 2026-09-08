@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-08 - Version 0.9.388 (patch)
+
+Brings the VIP Unholy Death Knight helper in line with what patch 12.1 did to
+the spec. Soul Reaper no longer consumes Putrefy charges, so the two buttons
+this feature warns about stopped sharing a resource -- which is the assumption
+the Putrefy warning was built on. The warning window also stopped being a fixed
+30 seconds, and the whole thing can now be triggered from the demo simulator
+instead of only by casting Dark Transformation in a real fight.
+
+- **The VIP Unholy DK warning window now follows the real Dark Transformation
+  cooldown instead of a hardcoded 30 seconds.** The warning is meant to cover
+  the last 15 seconds before Dark Transformation returns, which only held while
+  the cooldown was exactly 45 seconds. It now reads the verified remaining
+  cooldown of spell `1233448` and places the window against it; a missing,
+  masked or implausible read (outside 5-300 seconds) still falls back to the
+  previous fixed 30-second delay.
+- **The Putrefy warning respects the charge economy that 12.1 gave it.** Since
+  Soul Reaper no longer consumes Putrefy charges, the two buttons no longer
+  share a resource, and holding Putrefy is only correct while a single charge
+  is left -- Putrefy has 3 charges on a 30-second recharge, so banking 2 or
+  more runs into the cap and wastes uses. The warning is now suppressed at 2+
+  charges, read through the Secret-Value-guarded `C_Spell.GetSpellCharges`
+  struct return. Unreadable charges keep the previous behaviour, and the guard
+  never touches the Soul Reaper warning. Detection stays spell-ID-only, so this
+  is independent of the client language.
+- **The demo simulator can now trigger the VIP Unholy DK warning.** Verifying it
+  previously meant casting Dark Transformation in combat and waiting out the
+  cooldown. The new `VIP DK warning` action under Alerts skips that wait and
+  nothing else: the class and specialization check, the VIP toggle, the action
+  button resolution and the Putrefy charge guard all still run, and the preview
+  expires after the same 15 seconds. When the guards suppress it, the tablet
+  reports a localized status line instead of failing silently.
+
 ## 2026-09-07 - Version 0.9.387 (patch)
 
 Closes seven findings from two audit rounds: Power Infusion announced twice or

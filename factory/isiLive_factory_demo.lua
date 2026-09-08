@@ -955,6 +955,26 @@ local function BuildSimulationTabletActions(ctx)
       end,
     },
     {
+      id = "E5",
+      category = "alerts",
+      status = "green",
+      titleKey = "SIM_ACTION_E5_TITLE",
+      descKey = "SIM_ACTION_E5_DESC",
+      title = "VIP DK warning",
+      description = "Shows the VIP Unholy DK Soul Reaper / Putrefy warning without waiting for the cooldown.",
+      run = function()
+        local vipDkAssist = addonTable.VipDkAssist
+        local shown = type(vipDkAssist) == "table"
+          and type(vipDkAssist.ShowWarningPreview) == "function"
+          and vipDkAssist.ShowWarningPreview() == true
+        if not shown then
+          local locale = L()
+          return locale.SIM_ACTION_E5_SKIPPED or locale.SIM_ACTION_DONE or "Simulation applied."
+        end
+        return done("SIM_ACTION_E5_DONE")
+      end,
+    },
+    {
       id = "F1",
       category = "extras",
       status = "green",

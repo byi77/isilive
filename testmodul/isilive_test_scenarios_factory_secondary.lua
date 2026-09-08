@@ -938,6 +938,47 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Factory demo simulation tablet routes the VIP DK action to the guarded preview", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      local actions = state.simulationTabletOpts.getActions()
+
+      local vipAction = nil
+      for _, action in ipairs(actions) do
+        if action.id == "E5" then
+          vipAction = action
+        end
+      end
+
+      Assert.NotNil(vipAction, "simulation tablet must expose the VIP DK warning action")
+      Assert.Equal(vipAction.category, "alerts", "VIP DK preview belongs to the alerts category")
+      Assert.Equal(vipAction.titleKey, "SIM_ACTION_E5_TITLE", "VIP DK action must use its localized title key")
+      Assert.Equal(vipAction.descKey, "SIM_ACTION_E5_DESC", "VIP DK action must use its localized description key")
+
+      local previewCalls = 0
+      state.addon.VipDkAssist = {
+        ShowWarningPreview = function()
+          previewCalls = previewCalls + 1
+          return true
+        end,
+      }
+      vipAction.run()
+      Assert.Equal(previewCalls, 1, "the VIP DK action must drive the guarded preview entry point")
+
+      state.addon.VipDkAssist = {
+        ShowWarningPreview = function()
+          return false
+        end,
+      }
+      Assert.NotNil(vipAction.run(), "a suppressed preview must still report a status line instead of failing")
+
+      state.addon.VipDkAssist = nil
+      Assert.NotNil(vipAction.run(), "a missing VIP DK module must not break the simulator action")
+    end)
+  end)
+
   test("Factory demo simulation tablet builds safe actions and runs preview hooks", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
 
@@ -958,7 +999,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 23, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 24, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
