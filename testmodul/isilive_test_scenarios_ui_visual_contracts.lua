@@ -37,33 +37,33 @@ return function(test, ctx)
     )
   end)
 
-  test("Architecture M+ title and table separators share horizontal bounds", function()
+  test("Architecture M+ title separator spans the interior while table bounds stay inset", function()
     local uiCommonContent = ReadFile("ui/isiLive_ui_common.lua")
     local chromeContent = ReadFile("ui/isiLive_roster_panel_chrome.lua")
 
     AssertContains(
       Assert,
       uiCommonContent,
-      'separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))',
-      "title separator must start at the shared 8 px inset"
+      'separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -(height + 1))',
+      "title separator must start at the inside edge of the frame border"
     )
     AssertContains(
       Assert,
       uiCommonContent,
-      'separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))',
-      "title separator must end at the shared 8 px inset"
+      'separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -(height + 1))',
+      "title separator must end at the inside edge of the frame border"
     )
     AssertContains(
       Assert,
       chromeContent,
       'headerSepLeft:SetPoint("TOPLEFT", 8, -48)',
-      "table separator must start at the same 8 px inset"
+      "table separator must keep its 8 px inset"
     )
     AssertContains(
       Assert,
       chromeContent,
       'headerSepRight:SetPoint("TOPRIGHT", -8, -48)',
-      "table separator must end at the same 8 px inset"
+      "table separator must keep its 8 px inset"
     )
   end)
 

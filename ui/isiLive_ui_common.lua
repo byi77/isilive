@@ -90,22 +90,22 @@ UICommon.Colors = {
   -- Deliberate semantic design tokens. Unlike the compatibility colors above,
   -- these values define the shared modern isiLive visual language and may be
   -- consumed by new reusable components across UI surfaces.
-  SURFACE_MAIN_FRAME = { 0.035, 0.045, 0.065 },
-  SURFACE_TITLE_BAR = { 0.025, 0.055, 0.085, 0.82 },
-  SURFACE_ACTION_PRIMARY = { 0.035, 0.16, 0.27, 0.92 },
+  SURFACE_MAIN_FRAME = { 10 / 255, 15 / 255, 23 / 255 },
+  SURFACE_TITLE_BAR = { 102 / 255, 154 / 255, 213 / 255, 0.82 },
+  SURFACE_ACTION_PRIMARY = { 40 / 255, 73 / 255, 104 / 255, 0.92 },
   SURFACE_ACTION_PRIMARY_HOVER = { 0.055, 0.24, 0.39, 0.96 },
   SURFACE_ACTION_PRIMARY_PRESSED = { 0.025, 0.11, 0.19, 0.98 },
-  SURFACE_ACTION_SECONDARY = { 0.065, 0.075, 0.11, 0.88 },
+  SURFACE_ACTION_SECONDARY = { 23 / 255, 36 / 255, 55 / 255, 0.88 },
   SURFACE_ACTION_SECONDARY_HOVER = { 0.10, 0.13, 0.19, 0.94 },
   SURFACE_ACTION_SECONDARY_PRESSED = { 0.04, 0.05, 0.08, 0.98 },
-  BORDER_ACTION_PRIMARY = { 0.28, 0.68, 1, 0.72 },
-  BORDER_ACTION_SECONDARY = { 0.32, 0.40, 0.52, 0.62 },
-  BORDER_TITLE_BAR = { 0.26, 0.62, 0.92, 0.38 },
+  BORDER_ACTION_PRIMARY = { 101 / 255, 141 / 255, 175 / 255, 1 },
+  BORDER_ACTION_SECONDARY = { 62 / 255, 82 / 255, 108 / 255, 1 },
+  BORDER_TITLE_BAR = { 77 / 255, 107 / 255, 140 / 255, 1 },
   TEXT_HEADING = { 0.93, 0.96, 1 },
-  TEXT_SECTION = { 0.64, 0.80, 0.96 },
+  TEXT_SECTION = { 140 / 255, 162 / 255, 186 / 255 },
   TEXT_SUPPORTING = { 0.58, 0.65, 0.74 },
-  SURFACE_RUN_ZONE = { 0.035, 0.055, 0.085, 0.86 },
-  BORDER_RUN_ZONE = { 0.22, 0.48, 0.72, 0.54 },
+  SURFACE_RUN_ZONE = { 102 / 255, 154 / 255, 213 / 255, 0.86 },
+  BORDER_RUN_ZONE = { 75 / 255, 102 / 255, 130 / 255, 1 },
   SURFACE_NOTICE = { 0.035, 0.05, 0.075, 0.90 },
   BORDER_NOTICE = { 0.24, 0.55, 0.82, 0.58 },
   ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
@@ -625,8 +625,8 @@ function UICommon.CreatePanelChrome(parent, opts)
   )
 
   local separator = parent:CreateTexture(nil, "ARTWORK")
-  separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))
-  separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))
+  separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -(height + 1))
+  separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -(height + 1))
   separator:SetHeight(1)
   ApplyColorTuple(separator, "SetColorTexture", UICommon.Colors.BORDER_TITLE_BAR)
 

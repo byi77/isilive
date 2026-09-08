@@ -205,7 +205,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
-  row.spec:SetJustifyH("RIGHT")
+  row.spec:SetJustifyH("LEFT")
   row.spec:SetWidth(SPEC_COL_WIDTH)
   DisableFontStringWrapping(row.spec)
 
@@ -224,7 +224,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   row.key = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.key:SetPoint("TOPLEFT", KEY_COL_X, yOffset)
   row.key:SetWidth(KEY_COL_WIDTH)
-  row.key:SetJustifyH("RIGHT")
+  row.key:SetJustifyH("CENTER")
   DisableFontStringWrapping(row.key)
 
   row.rio = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -250,6 +250,11 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   row.realm:SetWidth(SERVER_COL_WIDTH)
   row.realm:SetJustifyH("LEFT")
   DisableFontStringWrapping(row.realm)
+
+  -- The complete RIO prefix and score share one native font and size.
+  for _, text in ipairs({ row.spec, row.name, row.ilvl, row.key, row.rio, row.dps, row.kick, row.realm }) do
+    RI.ApplyFontStringSize(text, 11)
+  end
 
   if type(UICommon.ApplyLocaleFont) == "function" then
     UICommon.ApplyLocaleFont(row.spec)

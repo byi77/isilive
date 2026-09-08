@@ -758,7 +758,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         elseif texture._isiLiveSettingsSeparator == "section" then
           sectionSeparators = sectionSeparators + 1
           Assert.Equal(texture._height, 2, "section separator should remain stronger than child lines")
-          Assert.Equal(texture._color[1], 0.26, "section separator should use the cool title-border red channel")
+          Assert.Equal(texture._color[1], 77 / 255, "section separator should use the cool title-border red channel")
           Assert.Equal(texture._color[4], 0.55, "section separator fallback should use restrained cool-border alpha")
         end
       end
@@ -819,9 +819,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       generalHeader = Assert.NotNil(generalHeader, "settings panel should render the General section header")
       Assert.Equal(generalHeader._fontObject, "GameFontNormal", "section headers should use the larger title font")
       local r, g, b, a = generalHeader:GetTextColor()
-      Assert.Equal(r, 0.64, "section headers should use the shared cool-section red channel")
-      Assert.Equal(g, 0.80, "section headers should use the shared cool-section green channel")
-      Assert.Equal(b, 0.96, "section headers should use the shared cool-section blue channel")
+      Assert.Equal(r, 140 / 255, "section headers should use the shared cool-section red channel")
+      Assert.Equal(g, 162 / 255, "section headers should use the shared cool-section green channel")
+      Assert.Equal(b, 186 / 255, "section headers should use the shared cool-section blue channel")
       Assert.Equal(a, 1, "section headers should be fully opaque")
       Assert.Equal(
         generalHeader._isiLiveSurfaceRole,

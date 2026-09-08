@@ -15,10 +15,13 @@ local function NewRecordedFontString(createdFontStrings)
     self.width = value
   end
   function fontString.SetJustifyH() end
-  function fontString.GetFont()
-    return "font", 10, ""
+  function fontString.GetFont(self)
+    return "font", self.fontSize or 10, ""
   end
-  function fontString.SetFont() end
+  function fontString.SetFont(self, path, size)
+    self.fontPath = path
+    self.fontSize = size
+  end
   function fontString.SetTextColor() end
   function fontString.SetShadowOffset() end
   function fontString.SetText(self, value)
@@ -298,7 +301,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
     end)
   end)
 
-  test("Roster panel uses compact width budget for primary data columns", function()
+  test("Roster panel uses compact column budgets and uniform native RIO delta typography", function()
     local createdFrames = {}
     local createdFontStrings = {}
 
@@ -398,6 +401,11 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
       end
 
       Assert.Equal(#rowFontStrings, 8, "one rendered row should create eight member text columns")
+      for _, text in ipairs(rowFontStrings) do
+        Assert.Equal(text.fontSize, 11, "all member columns must share the 11 px body size")
+        Assert.Equal(text.fontPath, "font", "body styling must preserve the native font path")
+      end
+      Assert.Equal(rowFontStrings[5].text, "(+15)3000", "RIO delta and score must share one unbroken text field")
       Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
       Assert.Equal(rowFontStrings[2].width, 122, "name column should keep the compact body width budget")
       Assert.Equal(rowFontStrings[3].width, 32, "ilvl column should keep compact width budget without truncation")

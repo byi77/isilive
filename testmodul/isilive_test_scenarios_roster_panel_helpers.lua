@@ -159,9 +159,11 @@ return function(test, ctx)
     end
     -- Helpers used by ApplyFontStringSize via cd_row CD_TRACKER_FONT_SIZE
     -- writeback (called once during row creation only — not in update path).
-    fs.SetFont = function() end
-    fs.GetFont = function()
-      return "Fonts\\\\X.TTF", 12, "OUTLINE"
+    fs.SetFont = function(self, path, size, flags)
+      self._font = { path, size, flags }
+    end
+    fs.GetFont = function(self)
+      return "Fonts\\\\X.TTF", self._font and self._font[2] or 12, "OUTLINE"
     end
     return fs
   end
@@ -280,7 +282,7 @@ return function(test, ctx)
     })
   end)
 
-  test("CreateCdTrackerRow renders M+ grade badges and wide timer fields", function()
+  test("CreateCdTrackerRow preserves cooldown sizes and fits responsive mockup timer groups", function()
     local row
     WithGlobals({
       CreateFrame = function()
@@ -306,6 +308,28 @@ return function(test, ctx)
     Assert.Equal(row.mp1Text._width, 48, "+1 timer must fit five-character M+ times")
     Assert.Equal(row._point[2][1], "BOTTOMRIGHT", "timer row must expose an explicit right anchor")
     Assert.Equal(row._point[2][2], -6, "BR/BL and M+ timer row must end at the shared M+ right edge")
+    Assert.Equal(row.cdBox._width, 170, "BR/BL width must not shrink to make room for timer labels")
+    Assert.Equal(row.bresText._font[2], 12, "BR text must retain its native 12 px size")
+    Assert.Equal(row.lustText._font[2], 12, "BL text must retain its native 12 px size")
+    Assert.Equal(row.mp3Icon._point[1][4] - (6 + row.mplusLabel._size[1]), 2, "M+ to +3 gap must be 2 px")
+    for _, timer in ipairs({ row.mp3Text, row.mp2Text, row.mp1Text }) do
+      Assert.Equal(timer._point[3], "RIGHT", "timer must follow its own grade badge")
+      Assert.Equal(timer._point[4], 6, "badge to timer gap must stay fixed")
+    end
+    for _, width in ipairs({ 308, 434, 308 }) do
+      row.mplusBox._scripts.OnSizeChanged(row.mplusBox, width)
+      local grade2 = row.mp2Icon._point[#row.mp2Icon._point][4]
+      local grade1 = row.mp1Icon._point[#row.mp1Icon._point][4]
+      local death = row.mpDeathIcon._point[4]
+      Assert.True(grade2 >= 24 + 20 + 6 + 48, "+3 timer must not overlap +2")
+      Assert.True(grade1 >= grade2 + 20 + 6 + 48, "+2 timer must not overlap +1")
+      Assert.True(death >= grade1 + 20 + 6 + 48, "+1 timer must not overlap the death icon")
+      Assert.True(death + 12 + 4 + 32 <= width, "four-digit death count must fit inside the timer box")
+    end
+    local pointsBefore = #row.mp2Icon._point
+    row.mplusBox._scripts.OnSizeChanged(row.mplusBox, 0 / 0)
+    row.mplusBox._scripts.OnSizeChanged(row.mplusBox, math.huge)
+    Assert.Equal(#row.mp2Icon._point, pointsBefore, "invalid dimensions must not mutate anchors")
   end)
 
   test("UpdateCdTrackerRow renders BR charges + remaining cooldown when remain > 0", function()

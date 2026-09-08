@@ -213,31 +213,31 @@ local function CreateCdTrackerRow(mainFrame, opts)
       label:SetJustifyV("MIDDLE")
     end
     if type(label.SetText) == "function" then
-      label:SetText("|cffffd700M+|r")
+      label:SetText("|cffc5daeeM+|r")
     end
     ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
     row.mplusLabel = badge
   end
 
-  row.mp3Icon = CreateMplusGradeBadge(mplusBox, 34, 0.15, 0.45, 0.15, "|cff44ff44+3|r")
+  row.mp3Icon = CreateMplusGradeBadge(mplusBox, 24, 49 / 255, 83 / 255, 63 / 255, "|cffb4e9bc+3|r")
   row.mp3Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 58, 0)
+  row.mp3Text:SetPoint("LEFT", row.mp3Icon, "RIGHT", 6, 0)
   row.mp3Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp3Text:SetJustifyH("LEFT")
   row.mp3Text:SetText("--:--")
   ApplyFontStringSize(row.mp3Text, CD_TRACKER_FONT_SIZE)
 
-  row.mp2Icon = CreateMplusGradeBadge(mplusBox, 102, 0.45, 0.38, 0.05, "|cffffd91a+2|r")
+  row.mp2Icon = CreateMplusGradeBadge(mplusBox, 100, 91 / 255, 81 / 255, 47 / 255, "|cffecdda4+2|r")
   row.mp2Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 126, 0)
+  row.mp2Text:SetPoint("LEFT", row.mp2Icon, "RIGHT", 6, 0)
   row.mp2Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp2Text:SetJustifyH("LEFT")
   row.mp2Text:SetText("--:--")
   ApplyFontStringSize(row.mp2Text, CD_TRACKER_FONT_SIZE)
 
-  row.mp1Icon = CreateMplusGradeBadge(mplusBox, 170, 0.3, 0.3, 0.3, "|cffdddddd+1|r")
+  row.mp1Icon = CreateMplusGradeBadge(mplusBox, 176, 66 / 255, 76 / 255, 88 / 255, "|cffd0d8e2+1|r")
   row.mp1Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 194, 0)
+  row.mp1Text:SetPoint("LEFT", row.mp1Icon, "RIGHT", 6, 0)
   row.mp1Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp1Text:SetJustifyH("LEFT")
   row.mp1Text:SetText("--:--")
@@ -249,7 +249,7 @@ local function CreateCdTrackerRow(mainFrame, opts)
     row.mpDeathIcon:SetSize(12, 12)
   end
   if type(row.mpDeathIcon.SetPoint) == "function" then
-    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 246, 0)
+    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 252, 0)
   end
   if type(row.mpDeathIcon.SetTexture) == "function" then
     row.mpDeathIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
@@ -307,6 +307,20 @@ local function CreateCdTrackerRow(mainFrame, opts)
   row.mpDeathText:SetJustifyH("LEFT")
   row.mpDeathText:SetText("")
   ApplyFontStringSize(row.mpDeathText, CD_TRACKER_FONT_SIZE)
+
+  SetFontStringTextColorSafe(row.bresText, 197 / 255, 218 / 255, 238 / 255)
+  SetFontStringTextColorSafe(row.lustText, 197 / 255, 218 / 255, 238 / 255)
+
+  -- Only the space between groups expands. Label/time gaps and BR/BL stay fixed.
+  mplusBox:SetScript("OnSizeChanged", function(_, width)
+    if type(width) ~= "number" or width ~= width or width == math.huge or width <= 0 then
+      return
+    end
+    local gap = math.max(0, (width - 300) / 3)
+    row.mp2Icon:SetPoint("LEFT", mplusBox, "LEFT", 100 + math.floor(gap), 0)
+    row.mp1Icon:SetPoint("LEFT", mplusBox, "LEFT", 176 + math.floor(gap * 2), 0)
+    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 252 + math.floor(gap * 3), 0)
+  end)
 
   return row
 end
