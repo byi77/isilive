@@ -593,12 +593,8 @@ return function(test, ctx)
 
   -- Shared semantic design system --------------------------------------------
 
-  test("UICommon semantic design system applies the approved mockup palette and spacing roles", function()
+  test("UICommon semantic design system exposes shared modern surface and spacing roles", function()
     local UICommon = LoadUICommon()
-    Assert.Equal(UICommon.Colors.SURFACE_MAIN_FRAME[1], 10 / 255, "main surface must use mockup navy")
-    Assert.Equal(UICommon.Colors.SURFACE_TITLE_BAR[2], 154 / 255, "title tint must use mockup blue")
-    Assert.Equal(UICommon.Colors.SURFACE_RUN_ZONE[3], 213 / 255, "run tint must match the title palette")
-    Assert.Equal(UICommon.Colors.BORDER_RUN_ZONE[4], 1, "run borders must remain visible at low background alpha")
     Assert.Equal(UICommon.Theme.spacing.xs, 4, "extra-small spacing must stay on the 4 px base unit")
     Assert.Equal(UICommon.Theme.spacing.sm, 8, "small spacing must stay on the 8 px base unit")
     Assert.True(
@@ -662,8 +658,6 @@ return function(test, ctx)
     Assert.Equal(chrome.height, 27, "title chrome must preserve its explicit height budget")
     Assert.Equal(chrome.titleBar._height, 27, "title surface must use the explicit height budget")
     Assert.Equal(chrome.separator._height, 1, "title separator must remain a quiet one-pixel rule")
-    Assert.Equal(chrome.separator._points[1][4], 1, "title line must start just inside the frame border")
-    Assert.Equal(chrome.separator._points[2][4], -1, "title line must end just inside the frame border")
     Assert.Equal(
       chrome.titleBar._colorTexture[1],
       UICommon.Colors.SURFACE_TITLE_BAR[1],

@@ -1263,13 +1263,13 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      "ApplyFontStringSize(title, 13)",
+      "ApplyFontStringSize(title, 12)",
       "RosterPanel title text must stay compact enough for the toolbar row"
     )
     AssertContains(
       Assert,
       rosterPanelContent,
-      "ApplyFontStringSize(titleVersion, 9)",
+      "ApplyFontStringSize(titleVersion, 12)",
       "RosterPanel version text must stay compact enough for the toolbar row"
     )
     AssertContains(

@@ -516,7 +516,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
   end
-  ApplyFontStringSize(title, 13)
+  ApplyFontStringSize(title, 12)
 
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleVersion:SetPoint("LEFT", title, "RIGHT", 5, 0)
@@ -527,7 +527,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleVersion.SetShadowColor) == "function" then
     titleVersion:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleVersion, 9)
+  ApplyFontStringSize(titleVersion, 12)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 6, 0)

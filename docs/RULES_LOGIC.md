@@ -127,14 +127,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 104. Die Main-UI nutzt das gemeinsame kuehle isiLive-Designsystem: Readycheck und Countdown sind primaere Aktionen, Share Keys, Refresh und Countdown-Abbruch sekundaere Aktionen; Titel-Chrome und Toolbar-Buttons bleiben blau/slate, und alle addon-eigenen Fenster verwenden dasselbe moderne `×`-Schliessen-Control.
 105. Portalreihe, BR-/BL-Zeile, M+-Timer und Killtracker bilden ueber gemeinsame semantische Flaechen eine M+-Run-Zone; Center-Notice und Portal-Navigator verwenden dieselbe moderne Notice-Card-Sprache und zeigen nur verifiziert gelieferte Navigator-Zusatztexte.
 106. (veraltet — ersetzt durch Regel 107) Die zwischenzeitlich neutrale Statsbox-Sekundaerhierarchie wurde nach User-Feedback wieder verworfen.
-107. Die Statsbox nutzt wieder pro Stat ihre feste unterscheidbare Farbe; der sichtbare BETA-Zusatz entfaellt nur aus der Main-UI-Ueberschrift, und die Titellinie reicht ueber die gesamte Innenbreite; Tabellenlinie und untere M+-Blockreihen behalten ihre bisherigen Kanten.
+107. Die Statsbox nutzt wieder pro Stat ihre feste unterscheidbare Farbe; der sichtbare BETA-Zusatz entfaellt nur aus der Main-UI-Ueberschrift, und die beiden oberen Trenner sowie alle unteren M+-Blockreihen enden jeweils an einer gemeinsamen rechten Kante.
 108. Die kompakten V- und H-Layouts verwenden eine ununterbrochene Hauptflaeche ohne zusaetzliche dunkle Innenkarten; ihre Layoutschalter folgen der gemeinsamen blau/slate Designsprache, ohne feste Groessen-, Positions- oder Secure-Vertraege zu veraendern.
 109. isiLive laeuft in genau drei zentral aufgeloesten Laufzeitprofilen: `OFF` im Raid und in jeder Gruppe groesser fuenf, `KEY` im mythischen Party-Dungeon (laufender Keystone oder Difficulty-ID 23) und `IDLE` in allem uebrigen. Im `OFF`-Profil werden die Dispatcher-Events bis auf die beiden Aufweck-Events abgemeldet; im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv. Difficulty-ID 24 (Zeitwanderung) ist kein mythischer Kontext, und die Kanalaufloesung muss die Instanzgruppen-Kategorie auch ohne `LE_PARTY_CATEGORY_*`-Globals numerisch pruefen.
 110. (veraltet — zurueckgenommen in 0.9.381) isiLive registriert keinen Handler in Blizzards ESC-Kette. Blizzard ruft die Kette als `securecallfunction(entry.handler)` in einer einzigen Schleife auf: der Aufruf selbst ist isoliert, die Schleife bleibt aber durch den zuvor gelaufenen Handler getaintet. Ein Addon-Handler vor der Stufe `Casting` (4) laesst deshalb Blizzards eigenen `SpellStopCasting()`-Aufruf mit `ADDON_ACTION_FORBIDDEN` scheitern. Die Prioritaetsstufen unterhalb von `AddOn` (8) gehoeren Blizzards eigenen Systemen; ein Addon kann sich dort nicht ohne Schaden einklinken.
 111. Sichere ESC-Panel-Buttons (Travel und Mounts) schliessen das `GameMenuFrame` selbst, sobald ihre Aktion ausgeloest wurde: der Hook haengt an `PostClick`, weil die Buttons Kinder des `GameMenuFrame` sind und dessen Verstecken waehrend der laufenden Klickverarbeitung nicht verlaesslich ist. Damit entfaellt der Grund, ESC zu druecken, und der gestartete Cast ueberlebt. Im Kampf-Lockdown unterbleibt das Schliessen (Regel 47).
 112. Die persistierte Schema-Version wird vor jeder Migration validiert; unbrauchbare Werte gelten als unversioniert, neuere bleiben unangetastet.
 
-113. Das freigegebene M+-Mockup wird mit nativer WoW-Schrift, einheitlicher Roster-Schriftgroesse und kompaktem M+-Timerabstand umgesetzt; BR/BL und Dungeon-Icons bleiben erhalten.
+113. (deaktiviert am 2026-09-09) Mockup-Aenderung auf ausdruecklichen Benutzerwunsch vollstaendig zurueckgenommen.
+
+114. (deaktiviert am 2026-09-09) Mockup-Aenderung auf ausdruecklichen Benutzerwunsch vollstaendig zurueckgenommen.
+
+115. (deaktiviert am 2026-09-09) Mockup-Aenderung auf ausdruecklichen Benutzerwunsch vollstaendig zurueckgenommen.
 
 ## Regelbloecke
 
@@ -538,7 +542,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Die Roster-Datenspalten behalten ein festes Kompaktlayout mit den Breiten Spec=52, Name=122, iLvl=32, Key=62, Rio=70, DPS=40, Kick=40 und Flagge=18.
 - Erforderliche Tests:
-  - Roster panel uses compact column budgets and uniform native RIO delta typography
+  - Roster panel uses compact width budget for primary data columns
 
 ### RULE-ROSTER-KOMPAKT-KURZTEXTE
 - Regelnummer: 36
@@ -1696,7 +1700,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Die Main-UI verwendet die zentralen semantischen Theme-, Flaechen-, Text-, Border- und Abstandsrollen aus `UICommon`. Readycheck und der 10-Sekunden-Countdown werden als primaere Aktionen gerendert; Share Keys, Refresh und Countdown-Abbruch werden als sekundaere Aktionen gerendert. Titelflaeche, Spaltenueberschriften sowie Lock-/Settings-Toolbar nutzen die ruhige blau/slate Designsprache. Main-Frame, Center-Notice, Portal-Navigator und Demo-Simulator muessen ihr sichtbares Schliessen-Control aus `UICommon.CreateCloseButton` beziehen; es rendert im Defaultzustand eine ruhige blau/slate Flaeche mit kompaktem `×` und zeigt Rot nur bei Hover beziehungsweise Press. Die Titelflaeche muss den gespeicherten und live geaenderten globalen `bgAlpha`-Wert als Strukturtinte mit exakt `bgAlpha * 0,24` anwenden, damit sie den transparenten Main-Backdrop nicht durch eine fast deckende zweite Schicht verdunkelt. Saemtliche 20 Pixel hohen Titelbuttons einschliesslich M+-, H-, V-, Utility-, Lock-, Settings- und Schliessen-Button muessen in allen Layouts mit ganzzahligem `TOPRIGHT`-y-Anker `-4` vertikal in der 27 Pixel hohen Titelflaeche zentriert sein; der sichtbare `isiLive`-Titel behaelt im M+-Layout seinen `TOPLEFT`-Anker bei y=-8. Die visuelle Modernisierung darf weder feste Roster- und Layoutbudgets noch Secure-Attribute, Klickpfade oder Leader-Berechtigungen veraendern.
 - Ersetzte Festlegung (0.9.363, 2026-08-02): zuvor "Titelflaeche, Spaltenueberschriften sowie Lock-/Settings-Toolbar nutzen die ruhige blau/slate Designsprache, der Windows-artige rote Schliessen-Button bleibt unveraendert erhalten." Der ausdrueckliche Bestandsschutz fuer den roten Schliessen-Button entfaellt; das Schliessen-Control folgt jetzt Regel 27 und stammt aus `UICommon.CreateCloseButton`. Die blau/slate Designsprache fuer Titelflaeche, Spaltenueberschriften und Toolbar bleibt unveraendert.
 - Erforderliche Tests:
-  - UICommon semantic design system applies the approved mockup palette and spacing roles
+  - UICommon semantic design system exposes shared modern surface and spacing roles
   - UICommon action button switches deterministic primary visual states
   - UICommon panel chrome creates a bounded title surface and separator
   - UICommon close button uses compact semantic visual states
@@ -1712,11 +1716,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Die Dungeonportal-Buttons, die Battle-Res-/Bloodlust-Anzeige, der M+-Timer und der M+-Killtracker muessen ihre ruhige blau/slate Flaeche und ihren Border aus der gemeinsamen semantischen M+-Run-Rolle in `UICommon` beziehen. Diese Run-Flaechen muessen den gespeicherten und live geaenderten globalen `bgAlpha`-Wert als Strukturtinte mit exakt `bgAlpha * 0,24` anwenden; ihre Border bleiben davon unberuehrt. Center-Notice und Portal-Navigator muessen dieselbe semantische Notice-Flaeche, denselben kuehlen Border und denselben dezenten oberen Akzent verwenden; die bestehenden warm-goldenen `isiLive - `-Ueberschriften und die gemeinsame Body-Typografie bleiben erhalten. Der Portal-Navigator darf die bereits vom Status-Renderer verifiziert und lokalisiert gelieferten Richtungs- und Leerplatz-Detailtexte anzeigen, muss fehlende Zusatztexte aber leer lassen. Diese visuelle Vereinheitlichung darf keine Layoutbudgets, Secure-Attribute, Portal-Klickpfade sowie M+-Timer-, Cooldown- oder Killtracker-Datenlogik veraendern.
 - Erforderliche Tests:
-  - UICommon semantic design system applies the approved mockup palette and spacing roles
+  - UICommon semantic design system exposes shared modern surface and spacing roles
   - UICommon background opacity repaints semantic title and run surfaces
   - UICommon notice chrome creates a shared top accent and semantic role
   - Center notice close button hides center notice directly
-  - CreateCdTrackerRow preserves cooldown sizes and fits responsive mockup timer groups
+  - CreateCdTrackerRow renders M+ grade badges and wide timer fields
   - RosterLayout M+ action portal timer and kill rows share one right edge
   - TeleportUI tooltip shows English dungeon name below the localized title
   - Portal navigator notice lays out the five portal positions in a crescent
@@ -1744,16 +1748,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-DESIGNBUG-KORREKTUREN
 - Regelnummer: 107
 - Status: aktiv
-- Zusammenfassung: Die Statsbox muss fuer Primaerstat, Ausdauer, Krit, Tempo, Meisterschaft, Vielseitigkeit, Lebensraub, Geschwindigkeit, Haltbarkeit und Vermeidung wieder die jeweils fest gepflegte unterscheidbare Statfarbe auf Label, Wert, Prozent und dezenter Zeilentoenung verwenden; feste Spaltenstruktur, Anzeigeoptionen und Blizzard-Live-Datenquellen bleiben unveraendert. Der sichtbare `BETA`-Zusatz muss aus der Main-UI-Ueberschrift in allen Layouts entfernt bleiben, waehrend der allgemeine Beta-Status und der Beta-Hinweis in den Settings erhalten bleiben. Die blaue Trennlinie unter der Titelflaeche muss von der linken bis zur rechten Innenkante des Frame-Rahmens reichen (Anker x=1 und x=-1); die blaue Trennlinie unter den Tabellenueberschriften bleibt links und rechts exakt 8 Pixel eingerueckt. In der 500 Pixel breiten M+-Ansicht muessen Aktionsreihe, Dungeonportalreihe, kombinierte BR-/BL- und M+-Timerreihe sowie M+-Killtrackerreihe an derselben rechten Kante bei x=494 enden; Buttonbreiten, linke Kanten, vertikale Abstaende, Secure-Attribute und Datenlogik duerfen dadurch nicht veraendert werden. Die Settings behalten ihre task-orientierte Reihenfolge und kuehlen Section-Cards, ESC-Shortcuts ihre semantischen sekundaeren Zustaende, LFG-Flaggen und -Herzen ihre kompakte Darstellung sowie Nameplates, Tooltips und Death-Alerts ihre zuletzt festgelegten semantischen Rollen.
-- Ersetzte Festlegung (0.9.387, 2026-09-08): "Die blaue Trennlinie unter der Titelflaeche und die blaue Trennlinie unter den Tabellenueberschriften muessen beide links und rechts exakt 8 Pixel eingerueckt enden." Die freigegebene Mockup-Titellinie ersetzt nur deren Einrueckung; Tabellenlinie und untere Blockkanten bleiben unveraendert.
+- Zusammenfassung: Die Statsbox muss fuer Primaerstat, Ausdauer, Krit, Tempo, Meisterschaft, Vielseitigkeit, Lebensraub, Geschwindigkeit, Haltbarkeit und Vermeidung wieder die jeweils fest gepflegte unterscheidbare Statfarbe auf Label, Wert, Prozent und dezenter Zeilentoenung verwenden; feste Spaltenstruktur, Anzeigeoptionen und Blizzard-Live-Datenquellen bleiben unveraendert. Der sichtbare `BETA`-Zusatz muss aus der Main-UI-Ueberschrift in allen Layouts entfernt bleiben, waehrend der allgemeine Beta-Status und der Beta-Hinweis in den Settings erhalten bleiben. Die blaue Trennlinie unter der Titelflaeche und die blaue Trennlinie unter den Tabellenueberschriften muessen beide links und rechts exakt 8 Pixel eingerueckt enden. In der 500 Pixel breiten M+-Ansicht muessen Aktionsreihe, Dungeonportalreihe, kombinierte BR-/BL- und M+-Timerreihe sowie M+-Killtrackerreihe an derselben rechten Kante bei x=494 enden; Buttonbreiten, linke Kanten, vertikale Abstaende, Secure-Attribute und Datenlogik duerfen dadurch nicht veraendert werden. Die Settings behalten ihre task-orientierte Reihenfolge und kuehlen Section-Cards, ESC-Shortcuts ihre semantischen sekundaeren Zustaende, LFG-Flaggen und -Herzen ihre kompakte Darstellung sowie Nameplates, Tooltips und Death-Alerts ihre zuletzt festgelegten semantischen Rollen.
 - Erforderliche Tests:
   - StatsBox renders distinct stat row tints without a border
   - StatsBox applies distinct fixed stat colors
   - Architecture M+ title omits beta label while settings retain beta status
-  - Architecture M+ title separator spans the interior while table bounds stay inset
+  - Architecture M+ title and table separators share horizontal bounds
   - Architecture release baseline synchronizer targets beta-free M+ title
   - RosterLayout M+ action portal timer and kill rows share one right edge
-  - CreateCdTrackerRow preserves cooldown sizes and fits responsive mockup timer groups
+  - CreateCdTrackerRow renders M+ grade badges and wide timer fields
   - CreateKillTrackRow anchors active dungeon text to the full row overlay
   - Settings display section separates child groups with quiet and cool hierarchy lines
   - Settings section headers use cool section-card styling
@@ -1822,13 +1825,38 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-MPLUS-MOCKUP-UMSETZUNG
 - Regelnummer: 113
-- Status: aktiv
+- Status: deaktiviert
+- Ruecknahme: Am 2026-09-09 auf ausdruecklichen Benutzerwunsch zurueckgenommen; der UI-Stand vor Commit 9c491c3 gilt wieder.
 - Zusammenfassung: Die Main-UI uebernimmt die Navy-/Blau-/Slate-Palette aus dem freigegebenen Mockup ueber UICommon. Der Titel nutzt 13 Pixel, die dynamische Addon-Version 9 Pixel und alle Roster-Datenfelder 11 Pixel bei erhaltener nativer beziehungsweise locale-faehiger WoW-Schrift. RIO-Delta und RIO-Wert bleiben zusammen in einem FontString im Format `(+X)RIO`. Die Dungeonportale behalten ihre echten Zaubericons und mittigen weissen Saison-Kuerzel. Der M+-Timer behaelt +3, +2, +1 und den Todeszaehler; zwischen dem M+-Labelrahmen und +3 liegen exakt 2 Pixel, zwischen jedem Stufenbadge und seiner Zeit 6 Pixel. Zusaetzlicher horizontaler Platz wird bei Groessenaenderungen zwischen den Stufengruppen und dem Todeszaehler verteilt; die 48 Pixel breiten Timerfelder bleiben erhalten. BR/BL behalten ihren 170 Pixel breiten Rahmen, ihre 16 Pixel grossen Icons und ihre 12 Pixel grosse Schrift. Die bestehenden Deckkraft-, Locale-, Daten-, Layoutbudget- und Secure-Vertraege bleiben erhalten; die Titellinie folgt der aktualisierten Regel 107.
 - Erforderliche Tests:
   - UICommon semantic design system applies the approved mockup palette and spacing roles
   - Architecture main-frame title bar applies a toolbar-safe text budget
-  - Roster panel uses compact column budgets and uniform native RIO delta typography
+  - Roster panel uses compact width budget for primary data columns
   - CreateCdTrackerRow preserves cooldown sizes and fits responsive mockup timer groups
   - Architecture M+ title separator spans the interior while table bounds stay inset
   - UICommon background opacity repaints semantic title and run surfaces
   - TeleportUI keeps M2 short-code overlay visible during global cooldown
+
+### RULE-MPLUS-LIVE-BILDABGLEICH
+- Regelnummer: 114
+- Status: deaktiviert
+- Ruecknahme: Am 2026-09-09 auf ausdruecklichen Benutzerwunsch zurueckgenommen; der UI-Stand vor Commit 9c491c3 gilt wieder.
+- Zusammenfassung: Wenn die native Textbreite verifiziert messbar ist, wird die Titel- und Versionsbreite ohne zusaetzliche Mindestbreite gesetzt; der Versionsanker bleibt 5 Pixel rechts vom Titel. Spaltenueberschriften starten mit 9 Pixeln und behalten ihre vorhandene Locale-Anpassung. Das M+Killtracker-Label verwendet 9 Pixel und die kuehle Farbe RGB(140,162,186); der Fortschrittsbalken ist 5 Pixel hoch. Der aktive Dungeontext bleibt auf seinem separaten Overlay oberhalb des Balkens. Gespeicherte Deckkraft und datenabhaengige Anzeigen bleiben unveraendert.
+- Erforderliche Tests:
+  - Architecture main-frame title bar applies a toolbar-safe text budget
+  - Roster panel uses compact width budget for primary data columns
+  - RosterLayout SetPanelHeaderText fits ruRU headers to fixed roster columns
+  - CreateKillTrackRow uses quiet typography and anchors dungeon text above the slim bar
+  - UICommon background opacity repaints semantic title and run surfaces
+
+### RULE-MPLUS-SPRACHBUCHSTABEN-UND-VERSION
+- Regelnummer: 115
+- Status: deaktiviert
+- Ruecknahme: Am 2026-09-09 auf ausdruecklichen Benutzerwunsch zurueckgenommen; der UI-Stand vor Commit 9c491c3 gilt wieder.
+- Zusammenfassung: Die Sprachspalte im Roster zeigt den vorhandenen zweibuchstabigen Sprachcode wie DE, FR oder EN als 8 Pixel grossen Text in RGB(155,174,191), ohne Flaggen-Textur; fehlende Sprache bleibt `??`. Diese Schriftgroesse ersetzt fuer die Sprachspalte die 11-Pixel-Festlegung aus Regel 113. Alle anderen Roster-Datenfelder bleiben bei 11 Pixeln. Der Versions-FontString reserviert mindestens 92 Pixel, auch wenn seine gemessene Breite kleiner ist; der Titel behaelt seine gemessene Breite und den 5-Pixel-Abstand zur Version. Dies ersetzt ausschliesslich die Mindestbreiten-Festlegung fuer die Version aus Regel 114 und verhindert das beobachtete Abschneiden von `v0.9.388`. Die Version bleibt dynamisch aus Addon-Metadaten. Aktive Layoutlabels und das gesperrte Lock-Control verwenden TEXT_HEADING, inaktive Layoutlabels und das entsperrte Lock-Control TEXT_SECTION, auch nach Statusaktualisierungen.
+- Erforderliche Tests:
+  - Roster display shows language letters without flag textures
+  - Roster panel uses compact width budget for primary data columns
+  - Architecture main-frame title bar applies a toolbar-safe text budget
+  - Architecture main title controls retain cool text after state refresh
+  - Horizontal mini mode arranges management buttons and helper icons in slim rows

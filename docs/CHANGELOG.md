@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 - Version 0.9.389 (patch)
+
+- Revert the M+ mockup implementation and all subsequent visual adjustments at the user's request. Restore the preceding UI, language flags, typography, timer layout and colors; remove the HTML mockup. Independent 0.9.388 changes remain intact.
+
 ## 2026-09-08 - Version 0.9.388 (patch)
 
 Brings the VIP Unholy Death Knight helper in line with what patch 12.1 did to

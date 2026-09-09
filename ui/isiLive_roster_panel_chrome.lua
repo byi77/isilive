@@ -265,7 +265,7 @@ local function CreatePanelHeaders(mainFrame)
   specHeader:SetPoint("TOPLEFT", SPEC_COL_X, -34)
   specHeader:SetWidth(SPEC_COL_WIDTH)
   specHeader._isiLiveHeaderWidth = SPEC_COL_WIDTH
-  specHeader:SetJustifyH("LEFT")
+  specHeader:SetJustifyH("RIGHT")
   ConfigureSingleLineFontString(specHeader)
 
   local nameHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -293,7 +293,7 @@ local function CreatePanelHeaders(mainFrame)
   keyHeader:SetPoint("TOPLEFT", KEY_COL_X, -34)
   keyHeader:SetWidth(KEY_COL_WIDTH)
   keyHeader._isiLiveHeaderWidth = KEY_COL_WIDTH
-  keyHeader:SetJustifyH("CENTER")
+  keyHeader:SetJustifyH("RIGHT")
   ConfigureSingleLineFontString(keyHeader)
 
   local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
