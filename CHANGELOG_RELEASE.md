@@ -3,12 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.391`.
+Current version: `0.9.392`.
 
-<!-- highlights-reviewed-for: 0.9.391 -->
+<!-- highlights-reviewed-for: 0.9.392 -->
 
 Highlights:
-- **German reads properly again.** 110 strings were written with `ue` / `ae` / `oe` instead of real umlauts — "verfuegbar", "zuruecksetzen", "Schriftgroesse". German was the only language affected; every other one already used its accents.
-- **Turkish, French, Spanish and Portuguese accents fixed** in the LFG group-bonus description. Turkish suffered most, because `i` and `ı` are different letters there.
-- **Six languages are fully translated** (0.9.390): around 105 strings each were still English — the demo simulator, the `/isilive` help, the dungeon and invite notices, the teleport tooltips and the LFG bonus labels.
-- **Right-click to whisper works across the whole roster row again**, and role markers no longer linger on players who died mid-fight.
+- **Your own deaths are counted correctly again.** The skull marker next to your name stayed at a single death for a whole key, because the health stream carries no guaranteed sample while you are dead or running back as a ghost. Own deaths now also come from `PLAYER_DEAD` / `PLAYER_UNGHOST`, and every party slot is re-checked whenever the game registers a death.
+- **The death count is shown from the first death on.** A bare skull used to mean "exactly one death", which read as a marker without a value.
+- **Ready-check row colors fill the whole row** instead of stopping behind the Kick column. The hover and click area is unchanged, so the management buttons on the right stay usable.
+- **Changing the UI scale no longer moves the window.** A frame parked away from the screen centre jumped as soon as the scale slider moved; the stored position is now converted along with the scale. The demo simulator tablet also docks correctly at scales other than 100%.
+- **German reads properly again** (0.9.391): 110 strings were written with `ue` / `ae` / `oe` instead of real umlauts, and the accents in Turkish, French, Spanish and Portuguese were restored.

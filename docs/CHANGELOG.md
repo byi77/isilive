@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-09-13 - Version 0.9.392 (patch)
+
+Death-count tracking, ready-check row tint and UI-scale geometry.
+
+- Count the local player's repeated deaths. The skull marker in the roster row
+  stayed at one death for a whole key: `UNIT_HEALTH` is the only signal
+  DeathWatch had, and it carries no guaranteed sample inside the player's dead
+  window (instant battle rez) or at the end of a ghost run, where health never
+  changes. A missed sample either dropped the death or left the per-GUID dead
+  flag latched, and the edge guard then swallowed every further own death.
+  `PLAYER_DEAD`, `PLAYER_ALIVE` and `PLAYER_UNGHOST` are now registered
+  statically and re-evaluate the `player` unit; `PLAYER_DEAD` counts as a death
+  even when `UnitIsDeadOrGhost` is masked by a secret value, while both alive
+  events only re-evaluate and never clear the flag blindly -- `PLAYER_ALIVE`
+  also fires on spirit release, where the player is still dead.
+- Re-sample all five party slots on `CHALLENGE_MODE_DEATH_COUNT_UPDATED`, which
+  previously only drove the M+ timer. Blizzard's own death bookkeeping tick is
+  the one moment a death is guaranteed to have happened, so it closes the same
+  gap for party members. The walk uses a fixed unit order to keep the
+  death-audio burst pause deterministic.
+- Render the death count from the first death on. A bare skull used to mean
+  "exactly one death", which read as a marker without a value and hid the stuck
+  counter above.
+- Let the ready-check status tint fill the whole row up to the frame edge. The
+  texture was pinned to the row's hover frame, which deliberately stops behind
+  the Kick column so the management buttons on the right stay clickable -- so
+  the color ended mid-frame and looked like a rendering glitch. The tint now
+  anchors its right edge to the main frame, which keeps it correct in every
+  layout width; the hover and click area is unchanged.
+- Keep the main frame in place when the UI scale changes. `SetPoint` offsets are
+  measured in the frame's own scale, so changing the scale multiplied the
+  on-screen distance from the anchor by the same factor and a window parked away
+  from the screen centre jumped. `mainUI.ApplyScale` now converts the stored
+  offsets by `oldScale / newScale`, persists them and notifies docked companion
+  frames -- which the scale path never did before.
+- Fix the simulator tablet's dock geometry at UI scales other than 1. The
+  screen-fit correction and the dock gap are `SetPoint` offsets on the tablet
+  and therefore live in the tablet's scale, but were converted through the
+  anchor's. At 200% the fit correction came out half the required size and left
+  the tablet hanging over the screen edge.
+
 ## 2026-09-12 - Version 0.9.391 (patch)
 
 Second audit follow-up, all localization polish and dead-code removal.
