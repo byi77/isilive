@@ -338,12 +338,12 @@ return function(test, ctx)
     )
     Assert.Equal(
       deDE.SETTINGS_STATS_BOX_FONT_SIZE_OFFSET_DESC,
-      "Passt die Textgroesse der Statsbox an.",
+      "Passt die Textgröße der Statsbox an.",
       "deDE stats-box font-size description must not fall back to English"
     )
     Assert.Equal(
       deDE.SETTINGS_STATS_BOX_DISPLAY_MODE_DESC,
-      "Waehlt, ob die Statsbox Werte, Prozente oder beides anzeigt.",
+      "Wählt, ob die Statsbox Werte, Prozente oder beides anzeigt.",
       "deDE stats-box display-mode description must not fall back to English"
     )
     Assert.Equal(deDE.SETTINGS_STATS_BOX_SHOW_DURABILITY, "Haltbarkeit", "deDE durability setting label")
@@ -467,12 +467,12 @@ return function(test, ctx)
     Assert.Equal(deDE.SETTINGS_SOUND_CHANNEL, "Klangkanal", "deDE sound-channel setting label must be German")
     Assert.Equal(
       deDE.SETTINGS_SOUND_INCOMING_SUMMON_LOOP,
-      "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+      "Eingehende-Beschwörung-Hinweis alle 5 Sekunden wiederholen",
       "deDE incoming-summon loop label must be German"
     )
     Assert.Equal(
       deDE.SETTINGS_SOUND_INCOMING_SUMMON_LOOP_DESC,
-      "Wiederholt den Beschwoerungston alle 5 Sekunden, solange die Beschwoerung noch aussteht.",
+      "Wiederholt den Beschwörungston alle 5 Sekunden, solange die Beschwörung noch aussteht.",
       "deDE incoming-summon loop description must be German"
     )
 

@@ -1055,8 +1055,8 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
             SETTINGS_SECTION_DEBUG = "Debug",
             SETTINGS_LANGUAGE = "Sprache",
             SETTINGS_COMBAT_LOGGING = "Erweiterte Kampfprotokollierung",
-            SETTINGS_DM_RESET = "Schadensmeter zuruecksetzen",
-            SETTINGS_ESC_PANEL = "ESC-Menue-Schnellzugriffe",
+            SETTINGS_DM_RESET = "Schadensmeter zurücksetzen",
+            SETTINGS_ESC_PANEL = "ESC-Menü-Schnellzugriffe",
             SETTINGS_BG_ALPHA = "Hintergrund-Deckkraft",
             SETTINGS_UI_SCALE = "UI-Skalierung",
             SETTINGS_MINIMAP_BUTTON = "Minimap-Button",
@@ -1692,7 +1692,7 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
     )
     Assert.Equal(
       localeTexts.deDE.SETTINGS_HEARTHSTONE_RANDOM,
-      "Zufaelliger eigener Ruhestein",
+      "Zufälliger eigener Ruhestein",
       "German random hearthstone option must be localized"
     )
     Assert.Equal(
@@ -2217,13 +2217,13 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
-      local summonLoopDesc = "Wiederholt den Beschwoerungston alle 5 Sekunden, "
-        .. "solange die Beschwoerung noch aussteht."
+      local summonLoopDesc = "Wiederholt den Beschwörungston alle 5 Sekunden, "
+        .. "solange die Beschwörung noch aussteht."
       local panel = addon.SettingsPanel.Create({
         getL = function()
           return {
             SETTINGS_SECTION_SOUNDS = "Sounds",
-            SETTINGS_SOUND_INCOMING_SUMMON_LOOP = "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+            SETTINGS_SOUND_INCOMING_SUMMON_LOOP = "Eingehende-Beschwörung-Hinweis alle 5 Sekunden wiederholen",
             SETTINGS_SOUND_INCOMING_SUMMON_LOOP_DESC = summonLoopDesc,
           }
         end,
@@ -2506,12 +2506,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       panel.Refresh()
       Assert.Equal(
         incomingSummonLoopCheck.label:GetText(),
-        "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+        "Eingehende-Beschwörung-Hinweis alle 5 Sekunden wiederholen",
         "refresh should localize the incoming-summon loop label"
       )
       Assert.Equal(
         incomingSummonLoopCheck.description:GetText(),
-        "Wiederholt den Beschwoerungston alle 5 Sekunden, solange die Beschwoerung noch aussteht.",
+        "Wiederholt den Beschwörungston alle 5 Sekunden, solange die Beschwörung noch aussteht.",
         "refresh should localize the incoming-summon loop description"
       )
       Assert.Equal(

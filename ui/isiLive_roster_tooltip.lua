@@ -980,6 +980,8 @@ RI.ShowRosterInfoTooltip = ShowRosterInfoTooltip
 -- its append state this way. Weak keys so a tooltip frame is never held alive
 -- by this table alone.
 local languageFlagKeyByTooltip = setmetatable({}, { __mode = "k" })
+-- TEST-ONLY EXPORT (module-boundary exception per CLAUDE.md): production never
+-- reads this; the weak table above is the tests' only observable surface.
 RI.LanguageFlagKeyByTooltip = languageFlagKeyByTooltip
 
 local function AppendBlizzardUnitLanguageLine(

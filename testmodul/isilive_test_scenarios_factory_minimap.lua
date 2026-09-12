@@ -331,7 +331,7 @@ local function Register(test, ctx)
         GetL = function()
           return {
             TOOLTIP_MINIMAP_TOGGLE_WINDOW = "Linksklick: Fenster ein- oder ausblenden.",
-            TOOLTIP_MINIMAP_OPEN_SETTINGS = "Rechtsklick: Einstellungen oeffnen.",
+            TOOLTIP_MINIMAP_OPEN_SETTINGS = "Rechtsklick: Einstellungen öffnen.",
           }
         end,
       },
@@ -348,7 +348,7 @@ local function Register(test, ctx)
     )
     Assert.Equal(
       state.tooltipLines[3],
-      "Rechtsklick: Einstellungen oeffnen.",
+      "Rechtsklick: Einstellungen öffnen.",
       "tooltip must use the localized right-click settings hint"
     )
 

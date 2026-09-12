@@ -26,6 +26,19 @@
 local LONG_LIMIT = 14
 local SHORT_LIMIT = 6
 
+-- Simulator tablet action buttons (SIM_ACTION_*_TITLE). These are not BTN_*
+-- keys and were unchecked until now, which is how a 25-character Italian
+-- label got in. They live in a two-column grid: FRAME_WIDTH 420 minus 2x
+-- FRAME_PADDING 14 minus COLUMN_GAP 8, halved -> 192px per button, and the
+-- label is anchored LEFT +36 / RIGHT -46, leaving ~110px of text width.
+--
+-- The cap below is a REGRESSION CEILING, not a measured pixel fit: it is set
+-- to the longest labels that have already shipped and drawn acceptably (the
+-- German titles have sat at 23-24 characters for many releases). It stops
+-- labels from growing further; it does not prove that 24 is the true limit.
+-- If a label ever visibly clips in game, lower this and shorten the labels.
+local SIM_ACTION_TITLE_LIMIT = 24
+
 -- Per-key length-cap overrides for legitimate edge cases (tooltip-text
 -- entries that just happen to live in the BTN_* namespace, multi-line
 -- buttons that wrap, etc.). Keep this table small — every entry is a
@@ -90,9 +103,16 @@ local function LoadLocaleTables()
   return addonTable.Texts.GetLocaleTables()
 end
 
+local function IsCheckedKey(key)
+  return key:sub(1, 4) == "BTN_" or (key:find("^SIM_ACTION_") ~= nil and key:find("_TITLE$") ~= nil)
+end
+
 local function ResolveLimit(key)
   if OVERRIDES[key] then
     return OVERRIDES[key]
+  end
+  if key:find("^SIM_ACTION_") and key:find("_TITLE$") then
+    return SIM_ACTION_TITLE_LIMIT
   end
   -- Compact-mode variants: only the explicit suffixes that this codebase
   -- actually uses for narrow / hModeText layouts. _LOCKED is a button STATE
@@ -122,7 +142,7 @@ local function main()
       -- Sort keys so the report is identical run-to-run.
       local keys = {}
       for key in pairs(table_) do
-        if type(key) == "string" and key:sub(1, 4) == "BTN_" then
+        if type(key) == "string" and IsCheckedKey(key) then
           keys[#keys + 1] = key
         end
       end
@@ -145,10 +165,12 @@ local function main()
   if #violations == 0 then
     io.write(
       string.format(
-        "button-label-length: clean -- all %d BTN_* labels within limits (long<=%d, short<=%d)\n",
+        "button-label-length: clean -- all %d BTN_* / SIM_ACTION_*_TITLE labels within limits "
+          .. "(long<=%d, short<=%d, sim-title<=%d)\n",
         checked,
         LONG_LIMIT,
-        SHORT_LIMIT
+        SHORT_LIMIT,
+        SIM_ACTION_TITLE_LIMIT
       )
     )
     os.exit(0)
@@ -158,7 +180,14 @@ local function main()
   for _, v in ipairs(violations) do
     io.write("  " .. v .. "\n")
   end
-  io.write(string.format("\n  Long limit: <=%d, Short limit: <=%d\n", LONG_LIMIT, SHORT_LIMIT))
+  io.write(
+    string.format(
+      "\n  Long limit: <=%d, Short limit: <=%d, Simulator title limit: <=%d\n",
+      LONG_LIMIT,
+      SHORT_LIMIT,
+      SIM_ACTION_TITLE_LIMIT
+    )
+  )
   io.write("  Add an entry to OVERRIDES{} in this script if a label is intentionally longer.\n")
   os.exit(1)
 end

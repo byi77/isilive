@@ -739,7 +739,8 @@ local function ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
 
   local localeModule = addonTable and addonTable.Locale
   if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
-    local locale = rawget(_G, "GetLocale") and GetLocale() or nil
+    local getLocale = rawget(_G, "GetLocale")
+    local locale = type(getLocale) == "function" and getLocale() or nil
     return function(languageTag)
       return localeModule.GetLanguageTooltipMarkup(languageTag, locale)
     end
