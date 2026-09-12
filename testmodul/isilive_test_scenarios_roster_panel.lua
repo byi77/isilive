@@ -555,7 +555,7 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
     end)
   end)
 
-  test("Roster display appends skull marker and repeat count for tracked deaths", function()
+  test("Roster display appends skull marker and death count from the first death on", function()
     WithGlobals({
       GetReadyCheckStatus = function()
         return nil
@@ -582,7 +582,7 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         once.addonMarker:find("UI%-RaidTargetingIcon_8", 1) ~= nil,
         "a player with deaths should receive the skull marker"
       )
-      Assert.False(once.addonMarker:find("|cffff60601|r", 1, true) ~= nil, "one death should not add a noisy count")
+      Assert.True(once.addonMarker:find("|cffff60601|r", 1, true) ~= nil, "a single death must render its count too")
 
       local twice = addon.Roster.BuildDisplayData({
         name = "Twice",
@@ -1356,6 +1356,117 @@ local function FindM2ColumnGuides(createdTextures)
 end
 
 local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row ready-check background spans the row up to the frame edge", function()
+    local mainFrame
+    local textures = {}
+
+    local function NewPointRecordingTexture()
+      local texture = { points = {} }
+      function texture.SetPoint(self, point, relativeTo, relativePoint, x, y)
+        table.insert(self.points, {
+          point = point,
+          relativeTo = relativeTo,
+          relativePoint = relativePoint,
+          x = x,
+          y = y,
+        })
+      end
+      function texture.SetAllPoints(self)
+        self.allPoints = true
+      end
+      texture.SetColorTexture = function() end
+      texture.SetTexture = function() end
+      texture.SetTexCoord = function() end
+      texture.Show = function() end
+      texture.Hide = function() end
+      table.insert(textures, texture)
+      return texture
+    end
+
+    WithGlobals({
+      CreateFrame = function()
+        local frame = {
+          attributes = {},
+          SetPoint = function() end,
+          SetSize = function() end,
+          SetHeight = function() end,
+          SetWidth = function() end,
+          EnableMouse = function() end,
+          RegisterForClicks = function() end,
+          SetFrameLevel = function() end,
+          GetFrameLevel = function()
+            return 1
+          end,
+          SetScript = function() end,
+          SetAttribute = function(self, key, value)
+            self.attributes[key] = value
+          end,
+          GetAttribute = function(self, key)
+            return self.attributes[key]
+          end,
+          CreateTexture = NewPointRecordingTexture,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetJustifyH = function() end,
+              SetWidth = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+          Hide = function() end,
+          Show = function() end,
+        }
+        return frame
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local RI = addon._RosterInternal
+
+      mainFrame = {
+        GetFrameLevel = function()
+          return 1
+        end,
+        CreateTexture = NewPointRecordingTexture,
+        CreateFontString = function()
+          return {
+            SetPoint = function() end,
+            SetJustifyH = function() end,
+            SetWidth = function() end,
+            SetText = function() end,
+            SetWordWrap = function() end,
+            SetNonSpaceWrap = function() end,
+            SetMaxLines = function() end,
+            Hide = function() end,
+            Show = function() end,
+          }
+        end,
+      }
+
+      local row = RI.CreateMemberRow(mainFrame, 1, nil, function()
+        return {}
+      end)
+
+      local background = row.readyCheckBackground
+      Assert.NotNil(background, "the row must own a ready-check background texture")
+      Assert.True(background.allPoints ~= true, "the tint must not be clamped to the hover frame")
+
+      local rightPoint = nil
+      for _, entry in ipairs(background.points) do
+        if entry.point == "RIGHT" then
+          rightPoint = entry
+        end
+      end
+      Assert.NotNil(rightPoint, "the tint must anchor its right edge explicitly")
+      Assert.Equal(rightPoint.relativeTo, mainFrame, "the right edge must follow the main frame, not the hover frame")
+      Assert.Equal(rightPoint.x, -4, "the right inset must mirror the four-pixel left inset of the row")
+    end)
+  end)
+
   test("Roster row left-click does not call protected targeting from insecure row UI", function()
     local createdFrames = {}
     local targetCalls = 0

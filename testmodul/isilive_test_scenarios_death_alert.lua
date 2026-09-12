@@ -13,6 +13,7 @@ local function BuildWatchEnv(opts)
     alerts = {},
     deadUnits = opts.deadUnits or {},
     connectedUnits = opts.connectedUnits or {},
+    unreadableDead = opts.unreadableDead or {},
     guids = opts.guids or {
       player = "Player-1",
       party1 = "Player-2",
@@ -51,6 +52,11 @@ local function BuildWatchEnv(opts)
       return env.connectedUnits[unit] ~= false
     end,
     unitIsDeadOrGhost = function(unit)
+      -- nil models an unreadable state (secret value / missing API), which is
+      -- where the PLAYER_DEAD fallback has to take over.
+      if env.unreadableDead[unit] == true then
+        return nil
+      end
       return env.deadUnits[unit] == true
     end,
     unitGUID = function(unit)
@@ -236,6 +242,87 @@ local function RegisterDeathWatchTests(test, ctx)
     controller.HandleUnitHealth("player")
     Assert.Equal(#env.alerts, 1, "own death must alert as well")
     Assert.Equal(env.alerts[1].role, "HEALER", "own role must be resolved like any other unit")
+  end)
+
+  -- Regression: the own death count stayed at 1 for a whole key. UNIT_HEALTH
+  -- carries no guaranteed sample inside the local player's dead window, so a
+  -- missed sample either dropped the death or latched the dead flag, and the
+  -- edge guard then swallowed every further own death.
+  test("DeathWatch counts repeated own deaths through PLAYER_DEAD and PLAYER_UNGHOST", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    addon.DeathWatch.SetDependencies(env.deps)
+
+    env.deadUnits.player = true
+    addon.DeathWatch.HandleEvent("PLAYER_DEAD")
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm").count,
+      1,
+      "PLAYER_DEAD alone must record the first own death"
+    )
+
+    -- Ghost run: no health event ever arrives, only the release/revive edges.
+    addon.DeathWatch.HandleEvent("PLAYER_ALIVE")
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm").count,
+      1,
+      "spirit release must not clear the dead flag while the player is still a ghost"
+    )
+
+    env.deadUnits.player = false
+    addon.DeathWatch.HandleEvent("PLAYER_UNGHOST")
+
+    env.deadUnits.player = true
+    addon.DeathWatch.HandleEvent("PLAYER_DEAD")
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm").count,
+      2,
+      "a second own death must be counted after the revive edge"
+    )
+  end)
+
+  test("DeathWatch treats PLAYER_DEAD as dead when the state read is unreadable", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    addon.DeathWatch.SetDependencies(env.deps)
+
+    env.unreadableDead.player = true
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "player")
+    Assert.Nil(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm"),
+      "an unreadable state must not be guessed on the health path"
+    )
+
+    addon.DeathWatch.HandleEvent("PLAYER_DEAD")
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm").count,
+      1,
+      "PLAYER_DEAD is authoritative even when UnitIsDeadOrGhost is masked"
+    )
+  end)
+
+  test("DeathWatch re-samples every party slot on CHALLENGE_MODE_DEATH_COUNT_UPDATED", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    addon.DeathWatch.SetDependencies(env.deps)
+
+    -- No UNIT_HEALTH sample was delivered for either death; Blizzard's own
+    -- death bookkeeping tick is the second sampling point.
+    env.deadUnits.player = true
+    env.deadUnits.party1 = true
+    addon.DeathWatch.HandleEvent("CHALLENGE_MODE_DEATH_COUNT_UPDATED")
+
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Self", "Realm").count,
+      1,
+      "the own death must be picked up by the re-sample"
+    )
+    Assert.Equal(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm").count,
+      1,
+      "a party death without a health sample must be picked up too"
+    )
+    Assert.Equal(#env.alerts, 2, "both re-sampled deaths must reach the alert path exactly once")
   end)
 
   test("DeathWatch resets dead flags on challenge lifecycle events", function()

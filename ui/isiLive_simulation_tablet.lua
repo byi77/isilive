@@ -254,7 +254,10 @@ local function ResolveDockSide(frame, anchorFrame, screenParent)
   local frameScale = GetEffectiveScale(frame)
   local width = (SafeRegionNumber(frame, "GetWidth") or FRAME_WIDTH) * frameScale
   local height = (SafeRegionNumber(frame, "GetHeight") or FRAME_MIN_HEIGHT) * frameScale
-  local gap = DOCK_GAP * anchorBounds.scale
+  -- The gap is applied as a SetPoint offset on the tablet, so it is measured in
+  -- the tablet's scale -- not the anchor's. Those differ as soon as the main
+  -- frame runs at a UI scale other than 1.
+  local gap = DOCK_GAP * frameScale
   local rightSpace = screenBounds.right - anchorBounds.right
   local leftSpace = anchorBounds.left - screenBounds.left
   local belowSpace = anchorBounds.bottom - screenBounds.bottom
@@ -295,7 +298,11 @@ local function ResolveDockOffsets(frame, anchorFrame, screenParent, side)
     local fittedTop = height <= (screenBounds.top - screenBounds.bottom)
         and math.max(minimumTop, math.min(maximumTop, desiredTop))
       or maximumTop
-    yOffset = (fittedTop - desiredTop) / anchorBounds.scale
+    -- The correction is a SetPoint offset on the tablet, so it converts back
+    -- through the tablet's own scale. Dividing by the anchor's scale silently
+    -- shrank the fit correction whenever the main frame ran at a UI scale
+    -- other than 1, leaving the tablet hanging over the screen edge.
+    yOffset = (fittedTop - desiredTop) / frameScale
   else
     local desiredLeft = anchorBounds.left
     local minimumLeft = screenBounds.left
@@ -303,7 +310,7 @@ local function ResolveDockOffsets(frame, anchorFrame, screenParent, side)
     local fittedLeft = width <= (screenBounds.right - screenBounds.left)
         and math.max(minimumLeft, math.min(maximumLeft, desiredLeft))
       or minimumLeft
-    xOffset = (fittedLeft - desiredLeft) / anchorBounds.scale
+    xOffset = (fittedLeft - desiredLeft) / frameScale
   end
 
   return xOffset, yOffset

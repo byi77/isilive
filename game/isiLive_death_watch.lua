@@ -16,6 +16,11 @@ local WATCHED_UNITS = {
   party4 = true,
 }
 
+-- Deterministic order for the full re-poll (CHALLENGE_MODE_DEATH_COUNT_UPDATED).
+-- A pairs() walk over WATCHED_UNITS would make the death-audio burst pause,
+-- which depends on the order consecutive deaths are observed in, unstable.
+local WATCHED_UNIT_ORDER = { "player", "party1", "party2", "party3", "party4" }
+
 local DEATH_AUDIO_BURST_PAUSE_SECONDS = 30
 
 local function DefaultGetTime()
@@ -248,7 +253,11 @@ function DeathWatch.CreateController(opts)
     end
   end
 
-  function controller.HandleUnitHealth(unit)
+  -- Single evaluation of one unit's alive/dead state. deadFallback is the
+  -- answer used when the API read is unavailable (secret value / missing
+  -- function): PLAYER_DEAD knows the player is dead even when the read fails,
+  -- every other caller passes nil and bails instead of guessing.
+  local function EvaluateUnit(unit, deadFallback)
     if type(unit) ~= "string" or not WATCHED_UNITS[unit] then
       return
     end
@@ -268,6 +277,9 @@ function DeathWatch.CreateController(opts)
       return
     end
     local dead = unitIsDeadOrGhost(unit)
+    if dead == nil then
+      dead = deadFallback
+    end
     if dead == nil then
       return
     end
@@ -291,6 +303,35 @@ function DeathWatch.CreateController(opts)
       local suppressAudio = UpdateDeathAudioBurstPause(guid, GetNow())
       deadRoleByGuid[guid] = role
       onRoleDeath(role, unit, { suppressAudio = suppressAudio })
+    end
+  end
+
+  function controller.HandleUnitHealth(unit)
+    EvaluateUnit(unit, nil)
+  end
+
+  -- PLAYER_DEAD / PLAYER_ALIVE / PLAYER_UNGHOST close the gap UNIT_HEALTH
+  -- leaves for the local player: the health stream carries no guaranteed
+  -- sample inside the dead window (instant battle rez) nor at the end of a
+  -- ghost run (a ghost's health never changes). Without them a missed sample
+  -- either drops the death or leaves the dead flag latched, and every further
+  -- own death is swallowed by the edge guard.
+  --
+  -- PLAYER_ALIVE also fires on spirit release, where UnitIsDeadOrGhost stays
+  -- true -- so both alive events only re-evaluate and never clear blindly.
+  function controller.HandlePlayerDead()
+    EvaluateUnit("player", true)
+  end
+
+  function controller.HandlePlayerAlive()
+    EvaluateUnit("player", nil)
+  end
+
+  -- Blizzard's own death bookkeeping ticked: the most reliable moment to
+  -- re-sample every party slot, independent of the health stream.
+  function controller.HandleDeathCountUpdated()
+    for _, unit in ipairs(WATCHED_UNIT_ORDER) do
+      EvaluateUnit(unit, nil)
     end
   end
 
@@ -389,6 +430,18 @@ function DeathWatch.HandleEvent(event, ...)
   end
   if event == "UNIT_HEALTH" then
     controllerInstance.HandleUnitHealth(...)
+    return
+  end
+  if event == "PLAYER_DEAD" then
+    controllerInstance.HandlePlayerDead()
+    return
+  end
+  if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+    controllerInstance.HandlePlayerAlive()
+    return
+  end
+  if event == "CHALLENGE_MODE_DEATH_COUNT_UPDATED" then
+    controllerInstance.HandleDeathCountUpdated()
     return
   end
   if event == "GROUP_ROSTER_UPDATE" then

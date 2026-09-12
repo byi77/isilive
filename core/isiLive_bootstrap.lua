@@ -156,6 +156,13 @@ local EVENT_REGISTRY = {
   -- because deaths happen mid-combat; hidden=true because the alert is an
   -- event-driven cue independent of main-UI visibility (rule 80).
   { "UNIT_HEALTH", true, true, false },
+  -- Guaranteed own-death edges. UNIT_HEALTH carries no reliable sample inside
+  -- the local player's dead window (instant battle rez) or at the end of a
+  -- ghost run, so these three keep the own death count in sync. Same gates as
+  -- UNIT_HEALTH: deaths happen mid-combat and the cue is visibility-independent.
+  { "PLAYER_DEAD", true, true, false },
+  { "PLAYER_ALIVE", true, true, false },
+  { "PLAYER_UNGHOST", true, true, false },
   { "UNIT_PET", false, true, false, "player" },
   { "UNIT_SPELLCAST_SUCCEEDED", true, true, false, { "player", "pet" } },
   { "READY_CHECK", true, false, false },

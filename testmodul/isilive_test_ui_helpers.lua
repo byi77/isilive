@@ -198,6 +198,9 @@ local function ApplyFrameMethods(frame)
   end
   frame.GetPoint = function(self)
     local p = self._point
+    if type(p) ~= "table" then
+      return nil
+    end
     return p[1], p[2], p[3], p[4], p[5]
   end
   frame.SetParent = function(self, parent)
@@ -343,6 +346,9 @@ local function ApplyFrameMethods(frame)
   frame.SetDrawEdge = function(_self, _value) end
   frame.SetScale = function(self, value)
     self._scale = value
+  end
+  frame.GetScale = function(self)
+    return self._scale or 1
   end
   frame.SetBackdrop = function(self, backdrop)
     self._backdrop = backdrop

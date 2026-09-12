@@ -114,6 +114,7 @@ local function MakeBackgroundMock()
     end,
     SetColorTexture = NoOp,
     SetAllPoints = NoOp,
+    SetPoint = NoOp,
   }
 end
 

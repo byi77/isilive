@@ -88,6 +88,9 @@ local KICK_COL_X = RI.KICK_COL_X or (DPS_COL_X + DPS_COL_WIDTH + 4)
 local KICK_COL_WIDTH = RI.KICK_COL_WIDTH or 32
 local KICK_HOVER_WIDTH = KICK_COL_WIDTH
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
+-- Mirrors the 4 px left inset every row starts at, so a full-width row tint
+-- keeps the same gap on both sides.
+local ROW_RIGHT_INSET = 4
 
 -- Raid-target marker per role: 6 = Blue Square (Tank), 4 = Green Triangle (Healer).
 -- Right-click clears via marker 0.
@@ -134,8 +137,19 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
     altBg:SetColorTexture(unpack((UICommon.Colors and UICommon.Colors.ROW_ALT) or { 1, 1, 1, 0.03 }))
   end
 
+  -- The status tint spans the whole row up to the frame edge, not just the
+  -- hoverFrame: the hover/click area deliberately stops behind the kick column
+  -- so the management buttons on the right stay clickable, but a tint ending
+  -- mid-frame reads as a rendering glitch. Anchoring the right edge to
+  -- mainFrame keeps it correct in every layout width.
   row.readyCheckBackground = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, 0)
-  row.readyCheckBackground:SetAllPoints()
+  if type(row.readyCheckBackground.SetPoint) == "function" then
+    row.readyCheckBackground:SetPoint("TOPLEFT", row.hoverFrame, "TOPLEFT", 0, 0)
+    row.readyCheckBackground:SetPoint("BOTTOMLEFT", row.hoverFrame, "BOTTOMLEFT", 0, 0)
+    row.readyCheckBackground:SetPoint("RIGHT", mainFrame, "RIGHT", -ROW_RIGHT_INSET, 0)
+  else
+    row.readyCheckBackground:SetAllPoints()
+  end
   row.readyCheckBackground:Hide()
 
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")

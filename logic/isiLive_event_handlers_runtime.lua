@@ -803,6 +803,18 @@ local function BuildNonRaidEventForwarder(ctx, handlerName, eventName)
   end
 end
 
+-- The M+ timer needs Blizzard's own death count; DeathWatch uses the same tick
+-- as an extra sampling point for the per-player attribution, which the
+-- UNIT_HEALTH stream alone can miss.
+local function BuildChallengeModeDeathCountForwarder(ctx)
+  return function(_self, ...)
+    if not IsRaidModeActive(ctx) then
+      ctx.handleMplusTimerEvent("CHALLENGE_MODE_DEATH_COUNT_UPDATED", ...)
+      ctx.handleDeathWatchEvent("CHALLENGE_MODE_DEATH_COUNT_UPDATED", ...)
+    end
+  end
+end
+
 local function BuildUnitSpellcastSucceededForwarder(ctx)
   return function(_self, ...)
     if not IsRaidModeActive(ctx) then
@@ -1266,12 +1278,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     UNIT_PET = BuildUnitPetForwarder(ctx),
     UNIT_SPELLCAST_SUCCEEDED = BuildUnitSpellcastSucceededForwarder(ctx),
     UNIT_HEALTH = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "UNIT_HEALTH"),
+    PLAYER_DEAD = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "PLAYER_DEAD"),
+    PLAYER_ALIVE = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "PLAYER_ALIVE"),
+    PLAYER_UNGHOST = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "PLAYER_UNGHOST"),
     SCENARIO_CRITERIA_UPDATE = BuildNonRaidEventForwarder(ctx, "handleKillTrackEvent", "SCENARIO_CRITERIA_UPDATE"),
-    CHALLENGE_MODE_DEATH_COUNT_UPDATED = BuildNonRaidEventForwarder(
-      ctx,
-      "handleMplusTimerEvent",
-      "CHALLENGE_MODE_DEATH_COUNT_UPDATED"
-    ),
+    CHALLENGE_MODE_DEATH_COUNT_UPDATED = BuildChallengeModeDeathCountForwarder(ctx),
     PARTY_LEADER_CHANGED = BuildPartyLeaderChangedForwarder(ctx),
   }
 end

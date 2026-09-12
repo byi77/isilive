@@ -386,6 +386,56 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.Equal(mainUI.frame._clampRectInsets[4], 0, "main frame bottom clamp inset must stay at the edge")
     end)
   end)
+  test("UI scale change keeps the main frame at the same on-screen spot", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+      IsiLiveDB = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        isDragLocked = function()
+          return false
+        end,
+      })
+
+      -- A window the user dragged 400 units left and 200 up of centre. The
+      -- SetPoint offsets live in the frame scale, so doubling the scale would
+      -- double the on-screen distance unless the offsets are corrected.
+      mainUI.frame:ClearAllPoints()
+      mainUI.frame:SetPoint("CENTER", UIParent, "CENTER", -400, 200)
+
+      local notifications = 0
+      mainUI.SetPositionChangedHandler(function()
+        notifications = notifications + 1
+      end)
+
+      Assert.True(mainUI.ApplyScale(2.0), "scale change must be applied")
+      Assert.Equal(mainUI.frame._scale, 2.0, "the new scale must reach the frame")
+
+      local point, _, relativePoint, x, y = mainUI.frame:GetPoint()
+      Assert.Equal(point, "CENTER", "the anchor point must survive the scale change")
+      Assert.Equal(relativePoint, "CENTER", "the relative anchor point must survive the scale change")
+      Assert.Equal(x, -200, "doubling the scale must halve the x offset to hold the screen position")
+      Assert.Equal(y, 100, "doubling the scale must halve the y offset to hold the screen position")
+
+      Assert.Equal(IsiLiveDB.position.x, -200, "the corrected position must be persisted")
+      Assert.Equal(IsiLiveDB.position.y, 100, "the corrected position must be persisted")
+      Assert.Equal(notifications, 1, "docked companion frames must be re-anchored after a scale change")
+
+      -- Going back to the original scale must land on the original offsets.
+      mainUI.ApplyScale(1.0)
+      local _, _, _, backX, backY = mainUI.frame:GetPoint()
+      Assert.Equal(backX, -400, "returning to the old scale must restore the old x offset")
+      Assert.Equal(backY, 200, "returning to the old scale must restore the old y offset")
+    end)
+  end)
+
   test("UI drag start/stop remains available during combat", function()
     local inCombat = true
     local positionChangedCalls = 0

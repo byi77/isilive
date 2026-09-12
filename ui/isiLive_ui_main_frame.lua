@@ -476,6 +476,44 @@ function UI.CreateMainFrame(opts)
     NotifyPositionChanged()
   end
 
+  -- SetPoint offsets are measured in the frame's own scale, so changing the
+  -- scale alone multiplies the on-screen distance from the anchor by the same
+  -- factor: a window parked away from the screen centre jumps as soon as the
+  -- UI-scale slider moves. Rescaling the stored offsets by oldScale/newScale
+  -- keeps the frame where the user put it. The corrected offsets are persisted
+  -- right away, so the next login restores the same spot.
+  local function ApplyScale(scale)
+    local newScale = tonumber(scale)
+    if not newScale or newScale <= 0 or type(frame.SetScale) ~= "function" then
+      return false
+    end
+
+    local oldScale = nil
+    if type(frame.GetScale) == "function" then
+      oldScale = tonumber(frame:GetScale())
+    end
+    local point, relativePoint, x, y
+    if type(frame.GetPoint) == "function" then
+      point, _, relativePoint, x, y = frame:GetPoint()
+    end
+
+    frame:SetScale(newScale)
+
+    if not (oldScale and oldScale > 0 and type(point) == "string" and tonumber(x) and tonumber(y)) then
+      return true
+    end
+    if oldScale == newScale then
+      return true
+    end
+
+    local factor = oldScale / newScale
+    frame:ClearAllPoints()
+    frame:SetPoint(point, parent, relativePoint or point, x * factor, y * factor)
+    SavePosition(frame)
+    NotifyPositionChanged()
+    return true
+  end
+
   local function ResetPosition()
     frame:ClearAllPoints()
     frame:SetPoint("CENTER", parent, "CENTER", 0, 0)
@@ -498,6 +536,7 @@ function UI.CreateMainFrame(opts)
     SetHeightSafe = SetHeightSafe,
     ToggleVisibility = ToggleVisibility,
     ApplyStoredPosition = ApplyStoredPosition,
+    ApplyScale = ApplyScale,
     ResetPosition = ResetPosition,
     GetPendingHeight = GetPendingHeight,
     GetPendingVisible = GetPendingVisible,

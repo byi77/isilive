@@ -46,6 +46,7 @@ function M.MakeFrameMock(opts)
       Show = NoOp,
       Hide = NoOp,
       SetAllPoints = NoOp,
+      SetPoint = NoOp,
       SetColorTexture = NoOp,
       SetTexture = NoOp,
       SetTexCoord = NoOp,

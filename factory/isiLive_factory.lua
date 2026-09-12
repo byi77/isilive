@@ -209,7 +209,11 @@ local function FinalizeFactorySettings(ctx)
         if logf then
           logf("[SETTINGS] ui_scale val=%s", tostring(val))
         end
-        if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
+        -- Goes through mainUI so the frame keeps its on-screen position across
+        -- the scale change; the bare SetScale stays as the fallback.
+        if ctx.mainUI and type(ctx.mainUI.ApplyScale) == "function" then
+          ctx.mainUI.ApplyScale(val)
+        elseif ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
           ctx.mainFrame:SetScale(val)
         end
         if type(ctx.RefreshSimulationTabletDock) == "function" then

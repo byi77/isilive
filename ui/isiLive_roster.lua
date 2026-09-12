@@ -223,11 +223,11 @@ function Roster.BuildDisplayData(info, opts)
     addonMarker = addonMarker .. syncBadge
   end
   local deathCount = type(deathSummary) == "table" and tonumber(deathSummary.count) or tonumber(info.deathCount)
+  -- The count is rendered from the first death on. A bare skull used to mean
+  -- "exactly one death", which read as a marker without a value and hid a
+  -- stuck counter.
   if deathCount and deathCount > 0 then
-    addonMarker = addonMarker .. DEATH_MARKER_ICON
-    if deathCount > 1 then
-      addonMarker = addonMarker .. "|cffff6060" .. tostring(math.floor(deathCount)) .. "|r"
-    end
+    addonMarker = addonMarker .. DEATH_MARKER_ICON .. "|cffff6060" .. tostring(math.floor(deathCount)) .. "|r"
   end
   local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""

@@ -501,6 +501,15 @@ return function(test, ctx)
       "left",
       "dock side selection must compare effective physical bounds across different UI scales"
     )
+    -- Anchor at scale 1.5, tablet at 0.75: the tablet has to move 165 physical
+    -- pixels down to stay on screen. SetPoint offsets are measured in the
+    -- tablet's own scale, so that is -220 -- dividing by the anchor scale
+    -- instead would yield -110 and leave the tablet hanging over the edge.
+    Assert.Equal(
+      scaledController.frame._point[5],
+      -220,
+      "the screen-fit correction must convert through the tablet's own scale, not the anchor's"
+    )
   end)
 
   test("Simulation tablet category tabs keep the control surface compact", function()

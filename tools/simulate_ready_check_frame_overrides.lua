@@ -141,6 +141,7 @@ local function MakeBackgroundMock(slot)
     LogFrame(slot, "Background:SetColorTexture", string.format(" rgba=(%.2f,%.2f,%.2f,%.2f)", r, g, b, a))
   end
   function mock:SetAllPoints() end
+  function mock:SetPoint() end
   return mock
 end
 
