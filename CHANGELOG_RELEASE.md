@@ -3,12 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.390`.
+Current version: `0.9.391`.
 
-<!-- highlights-reviewed-for: 0.9.390 -->
+<!-- highlights-reviewed-for: 0.9.391 -->
 
 Highlights:
-- **French, Spanish, Portuguese, Italian, Russian and Turkish are properly translated now.** Around 105 strings per language were still showing English text: the whole demo simulator, the `/isilive` help output, the dungeon- and raid-entered notices, the accepted-invite notices, the teleport tooltips and the LFG group-bonus labels.
-- **Right-click to whisper works across the whole roster row again.** The role icon of a damage dealer was swallowing clicks in its own corner of the row without doing anything itself.
-- **Role markers no longer linger on dead players in combat.** When a group member dies mid-fight, their role button now disappears instead of staying clickable.
-- **The previous M+ interface stays restored**, and the 0.9.388 VIP Unholy Death Knight fixes are unchanged.
+- **German reads properly again.** 110 strings were written with `ue` / `ae` / `oe` instead of real umlauts — "verfuegbar", "zuruecksetzen", "Schriftgroesse". German was the only language affected; every other one already used its accents.
+- **Turkish, French, Spanish and Portuguese accents fixed** in the LFG group-bonus description. Turkish suffered most, because `i` and `ı` are different letters there.
+- **Six languages are fully translated** (0.9.390): around 105 strings each were still English — the demo simulator, the `/isilive` help, the dungeon and invite notices, the teleport tooltips and the LFG bonus labels.
+- **Right-click to whisper works across the whole roster row again**, and role markers no longer linger on players who died mid-fight.

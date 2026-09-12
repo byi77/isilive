@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.390`
+Versionsbasis: `0.9.391`
 Zuletzt aktualisiert: `2026-09-12`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
@@ -310,7 +310,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.390                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.391                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

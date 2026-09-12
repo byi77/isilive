@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-12 - Version 0.9.391 (patch)
+
+Second audit follow-up, all localization polish and dead-code removal.
+
+- Restore the German umlauts. 110 strings were written with the ASCII
+  substitutes `ue` / `ae` / `oe` / `ss` -- "verfuegbar", "zuruecksetzen",
+  "Automatisch schliessen", "Schriftgroesse", "Gegnerkraefte", "waehrend" --
+  across settings labels and descriptions, the slash-command help and the
+  reset dialogs. German was the only language written this way: it had 2 keys
+  with diacritics against 102 in French, 144 in Turkish and 468 in Russian.
+  Words that only look transliterated keep their spelling (Auerochse,
+  Abschluss, Klasse, anzupassen).
+- Restore the diacritics in the shared LFG group-bonus description for German,
+  French, Spanish, Portuguese and Turkish. The Turkish text was the worst
+  affected, since `i` and `ı` are separate letters there: "yararli sinif
+  bufflari icin yesil" is now "yararlı sınıf buffları için yeşil".
+- Extend the button-label gate to the simulator tablet's action titles. It
+  only covered `BTN_*` keys, which is how a 25-character Italian label got in;
+  that label is shortened and the gate now caps these at 24 characters.
+- Route `GetLocale` through `rawget(_G, ...)` in the roster panel's language
+  tooltip resolver -- the guard used rawget but the call did not.
+- Drop four dead compatibility aliases left over from the
+  `compact_horizontal_2` rename (`RI.LAYOUT_MODE_COMPACT_HORIZONTAL_2` and
+  three `RI.MINI_HORIZONTAL_2_*` constants). Nothing read them. The legacy
+  layout id itself stays, because saved settings still carry it.
+- Document `RI.LanguageFlagKeyByTooltip` as the test-only export it is.
+
 ## 2026-09-12 - Version 0.9.390 (patch)
 
 Audit follow-up. No new features; this closes gaps the audit found across
