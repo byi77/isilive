@@ -99,12 +99,8 @@ local function ResolveConfiguredDefaultOpenLayoutMode()
 
   return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 end
-local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
-  return false
-end
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
-local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles
 local AttachSystemOptionToggleWatcher = RI.AttachSystemOptionToggleWatcher
 local SetFlatButtonText = RI.SetFlatButtonText or function(_btn, _text) end
 local UpdateCollapseState = RI.UpdateCollapseState
@@ -118,16 +114,11 @@ local CreateKillTrackRow = RI.CreateKillTrackRow
 local UpdateKillTrackRow = RI.UpdateKillTrackRow
 local CreateFlatButton = RI.CreateFlatButton
 local CreatePanelHeaders = RI.CreatePanelHeaders
-local SetPanelHeaderText = RI.SetPanelHeaderText
-  or function(fontString, text)
-    if type(fontString) == "table" and type(fontString.SetText) == "function" then
-      fontString:SetText(tostring(text or ""))
-    end
-  end
 local CreateM2ColumnGuides = RI.CreateM2ColumnGuides
 local AttachPanelButtonTooltip = RI.AttachPanelButtonTooltip
 local AttachModeButtonTooltip = RI.AttachModeButtonTooltip
 local CreateTankHelperButtons = RI.CreateTankHelperButtons
+local ApplyPanelLocalization = RI.ApplyPanelLocalization or function(_ui, _getL) end
 
 -- Render imports (defined in isiLive_roster_panel_render.lua).
 local RenderRosterImpl = RI.RenderRosterImpl or function(_state, _roster) end
@@ -890,79 +881,7 @@ function RosterPanel.CreateController(opts)
   local controller = {}
 
   function controller.ApplyLocalization()
-    local L = getL()
-    local function ApplyLocaleFont(fontString)
-      if type(UICommon.ApplyLocaleFont) == "function" then
-        UICommon.ApplyLocaleFont(fontString)
-      end
-    end
-    local titleName = tostring(L.TITLE or "isiLive")
-    local addonVer = rawget(_G, "C_AddOns")
-        and type(C_AddOns.GetAddOnMetadata) == "function"
-        and C_AddOns.GetAddOnMetadata("isiLive", "Version")
-      or nil
-    local titleVer = addonVer and ("v" .. addonVer) or ""
-    ui.title:SetText(titleName)
-    ApplyLocaleFont(ui.title)
-    if ui.titleVersion then
-      ui.titleVersion:SetText(titleVer)
-      ApplyLocaleFont(ui.titleVersion)
-    end
-    if ui.titleHint then
-      ui.titleHint:SetText("")
-      ApplyLocaleFont(ui.titleHint)
-      ui.titleHint:Hide()
-    end
-    if type(ui.ApplyTitleBudget) == "function" then
-      ui.ApplyTitleBudget()
-    end
-    SetPanelHeaderText(ui.specHeader, L.COL_SPEC)
-    SetPanelHeaderText(ui.nameHeader, L.COL_NAME)
-    SetPanelHeaderText(ui.serverHeader, L.COL_LANGUAGE)
-    SetPanelHeaderText(ui.keyHeader, L.COL_KEY)
-    SetPanelHeaderText(ui.ilvlHeader, L.COL_ILVL)
-    SetPanelHeaderText(ui.rioHeader, L.COL_RIO)
-    SetPanelHeaderText(ui.dpsHeader, L.COL_DPS)
-    if ui.kickHeader then
-      SetPanelHeaderText(ui.kickHeader, L.COL_KICK or "Kick")
-    end
-    SetPanelHeaderText(ui.leadOptionsHeader, L.LEAD_OPTIONS)
-    SetPanelHeaderText(ui.mplusManagementHeader, L.MPLUS_MANAGEMENT)
-    readyCheckButton._fullText = L.BTN_READYCHECK
-    readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT or readyCheckButton._compactFallbackText
-    countdownButton._fullText = L.BTN_COUNTDOWN10
-    countdownButton._hModeText = L.BTN_COUNTDOWN10_SHORT or countdownButton._compactFallbackText
-    countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
-    countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT or countdownCancelButton._compactFallbackText
-    shareKeysButton._fullText = L.BTN_SHARE_KEYS
-    refreshButton._fullText = L.BTN_REFRESH
-    local normalizedLayoutMode = NormalizeLayoutMode(ui and ui.layoutMode)
-    local useShortManagementLabels = normalizedLayoutMode == LAYOUT_MODE_COMPACT_VERTICAL
-      or IsHorizontalCompactLayoutMode(normalizedLayoutMode)
-    SetFlatButtonText(
-      readyCheckButton,
-      useShortManagementLabels and readyCheckButton._hModeText or readyCheckButton._fullText
-    )
-    SetFlatButtonText(
-      countdownButton,
-      useShortManagementLabels and countdownButton._hModeText or countdownButton._fullText
-    )
-    SetFlatButtonText(
-      countdownCancelButton,
-      useShortManagementLabels and countdownCancelButton._hModeText or countdownCancelButton._fullText
-    )
-    SetFlatButtonText(refreshButton, refreshButton._fullText)
-    if type(shareKeysButton.RefreshDisplayText) == "function" then
-      shareKeysButton.RefreshDisplayText()
-    else
-      SetFlatButtonText(shareKeysButton, shareKeysButton._fullText)
-    end
-    ApplyLocaleFont(ui.advancedCombatLoggingToggle.label)
-    ApplyLocaleFont(ui.damageMeterResetToggle.label)
-    ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
-    ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
-    LayoutSystemOptionToggles(ui)
-    RefreshSystemOptionToggles(ui)
+    ApplyPanelLocalization(ui, getL)
   end
 
   function controller.IsCollapsed()

@@ -1241,6 +1241,9 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
 
   test("Architecture main-frame title bar applies a toolbar-safe text budget", function()
     local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
+    -- The title budget is built in roster_panel.lua (ConstructPanelUI) but
+    -- re-applied from the localization pass, which lives in the chrome module.
+    local chromeContent = ReadFile("isiLive_roster_panel_chrome.lua")
 
     AssertContains(
       Assert,
@@ -1292,13 +1295,13 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
     )
     AssertContains(
       Assert,
-      rosterPanelContent,
+      chromeContent,
       "titleHint:Hide()",
       "RosterPanel title budget must drop the hint before it collides with toolbar buttons"
     )
     AssertContains(
       Assert,
-      rosterPanelContent,
+      chromeContent,
       "ui.ApplyTitleBudget()",
       "RosterPanel localization refresh must reapply the title budget after locale text changes"
     )

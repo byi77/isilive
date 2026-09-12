@@ -281,7 +281,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings hearthstone selector uses client-localized toy names for German addon locale
   - German settings stats-box descriptions are localized
   - Settings strings avoid English fallback in prepared locales
-  - LI.BuildBonusSuffix localizes class bonuses and keeps German text for deDE only
+  - LI.BuildBonusSuffix localizes class bonuses per locale
   - LI.ApplyGroupBonusTooltipLines resolves the member header on a non-German client
   - LI.ApplyGroupBonusTooltipLines never marks a group title that names a class and spec
   - LI.ApplyGroupBonusTooltipLines writes nothing when no member header global exists
@@ -587,6 +587,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster role icon is a secure action button
   - Roster Tank role button targets by character name (not unit token)
   - Roster Healer role button targets by character name with cross-realm suffix
+  - Roster DPS role icon does not take mouse input
 
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40

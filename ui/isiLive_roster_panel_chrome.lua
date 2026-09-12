@@ -609,6 +609,129 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   return buttons, header
 end
 
+-- Layout helpers used by the localization pass below. isiLive_roster_layout.lua
+-- loads before this file (isiLive.toc lines 81 vs 92), so RI already carries
+-- them; the fallbacks only keep a load-order mistake from nil-dereferencing.
+local LAYOUT_MODE_COMPACT_VERTICAL = RI.LAYOUT_MODE_COMPACT_VERTICAL or "compact_vertical"
+local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(mode)
+  return mode
+end
+local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
+  return false
+end
+local SetFlatButtonText = RI.SetFlatButtonText or function(_btn, _text) end
+local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles or function(_ui) end
+local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles or function(_ui) end
+
+local function ApplyLocaleFontIfAvailable(fontString)
+  local common = addonTable and addonTable.UICommon
+  if type(common) == "table" and type(common.ApplyLocaleFont) == "function" then
+    common.ApplyLocaleFont(fontString)
+  end
+end
+
+local function ResolveAddonVersionSuffix()
+  local cAddOns = rawget(_G, "C_AddOns")
+  if type(cAddOns) ~= "table" or type(cAddOns.GetAddOnMetadata) ~= "function" then
+    return ""
+  end
+  local ok, version = pcall(cAddOns.GetAddOnMetadata, "isiLive", "Version")
+  if not ok or type(version) ~= "string" or version == "" then
+    return ""
+  end
+  return "v" .. version
+end
+
+local function ApplyPanelTitleLocalization(ui, L)
+  ui.title:SetText(tostring(L.TITLE or "isiLive"))
+  ApplyLocaleFontIfAvailable(ui.title)
+  if ui.titleVersion then
+    ui.titleVersion:SetText(ResolveAddonVersionSuffix())
+    ApplyLocaleFontIfAvailable(ui.titleVersion)
+  end
+  if ui.titleHint then
+    ui.titleHint:SetText("")
+    ApplyLocaleFontIfAvailable(ui.titleHint)
+    ui.titleHint:Hide()
+  end
+  if type(ui.ApplyTitleBudget) == "function" then
+    ui.ApplyTitleBudget()
+  end
+end
+
+local function ApplyPanelHeaderLocalization(ui, L)
+  SetPanelHeaderText(ui.specHeader, L.COL_SPEC)
+  SetPanelHeaderText(ui.nameHeader, L.COL_NAME)
+  SetPanelHeaderText(ui.serverHeader, L.COL_LANGUAGE)
+  SetPanelHeaderText(ui.keyHeader, L.COL_KEY)
+  SetPanelHeaderText(ui.ilvlHeader, L.COL_ILVL)
+  SetPanelHeaderText(ui.rioHeader, L.COL_RIO)
+  SetPanelHeaderText(ui.dpsHeader, L.COL_DPS)
+  if ui.kickHeader then
+    SetPanelHeaderText(ui.kickHeader, L.COL_KICK or "Kick")
+  end
+  SetPanelHeaderText(ui.leadOptionsHeader, L.LEAD_OPTIONS)
+  SetPanelHeaderText(ui.mplusManagementHeader, L.MPLUS_MANAGEMENT)
+end
+
+local function ApplyPanelButtonLocalization(ui, L)
+  local readyCheckButton = ui.readyCheckButton
+  local countdownButton = ui.countdownButton
+  local countdownCancelButton = ui.countdownCancelButton
+  local shareKeysButton = ui.shareKeysButton
+  local refreshButton = ui.refreshButton
+
+  readyCheckButton._fullText = L.BTN_READYCHECK
+  readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT or readyCheckButton._compactFallbackText
+  countdownButton._fullText = L.BTN_COUNTDOWN10
+  countdownButton._hModeText = L.BTN_COUNTDOWN10_SHORT or countdownButton._compactFallbackText
+  countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
+  countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT or countdownCancelButton._compactFallbackText
+  shareKeysButton._fullText = L.BTN_SHARE_KEYS
+  refreshButton._fullText = L.BTN_REFRESH
+
+  local normalizedLayoutMode = NormalizeLayoutMode(ui and ui.layoutMode)
+  local useShortManagementLabels = normalizedLayoutMode == LAYOUT_MODE_COMPACT_VERTICAL
+    or IsHorizontalCompactLayoutMode(normalizedLayoutMode)
+  SetFlatButtonText(
+    readyCheckButton,
+    useShortManagementLabels and readyCheckButton._hModeText or readyCheckButton._fullText
+  )
+  SetFlatButtonText(
+    countdownButton,
+    useShortManagementLabels and countdownButton._hModeText or countdownButton._fullText
+  )
+  SetFlatButtonText(
+    countdownCancelButton,
+    useShortManagementLabels and countdownCancelButton._hModeText or countdownCancelButton._fullText
+  )
+  SetFlatButtonText(refreshButton, refreshButton._fullText)
+  if type(shareKeysButton.RefreshDisplayText) == "function" then
+    shareKeysButton.RefreshDisplayText()
+  else
+    SetFlatButtonText(shareKeysButton, shareKeysButton._fullText)
+  end
+end
+
+--- Re-applies every localized string on the panel chrome (title, column
+--- headers, action buttons, system-option toggles).
+---
+--- Lives here rather than inside RosterPanel.CreateController: the controller
+--- body sat one line under the 420-line metrics gate, and this pass only ever
+--- touches `ui` plus the locale table, so it carries no controller state.
+local function ApplyPanelLocalization(ui, getL)
+  local L = getL()
+  ApplyPanelTitleLocalization(ui, L)
+  ApplyPanelHeaderLocalization(ui, L)
+  ApplyPanelButtonLocalization(ui, L)
+  ApplyLocaleFontIfAvailable(ui.advancedCombatLoggingToggle.label)
+  ApplyLocaleFontIfAvailable(ui.damageMeterResetToggle.label)
+  ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
+  ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
+  LayoutSystemOptionToggles(ui)
+  RefreshSystemOptionToggles(ui)
+end
+
 RI.CreateFlatButton = CreateFlatButton
 RI.CreatePanelHeaders = CreatePanelHeaders
 RI.SetPanelHeaderText = SetPanelHeaderText
@@ -616,3 +739,4 @@ RI.CreateM2ColumnGuides = CreateM2ColumnGuides
 RI.AttachPanelButtonTooltip = AttachPanelButtonTooltip
 RI.AttachModeButtonTooltip = AttachModeButtonTooltip
 RI.CreateTankHelperButtons = CreateTankHelperButtons
+RI.ApplyPanelLocalization = ApplyPanelLocalization

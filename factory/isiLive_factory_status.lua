@@ -52,8 +52,9 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     if not ctx.IsPlayerLeader() then
       return
     end
-    if C_PartyInfo and C_PartyInfo.DoCountdown then
-      pcall(C_PartyInfo.DoCountdown, 0)
+    local partyInfo = rawget(_G, "C_PartyInfo")
+    if type(partyInfo) == "table" and type(partyInfo.DoCountdown) == "function" then
+      pcall(partyInfo.DoCountdown, 0)
     end
   end)
 

@@ -18,11 +18,13 @@ return function(test, ctx)
   local Assert = ctx.assert
 
   test("Architecture M+ title omits beta label while settings retain beta status", function()
-    local rosterPanelContent = ReadFile("ui/isiLive_roster_panel.lua")
+    -- The title hint is emptied by the localization pass, which lives in the
+    -- chrome module rather than in roster_panel.lua.
+    local chromeContent = ReadFile("ui/isiLive_roster_panel_chrome.lua")
     local rosterLayoutContent = ReadFile("ui/isiLive_roster_layout.lua")
     local settingsSupportContent = ReadFile("ui/isiLive_settings_support.lua")
 
-    AssertContains(Assert, rosterPanelContent, 'ui.titleHint:SetText("")', "M+ title hint must stay empty")
+    AssertContains(Assert, chromeContent, 'ui.titleHint:SetText("")', "M+ title hint must stay empty")
     AssertContains(
       Assert,
       rosterLayoutContent,

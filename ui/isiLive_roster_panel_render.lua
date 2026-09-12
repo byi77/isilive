@@ -635,6 +635,15 @@ local function RenderRosterImpl(state, roster)
       if not IsCombatLockdownActive() then
         if showButton and not isCollapsed then
           row.roleButton:Show()
+          -- Only TANK and HEALER carry a marker macro. A DAMAGER row still
+          -- shows the role icon, but the secure button must not take mouse
+          -- input there: it sits above the row's hoverFrame (frameLevel + 10),
+          -- so with mouse enabled it swallows every click in its 14x14 px --
+          -- including the right-click whisper that works everywhere else in
+          -- the row -- while its own empty macro does nothing.
+          if type(row.roleButton.EnableMouse) == "function" then
+            row.roleButton:EnableMouse(marker ~= nil)
+          end
           row.roleButton:SetAttribute("type1", "macro")
           row.roleButton:SetAttribute("type2", "macro")
           row.roleButton:SetAttribute("macrotext1", macroText1)
@@ -642,12 +651,17 @@ local function RenderRosterImpl(state, roster)
         else
           row.roleButton:Hide()
         end
-      elseif row.roleButton:GetAttribute("macrotext1") ~= macroText1 then
+      elseif not showButton or isCollapsed or row.roleButton:GetAttribute("macrotext1") ~= macroText1 then
         -- Combat lockdown: SetAttribute is forbidden, so the button still holds
         -- the macro from the previous render. When the row has since changed
         -- occupant (death re-sorts rows, role swap, member leaves), that macro
         -- names somebody else and a click would target and mark the wrong
         -- player -- the v0.9.203 / v0.9.208 failure class.
+        --
+        -- The showButton / isCollapsed terms cover the cases where the macro is
+        -- still correct but the button no longer belongs on screen: the member
+        -- turned into a ghost, or the panel collapsed mid-combat. Matching on
+        -- the macro alone left the button standing in both.
         --
         -- Hide() is not protected, so it works in combat. Hiding the button is
         -- strictly better than offering a wrong one; the next out-of-combat

@@ -523,7 +523,8 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
 end
 
 local function ShouldSkipDuplicateApply(signature)
-  local now = GetTime and GetTime() or 0
+  local getTime = rawget(_G, "GetTime")
+  local now = type(getTime) == "function" and getTime() or 0
   if lastApplySignature == signature and (now - lastApplyAt) <= 0.75 then
     return true
   end

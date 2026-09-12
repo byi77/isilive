@@ -1137,19 +1137,31 @@ return function(test, ctx)
 
   -- Group bonus feature -------------------------------------------------------
 
-  test("LI.BuildBonusSuffix localizes class bonuses and keeps German text for deDE only", function()
+  -- Rule 68 keeps deDE and enUS hand-maintained and lets the prepared locales
+  -- carry either an English fallback or a finished translation. Stamina is the
+  -- probe because its label differs in every locale under test ("Stamina" /
+  -- "Ausdauer" / "Endurance") — magic reads "Magie" in both German and French
+  -- and would pass even if the locale lookup were ignored entirely.
+  test("LI.BuildBonusSuffix localizes class bonuses per locale", function()
     WithGlobals(BonusGlobals({ IsiLiveDB = { locale = "deDE" } }), function()
       local addon = LoadBonusModules(LoadAddonModules)
       local LI = addon._LFGFlagsInternal
-      local suffix = StripColors(LI.BuildBonusSuffix("DEMONHUNTER", nil, { dealsMagicDamage = true }))
-      Assert.True(suffix:find("%+3%% Magie", 1, false) ~= nil, "German locale must use the German magic label")
+      local suffix = StripColors(LI.BuildBonusSuffix("PRIEST", nil, { usesStamina = true }))
+      Assert.True(suffix:find("%+5%% Ausdauer", 1, false) ~= nil, "German locale must use the German stamina label")
     end)
 
     WithGlobals(BonusGlobals({ IsiLiveDB = { locale = "frFR" } }), function()
       local addon = LoadBonusModules(LoadAddonModules)
       local LI = addon._LFGFlagsInternal
-      local suffix = StripColors(LI.BuildBonusSuffix("DEMONHUNTER", nil, { dealsMagicDamage = true }))
-      Assert.True(suffix:find("%+3%% Magic", 1, false) ~= nil, "non-German locales must keep English bonus labels")
+      local suffix = StripColors(LI.BuildBonusSuffix("PRIEST", nil, { usesStamina = true }))
+      Assert.True(suffix:find("%+5%% Endurance", 1, false) ~= nil, "French locale must use the French stamina label")
+    end)
+
+    WithGlobals(BonusGlobals({ IsiLiveDB = { locale = "enUS" } }), function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local LI = addon._LFGFlagsInternal
+      local suffix = StripColors(LI.BuildBonusSuffix("PRIEST", nil, { usesStamina = true }))
+      Assert.True(suffix:find("%+5%% Stamina", 1, false) ~= nil, "English locale must use the English stamina label")
     end)
   end)
 

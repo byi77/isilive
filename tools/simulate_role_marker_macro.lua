@@ -74,8 +74,14 @@ local function MakeRoleButtonMock()
   local mock = {
     _attributes = {},
     _shown = false,
+    -- Mirrors the real Button default: mouse input is on until the renderer
+    -- turns it off for a row that carries no marker macro.
+    _mouseEnabled = true,
     icon = icon,
   }
+  function mock:EnableMouse(flag)
+    self._mouseEnabled = flag and true or false
+  end
   function mock:SetAttribute(key, value)
     self._attributes[key] = value
   end
@@ -150,6 +156,104 @@ end
 local inCombat = false
 local function SetCombat(active)
   inCombat = active and true or false
+end
+
+-- Scenarios 9 and 10 live in their own function: folded into the WithGlobals
+-- callback they pushed it past the 420-line hard metrics gate.
+local function RunMouseInputScenarios(RI, addon)
+  -- ----------------------------------------------------------------------
+  -- Scenario 9: a row without a marker macro must release the row's mouse input.
+  --
+  -- The roleButton is a sibling of mainFrame lifted to frameLevel + 10 so it
+  -- wins the hit test over the row's hoverFrame. TANK and HEALER earn that:
+  -- they carry a real macro. DAMAGER does not — ROLE_MARKER has no DAMAGER
+  -- entry, so macrotext1/2 come out nil. With mouse input still enabled the
+  -- button would swallow every click inside its 14x14 px while doing nothing
+  -- itself, killing the right-click whisper that works everywhere else in the
+  -- row.
+  -- ----------------------------------------------------------------------
+  print("\n========== Scenario 9: rows without a marker macro release mouse input ==========")
+  do
+    local memberRows = BuildMemberRows()
+    local state = BuildState(memberRows, addon)
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+      party2 = { name = "Bob", realm = "", class = "MAGE", role = "DAMAGER" },
+    })
+
+    local tank = FindRowForUnit(memberRows, "player")
+    if tank then
+      Check(tank.roleButton._mouseEnabled == true, "TANK row keeps mouse input for its marker macro")
+    end
+
+    local heal = FindRowForUnit(memberRows, "party1")
+    if heal then
+      Check(heal.roleButton._mouseEnabled == true, "HEALER row keeps mouse input for its marker macro")
+    end
+
+    local dps = FindRowForUnit(memberRows, "party2")
+    Check(dps ~= nil, "DAMAGER row rendered")
+    if dps then
+      Check(dps.roleButton:GetAttribute("macrotext1") == nil, "DAMAGER row carries no marker macro")
+      Check(dps.roleButton._shown == true, "DAMAGER row still shows the role icon")
+      Check(
+        dps.roleButton._mouseEnabled == false,
+        "DAMAGER row releases mouse input so the row's right-click whisper still works"
+      )
+    end
+  end
+
+  -- ----------------------------------------------------------------------
+  -- Scenario 10: in combat the button must also disappear when the row stops
+  -- qualifying for one, not only when the macro text changes.
+  --
+  -- SetAttribute is forbidden under lockdown, so the renderer can only Hide().
+  -- Matching on the macro alone missed the case where the macro is still
+  -- correct but the button no longer belongs on screen: a member turning into
+  -- a ghost keeps the same name, so the macro is unchanged and the button
+  -- stayed up on a dead player.
+  -- ----------------------------------------------------------------------
+  print("\n========== Scenario 10: combat ghost state hides the role button ==========")
+  do
+    local memberRows = BuildMemberRows()
+    local state = BuildState(memberRows, addon)
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+    })
+
+    local healBefore = FindRowForUnit(memberRows, "party1")
+    Check(healBefore ~= nil, "pre-combat baseline: healer occupies a row")
+    Check(
+      healBefore ~= nil and healBefore.roleButton._shown == true,
+      "pre-combat baseline: healer role button is shown"
+    )
+    local macroBefore = healBefore and healBefore.roleButton:GetAttribute("macrotext1") or nil
+
+    -- Same player, same name -> identical macro text; only isGhost flips.
+    SetCombat(true)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER", isGhost = true },
+    })
+
+    local healAfter = FindRowForUnit(memberRows, "party1")
+    if healAfter then
+      Check(
+        healAfter.roleButton:GetAttribute("macrotext1") == macroBefore,
+        "in combat: the ghost row's macro is unchanged (SetAttribute stays forbidden)"
+      )
+      Check(
+        healAfter.roleButton._shown == false,
+        "in combat: a ghost member's role button is hidden even though its macro is unchanged"
+      )
+    end
+  end
 end
 
 -- ----------------------------------------------------------------------
@@ -608,6 +712,8 @@ Harness.WithGlobals({
       )
     end
   end
+
+  RunMouseInputScenarios(RI, addon)
 end)
 
 if failures > 0 then

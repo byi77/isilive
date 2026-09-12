@@ -846,6 +846,72 @@ local function ApplyPendingMainFrameSize(ctx)
   end
 end
 
+--- Restores the main frame geometry that only becomes readable once WoW has
+--- handed back SavedVariables. Split out of HandleAddonLoaded purely to keep
+--- RuntimeLifecycle.BuildHandlers under the 420-line metrics gate.
+local function RestoreMainFrameFromSavedVariables(ctx)
+  local mainFrame = ctx.getMainFrame()
+  local pos = IsiLiveDB.position
+  if mainFrame and mainFrame.ClearAllPoints and mainFrame.SetPoint and type(pos) == "table" then
+    mainFrame:ClearAllPoints()
+    mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
+  end
+  if ctx.mainUI and type(ctx.mainUI.SetDragLocked) == "function" then
+    ctx.mainUI.SetDragLocked(IsiLiveDB.lockMainFramePosition ~= false)
+  end
+  -- Restore UI scale and background opacity from SavedVariables.
+  -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.
+  if mainFrame then
+    if type(IsiLiveDB.uiScale) == "number" and type(mainFrame.SetScale) == "function" then
+      mainFrame:SetScale(IsiLiveDB.uiScale)
+    end
+    if type(IsiLiveDB.bgAlpha) == "number" then
+      ctx.restoreBgAlpha(IsiLiveDB.bgAlpha)
+    end
+  end
+end
+
+--- ADDON_LOADED body. Lives outside BuildHandlers so the handler table stays
+--- under the 420-line metrics gate; it closes over nothing but its arguments.
+local function HandleAddonLoaded(ctx, loadedAddon)
+  if loadedAddon ~= ctx.addonName then
+    return
+  end
+
+  IsiLiveDB = IsiLiveDB or {}
+  SanitizeDBAndInstallErrorLog(ctx)
+  IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
+  ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
+  -- Administrative debug settings are never persisted: always start disabled, user must re-enable each session.
+  IsiLiveDB.queueDebug = false
+  IsiLiveDB.runtimeLogEnabled = false
+  ctx.ensureQueueDebugStorage()
+  ctx.setQueueDebugEnabled(false)
+  ctx.ensureRuntimeLogStorage()
+  ctx.setRuntimeLogEnabled(false)
+  ctx.restoreRioBaseline()
+  ApplyVIPGuestSoundSettingsIfAvailable()
+
+  RestoreMainFrameFromSavedVariables(ctx)
+
+  RegisterSyncPrefixAndBindings(ctx)
+  ctx.applyLocalizationToUI()
+  ctx.restoreLayoutState()
+  ctx.updateCountdownCancelButton()
+  ctx.updateLeaderButtons()
+  -- Re-apply user-controlled flags now that SavedVariables are restored.
+  -- The first ApplyDBSettings call ran at file-load with IsiLiveDB still
+  -- nil (WoW restores SavedVariables only after the addon's lua files
+  -- finish), so MobNameplate/MobTooltip/LFGFlags/RosterInternal got the
+  -- defaults applied. Without this second call, a saved
+  -- mobNameplateEnabled = true would never reach MobNameplate.SetEnabled
+  -- and the user would see the overlay revert to the off default after
+  -- every /reload.
+  ctx.applyDBSettings()
+  -- IsiLiveDB is now available; apply minimap button visibility before PLAYER_LOGIN
+  -- so MinimapButtonButton sees the correct shown-state when it scans.
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -891,59 +957,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleAddonLoadedEvent(_self, loadedAddon)
-    if loadedAddon ~= ctx.addonName then
-      return
-    end
-
-    IsiLiveDB = IsiLiveDB or {}
-    SanitizeDBAndInstallErrorLog(ctx)
-    IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
-    ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
-    -- Administrative debug settings are never persisted: always start disabled, user must re-enable each session.
-    IsiLiveDB.queueDebug = false
-    IsiLiveDB.runtimeLogEnabled = false
-    ctx.ensureQueueDebugStorage()
-    ctx.setQueueDebugEnabled(false)
-    ctx.ensureRuntimeLogStorage()
-    ctx.setRuntimeLogEnabled(false)
-    ctx.restoreRioBaseline()
-    ApplyVIPGuestSoundSettingsIfAvailable()
-
-    local mainFrame = ctx.getMainFrame()
-    local pos = IsiLiveDB.position
-    if mainFrame and mainFrame.ClearAllPoints and mainFrame.SetPoint and type(pos) == "table" then
-      mainFrame:ClearAllPoints()
-      mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
-    end
-    if ctx.mainUI and type(ctx.mainUI.SetDragLocked) == "function" then
-      ctx.mainUI.SetDragLocked(IsiLiveDB.lockMainFramePosition ~= false)
-    end
-    -- Restore UI scale and background opacity from SavedVariables.
-    -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.
-    if mainFrame then
-      if type(IsiLiveDB.uiScale) == "number" and type(mainFrame.SetScale) == "function" then
-        mainFrame:SetScale(IsiLiveDB.uiScale)
-      end
-      if type(IsiLiveDB.bgAlpha) == "number" then
-        ctx.restoreBgAlpha(IsiLiveDB.bgAlpha)
-      end
-    end
-    RegisterSyncPrefixAndBindings(ctx)
-    ctx.applyLocalizationToUI()
-    ctx.restoreLayoutState()
-    ctx.updateCountdownCancelButton()
-    ctx.updateLeaderButtons()
-    -- Re-apply user-controlled flags now that SavedVariables are restored.
-    -- The first ApplyDBSettings call ran at file-load with IsiLiveDB still
-    -- nil (WoW restores SavedVariables only after the addon's lua files
-    -- finish), so MobNameplate/MobTooltip/LFGFlags/RosterInternal got the
-    -- defaults applied. Without this second call, a saved
-    -- mobNameplateEnabled = true would never reach MobNameplate.SetEnabled
-    -- and the user would see the overlay revert to the off default after
-    -- every /reload.
-    ctx.applyDBSettings()
-    -- IsiLiveDB is now available; apply minimap button visibility before PLAYER_LOGIN
-    -- so MinimapButtonButton sees the correct shown-state when it scans.
+    HandleAddonLoaded(ctx, loadedAddon)
   end
 
   local function HandlePlayerLoginEvent(_self)
