@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-12 - Version 0.9.390 (patch)
+
+Audit follow-up. No new features; this closes gaps the audit found across
+localization, the roster role icons and the code-quality gates.
+
+- Translate the remaining English strings in frFR, esES, ptBR, itIT, ruRU and
+  trTR. Around 105 user-facing strings per language were still English: the
+  whole demo-simulator surface, the `/isilive` help lines, the dungeon- and
+  raid-entered notices, the accepted-invite notices, the teleport tooltips and
+  the LFG group-bonus labels. Dungeon names, the season title and the spell
+  name "Power Infusion" stay English on purpose. The locale-drift gate only
+  compares key sets and placeholders, so it stayed green while the values were
+  untranslated.
+- Fix the German stats-box labels for Leech and Speed, which were still English
+  while Durability, Stamina and Avoidance were already translated.
+- Stop the role icon of a DPS row from swallowing mouse input. Only tanks and
+  healers get a marker macro; the DPS button had none but still sat above the
+  row and ate every click in its 14x14 px, including the right-click whisper
+  that works everywhere else in the row.
+- Hide the role button in combat when its row stops qualifying for one (member
+  turned into a ghost, panel collapsed). Secure attributes cannot be rewritten
+  under lockdown, and matching on the macro text alone left the button standing
+  on a dead player.
+- Route `C_PartyInfo` and `GetTime` through `rawget(_G, ...)` in the countdown
+  cancel button and the queue duplicate-apply guard, matching the defensive
+  lookup pattern the rest of the codebase uses.
+- Split the panel localization pass out of `RosterPanel.CreateController` and
+  the ADDON_LOADED body out of `RuntimeLifecycle.BuildHandlers`. Both functions
+  sat within five lines of the 420-line metrics gate; they are now at 347 and
+  363.
+
 ## 2026-09-09 - Version 0.9.389 (patch)
 
 - Revert the M+ mockup implementation and all subsequent visual adjustments at the user's request. Restore the preceding UI, language flags, typography, timer layout and colors; remove the HTML mockup. Independent 0.9.388 changes remain intact.
