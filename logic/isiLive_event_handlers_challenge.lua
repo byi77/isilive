@@ -4,6 +4,8 @@ addonTable = addonTable or {}
 
 local ChallengeLifecycle = {}
 addonTable.EventHandlersChallengeLifecycle = ChallengeLifecycle
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
+local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 
 local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
 local POST_RUN_REFRESH_RETRIES = 5
@@ -35,9 +37,32 @@ local function ResetDamageMeterIfAvailable()
   return okReset
 end
 
+-- C_ChallengeMode.GetCompletionInfo was deprecated in 11.0.5 and removed in
+-- 12.0.0; calling it raises "attempt to call a nil value". Its replacement
+-- returns one ChallengeCompletionInfo table instead of a tuple. Reading the
+-- removed function first cost the addon every completed key: the resolver
+-- answered nil, so the run never reached the damage-meter snapshot and the DPS
+-- column kept whatever the last successful capture had left behind.
 local function GetChallengeCompletionInfoSafe()
   local challengeModeAPI = type(C_ChallengeMode) == "table" and C_ChallengeMode or nil
-  local getCompletionInfo = challengeModeAPI and rawget(challengeModeAPI, "GetCompletionInfo") or nil
+  if not challengeModeAPI then
+    return nil, nil, nil, nil
+  end
+
+  local getChallengeCompletionInfo = rawget(challengeModeAPI, "GetChallengeCompletionInfo")
+  if type(getChallengeCompletionInfo) == "function" then
+    local ok, info = pcall(getChallengeCompletionInfo)
+    if ok and type(info) == "table" then
+      return ReadPlainNumber(info, "mapChallengeModeID"),
+        ReadPlainNumber(info, "level"),
+        ReadPlainNumber(info, "time"),
+        ReadPlainBoolean(info, "onTime")
+    end
+    return nil, nil, nil, nil
+  end
+
+  -- Pre-12.0 clients still carry the tuple form.
+  local getCompletionInfo = rawget(challengeModeAPI, "GetCompletionInfo")
   if type(getCompletionInfo) ~= "function" then
     return nil, nil, nil, nil
   end

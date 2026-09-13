@@ -413,7 +413,12 @@ local function HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
   else
     deps.restoreMainFrameAfterRaid = false
   end
-  deps.clearRioBaselineSnapshot()
+  -- The RIO baseline deliberately survives the solo transition. The ghost rows
+  -- left behind still describe the run that produced the delta, and they keep
+  -- their name, ilvl and RIO the same way -- dropping only the delta made the
+  -- column change meaning the moment the group broke up. The baseline is
+  -- cleared when a new group forms instead (see the joinedNow branch below),
+  -- and every CHALLENGE_MODE_START recaptures it with the display disabled.
   if leftGroupNow then
     deps.clearReloadRosterMirror()
     deps.clearLatestQueueTarget()
@@ -762,6 +767,9 @@ local function HandleGroupRosterUpdate(deps)
     deps.setRoster({})
     restoredFromReloadMirror = TryRestoreReloadRosterMirror(deps)
     if not restoredFromReloadMirror then
+      -- A genuinely new group ends the previous run's delta context; a reload
+      -- mirror restore is the same run continuing and keeps its baseline.
+      deps.clearRioBaselineSnapshot()
       deps.setMainFrameVisible(true, {
         reason = "queue",
         skipShowCallbacks = true,

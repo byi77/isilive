@@ -99,14 +99,20 @@ local function BuildController(opts)
 
   local globals = {
     -- Stub C_ChallengeMode so ResolveCompletedRunInfo returns a deterministic
-    -- runInfo. The real handler reads (mapID, level, time, onTime, keystoneUpgradeLevels)
-    -- and the simulator records the call.
+    -- runInfo. The real handler reads the 12.0 ChallengeCompletionInfo table
+    -- (GetCompletionInfo was removed in 12.0.0) and the simulator records the call.
     C_ChallengeMode = {
       GetActiveChallengeMapID = function()
         return 2649
       end,
-      GetCompletionInfo = function()
-        return 2649, 1234567, 1500000, opts.onTime ~= false, 1, 15
+      GetChallengeCompletionInfo = function()
+        return {
+          mapChallengeModeID = 2649,
+          level = 1234567,
+          time = 1500000,
+          onTime = opts.onTime ~= false,
+          keystoneUpgradeLevels = 1,
+        }
       end,
     },
   }

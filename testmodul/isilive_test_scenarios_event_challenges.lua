@@ -350,8 +350,13 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
 
     local previousChallengeMode = _G.C_ChallengeMode
     _G.C_ChallengeMode = {
-      GetCompletionInfo = function()
-        return 2662, 10, 123456, true
+      GetChallengeCompletionInfo = function()
+        return {
+          mapChallengeModeID = 2662,
+          level = 10,
+          time = 123456,
+          onTime = true,
+        }
       end,
     }
 
@@ -366,6 +371,56 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     scheduled[1].callback()
 
     Assert.Equal(captureAttempts, 2, "capture retry should attempt completed-run capture again")
+  end)
+
+  test("Event handlers resolve completed-run info from the pre-12.0 completion tuple", function()
+    -- GetCompletionInfo was removed in 12.0.0, but a client that still carries
+    -- the tuple form must keep producing the same run identity.
+    local recordedRuns = {}
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      recordRun = function(mapID, level, onTime)
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetCompletionInfo = function()
+        return 2649, 15, 987654, false
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(#recordedRuns, 1, "the legacy tuple must still record exactly one completed run")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "legacy tuple map id must reach the run snapshot")
+    Assert.Equal(recordedRuns[1].level, 15, "legacy tuple level must reach the run snapshot")
+    Assert.False(recordedRuns[1].onTime, "legacy tuple timed flag must reach the run snapshot")
+  end)
+
+  test("Event handlers record no run when the removed completion API is all the client offers", function()
+    -- The 12.0 client exposes neither function under this name: reading the
+    -- removed one must fail closed instead of raising, and the capture must
+    -- not run with a half-resolved run identity.
+    local recordedRuns = {}
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      recordRun = function(mapID, level, onTime)
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {}
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(#recordedRuns, 0, "an unresolvable run identity must not reach the run snapshot")
   end)
 end
 

@@ -19,6 +19,7 @@ local function BuildGroupState(overrides)
     groupJoinedCalls = 0,
     memberJoinedCalls = 0,
     knownUsersCleared = 0,
+    rioBaselineClears = 0,
     inspectResets = 0,
     uiUpdates = 0,
     teleportUpdates = overrides.teleportUpdates or 0,
@@ -90,6 +91,9 @@ local function BuildGroupControllerOptions(state, overrides)
     clearPendingQueueJoinInfo = function() end,
     clearKnownUsers = function()
       state.knownUsersCleared = state.knownUsersCleared + 1
+    end,
+    clearRioBaselineSnapshot = function()
+      state.rioBaselineClears = state.rioBaselineClears + 1
     end,
     resetInspectAll = function()
       state.inspectResets = state.inspectResets + 1
@@ -1034,6 +1038,27 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.True(state.mainFrameVisible, "main frame must stay open after leave when it was visible")
     Assert.Equal(state.inspectResets, 1, "inspect queues must be reset on leave")
     Assert.Equal(state.knownUsersCleared, 1, "known users must be cleared on leave")
+    Assert.Equal(
+      state.rioBaselineClears,
+      0,
+      "the RIO delta baseline must survive the solo transition so ghost rows keep their delta"
+    )
+  end)
+
+  test("Joining a new group clears the RIO delta baseline", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      isInGroup = function()
+        return true
+      end,
+      wasInGroup = false,
+      getNumGroupMembers = function()
+        return 2
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.rioBaselineClears, 1, "a new group must drop the previous run's RIO delta baseline")
   end)
 
   test("Group leave auto-close hides frame when option is enabled", function()
@@ -1389,6 +1414,11 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.refreshRequests, 1, "reload with matching mirror must still request live peer refresh")
     Assert.True(state.refreshRequestArgs[1].force, "reload mirror refresh should bypass request cooldowns")
     Assert.NotNil(state.restoredReloadRosterTargetSnapshot, "reload mirror must restore the verified target snapshot")
+    Assert.Equal(
+      state.rioBaselineClears,
+      0,
+      "a reload mirror restore continues the same run and must keep its RIO delta baseline"
+    )
   end)
 
   test("Reload roster mirror drops non-finite persisted values", function()

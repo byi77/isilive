@@ -94,8 +94,13 @@ local function RegisterReadyCheckHoldAndRunRecordTests(test, Assert, WithGlobals
 
     WithGlobals({
       C_ChallengeMode = {
-        GetCompletionInfo = function()
-          return 2662, 10, 123456, true
+        GetChallengeCompletionInfo = function()
+          return {
+            mapChallengeModeID = 2662,
+            level = 10,
+            time = 123456,
+            onTime = true,
+          }
         end,
       },
     }, function()
