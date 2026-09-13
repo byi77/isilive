@@ -61,6 +61,7 @@ local FILE_PATHS = {
   ["isiLive_death_alert.lua"] = "ui/isiLive_death_alert.lua",
   ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
   ["isiLive_ui_common.lua"] = "ui/isiLive_ui_common.lua",
+  ["isiLive_ui_fonts.lua"] = "ui/isiLive_ui_fonts.lua",
   ["isiLive_stats_box.lua"] = "ui/isiLive_stats_box.lua",
   ["isiLive_simulation_tablet.lua"] = "ui/isiLive_simulation_tablet.lua",
   ["isiLive_teleport_ui.lua"] = "ui/isiLive_teleport_ui.lua",

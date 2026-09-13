@@ -47,6 +47,7 @@ data/isiLive_mplus_forces.lua
 game/isiLive_lfg_entry_resolver.lua
 game/isiLive_lfg_detect.lua
 ui/isiLive_ui_common.lua
+ui/isiLive_ui_fonts.lua
 ui/isiLive_stats_box.lua
 ui/isiLive_simulation_tablet.lua
 game/isiLive_teleport.lua

@@ -131,6 +131,11 @@ local SCHEMA = {
     },
   },
   uiScale = { type = "number", default = 1.0, min = 0.5, max = 2.0 },
+  -- Selected UI font family. Free-form on purpose: the value is a key from
+  -- UICommon.GetFontChoices(), which grows with whatever font pool the client
+  -- has loaded, so an enum here would reject valid picks. An unknown key
+  -- resolves to nil at render time and falls back to the template font.
+  uiFontFamily = { type = "string", default = "" },
   bgAlpha = { type = "number", default = 0.5, min = 0.0, max = 1.0 },
   lockMainFramePosition = { type = "boolean", default = true },
   statsBoxEnabled = { type = "boolean", default = false },

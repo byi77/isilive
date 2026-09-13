@@ -203,6 +203,25 @@ function UICommon.GetLocaleFontPath(localeTag)
   return UICommon.LOCALE_FONT_OVERRIDES[ResolveActiveLocale(localeTag)]
 end
 
+-- Every FontString that has been through ApplyLocaleFont, whether a font was
+-- actually applied or not. Weak keys: a row that goes away must not be kept
+-- alive by this table.
+--
+-- Tracking has to happen even when nothing is applied. The default selection
+-- resolves to no path, so a string first seen under the default would never be
+-- recorded -- and switching away from the default would then reach nothing.
+local trackedFontStrings = setmetatable({}, { __mode = "k" })
+
+local function TrackFontString(fontString)
+  if
+    type(fontString) == "table"
+    and type(fontString.GetFont) == "function"
+    and type(fontString.SetFont) == "function"
+  then
+    trackedFontStrings[fontString] = true
+  end
+end
+
 local function ApplyFontPath(fontString, fontPath)
   if
     type(fontString) ~= "table"
@@ -251,8 +270,38 @@ local function CaptureReadableFontBaseline(fontString)
   return fontString._isiLiveReadableFontBaseline
 end
 
+-- Applies the font this string should carry: the locale override where the
+-- client locale needs one, otherwise the user's pick. Kept under its original
+-- name so the ~20 existing call sites pick up the user font without change.
+--
+-- GetPreferredFontPath lives in ui/isiLive_ui_fonts.lua. Harness setups that
+-- load this module alone fall back to the locale override, which is exactly
+-- the pre-font-selection behaviour.
 function UICommon.ApplyLocaleFont(fontString, localeTag)
-  return ApplyFontPath(fontString, UICommon.GetLocaleFontPath(localeTag))
+  TrackFontString(fontString)
+  local resolve = UICommon.GetPreferredFontPath
+  local fontPath = type(resolve) == "function" and resolve(localeTag) or UICommon.GetLocaleFontPath(localeTag)
+  return ApplyFontPath(fontString, fontPath)
+end
+
+-- Re-applies the current font decision to every tracked FontString.
+--
+-- Needed because the ApplyLocaleFont call sites sit in the *creation* of rows,
+-- headers and labels, not in their update path: roster rows are pooled and
+-- reused, so a re-render alone leaves their font untouched. Text-carrying
+-- strings go back through the readable path so the Cyrillic veto still wins.
+function UICommon.RefreshTrackedFonts()
+  local refreshed = 0
+  for fontString in pairs(trackedFontStrings) do
+    local text = type(fontString.GetText) == "function" and fontString:GetText() or nil
+    if type(text) == "string" and text ~= "" and type(UICommon.ApplyReadableFontForText) == "function" then
+      UICommon.ApplyReadableFontForText(fontString, text)
+    else
+      UICommon.ApplyLocaleFont(fontString)
+    end
+    refreshed = refreshed + 1
+  end
+  return refreshed
 end
 
 function UICommon.TextNeedsCyrillicFont(text)

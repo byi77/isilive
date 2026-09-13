@@ -220,6 +220,18 @@ local function FinalizeFactorySettings(ctx)
           ctx.RefreshSimulationTabletDock()
         end
       end,
+      onUiFontFamilyChange = function(_key)
+        -- The ApplyLocaleFont call sites sit in row/label creation, and rows
+        -- are pooled -- a re-render alone would not change a single existing
+        -- FontString. RefreshTrackedFonts walks the strings themselves.
+        local common = ctx.addonTable and ctx.addonTable.UICommon
+        if type(common) == "table" and type(common.RefreshTrackedFonts) == "function" then
+          common.RefreshTrackedFonts()
+        end
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
       onSyncToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.syncEnabled directly; no additional action needed
       end,

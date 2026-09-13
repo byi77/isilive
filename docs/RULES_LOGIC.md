@@ -140,6 +140,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 115. (deaktiviert am 2026-09-09) Mockup-Aenderung auf ausdruecklichen Benutzerwunsch vollstaendig zurueckgenommen.
 
+116. Die waehlbare Oberflaechenschrift wirkt nur dort, wo die Clientsprache keine eigene Schrift verlangt: ein Locale-Font-Override und das zeichenbasierte Kyrillisch-Veto haben immer Vorrang vor der Nutzerauswahl. Ein leerer oder unbekannter Schriftschluessel loest zu keiner Schrift auf, sodass die Blizzard-Vorlagenschrift stehen bleibt. Die Auswahl umfasst ausschliesslich mitgelieferte Clientschriften. Ein Wechsel muss bereits bestehende FontStrings erreichen: die Zuweisungen liegen in der Erzeugung gepoolter Zeilen und Labels, ein blosses Neuzeichnen aendert deshalb keine einzige sichtbare Schrift.
+
+117. Das RIO-Delta bleibt nach dem Verlassen der Gruppe sichtbar: die Ghost-Zeilen behalten es genauso wie Name, iLvl und RIO. Die Baseline wird stattdessen beim Bilden einer neuen Gruppe verworfen; eine Reload-Mirror-Wiederherstellung setzt denselben Run fort und behaelt sie.
+
+118. Die Run-Identitaet am Keyende (Map-ID, Level, Zeit, In-Time-Flag) wird aus `C_ChallengeMode.GetChallengeCompletionInfo()` gelesen; `GetCompletionInfo` ist seit Patch 12.0.0 entfernt und darf nur noch als Fallback fuer aeltere Clients aufgerufen werden. Ohne aufgeloeste Run-Identitaet findet keine DPS-Erfassung statt.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1869,3 +1875,36 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture main-frame title bar applies a toolbar-safe text budget
   - Architecture main title controls retain cool text after state refresh
   - Horizontal mini mode arranges management buttons and helper icons in slim rows
+
+### RULE-UI-SCHRIFTWAHL-LOCALE-VORRANG
+- Regelnummer: 116
+- Status: aktiv
+- Zusammenfassung: Die waehlbare Oberflaechenschrift (`IsiLiveDB.uiFontFamily`) wird in `ui/isiLive_ui_fonts.lua` aufgeloest und ueber `UICommon.ApplyLocaleFont` angewendet. Ein Locale-Font-Override (ruRU) gewinnt immer gegen die Nutzerauswahl, und das zeichenbasierte Kyrillisch-Veto in `ApplyReadableFontForText` gewinnt gegen beide -- ein kyrillischer Spielername bleibt auch unter einer reinen Lateinschrift lesbar. Leere und unbekannte Schluessel loesen zu keiner Schrift auf; die Vorlagenschrift bleibt unangetastet. Die Auswahl bleibt auf mitgelieferte Clientschriften begrenzt (ein gemeinsamer Medienpool wurde am 2026-09-13 verworfen: mit geladenem Pool wuchs die Liste auf Dutzende Eintraege, und der Settings-Dropdown rendert jede Option als Button ohne Scrollen). `UICommon.ApplyLocaleFont` verzeichnet jeden besuchten FontString in einer schwach referenzierten Tabelle -- auch wenn keine Schrift gesetzt wird --, und `UICommon.RefreshTrackedFonts` wendet die aktuelle Entscheidung darauf erneut an. Ohne diesen Schritt bliebe ein Schriftwechsel wirkungslos, weil die Zuweisungen in der Erzeugung gepoolter Roster-Zeilen stehen.
+- Erforderliche Tests:
+  - UICommon.GetPreferredFontPath lets the locale override win over the user font
+  - UICommon.ApplyReadableFontForText keeps Cyrillic text readable under a Latin-only pick
+  - UICommon.ResolveFontPathByKey returns nil for empty and unknown keys
+  - UICommon.GetFontChoices lists exactly the fonts the client ships
+  - UICommon.ApplyLocaleFont keeps the template font when no font is selected
+  - UICommon.RefreshTrackedFonts re-applies a changed selection to existing FontStrings
+  - UICommon.RefreshTrackedFonts keeps the Cyrillic veto for text-carrying strings
+  - UICommon.RefreshTrackedFonts restores the template font when the selection is cleared
+
+### RULE-RIO-DELTA-UEBERLEBT-GRUPPENAUSTRITT
+- Regelnummer: 117
+- Status: aktiv
+- Zusammenfassung: Das RIO-Delta bleibt nach dem Verlassen der Gruppe sichtbar. Die zurueckbleibenden Ghost-Zeilen beschreiben weiterhin den gelaufenen Key und behalten Name, iLvl und RIO; das Delta darf dort nicht als einzige Spalte verschwinden. Der Solo-Uebergang loescht die RIO-Baseline deshalb nicht mehr. Verworfen wird sie erst beim Bilden einer neuen Gruppe (`joinedNow` ohne Reload-Mirror-Wiederherstellung), weil eine Reload-Mirror-Wiederherstellung denselben Run fortsetzt. Jeder `CHALLENGE_MODE_START` nimmt die Baseline ohnehin neu auf und deaktiviert die Anzeige bis zum erfolgreichen Post-Run-Refresh nach Regel 4; der Raid-Uebergang loescht sie weiterhin.
+- Erforderliche Tests:
+  - Group leave keeps frame state and ghosts former party members
+  - Joining a new group clears the RIO delta baseline
+  - Reload roster mirror suppresses group-join side effects outside active key
+
+### RULE-KEYENDE-RUN-IDENTITAET
+- Regelnummer: 118
+- Status: aktiv
+- Zusammenfassung: Die Run-Identitaet am Keyende wird aus `C_ChallengeMode.GetChallengeCompletionInfo()` gelesen, das eine `ChallengeCompletionInfo`-Tabelle liefert; die Felder werden ueber die Plain-Reader gelesen, damit maskierte Werte geschlossen ausfallen. `C_ChallengeMode.GetCompletionInfo` wurde in 11.0.5 deprecated und in 12.0.0 entfernt -- der Aufruf laeuft in "attempt to call a nil value" -- und bleibt nur als Fallback fuer Clients, die die Tupelform noch tragen. Ohne aufgeloeste Map-ID und Level findet keine Erfassung statt: der Last-Run-DPS-Snapshot haengt an dieser Aufloesung, weshalb ihr stilles Scheitern die gesamte DPS-Spalte auf dem letzten erfolgreichen Stand einfriert.
+- Erforderliche Tests:
+  - Event handlers retry completed-run capture when damage meter snapshot is delayed
+  - Event handlers resolve completed-run info from the pre-12.0 completion tuple
+  - Event handlers record no run when the removed completion API is all the client offers
+  - Event handlers record completed run only once across completion and reset events

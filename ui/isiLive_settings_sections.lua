@@ -172,6 +172,71 @@ local BuildHearthstoneSettingsOptions = addonTable.SettingsHearthstone
     }
   end
 
+-- Display names for the font keys. These are typeface names, not prose, so
+-- they stay identical in every language.
+local BUILTIN_FONT_LABELS = {
+  friz = "Friz Quadrata", -- i18n-ok
+  arial = "Arial Narrow", -- i18n-ok
+  morpheus = "Morpheus", -- i18n-ok
+  skurri = "Skurri", -- i18n-ok
+}
+
+local function BuildFontFamilySettingsOptions(labels)
+  labels = type(labels) == "table" and labels or {}
+
+  local common = addonTable.UICommon
+  local choices = type(common) == "table" and type(common.GetFontChoices) == "function" and common.GetFontChoices()
+    or { { key = "", path = "" } }
+
+  local options = {}
+  for _, entry in ipairs(choices) do
+    if type(entry) == "table" and type(entry.key) == "string" then
+      local label
+      if entry.key == "" then
+        label = labels.SETTINGS_FONT_FAMILY_DEFAULT or "Default"
+      else
+        label = BUILTIN_FONT_LABELS[entry.key] or entry.label or entry.key
+      end
+      options[#options + 1] = { value = entry.key, fallback = label }
+    end
+  end
+
+  return options
+end
+
+-- Kept out of BuildDisplaySection: that builder is close to the 420-line
+-- function limit the metrics gate enforces.
+local function CreateFontFamilySelector(canvas, yOffset, labels, config)
+  return CreateSettingsDropdownSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_FONT_FAMILY",
+    labels.SETTINGS_FONT_FAMILY or "Font",
+    BuildFontFamilySettingsOptions(labels),
+    config.getL,
+    function()
+      local db = config.getDB()
+      return type(db.uiFontFamily) == "string" and db.uiFontFamily or ""
+    end,
+    function(val)
+      local db = config.getDB()
+      db.uiFontFamily = type(val) == "string" and val or ""
+      if type(config.onUiFontFamilyChange) == "function" then
+        config.onUiFontFamilyChange(db.uiFontFamily)
+      end
+    end,
+    nil,
+    false,
+    {
+      descriptionKey = "SETTINGS_FONT_FAMILY_DESC",
+      descriptionText = labels.SETTINGS_FONT_FAMILY_DESC
+        or "Font used across the isiLive interface. Languages that need their own font keep it.",
+      descriptionWidth = DISPLAY_CHECKBOX_DESCRIPTION_WIDTH,
+      descriptionWordWrap = true,
+    }
+  )
+end
+
 local function NormalizeStoredLayoutMode(layoutMode)
   if layoutMode == nil or layoutMode == false or layoutMode == "" then
     return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
@@ -436,6 +501,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     "SETTINGS_BG_ALPHA",
     SettingDescriptionOptions(labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window.")
   )
+
+  controls.uiFontFamily, yOffset = CreateFontFamilySelector(canvas, yOffset, labels, config)
 
   controls.statsBoxSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -847,6 +914,21 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window."
     )
     controls.bgAlpha.SetValueSilently(type(db.bgAlpha) == "number" and db.bgAlpha or DEFAULT_BG_ALPHA)
+  end
+  if controls.uiFontFamily then
+    if controls.uiFontFamily.label then
+      controls.uiFontFamily.label:SetText(labels.SETTINGS_FONT_FAMILY or "Font")
+    end
+    SetControlDescription(
+      controls.uiFontFamily,
+      labels.SETTINGS_FONT_FAMILY_DESC
+        or "Font used across the isiLive interface. Languages that need their own font keep it."
+    )
+    -- Rebuilt rather than reused: a media pool can appear or vanish between
+    -- openings of the panel, and the default entry is localized.
+    if type(controls.uiFontFamily.UpdateOptions) == "function" then
+      controls.uiFontFamily.UpdateOptions(BuildFontFamilySettingsOptions(labels))
+    end
   end
   if controls.statsBoxEnabled and controls.statsBoxEnabled.label then
     controls.statsBoxEnabled.label:SetText(GetStatsBoxSettingLabel(config, "enabled")) -- i18n-ok
