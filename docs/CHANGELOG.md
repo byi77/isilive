@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-09-13 - Version 0.9.394 (patch)
+
+Selectable interface font.
+
+- Add a font selector to the Display settings section. The choice is stored
+  account-wide in `IsiLiveDB.uiFontFamily` and defaults to an empty key, which
+  keeps the Blizzard template font every previous version used -- an existing
+  install sees no visual change until it picks something.
+- Resolve the selection in the new `ui/isiLive_ui_fonts.lua`. The module owns
+  the choice list and the precedence decision; colors, backdrops, text setters
+  and locale resolution stay in `ui/isiLive_ui_common.lua`. The public surface
+  remains `UICommon`, so no call site changed. The extraction also keeps
+  `isiLive_ui_common.lua` under the metrics warning threshold, which the font
+  block had just crossed.
+- Route the decision through `UICommon.ApplyLocaleFont`, which now asks
+  `GetPreferredFontPath` instead of reading the locale override directly. The
+  roughly twenty existing call sites in the panel chrome, the roster rows and
+  the layout helpers pick up the user font without being touched.
+- Keep locale requirements above the user's pick, in two stages: a locale that
+  ships its own font (ruRU) wins over the selection, and the per-text Cyrillic
+  veto in `ApplyReadableFontForText` wins over both. A Cyrillic player name
+  stays readable under a Latin-only font instead of rendering as boxes.
+- Offer the fonts the client ships: Friz Quadrata, Arial Narrow, Morpheus and
+  Skurri. Reading a shared media pool was built and dropped again during the
+  same change -- with a pool loaded the list ran to dozens of entries, and the
+  settings dropdown renders every option as a button without scrolling.
+- Apply a font change to FontStrings that already exist. `ApplyLocaleFont`
+  records every string it visits in a weak-keyed table -- including the ones it
+  leaves untouched under the default selection -- and `RefreshTrackedFonts`
+  re-applies the current decision to all of them. Without that step the setting
+  did nothing visible: the font assignments sit in the *creation* of roster
+  rows, headers and labels, and rows are pooled and reused, so neither a
+  re-render nor a localization pass reached a single existing string.
+- Fall back to nil for an empty or unknown font key, so a selection whose
+  provider addon was disabled since resolves to the template font rather than
+  erroring.
+- New rule 116 in `docs/RULES_LOGIC.md` pins the precedence, the fail-closed
+  key resolution and the optional nature of the media pool, backed by 15
+  scenarios in `testmodul/isilive_test_scenarios_ui_fonts.lua`.
+
 ## 2026-09-13 - Version 0.9.393 (patch)
 
 Last-run DPS column stays filled after a finished key.
