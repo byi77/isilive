@@ -211,6 +211,19 @@ function Stats.CreateController(opts)
 
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
     local runSnapshot = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
+    local recordedAnyPlayer = next(runSnapshot) ~= nil
+
+    if not recordedAnyPlayer then
+      -- Nothing was captured: the damage meter had no usable session for this
+      -- run (the caller retries) or the run ended somewhere the meter no longer
+      -- reports. Publishing the empty snapshot here wiped the previous run and
+      -- marked every roster member as a miss, so the DPS column fell back to
+      -- "-" for the rest of the session -- including the local player, whose
+      -- persisted last run is suppressed by the miss table. An uncaptured run
+      -- must leave the last captured run untouched.
+      return false
+    end
+
     sessionPlayerLastRuns = runSnapshot
     sessionPlayerLastRunMisses = {}
     for _, info in pairs(roster or {}) do
@@ -221,7 +234,6 @@ function Stats.CreateController(opts)
         end
       end
     end
-    local recordedAnyPlayer = next(runSnapshot) ~= nil
 
     local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
     if selfRun and localPlayerKey then

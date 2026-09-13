@@ -233,6 +233,66 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Stats controller keeps the last captured run when a later run captures nothing", function()
+    local db = { stats = {} }
+    local damageMeterSession = {
+      durationSeconds = 1800,
+      combatSources = {
+        { name = "Me", amountPerSecond = 456789.4, totalAmount = 822220920 },
+        { name = "Buddy-Realm", amountPerSecond = 321123.8, totalAmount = 578022840 },
+      },
+    }
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return damageMeterSession
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return roster
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+      })
+
+      Assert.True(controller.RecordRun(2662, 12, true), "the completed key must capture a run snapshot")
+
+      -- Leaving the group / the instance drops the damage-meter session. The
+      -- follow-up record attempt captures nothing and must not wipe the key's
+      -- snapshot -- that is what emptied the whole DPS column after a key.
+      damageMeterSession = nil
+      roster = { player = { name = "Me", realm = "MyRealm" } }
+
+      Assert.False(controller.RecordRun(2649, 0, nil), "an empty damage-meter session must report an uncaptured run")
+      Assert.Equal(
+        math.floor(controller.GetPlayerLastRunDps("Me", "MyRealm") or 0),
+        456789,
+        "the local player's captured DPS must survive an uncaptured follow-up run"
+      )
+      Assert.Equal(
+        math.floor(controller.GetPlayerLastRunDps("Buddy", "Realm") or 0),
+        321123,
+        "a party member's captured DPS must survive an uncaptured follow-up run"
+      )
+    end)
+  end)
+
   test("Stats controller stores latest run DPS from Blizzard damage meter for roster players", function()
     local db = { stats = {} }
     local roster = {

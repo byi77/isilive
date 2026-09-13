@@ -624,6 +624,67 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       Assert.Equal(#recordedRuns, 0, "reduced-profile dungeon exit must not record a run snapshot")
     end
   end)
+
+  test("Event handlers record no run for a finished keystone dungeon", function()
+    -- difficultyID 8 with no active challenge is the post-CHALLENGE_MODE_COMPLETED
+    -- window: the key is over, GetActiveChallengeMapID() is nil, but the instance
+    -- still reports the keystone difficulty until the player leaves. The challenge
+    -- lifecycle already recorded that run; opening a tracked M0 run here would
+    -- record a second, empty snapshot over it on group leave.
+    local current = {
+      instanceType = "party",
+      difficultyID = 8,
+      mapID = 2649,
+    }
+    local recordedRuns = {}
+    local trackedContexts = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Mythic Keystone"
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        recordRun = function(mapID, level, onTime)
+          table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        end,
+        setTrackedPartyRunInfo = function(value)
+          trackedContexts[#trackedContexts + 1] = value
+        end,
+        clearTrackedPartyRunInfo = function() end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#trackedContexts, 0, "a finished keystone dungeon must not publish a tracked party-run context")
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+      roster = {}
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 0, "leaving a finished keystone dungeon must not record a second run snapshot")
+  end)
 end
 
 local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)

@@ -117,7 +117,20 @@ end
 -- i.e. M0), because a running keystone is already handled by the challenge
 -- lifecycle and returns early below. Normal, heroic and timewalking runs used
 -- to be tracked here and no longer are. Fails closed without the resolver.
+--
+-- The "returns early below" part only holds while the keystone is running.
+-- C_ChallengeMode.GetActiveChallengeMapID() goes nil the moment the key ends,
+-- while the instance keeps reporting difficultyID 8 until the player leaves --
+-- so without the explicit exclusion below, every finished key opened a tracked
+-- M0 run inside the just-completed dungeon. Leaving the group or the instance
+-- then closed that phantom run and recorded it over the key's DPS snapshot
+-- with whatever (usually nothing) the damage meter still reported.
+-- difficultyID 8 means an inserted keystone, which is never the M0 case.
+local MYTHIC_KEYSTONE_DIFFICULTY_ID = 8
 local function IsTrackedPartyDifficulty(difficultyID)
+  if difficultyID == MYTHIC_KEYSTONE_DIFFICULTY_ID then
+    return false
+  end
   local runtimeMode = addonTable.RuntimeMode
   if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileDifficulty) ~= "function" then
     return false
