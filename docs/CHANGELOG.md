@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-13 - Version 0.9.393 (patch)
+
+Last-run DPS column stays filled after a finished key.
+
+- Stop opening a tracked non-challenge run inside a dungeon whose keystone just
+  finished. `C_ChallengeMode.GetActiveChallengeMapID()` returns nil the moment
+  the key ends, while the instance keeps reporting difficulty ID 8 until the
+  player leaves, so the M0 tracker treated every completed key as a fresh
+  tracked run. Leaving the group or the instance then closed that phantom run
+  and recorded it on top of the key's own snapshot. Difficulty ID 8 means an
+  inserted keystone and never the M0 case, so it no longer opens a tracked
+  party run at all; the challenge lifecycle stays the only recorder for keys.
+- Keep the last captured run when a later capture finds nothing. `RecordRun`
+  published its snapshot unconditionally, so a run the damage meter could not
+  report -- the usual case once the player has left the instance -- replaced the
+  key's data with an empty table and marked every roster member as a miss. The
+  miss table also suppresses the locally persisted last run, so the DPS column
+  fell back to "-" for every row, including the player's own, and stayed there
+  for the rest of the session. An uncaptured run now leaves the previous
+  snapshot untouched and reports failure to the existing retry path.
+- Document the difficulty-ID-8 exclusion as a dated clarification on rule 92 in
+  `docs/RULES_LOGIC.md` and map both regression tests to rules 48 and 92.
+
 ## 2026-09-13 - Version 0.9.392 (patch)
 
 Death-count tracking, ready-check row tint and UI-scale geometry.
