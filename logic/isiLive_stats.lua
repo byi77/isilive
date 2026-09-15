@@ -135,15 +135,48 @@ local function ResolveCompletedRunSession()
   return GetCombatSessionFromTypeSafe(api, DAMAGE_METER_SESSION_TYPE_CURRENT, DAMAGE_METER_TYPE_DAMAGE_DONE)
 end
 
+-- Joins up to MAX_TRACED_KEYS keys into one sorted, comma-separated string.
+-- The capture either matches every group member or none of them, so a handful
+-- of keys from each side is enough to tell a lookup miss from an empty session.
+local MAX_TRACED_KEYS = 6
+local function FormatKeysForTrace(keySet)
+  local keys = {}
+  for key in pairs(keySet or {}) do
+    keys[#keys + 1] = tostring(key)
+  end
+  table.sort(keys)
+  local shown = {}
+  for index = 1, math.min(#keys, MAX_TRACED_KEYS) do
+    shown[index] = keys[index]
+  end
+  local text = table.concat(shown, ",")
+  if #keys > MAX_TRACED_KEYS then
+    text = text .. ",+" .. tostring(#keys - MAX_TRACED_KEYS)
+  end
+  return text ~= "" and text or "none"
+end
+
+-- The second return value is diagnostics only: the caller traces it so a failed
+-- capture says which of the three stages broke (no roster, no damage-meter
+-- session, or names that do not resolve to the same key on both sides).
 local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
+  local diagnostics = {
+    sessionFound = false,
+    sourceCount = 0,
+    matchedCount = 0,
+    rosterKeys = {},
+    sourceKeys = {},
+  }
+
   if type(roster) ~= "table" then
-    return {}
+    return {}, diagnostics
   end
 
   local session = ResolveCompletedRunSession()
   if not session then
-    return {}
+    return {}, diagnostics
   end
+  diagnostics.sessionFound = true
 
   local rosterByKey = {}
   for _, info in pairs(roster) do
@@ -151,6 +184,7 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
       local key = NormalizeName(info.name, info.realm)
       if key then
         rosterByKey[key] = true
+        diagnostics.rosterKeys[key] = true
       end
     end
   end
@@ -160,7 +194,12 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     if type(source) == "table" and type(source.name) == "string" and source.name ~= "" then
       local key = NormalizeName(source.name, nil)
       local dps = tonumber(source.amountPerSecond)
+      diagnostics.sourceCount = diagnostics.sourceCount + 1
+      if key then
+        diagnostics.sourceKeys[key] = true
+      end
       if key and rosterByKey[key] and dps and dps >= 0 then
+        diagnostics.matchedCount = diagnostics.matchedCount + 1
         snapshot[key] = {
           dps = dps,
           totalDamage = tonumber(source.totalAmount),
@@ -173,13 +212,14 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     end
   end
 
-  return snapshot
+  return snapshot, diagnostics
 end
 
 function Stats.CreateController(opts)
   opts = opts or {}
   local getRoster = opts.getRoster
   local getUnitNameAndRealm = opts.getUnitNameAndRealm
+  local logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or nil
 
   -- localPlayerKey and migration are intentionally lazy-initialized:
   -- Stats.CreateController() runs at Lua load time, before ADDON_LOADED fires.
@@ -210,8 +250,26 @@ function Stats.CreateController(opts)
     EnsureStatsTables()
 
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
-    local runSnapshot = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
+    local runSnapshot, diagnostics = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     local recordedAnyPlayer = next(runSnapshot) ~= nil
+
+    if type(logRuntimeTracef) == "function" and type(diagnostics) == "table" then
+      -- One line per attempt, retries included. It names the stage that failed:
+      -- session=false is a damage meter with nothing to read, matched=0 with a
+      -- non-zero sourceCount is a key mismatch between meter and roster.
+      logRuntimeTracef(
+        "[STATS] record_run mapID=%s level=%s session=%s sources=%d matched=%d "
+          .. "playerKey=%s rosterKeys=%s sourceKeys=%s",
+        tostring(mapID),
+        tostring(level),
+        tostring(diagnostics.sessionFound),
+        diagnostics.sourceCount,
+        diagnostics.matchedCount,
+        tostring(localPlayerKey),
+        FormatKeysForTrace(diagnostics.rosterKeys),
+        FormatKeysForTrace(diagnostics.sourceKeys)
+      )
+    end
 
     if not recordedAnyPlayer then
       -- Nothing was captured: the damage meter had no usable session for this

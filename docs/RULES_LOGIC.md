@@ -1908,3 +1908,4 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers resolve completed-run info from the pre-12.0 completion tuple
   - Event handlers record no run when the removed completion API is all the client offers
   - Event handlers record completed run only once across completion and reset events
+  - Stats controller traces the capture stage that failed

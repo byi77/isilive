@@ -68,6 +68,7 @@ local function CreateStatsController(ctx)
   return ctx.statsModule.CreateController({
     getRoster = ctx.getRoster,
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
+    logRuntimeTracef = ctx.logRuntimeTracef,
   })
 end
 

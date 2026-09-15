@@ -233,6 +233,69 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Stats controller traces the capture stage that failed", function()
+    local db = { stats = {} }
+    local traces = {}
+    local damageMeterSession = nil
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return damageMeterSession
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return {
+            player = { name = "Me", realm = "MyRealm" },
+            party1 = { name = "Buddy", realm = "Realm" },
+          }
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+        logRuntimeTracef = function(format, ...)
+          table.insert(traces, string.format(format, ...))
+        end,
+      })
+
+      controller.RecordRun(2662, 12, true)
+      Assert.Equal(#traces, 1, "an attempted capture must emit exactly one trace line")
+      Assert.True(
+        traces[1]:find("session=false", 1, true) ~= nil,
+        "a damage meter with no session must be traced as session=false"
+      )
+      Assert.True(traces[1]:find("matched=0", 1, true) ~= nil, "a failed capture must trace zero matches")
+
+      -- A session whose names resolve to other keys than the roster: the trace
+      -- must show both sides so the mismatch is readable without a debugger.
+      damageMeterSession = {
+        durationSeconds = 1800,
+        combatSources = {
+          { name = "Stranger-Other", amountPerSecond = 1000.0, totalAmount = 10 },
+        },
+      }
+      controller.RecordRun(2662, 12, true)
+      Assert.Equal(#traces, 2, "the second attempt must emit its own trace line")
+      Assert.True(traces[2]:find("session=true", 1, true) ~= nil, "a resolved session must be traced as session=true")
+      Assert.True(traces[2]:find("sources=1", 1, true) ~= nil, "the trace must carry the damage-meter source count")
+      Assert.True(traces[2]:find("matched=0", 1, true) ~= nil, "a key mismatch must trace zero matches")
+      Assert.True(
+        traces[2]:find("buddy-realm", 1, true) ~= nil and traces[2]:find("stranger-other", 1, true) ~= nil,
+        "the trace must name both the roster keys and the damage-meter keys"
+      )
+    end)
+  end)
+
   test("Stats controller keeps the last captured run when a later run captures nothing", function()
     local db = { stats = {} }
     local damageMeterSession = {
