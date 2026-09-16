@@ -905,6 +905,144 @@ return function(test, ctx)
     )
   end)
 
+  test("factory composition root: a completed key records last-run DPS for the whole group", function()
+    -- The chain from CHALLENGE_MODE_COMPLETED to the roster's DPS column runs
+    -- through four hand-built context tables. Each hop drops unknown keys, so a
+    -- single missing forward silently disables the capture with no error -- the
+    -- 12.0 completion-API break hid behind exactly that silence. This drives the
+    -- natural event through the real composition and reads the value back from
+    -- the same getter the roster renders.
+    local globals, db = BuildGlobals()
+    db.syncEnabled = true
+    globals.IsInGroup = function(category)
+      return category == nil
+    end
+    globals.GetNumGroupMembers = function()
+      return 2
+    end
+    globals.UnitExists = function(unit)
+      return unit == "player" or unit == "party1"
+    end
+    globals.UnitName = function(unit)
+      if unit == "player" then
+        return "Tester", "Realm"
+      end
+      if unit == "party1" then
+        return "Buddy", "OtherRealm"
+      end
+      return nil
+    end
+    globals.UnitFullName = globals.UnitName
+    globals.UnitClass = function(unit)
+      if unit == "player" or unit == "party1" then
+        return "Mage", "MAGE", 8
+      end
+      return nil
+    end
+    globals.C_ChallengeMode.GetChallengeCompletionInfo = function()
+      return {
+        mapChallengeModeID = 2662,
+        level = 10,
+        time = 1500000,
+        onTime = true,
+      }
+    end
+    globals.C_DamageMeter = {
+      IsDamageMeterAvailable = function()
+        return true
+      end,
+      ResetAllCombatSessions = function() end,
+      GetCombatSessionFromType = function()
+        return {
+          durationSeconds = 1800,
+          combatSources = {
+            { name = "Tester", amountPerSecond = 456789.4, totalAmount = 822220920 },
+            { name = "Buddy-OtherRealm", amountPerSecond = 321123.8, totalAmount = 578022840 },
+          },
+        }
+      end,
+    }
+
+    local addon
+    local factoryCtx
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local ok, err = xpcall(function()
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must run without raising: " .. tostring(err))
+
+      factoryCtx.eventFrame._scripts.OnEvent(factoryCtx.eventFrame, "GROUP_ROSTER_UPDATE")
+      factoryCtx.eventFrame._scripts.OnEvent(factoryCtx.eventFrame, "CHALLENGE_MODE_COMPLETED")
+
+      -- Read through the same controller the roster panel is wired to: the
+      -- getter itself lives only in the CreateControllers argument table. This
+      -- stays inside WithGlobals because the lookup reads IsiLiveDB.
+      local getPlayerLastRunDps = factoryCtx.statsController and factoryCtx.statsController.GetPlayerLastRunDps
+      Assert.Equal(type(getPlayerLastRunDps), "function", "the stats controller must expose the roster's DPS getter")
+      Assert.Equal(
+        math.floor(getPlayerLastRunDps("Tester", "Realm") or 0),
+        456789,
+        "a completed key must record the local player's DPS"
+      )
+      Assert.Equal(
+        math.floor(getPlayerLastRunDps("Buddy", "OtherRealm") or 0),
+        321123,
+        "a completed key must record a cross-realm party member's DPS"
+      )
+    end)
+  end)
+
+  test("factory composition root: the dpsdump slash command reaches the stats controller", function()
+    -- The slash-command context is a hand-built table, not the factory ctx, so
+    -- a controller that is only stored on the factory ctx reaches the command
+    -- as nil and its handler prints nothing at all -- exactly how /isilive
+    -- dpsdump failed silently on its first wiring. This drives the registered
+    -- slash command itself instead of the command module in isolation.
+    local globals = BuildGlobals()
+    local printed = {}
+    globals.print = function(msg)
+      printed[#printed + 1] = tostring(msg)
+    end
+
+    local addon
+    local factoryCtx
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local ok, err = xpcall(function()
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must run without raising: " .. tostring(err))
+
+      Assert.Equal(
+        type(globals.SlashCmdList.ISILIVE),
+        "function",
+        "InitializeAddon must register the isiLive slash handler"
+      )
+      globals.SlashCmdList.ISILIVE("dpsdump")
+    end)
+
+    Assert.NotNil(factoryCtx.statsController, "the stats controller must be published on the factory context")
+
+    local dumpLines = {}
+    for _, msg in ipairs(printed) do
+      if string.find(msg, "[DPS]", 1, true) ~= nil then
+        dumpLines[#dumpLines + 1] = msg
+      end
+    end
+    Assert.True(#dumpLines > 0, "dpsdump must print capture diagnostics through the real slash command")
+    Assert.True(
+      string.find(dumpLines[1], "meterApi=", 1, true) ~= nil,
+      "the first dump line must report the damage-meter API state"
+    )
+    for _, line in ipairs(dumpLines) do
+      Assert.True(
+        string.find(line, "Stats controller unavailable", 1, true) == nil,
+        "dpsdump must not fall back to its unavailable-controller message"
+      )
+    end
+  end)
+
   test("factory composition root: legacy nameplate remaining default migrates to opt-in", function()
     local globals, db = BuildGlobals()
     db.mobNameplateShowRemaining = true

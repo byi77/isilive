@@ -233,6 +233,65 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Stats capture dump reports every stage without a completed run", function()
+    local db = { stats = { playerLastRunByCharacter = { ["me-myrealm"] = { dps = 165000.0, mapID = 2662 } } } }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return {
+            durationSeconds = 1800,
+            combatSources = {
+              { name = "Me", amountPerSecond = 456789.4, totalAmount = 822220920 },
+              { name = "Stranger-Other", amountPerSecond = 1000.0, totalAmount = 10 },
+            },
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return {
+            player = { name = "Me", realm = "MyRealm" },
+            party1 = { name = "Buddy", realm = "Realm" },
+          }
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+      })
+
+      local lines = controller.BuildCaptureDumpLines()
+      local text = table.concat(lines, "\n")
+
+      Assert.True(text:find("meterApi=available", 1, true) ~= nil, "the dump must report the damage-meter API state")
+      Assert.True(text:find("session=true", 1, true) ~= nil, "the dump must report the resolved session")
+      Assert.True(text:find("sources=2", 1, true) ~= nil, "the dump must report the damage-meter source count")
+      Assert.True(text:find("matched=1", 1, true) ~= nil, "the dump must report how many sources matched the roster")
+      Assert.True(text:find("me-myrealm", 1, true) ~= nil, "the dump must expose the normalized roster keys")
+      Assert.True(text:find("stranger-other", 1, true) ~= nil, "the dump must expose the damage-meter keys")
+      Assert.True(text:find("name=Buddy", 1, true) ~= nil, "the dump must list every roster member")
+      Assert.True(
+        text:find("persistedSelfDps=165000", 1, true) ~= nil,
+        "the dump must expose the persisted local last run that the column falls back to"
+      )
+
+      -- The dump must never publish what it measured: it is a read-only view.
+      Assert.Nil(
+        controller.GetPlayerLastRunDps("Buddy", "Realm"),
+        "building the dump must not publish a run snapshot for party members"
+      )
+    end)
+  end)
+
   test("Stats controller traces the capture stage that failed", function()
     local db = { stats = {} }
     local traces = {}

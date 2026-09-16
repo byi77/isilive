@@ -329,5 +329,67 @@ function Stats.CreateController(opts)
     return info and tonumber(info.dps) or nil
   end
 
+  -- Runs the real capture against the live damage meter and current roster
+  -- without publishing anything, so the three stages can be inspected at any
+  -- time -- the run-completion trace only answers while a key is ending, which
+  -- makes every diagnosis cost a full key.
+  function controller.BuildCaptureDumpLines()
+    EnsureInitialized()
+
+    local lines = {}
+    local roster = (getRoster and getRoster()) or {}
+    local _, diagnostics = CaptureRunPerformanceSnapshot(roster, nil, nil, nil)
+    diagnostics = type(diagnostics) == "table" and diagnostics or {}
+
+    lines[#lines + 1] = string.format(
+      "[DPS] meterApi=%s session=%s sources=%s matched=%s playerKey=%s",
+      ResolveDamageMeterAPI() and "available" or "missing",
+      tostring(diagnostics.sessionFound),
+      tostring(diagnostics.sourceCount),
+      tostring(diagnostics.matchedCount),
+      tostring(localPlayerKey)
+    )
+    lines[#lines + 1] = "[DPS] rosterKeys=" .. FormatKeysForTrace(diagnostics.rosterKeys)
+    lines[#lines + 1] = "[DPS] sourceKeys=" .. FormatKeysForTrace(diagnostics.sourceKeys)
+
+    for unit, info in pairs(roster) do
+      if type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
+        local key = NormalizeName(info.name, info.realm)
+        lines[#lines + 1] = string.format(
+          "[DPS] unit=%s name=%s realm=%s key=%s shown=%s miss=%s",
+          tostring(unit),
+          tostring(info.name),
+          tostring(info.realm),
+          tostring(key),
+          tostring(controller.GetPlayerLastRunDps(info.name, info.realm)),
+          tostring(key ~= nil and sessionPlayerLastRunMisses[key] == true)
+        )
+      end
+    end
+
+    local db = rawget(_G, "IsiLiveDB")
+    local persistentLastRuns = type(db) == "table"
+        and type(db.stats) == "table"
+        and type(db.stats.playerLastRunByCharacter) == "table"
+        and db.stats.playerLastRunByCharacter
+      or nil
+    local persistedSelf = persistentLastRuns and localPlayerKey and persistentLastRuns[localPlayerKey] or nil
+    lines[#lines + 1] = string.format(
+      "[DPS] persistedSelfDps=%s persistedSelfMapID=%s sessionEntries=%s",
+      tostring(persistedSelf and persistedSelf.dps),
+      tostring(persistedSelf and persistedSelf.mapID),
+      tostring(FormatKeysForTrace(sessionPlayerLastRuns))
+    )
+
+    return lines
+  end
+
+  function controller.PrintCaptureDump(printFn)
+    printFn = type(printFn) == "function" and printFn or print
+    for _, line in ipairs(controller.BuildCaptureDumpLines()) do
+      printFn(line)
+    end
+  end
+
   return controller
 end

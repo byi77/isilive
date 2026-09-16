@@ -106,6 +106,10 @@ local function BuildContext(opts)
   ctx.setRuntimeLogEnabled = OptionalFunction(opts.setRuntimeLogEnabled, function(_enabled) end)
   ctx.logRuntimeTrace = OptionalFunction(opts.logRuntimeTrace, function(_message) end)
   ctx.logRuntimeTracef = OptionalFunction(opts.logRuntimeTracef, function(_formatText) end)
+  ctx.logRuntimeTracefThrottled = OptionalFunction(
+    opts.logRuntimeTracefThrottled,
+    function(_key, _interval, _formatText) end
+  )
   ctx.getMainFrame = RequireFunction(opts.getMainFrame, "getMainFrame")
   ctx.registerIsiLiveSyncPrefix = RequireFunction(opts.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix")
   ctx.applyHotkeyBindings = RequireFunction(opts.applyHotkeyBindings, "applyHotkeyBindings")

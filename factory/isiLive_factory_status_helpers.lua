@@ -4,6 +4,10 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
+-- Matches the interval used for the LFG search-result line these skips pair
+-- with, so one browsing burst costs two log entries per second, not hundreds.
+local NOISY_QUEUE_LOG_INTERVAL_SECONDS = 1
+
 local function ResolveActiveInviteLevelHint(lfgDetect)
   if type(lfgDetect) ~= "table" then
     return nil, nil
@@ -133,6 +137,7 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
   end
   ctx.CaptureQueueJoinCandidate = function(...)
     local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
+    local logfThrottled = ctx.runtimeLogController and ctx.runtimeLogController.LogfThrottled or nil
     if ctx.GetActiveChallengeMapID() then -- secret-value-ok: ctx wrapper is pcall-protected
       if logFn then
         logFn("[QUEUE_FLOW] capture_candidate blocked reason=challenge_active")
@@ -160,8 +165,17 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
 
     local pending = runtimeState.GetPendingQueueJoinInfo()
     if not groupName then
-      if logFn then
-        local reason = pending and "preserved_pending_without_group_name" or "no_group_name"
+      -- Paired with the throttled LFG search-result line: this fires once per
+      -- listed result too, so logging it unthrottled refills the buffer alone.
+      local reason = pending and "preserved_pending_without_group_name" or "no_group_name"
+      if logfThrottled then
+        logfThrottled(
+          "queue_capture_skipped",
+          NOISY_QUEUE_LOG_INTERVAL_SECONDS,
+          "%s",
+          "[QUEUE_FLOW] capture_candidate skipped reason=" .. reason
+        )
+      elseif logFn then
         logFn("[QUEUE_FLOW] capture_candidate skipped reason=" .. reason)
       end
     elseif not isInGroup or not pending then

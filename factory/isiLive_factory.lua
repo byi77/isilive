@@ -627,6 +627,7 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
     commands = ctx.modules.commands,
     printFn = ctx.Print,
     getL = ctx.GetL,
+    statsController = ctx.statsController,
     getState = runtimeState.GetRuntimeFlags,
     setState = runtimeState.PatchRuntimeFlags,
     triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,

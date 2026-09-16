@@ -63,6 +63,7 @@ function RuntimeLog.CreateController(opts)
   local sequence = 0
   local lastRawTime = nil
   local watchFn = nil
+  local throttledLogState = {}
 
   local function GetStorage()
     return logBuffer.Normalize(EnsureStorage(), maxEntries)
@@ -157,6 +158,40 @@ function RuntimeLog.CreateController(opts)
       return
     end
     controller.AppendLog(string.format(tostring(formatText or ""), ...))
+  end
+
+  -- Coalesces a burst of one recurring line into a single entry per interval.
+  -- Events that fire per list item (LFG search results above all) otherwise
+  -- evict the whole ring buffer within seconds: a log dumped after a key then
+  -- contains nothing but that burst, which is exactly how the key-completion
+  -- entries were lost. The suppressed count is carried into the next line so
+  -- the burst stays visible without costing 800 entries.
+  function controller.LogfThrottled(key, intervalSeconds, formatText, ...)
+    if not controller.IsLevelEnabled(DEFAULT_LEVEL) then
+      return
+    end
+
+    local throttleKey = tostring(key or "")
+    local interval = tonumber(intervalSeconds) or 0
+    local now = getRawTime()
+    local state = throttledLogState[throttleKey]
+
+    if state and now and state.lastRawTime and (now - state.lastRawTime) < interval then
+      state.suppressed = (state.suppressed or 0) + 1
+      return
+    end
+
+    local message = string.format(tostring(formatText or ""), ...)
+    local suppressed = state and state.suppressed or 0
+    if suppressed > 0 then
+      message = message .. " suppressed=" .. tostring(suppressed)
+    end
+
+    throttledLogState[throttleKey] = {
+      lastRawTime = now,
+      suppressed = 0,
+    }
+    controller.AppendLog(message)
   end
 
   function controller.TraceAt(level, buildMessage)

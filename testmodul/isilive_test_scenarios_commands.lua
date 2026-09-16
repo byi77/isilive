@@ -56,6 +56,7 @@ local function BuildCommandState(overrides)
     tpDebugCalls = 0,
     seasonDumpCalls = 0,
     hearthDumpCalls = 0,
+    dpsDumpCalls = 0,
     simToggleCalls = 0,
     _overrides = overrides or {},
   }
@@ -141,6 +142,9 @@ local function BuildCommandDeps(state, L)
     end,
     printHearthstoneDebug = function()
       state.hearthDumpCalls = state.hearthDumpCalls + 1
+    end,
+    printStatsDebug = function()
+      state.dpsDumpCalls = state.dpsDumpCalls + 1
     end,
     setQueueDebugEnabled = function() end,
     getQueueDebugEnabled = function()
@@ -368,6 +372,12 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("hearthdump")
     Assert.Equal(state.hearthDumpCalls, 1, "hearthdump must call printHearthstoneDebug")
+  end)
+
+  test("Commands dpsdump delegates to printStatsDebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("dpsdump")
+    Assert.Equal(state.dpsDumpCalls, 1, "dpsdump must call printStatsDebug")
   end)
 
   test("Commands bindcheck prints binding info", function()

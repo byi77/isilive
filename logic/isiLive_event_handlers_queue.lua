@@ -6,6 +6,9 @@ local QueueLifecycle = {}
 addonTable.EventHandlersQueueLifecycle = QueueLifecycle
 
 local NEGATIVE_STATUS_PENDING_GRACE_SECONDS = 20
+-- One entry per second is enough to see that the LFG browser is churning
+-- without letting it own the whole runtime log buffer.
+local NOISY_QUEUE_LOG_INTERVAL_SECONDS = 1
 local INVITE_ACCEPTED_STATUS_REFRESH_DELAY_SECONDS = 0.2
 
 local function HasActiveListing(entryInfo)
@@ -91,6 +94,7 @@ function QueueLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = type(ctx.handleLFGDetectEvent) == "function" and ctx.handleLFGDetectEvent
     or function(_event, ...) end
   local logf = type(ctx.logRuntimeTracef) == "function" and ctx.logRuntimeTracef or nil
+  local logfThrottled = type(ctx.logRuntimeTracefThrottled) == "function" and ctx.logRuntimeTracefThrottled or nil
   return {
     LFG_LIST_APPLICATION_STATUS_UPDATED = function(_self, ...)
       if logf then
@@ -131,9 +135,13 @@ function QueueLifecycle.BuildHandlers(ctx)
       ctx.captureQueueJoinCandidate(...)
     end,
     LFG_LIST_SEARCH_RESULT_UPDATED = function(_self, ...)
-      if logf then
+      -- Throttled: the LFG browser fires this once per listed result, many
+      -- times a second, which used to evict the entire runtime log buffer.
+      if logfThrottled then
         local args = { ... }
-        logf(
+        logfThrottled(
+          "queue_search_result",
+          NOISY_QUEUE_LOG_INTERVAL_SECONDS,
           "[QUEUE] search_result_updated searchResultID=%s inChallenge=%s",
           tostring(args[1]),
           tostring(ctx.isInChallengeMode())

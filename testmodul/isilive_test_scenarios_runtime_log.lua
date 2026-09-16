@@ -114,6 +114,44 @@ return function(test, ctx)
     end)
   end)
 
+  test("Runtime log controller coalesces a throttled burst into one entry", function()
+    WithGlobals({
+      IsiLiveDB = {},
+    }, function()
+      local now = 100
+      local addon = LoadAddonModules({ "isiLive_log_buffer.lua", "isiLive_runtime_log.lua" })
+      local controller = addon.RuntimeLog.CreateController({
+        getTimestamp = function()
+          return "12:00:00"
+        end,
+        getRawTime = function()
+          return now
+        end,
+        maxEntries = 20,
+      })
+      controller.SetEnabled(true)
+
+      for index = 1, 50 do
+        controller.LogfThrottled("burst", 1, "[QUEUE] search_result_updated id=%s", tostring(index))
+      end
+      Assert.Equal(controller.GetLogCount(), 1, "a burst inside the interval must cost exactly one entry")
+
+      -- A second key keeps its own budget, so throttling one noisy line never
+      -- hides an unrelated one.
+      controller.LogfThrottled("other", 1, "[QUEUE_FLOW] capture_candidate skipped")
+      Assert.Equal(controller.GetLogCount(), 2, "a different throttle key must log independently")
+
+      now = now + 2
+      controller.LogfThrottled("burst", 1, "[QUEUE] search_result_updated id=%s", "51")
+      local tail = controller.GetLogTail(10)
+      Assert.Equal(#tail, 3, "the first line after the interval must be logged again")
+      Assert.True(
+        tail[3]:find("suppressed=49", 1, true) ~= nil,
+        "the next logged line must carry how many entries the burst suppressed"
+      )
+    end)
+  end)
+
   test("Runtime log controller trims old entries beyond max entries", function()
     WithGlobals({
       IsiLiveDB = {},

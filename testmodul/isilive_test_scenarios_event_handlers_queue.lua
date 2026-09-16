@@ -302,21 +302,31 @@ return function(test, ctx)
     Assert.Equal(counters.captures, 1, "must capture candidate")
   end)
 
-  test("SEARCH_RESULT_UPDATED logs via logRuntimeTracef when configured", function()
+  test("SEARCH_RESULT_UPDATED logs through the throttled logger when configured", function()
+    -- The LFG browser fires this once per listed result. Logging it unthrottled
+    -- evicted the entire runtime log buffer, which is how a completed key's
+    -- entries were lost before they could be read back.
     local logCalls = {}
+    local throttledCalls = {}
     local handlers, counters = LoadHandlers({
       logRuntimeTracef = function(format, ...)
         table.insert(logCalls, { format = format, args = { ... } })
       end,
+      logRuntimeTracefThrottled = function(key, interval, format, ...)
+        table.insert(throttledCalls, { key = key, interval = interval, format = format, args = { ... } })
+      end,
     })
     handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 99)
-    Assert.Equal(#logCalls, 1, "logRuntimeTracef must be invoked exactly once")
+    Assert.Equal(#throttledCalls, 1, "the throttled logger must be invoked exactly once")
+    Assert.Equal(#logCalls, 0, "the search-result line must not reach the unthrottled logger")
+    Assert.Equal(throttledCalls[1].key, "queue_search_result", "the throttle key must identify this line")
+    Assert.True((tonumber(throttledCalls[1].interval) or 0) > 0, "the throttle interval must be positive")
     Assert.Equal(
-      logCalls[1].format,
+      throttledCalls[1].format,
       "[QUEUE] search_result_updated searchResultID=%s inChallenge=%s",
       "trace format string must match"
     )
-    Assert.Equal(logCalls[1].args[1], "99", "first formatted arg is the search result id")
+    Assert.Equal(throttledCalls[1].args[1], "99", "first formatted arg is the search result id")
     Assert.Equal(counters.captures, 1, "candidate is still captured after logging")
   end)
 

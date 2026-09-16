@@ -382,6 +382,14 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       end
       hearthstoneDebug.PrintDump(ctx.printFn)
     end,
+    printStatsDebug = function()
+      local statsController = ctx.statsController
+      if type(statsController) ~= "table" or type(statsController.PrintCaptureDump) ~= "function" then
+        ctx.printFn("[DPS] Stats controller unavailable.")
+        return
+      end
+      statsController.PrintCaptureDump(ctx.printFn)
+    end,
     logRuntimeTrace = ctx.logRuntimeTrace,
     logRuntimeTracef = ctx.logRuntimeTracef,
   }

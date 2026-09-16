@@ -340,6 +340,8 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       or function(_enabled) end,
     logRuntimeTrace = type(deps.logRuntimeTrace) == "function" and deps.logRuntimeTrace or function(_message) end,
     logRuntimeTracef = type(deps.logRuntimeTracef) == "function" and deps.logRuntimeTracef or function(_formatText) end,
+    logRuntimeTracefThrottled = type(deps.logRuntimeTracefThrottled) == "function" and deps.logRuntimeTracefThrottled
+      or function(_key, _interval, _formatText) end,
     getMainFrame = GetMainFrame,
     registerIsiLiveSyncPrefix = RequireFunction(deps.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix"),
     applyHotkeyBindings = RequireFunction(deps.applyHotkeyBindings, "applyHotkeyBindings"),
@@ -799,6 +801,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     setRuntimeLogEnabled = ctx.setRuntimeLogEnabled,
     logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
+    logRuntimeTracefThrottled = ctx.runtimeLogController and ctx.runtimeLogController.LogfThrottled or nil,
     registerIsiLiveSyncPrefix = ctx.registerIsiLiveSyncPrefix,
     applyHotkeyBindings = ctx.applyHotkeyBindings,
     startBindingWatchdog = ctx.startBindingWatchdog,
