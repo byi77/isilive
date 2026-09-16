@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.394`
-Zuletzt aktualisiert: `2026-09-13`
+Versionsbasis: `0.9.395`
+Zuletzt aktualisiert: `2026-09-16`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 

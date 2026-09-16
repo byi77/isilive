@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-16 - Version 0.9.395 (patch)
+
+Last-run DPS: the 12.0 completion API, a capture dump command, and a log that
+survives the group finder.
+
+- Read the completed-run identity from `C_ChallengeMode.GetChallengeCompletionInfo()`.
+  `GetCompletionInfo` was deprecated in 11.0.5 and removed in 12.0.0, so the
+  resolver answered nil on every finished key and the run never reached the
+  damage-meter snapshot -- the DPS column kept whatever the last successful
+  capture had left behind, which for most accounts is a non-key value from the
+  tracked mythic-zero path. The replacement returns a table; its fields are read
+  through the plain readers so masked values fail closed, and the removed tuple
+  form stays as the fallback for older clients.
+- Stop opening a tracked non-challenge run inside a dungeon whose keystone just
+  finished. The instance keeps reporting difficulty ID 8 after the timer stops
+  while the active-key lookup goes empty, so every completed key opened a
+  phantom run that was recorded over the key's own snapshot on the way out.
+- Keep the last captured run when a later capture finds nothing. An uncaptured
+  run used to replace the data with an empty table and mark every roster member
+  as a miss, which also suppresses the locally persisted last run -- the column
+  then showed "-" for every row for the rest of the session.
+- Keep the RIO delta after leaving the group. The ghost rows still describe the
+  run and keep their name, ilvl and RIO; the baseline is now dropped when a new
+  group forms instead, and a reload mirror restore keeps it.
+- Add `/isilive dpsdump`: it runs the real capture read-only and prints each
+  stage -- meter availability, session, source count, the normalized keys on
+  both sides, the value per roster member, and the persisted local last run.
+- Coalesce noisy runtime-log lines. The LFG browser logs two lines per listed
+  result, which filled the entire 800-entry buffer within seconds of opening
+  the group finder and evicted the entries a finished key had just written.
+
 ## 2026-09-13 - Version 0.9.394 (patch)
 
 Selectable interface font.
