@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-17 - Version 0.9.396 (patch)
+
+Last-run DPS for keys that end without being completed.
+
+- Record the DPS snapshot of an abandoned key as well: left, depleted and
+  abandoned, or left mid-run. Such a key produces no completion info, so the run
+  had no map id and level to be recorded under and the whole group's damage was
+  dropped -- while the damage meter still held every member of the group that
+  had just broken up. The identity is stashed at `CHALLENGE_MODE_START` from the
+  running keystone (`GetActiveChallengeMapID` plus `GetActiveKeystoneInfo`, both
+  read fail-closed), and the snapshot carries `onTime=false`.
+- Recording a completed run clears that stash, so a finished key is never also
+  written as an abandoned one -- the same double-record trap the phantom
+  mythic-zero run fell into in 0.9.395.
+- Two triggers, because leaving the group mid-key fires no reset event:
+  `CHALLENGE_MODE_RESET`, and the instance change after `PLAYER_ENTERING_WORLD`.
+
 ## 2026-09-16 - Version 0.9.395 (patch)
 
 Last-run DPS: the 12.0 completion API, a capture dump command, and a log that
