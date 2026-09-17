@@ -3,9 +3,9 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.397`.
+Current version: `0.9.398`.
 
-<!-- highlights-reviewed-for: 0.9.397 -->
+<!-- highlights-reviewed-for: 0.9.398 -->
 
 Highlights:
 - **The DPS column works again.** It had been showing a leftover number for the local player and a dash for everyone else -- and the real cause turned out to be deeper than the first fix assumed: the call that reads a finished key's identity was removed from the game in patch 12.0, so no completed key ever reached the damage meter at all. That call is replaced, a finished key no longer opens a phantom second run over its own result, and a capture that finds nothing leaves the previous one intact. A key you abandon or leave mid-run is now recorded too, instead of leaving the column on the previous run. And the last thing standing in the way is gone: as a key ends, the game hands out its damage numbers in a protected form, and touching one that way aborted the entire key-completion handler before it could record anything. The per-run RIO delta also stays visible after you leave the group, next to the name, ilvl and rating the rows already keep.

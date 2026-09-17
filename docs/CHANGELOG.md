@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-17 - Version 0.9.398 (patch)
+
+Refreshed enemy-forces snapshot.
+
+- Regenerate the Mythic+ enemy-forces database from its upstream data source.
+  Only the snapshot metadata changed -- source revision, generation date and the
+  recorded lifetime, which now runs to 2026-10-02; the per-mob counts are
+  unchanged. The lifetime matters because an expired snapshot closes every
+  database-backed forces display until it is regenerated.
+- The last-run DPS capture from 0.9.395 through 0.9.397 is confirmed working in
+  a live key: the completion handler records the run itself now, with the timed
+  flag and the real keystone level, and every group member resolves -- including
+  cross-realm names carrying Cyrillic characters, an eszett and an apostrophe.
+
 ## 2026-09-17 - Version 0.9.397 (patch)
 
 Secret Values from the damage meter no longer kill the key-completion handler.
