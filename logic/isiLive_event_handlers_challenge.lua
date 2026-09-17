@@ -6,6 +6,7 @@ local ChallengeLifecycle = {}
 addonTable.EventHandlersChallengeLifecycle = ChallengeLifecycle
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
 local POST_RUN_REFRESH_RETRIES = 5
@@ -86,6 +87,41 @@ local function ResolveCompletedRunInfo()
     level = level,
     onTime = onTime,
     signature = string.format("%s:%s:%s:%s", tostring(mapID), tostring(level), tostring(time), tostring(onTime)),
+  }
+end
+
+-- Identity of the key that is currently running, read at CHALLENGE_MODE_START.
+-- A key the player abandons never produces completion info, so without this the
+-- run has no map id and level to record under and the whole group's damage is
+-- dropped -- even though the damage meter still holds it.
+local function ResolveActiveChallengeRunIdentity()
+  local challengeModeAPI = type(C_ChallengeMode) == "table" and C_ChallengeMode or nil
+  if not challengeModeAPI then
+    return nil
+  end
+
+  local getActiveChallengeMapID = rawget(challengeModeAPI, "GetActiveChallengeMapID")
+  if type(getActiveChallengeMapID) ~= "function" then
+    return nil
+  end
+  local okMap, mapID = pcall(getActiveChallengeMapID)
+  mapID = okMap and not IsSecretValue(mapID) and tonumber(mapID) or nil
+  if not mapID or mapID <= 0 then
+    return nil
+  end
+
+  local level = nil
+  local getActiveKeystoneInfo = rawget(challengeModeAPI, "GetActiveKeystoneInfo")
+  if type(getActiveKeystoneInfo) == "function" then
+    local okKeystone, keystoneLevel = pcall(getActiveKeystoneInfo)
+    level = okKeystone and not IsSecretValue(keystoneLevel) and tonumber(keystoneLevel) or nil
+  end
+
+  return {
+    mapID = mapID,
+    level = level or 0,
+    onTime = false,
+    signature = string.format("abandoned:%s:%s", tostring(mapID), tostring(level or 0)),
   }
 end
 
@@ -298,11 +334,38 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
     ctx.pendingRecordedRunRetrySignature = nil
+    ctx.activeChallengeRunIdentity = nil
     return true
   end
 
   ScheduleCompletedRunRetry(ctx, runInfo, retriesRemaining or POST_RUN_CAPTURE_RETRIES)
   return false
+end
+
+-- Records the run of a key that ended without completion info: abandoned,
+-- depleted-and-left, or left mid-run. The identity comes from the stash taken
+-- at CHALLENGE_MODE_START, the damage still from the live meter, which keeps
+-- the session well past the point where the group breaks up. Recording a
+-- completed run clears the stash, so a finished key never reaches this path.
+function ChallengeLifecycle.TryRecordAbandonedRun(ctx)
+  local identity = ctx.activeChallengeRunIdentity
+  if type(identity) ~= "table" then
+    return false
+  end
+  if ctx.isInChallengeMode and ctx.isInChallengeMode() then
+    return false
+  end
+
+  ctx.activeChallengeRunIdentity = nil
+  if type(ctx.logRuntimeTracef) == "function" then
+    ctx.logRuntimeTracef(
+      "[RC] challenge_mode_abandoned mapID=%s level=%s",
+      tostring(identity.mapID),
+      tostring(identity.level)
+    )
+  end
+
+  return TryRecordCompletedRun(ctx, identity, POST_RUN_CAPTURE_RETRIES)
 end
 
 local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining)
@@ -611,6 +674,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil
+    ctx.activeChallengeRunIdentity = ResolveActiveChallengeRunIdentity()
     ctx.setReadyCheckActive(false)
     -- Clear stale ready/declined marks: if a READY_CHECK landed just before
     -- the M+ start and READY_CHECK_FINISHED never fired between them, the
@@ -685,6 +749,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end,
     CHALLENGE_MODE_RESET = function(frame)
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_RESET")
+      ChallengeLifecycle.TryRecordAbandonedRun(ctx)
     end,
     READY_CHECK = function(_self, initiatorName)
       if IsRaidModeActive(ctx) then

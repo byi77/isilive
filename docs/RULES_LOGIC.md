@@ -146,6 +146,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 118. Die Run-Identitaet am Keyende (Map-ID, Level, Zeit, In-Time-Flag) wird aus `C_ChallengeMode.GetChallengeCompletionInfo()` gelesen; `GetCompletionInfo` ist seit Patch 12.0.0 entfernt und darf nur noch als Fallback fuer aeltere Clients aufgerufen werden. Ohne aufgeloeste Run-Identitaet findet keine DPS-Erfassung statt.
 
+119. Ein abgebrochener Key (verlassen, nicht abgeschlossen) zeichnet den DPS-Snapshot trotzdem auf. Die Run-Identitaet dafuer wird beim `CHALLENGE_MODE_START` aus dem laufenden Keystein gemerkt; ein abgeschlossener Key loescht diesen Merker, damit er nie doppelt aufzeichnet.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1909,3 +1911,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers record no run when the removed completion API is all the client offers
   - Event handlers record completed run only once across completion and reset events
   - Stats controller traces the capture stage that failed
+
+### RULE-ABGEBROCHENER-KEY-DPS-SNAPSHOT
+- Regelnummer: 119
+- Status: aktiv
+- Zusammenfassung: Ein Key, der ohne Abschluss endet -- verlassen, abgebrochen oder mitten im Lauf die Gruppe verlassen --, zeichnet den Last-Run-DPS-Snapshot trotzdem auf. Weil dafuer keine Completion-Info existiert, wird die Run-Identitaet (Map-ID und Keysteinstufe) bei `CHALLENGE_MODE_START` aus `C_ChallengeMode.GetActiveChallengeMapID()` und `GetActiveKeystoneInfo()` gemerkt; beide Reads fallen bei fehlender API oder maskierten Werten geschlossen aus, und ohne verifizierte Map-ID entsteht kein Merker. Der Snapshot traegt `onTime=false`. Ausgeloest wird er bei `CHALLENGE_MODE_RESET` und beim Instanz- beziehungsweise Gruppenwechsel nach `PLAYER_ENTERING_WORLD`, weil ein Gruppenaustritt mitten im Key kein Reset-Event erzeugt; der Damage-Meter haelt seine Session ueber diesen Moment hinaus. Eine erfolgreiche Aufzeichnung eines abgeschlossenen Runs loescht den Merker, sodass ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet wird. Benutzerentscheidung vom 2026-09-17.
+- Erforderliche Tests:
+  - Event handlers record an abandoned key from the identity stashed at start
+  - Event handlers do not record an abandoned run for a key that completed

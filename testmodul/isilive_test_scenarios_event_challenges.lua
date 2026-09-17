@@ -373,6 +373,87 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     Assert.Equal(captureAttempts, 2, "capture retry should attempt completed-run capture again")
   end)
 
+  test("Event handlers record an abandoned key from the identity stashed at start", function()
+    -- A key left mid-run produces no completion info, so without the start
+    -- stash the group's damage is dropped even though the meter still holds it.
+    local recordedRuns = {}
+    local inChallenge = true
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return inChallenge
+      end,
+      recordRun = function(mapID, level, onTime)
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return 2649
+      end,
+      GetActiveKeystoneInfo = function()
+        return 13, {}, true
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+    inChallenge = false
+    controller:Dispatch("CHALLENGE_MODE_RESET")
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(#recordedRuns, 1, "an abandoned key must record exactly one run")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "the abandoned run must carry the running key's map id")
+    Assert.Equal(recordedRuns[1].level, 13, "the abandoned run must carry the inserted keystone level")
+    Assert.False(recordedRuns[1].onTime, "an abandoned key is never a timed run")
+  end)
+
+  test("Event handlers do not record an abandoned run for a key that completed", function()
+    -- The completed path clears the stash, so the reset that follows a finished
+    -- key must not write a second, level-less run over its result.
+    local recordedRuns = {}
+    local inChallenge = true
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return inChallenge
+      end,
+      recordRun = function(mapID, level, onTime)
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return 2649
+      end,
+      GetActiveKeystoneInfo = function()
+        return 13, {}, true
+      end,
+      GetChallengeCompletionInfo = function()
+        return {
+          mapChallengeModeID = 2649,
+          level = 13,
+          time = 1500000,
+          onTime = true,
+        }
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+    inChallenge = false
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    controller:Dispatch("CHALLENGE_MODE_RESET")
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(#recordedRuns, 1, "a completed key must record exactly once across completion and reset")
+    Assert.True(recordedRuns[1].onTime, "the recorded run must be the completed one, not an abandoned fallback")
+  end)
+
   test("Event handlers resolve completed-run info from the pre-12.0 completion tuple", function()
     -- GetCompletionInfo was removed in 12.0.0, but a client that still carries
     -- the tuple form must keep producing the same run identity.

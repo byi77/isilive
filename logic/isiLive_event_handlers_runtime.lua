@@ -1031,6 +1031,12 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.updateCdTracker(BuildPlayerEnteringWorldCdTrackerOptions(wasInPartyInstance, inPartyInstance))
     end
     UpdateTrackedMythicZeroRun(ctx)
+    -- Leaving the group or the instance mid-key produces no completion info and
+    -- no CHALLENGE_MODE_RESET, so this is the only moment an abandoned run can
+    -- still be recorded -- the damage meter keeps the session past the exit.
+    if type(ChallengeLifecycle) == "table" and type(ChallengeLifecycle.TryRecordAbandonedRun) == "function" then
+      ChallengeLifecycle.TryRecordAbandonedRun(ctx)
+    end
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world", not ctx.isMainFrameShown())
     ctx.sendOwnKickState(true)
