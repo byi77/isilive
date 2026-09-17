@@ -5,6 +5,14 @@ addonTable = addonTable or {}
 local Stats = {}
 addonTable.Stats = Stats
 local StringUtils = addonTable.StringUtils
+-- Damage-meter fields arrive masked while the key is ending: reading them is
+-- safe, but comparing one raises and kills the whole event dispatch. That is
+-- what happened at every CHALLENGE_MODE_COMPLETED -- `amountPerSecond >= 0`
+-- threw before anything was recorded. `type()` lies about a Secret Value, so
+-- every field below goes through the plain readers instead of a type check.
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
+local ReadPlainString = addonTable.Validators.ReadPlainString
+local ReadPlainField = addonTable.Validators.ReadPlainField
 
 local DAMAGE_METER_TYPE_DAMAGE_DONE = 0
 local DAMAGE_METER_SESSION_TYPE_OVERALL = 0
@@ -113,7 +121,15 @@ local function GetCombatSessionFromTypeSafe(api, sessionType, damageMeterType)
   if not ok or type(session) ~= "table" then
     return nil
   end
-  if type(session.combatSources) ~= "table" or next(session.combatSources) == nil then
+
+  -- `type()` cannot be trusted here either: a masked combatSources table passes
+  -- the type check and then raises inside next(). Both reads fail closed.
+  local combatSources = ReadPlainField(session, "combatSources")
+  if type(combatSources) ~= "table" then
+    return nil
+  end
+  local okNext, firstEntry = pcall(next, combatSources)
+  if not okNext or firstEntry == nil then
     return nil
   end
 
@@ -164,6 +180,7 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     sessionFound = false,
     sourceCount = 0,
     matchedCount = 0,
+    maskedCount = 0,
     rosterKeys = {},
     sourceKeys = {},
   }
@@ -189,26 +206,32 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     end
   end
 
+  local durationSeconds = ReadPlainNumber(session, "durationSeconds")
   local snapshot = {}
   for _, source in ipairs(session.combatSources) do
-    if type(source) == "table" and type(source.name) == "string" and source.name ~= "" then
-      local key = NormalizeName(source.name, nil)
-      local dps = tonumber(source.amountPerSecond)
+    local sourceName = ReadPlainString(source, "name")
+    local dps = ReadPlainNumber(source, "amountPerSecond")
+    if sourceName and sourceName ~= "" and dps then
+      local key = NormalizeName(sourceName, nil)
       diagnostics.sourceCount = diagnostics.sourceCount + 1
       if key then
         diagnostics.sourceKeys[key] = true
       end
-      if key and rosterByKey[key] and dps and dps >= 0 then
+      if key and rosterByKey[key] and dps >= 0 then
         diagnostics.matchedCount = diagnostics.matchedCount + 1
         snapshot[key] = {
           dps = dps,
-          totalDamage = tonumber(source.totalAmount),
+          totalDamage = ReadPlainNumber(source, "totalAmount"),
           mapID = tonumber(mapID),
           level = tonumber(level),
           onTime = onTime and true or false,
-          durationSeconds = tonumber(session.durationSeconds),
+          durationSeconds = durationSeconds,
         }
       end
+    else
+      -- Masked or unreadable source: counted so the trace shows the difference
+      -- between "the meter was empty" and "the meter answered in secrets".
+      diagnostics.maskedCount = diagnostics.maskedCount + 1
     end
   end
 
@@ -258,13 +281,14 @@ function Stats.CreateController(opts)
       -- session=false is a damage meter with nothing to read, matched=0 with a
       -- non-zero sourceCount is a key mismatch between meter and roster.
       logRuntimeTracef(
-        "[STATS] record_run mapID=%s level=%s session=%s sources=%d matched=%d "
+        "[STATS] record_run mapID=%s level=%s session=%s sources=%d matched=%d masked=%d "
           .. "playerKey=%s rosterKeys=%s sourceKeys=%s",
         tostring(mapID),
         tostring(level),
         tostring(diagnostics.sessionFound),
         diagnostics.sourceCount,
         diagnostics.matchedCount,
+        diagnostics.maskedCount,
         tostring(localPlayerKey),
         FormatKeysForTrace(diagnostics.rosterKeys),
         FormatKeysForTrace(diagnostics.sourceKeys)

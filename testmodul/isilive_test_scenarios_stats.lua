@@ -233,6 +233,79 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Stats capture survives masked damage-meter values at key end", function()
+    -- Observed live: at CHALLENGE_MODE_COMPLETED the meter answers with Secret
+    -- Values, and comparing amountPerSecond raised inside the dispatch --
+    -- "attempt to compare" killed the whole handler before anything was
+    -- recorded. Reading a masked field is allowed; comparing it is not.
+    local db = { stats = {} }
+    local secret = setmetatable({}, {
+      __lt = function()
+        error("attempt to compare a secret value")
+      end,
+      __le = function()
+        error("attempt to compare a secret value")
+      end,
+      __tostring = function()
+        error("attempt to convert a secret value")
+      end,
+    })
+    local traces = {}
+
+    WithGlobals({
+      IsiLiveDB = db,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return {
+            durationSeconds = 1532,
+            combatSources = {
+              { name = "Me", amountPerSecond = secret, totalAmount = secret },
+              { name = "Buddy-Realm", amountPerSecond = 321123.8, totalAmount = 578022840 },
+            },
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return {
+            player = { name = "Me", realm = "MyRealm" },
+            party1 = { name = "Buddy", realm = "Realm" },
+          }
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+        logRuntimeTracef = function(format, ...)
+          table.insert(traces, string.format(format, ...))
+        end,
+      })
+
+      local ok, err = pcall(controller.RecordRun, 585, 12, true)
+      Assert.True(ok, "a masked damage-meter value must not raise out of the capture: " .. tostring(err))
+      Assert.Nil(
+        controller.GetPlayerLastRunDps("Me", "MyRealm"),
+        "a masked source must stay unresolved instead of being recorded"
+      )
+      Assert.Equal(
+        math.floor(controller.GetPlayerLastRunDps("Buddy", "Realm") or 0),
+        321123,
+        "readable sources in the same session must still be recorded"
+      )
+      Assert.True(traces[1]:find("masked=1", 1, true) ~= nil, "the trace must report how many sources were masked")
+    end)
+  end)
+
   test("Stats capture dump reports every stage without a completed run", function()
     local db = { stats = { playerLastRunByCharacter = { ["me-myrealm"] = { dps = 165000.0, mapID = 2662 } } } }
 
