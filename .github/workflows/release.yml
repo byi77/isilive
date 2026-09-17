@@ -117,24 +117,41 @@ jobs:
             echo "No CHANGELOG section found for version ${VERSION} — using fallback body."
             printf '## v%s\n\nSee docs/CHANGELOG.md for release notes.\n' "${VERSION}" > "${NOTES_FILE}"
           fi
+          # The release object and its asset are created in two separate steps
+          # on purpose. Passing the asset to `gh release create` makes the two
+          # atomic from gh's side: a failed upload deletes the release it just
+          # created, so a transient upload error leaves nothing behind and a
+          # rerun starts from zero. That is how 0.9.398 failed twice --
+          # `HTTP 500: Error saving asset` from uploads.github.com, with the
+          # package itself verified one step earlier.
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "Release for tag ${TAG} already exists — updating notes."
             gh release edit "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "v${VERSION}" \
               --notes-file "${NOTES_FILE}"
-            gh release upload "${TAG}" "${GITHUB_RELEASE_ASSET}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --clobber
           else
             gh release create "${TAG}" \
-              "${GITHUB_RELEASE_ASSET}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "v${VERSION}" \
               --notes-file "${NOTES_FILE}" \
               --latest
           fi
           rm -f "${NOTES_FILE}"
+          # Upload with backoff. --clobber keeps this idempotent, so a rerun
+          # after a partial failure replaces the asset instead of colliding.
+          UPLOAD_ATTEMPT=1
+          UPLOAD_DELAY=5
+          until gh release upload "${TAG}" "${GITHUB_RELEASE_ASSET}" --repo "${GITHUB_REPOSITORY}" --clobber; do
+            if [ "${UPLOAD_ATTEMPT}" -ge 5 ]; then
+              echo "Asset upload failed 5 times — the release stays in place, rerun this job."
+              exit 1
+            fi
+            echo "Asset upload attempt ${UPLOAD_ATTEMPT} failed — retrying in ${UPLOAD_DELAY}s."
+            sleep "${UPLOAD_DELAY}"
+            UPLOAD_ATTEMPT=$((UPLOAD_ATTEMPT + 1))
+            UPLOAD_DELAY=$((UPLOAD_DELAY * 2))
+          done
           echo "GitHub Release v${VERSION} published."
       - name: Validate CurseForge configuration
         env:
@@ -211,19 +228,33 @@ jobs:
               releaseType: "release"
             }' > "${METADATA_FILE}"
           RESPONSE_FILE="$(mktemp)"
-          HTTP_CODE="$(
-            curl --silent --show-error --location \
-              --output "${RESPONSE_FILE}" \
-              --write-out "%{http_code}" \
-              --form "metadata=<${METADATA_FILE};type=application/json" \
-              --form "file=@${GITHUB_RELEASE_ASSET};type=application/zip" \
-              "https://wow.curseforge.com/api/projects/${CURSE_PROJECT_ID}/upload-file?token=${CF_API_KEY}"
-          )"
-          if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
-            echo "CurseForge upload failed with HTTP ${HTTP_CODE}."
-            cat "${RESPONSE_FILE}"
-            exit 1
-          fi
+          # Same backoff as the GitHub asset upload: a 5xx from the far side is
+          # a retry, not a failed release. Anything below 500 stays fatal -- a
+          # rejected token or payload is our bug, and retrying only hides it.
+          CF_ATTEMPT=1
+          CF_DELAY=5
+          while true; do
+            HTTP_CODE="$(
+              curl --silent --show-error --location \
+                --output "${RESPONSE_FILE}" \
+                --write-out "%{http_code}" \
+                --form "metadata=<${METADATA_FILE};type=application/json" \
+                --form "file=@${GITHUB_RELEASE_ASSET};type=application/zip" \
+                "https://wow.curseforge.com/api/projects/${CURSE_PROJECT_ID}/upload-file?token=${CF_API_KEY}"
+            )"
+            if [ "${HTTP_CODE}" -ge 200 ] && [ "${HTTP_CODE}" -lt 300 ]; then
+              break
+            fi
+            if [ "${HTTP_CODE}" -lt 500 ] || [ "${CF_ATTEMPT}" -ge 5 ]; then
+              echo "CurseForge upload failed with HTTP ${HTTP_CODE}."
+              cat "${RESPONSE_FILE}"
+              exit 1
+            fi
+            echo "CurseForge upload attempt ${CF_ATTEMPT} got HTTP ${HTTP_CODE} — retrying in ${CF_DELAY}s."
+            sleep "${CF_DELAY}"
+            CF_ATTEMPT=$((CF_ATTEMPT + 1))
+            CF_DELAY=$((CF_DELAY * 2))
+          done
           if ! jq -e '.id' "${RESPONSE_FILE}" >/dev/null; then
             echo "CurseForge upload did not return a file id."
             cat "${RESPONSE_FILE}"
