@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-17 - Version 0.9.397 (patch)
+
+Secret Values from the damage meter no longer kill the key-completion handler.
+
+- Read every damage-meter field through the plain readers. At
+  `CHALLENGE_MODE_COMPLETED` the meter answers with Secret Values: reading one
+  is allowed, comparing it is not, so `amountPerSecond >= 0` raised and took the
+  whole completion dispatch with it before anything was recorded. A live log of
+  a key that finished in time shows it directly -- `[RC] challenge_mode_end
+  mapID=585 level=12 onTime=true` followed by `Event dispatch failed
+  (CHALLENGE_MODE_COMPLETED): attempt to compare`. The run was then only saved
+  29 seconds later by the abandoned-key path, once the player had left the
+  instance and the values were plain again, which is why that snapshot carries
+  `onTime=false` for a timed key.
+- Skip a masked source instead of comparing it; readable sources in the same
+  session are still recorded.
+- Read `combatSources` the same way: `type()` reports a masked table as a table,
+  and `next()` then raises on it.
+- The `record_run` trace now carries a masked count, so "the meter was empty"
+  and "the meter answered in secrets" are no longer the same line.
+
 ## 2026-09-17 - Version 0.9.396 (patch)
 
 Last-run DPS for keys that end without being completed.
