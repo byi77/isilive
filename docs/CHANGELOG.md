@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-09-22 - Version 0.9.399 (patch)
+
+Audit fixes: combat-locked frames, sync input and abandoned-key capture.
+
+- Stop hiding the tank/healer role-marker button during combat. v0.9.372 did
+  so on the premise that `Hide()` is not protected; on a
+  `SecureActionButtonTemplate` frame Show, Hide and SetAttribute are all
+  blocked in combat lockdown, so the hide never ran and only raised
+  `ADDON_ACTION_BLOCKED`. The renderer now leaves the button alone until the
+  `PLAYER_REGEN_ENABLED` re-render.
+- Guard the role-marker macro: `/cleartarget`, `/target <name[-realm]>`,
+  `/stopmacro [noexists]`, `/tm <n>`, `/targetlasttarget`. A button that still
+  carries the macro of a player who left the group mid-fight now marks nobody
+  instead of the current target. Whether `/targetlasttarget` restores the
+  original target after `/cleartarget` still needs in-game confirmation.
+- The main window parents secure buttons and is therefore protected in combat.
+  A drag started in combat is ignored, the close button goes through the
+  deferred visibility path, and UI-scale changes and `/isilive resetui` are
+  queued and applied on `PLAYER_REGEN_ENABLED` (scale first, then position).
+- Reject Power Infusion sync announces whose recipient name contains a pipe, a
+  control character or more than 96 bytes. The recipient is not checked
+  against the sender and was printed verbatim into the local chat frame, where
+  a modified client could inject colour codes, textures or fake links.
+- `ChallengeCompletionInfo` documents its numeric fields as "default 0", and
+  zero is truthy in Lua: an abandoned key was taken for a completed run under
+  map 0 / level 0, which also consumed the identity the abandoned-key path
+  needs. Map or level `<= 0` now means no completion, a reset ignores
+  completion info that names a different key than the one stashed at start,
+  and a completed key drops that stash immediately so a pending capture retry
+  cannot be recorded a second time as abandoned.
+- Translate the `+5% Physical` LFG group-bonus label for French, Spanish,
+  Portuguese, Italian and Turkish.
+- RULES_LOGIC amends rule 119 and adds rules 120-123; UC-09 is corrected.
+
 ## 2026-09-17 - Version 0.9.398 (patch)
 
 Refreshed enemy-forces snapshot.
