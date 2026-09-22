@@ -505,6 +505,139 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
   end)
 end
 
+-- Split out of RegisterChallengeRetryTests to keep that function under the
+-- 420-line metrics limit.
+local function RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules, Fixtures)
+  -- Drives START -> RESET for an abandoned 2649 +13 while GetChallengeCompletionInfo
+  -- answers with `completion`, and returns every run handed to recordRun.
+  local function RecordAbandonedKeyWithCompletionInfo(completion)
+    local recordedRuns = {}
+    local inChallenge = true
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return inChallenge
+      end,
+      recordRun = function(mapID, level, onTime)
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return 2649
+      end,
+      GetActiveKeystoneInfo = function()
+        return 13, {}, true
+      end,
+      GetChallengeCompletionInfo = function()
+        return completion
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+    inChallenge = false
+    controller:Dispatch("CHALLENGE_MODE_RESET")
+    _G.C_ChallengeMode = previousChallengeMode
+    return recordedRuns
+  end
+
+  test("Event handlers treat a zero-default completion struct as no completion", function()
+    -- ChallengeCompletionInfo documents its numeric fields as "default 0". An
+    -- abandoned key must not be recorded under map 0 / level 0, and must still
+    -- reach the abandoned path with the identity stashed at start.
+    local recordedRuns = RecordAbandonedKeyWithCompletionInfo({
+      mapChallengeModeID = 0,
+      level = 0,
+      time = 0,
+      onTime = false,
+    })
+    Assert.Equal(#recordedRuns, 1, "an abandoned key must record exactly one run")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "the run must carry the running key's map id, not the default 0")
+    Assert.Equal(recordedRuns[1].level, 13, "the run must carry the inserted keystone level, not the default 0")
+  end)
+
+  test("Event handlers ignore completion info left over from an earlier key on reset", function()
+    local recordedRuns = RecordAbandonedKeyWithCompletionInfo({
+      mapChallengeModeID = 2662,
+      level = 10,
+      time = 123456,
+      onTime = true,
+    })
+    Assert.Equal(#recordedRuns, 1, "an abandoned key must record exactly one run")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "a stale completion must not relabel the abandoned key's map")
+    Assert.Equal(recordedRuns[1].level, 13, "a stale completion must not relabel the abandoned key's level")
+    Assert.False(recordedRuns[1].onTime, "the abandoned run must not inherit the stale timed flag")
+  end)
+
+  test("Event handlers do not record a completed key as abandoned while its capture retry is pending", function()
+    local recordedRuns = {}
+    local captureReady = false
+    local completionCleared = false
+    local inChallenge = true
+    local scheduled = {}
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return inChallenge
+      end,
+      timerAfter = function(seconds, callback)
+        table.insert(scheduled, { seconds = seconds, callback = callback })
+      end,
+      recordRun = function(mapID, level, onTime)
+        if not captureReady then
+          return false
+        end
+        table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return 2649
+      end,
+      GetActiveKeystoneInfo = function()
+        return 13, {}, true
+      end,
+      GetChallengeCompletionInfo = function()
+        if completionCleared then
+          return { mapChallengeModeID = 0, level = 0, time = 0, onTime = false }
+        end
+        return {
+          mapChallengeModeID = 2649,
+          level = 13,
+          time = 1500000,
+          onTime = true,
+        }
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+    inChallenge = false
+    -- The damage meter has not finalized yet: the first capture fails and a
+    -- retry is scheduled. The meter becomes ready before the reset arrives.
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    -- By the reset the completion struct is back to its zero defaults, so the
+    -- reset itself resolves no completion.
+    captureReady = true
+    completionCleared = true
+    controller:Dispatch("CHALLENGE_MODE_RESET")
+    for _, entry in ipairs(scheduled) do
+      if entry.seconds == 1 then
+        entry.callback()
+      end
+    end
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(#recordedRuns, 1, "the completed key must be recorded exactly once")
+    Assert.True(recordedRuns[1].onTime, "the recorded run must keep the completed run's timed flag")
+  end)
+end
+
 local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers keep non-UI regen recovery while frame is hidden", function()
     local applyHotkeyCalls = 0
@@ -796,5 +929,6 @@ return function(test, ctx)
 
   RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
 end

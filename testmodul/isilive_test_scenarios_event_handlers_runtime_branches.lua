@@ -1238,6 +1238,17 @@ return function(test, ctx)
     Assert.Equal(widthCalls[1], 320, "pending width must be applied once combat ends")
   end)
 
+  test("PLAYER_REGEN_ENABLED applies pending main-frame scale and position", function()
+    local geometryCalls = 0
+    local handlers = LoadHandlers({
+      applyPendingMainFrameGeometry = function()
+        geometryCalls = geometryCalls + 1
+      end,
+    })
+    handlers.PLAYER_REGEN_ENABLED(nil)
+    Assert.Equal(geometryCalls, 1, "queued scale / resetui geometry must be drained once combat ends")
+  end)
+
   test("PLAYER_REGEN_ENABLED applies pending leader button updates", function()
     local calls = 0
     local bloodlustEvents = {}

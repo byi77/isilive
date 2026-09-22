@@ -61,6 +61,20 @@ end
 local MakeFrameMock = RosterMocks.MakeFrameMock
 local MakeFontStringMock = RosterMocks.MakeFontStringMock
 
+-- Combat state for the InCombatLockdown stub installed in WithGlobals below.
+-- roster_layout's IsCombatLockdownActive re-reads the global on every call, so
+-- flipping this mid-scenario switches the production branch under test.
+local inCombat = false
+local function SetCombat(active)
+  inCombat = active and true or false
+end
+
+-- The role button is a SecureActionButtonTemplate frame, i.e. protected. The
+-- real client refuses Show / Hide / SetAttribute / EnableMouse / re-anchoring
+-- on it from addon code during combat lockdown: the call does not run and
+-- ADDON_ACTION_BLOCKED fires. The mock reproduces both halves -- no state
+-- change, and a recorded violation -- so a production path that relies on a
+-- blocked call cannot pass here while failing in game.
 local function MakeRoleButtonMock()
   local icon = {
     SetAllPoints = NoOp,
@@ -74,28 +88,52 @@ local function MakeRoleButtonMock()
   local mock = {
     _attributes = {},
     _shown = false,
+    _blockedCalls = 0,
     -- Mirrors the real Button default: mouse input is on until the renderer
     -- turns it off for a row that carries no marker macro.
     _mouseEnabled = true,
     icon = icon,
   }
+  local function Blocked(self)
+    if inCombat then
+      self._blockedCalls = self._blockedCalls + 1
+      return true
+    end
+    return false
+  end
   function mock:EnableMouse(flag)
+    if Blocked(self) then
+      return
+    end
     self._mouseEnabled = flag and true or false
   end
   function mock:SetAttribute(key, value)
+    if Blocked(self) then
+      return
+    end
     self._attributes[key] = value
   end
   function mock:GetAttribute(key)
     return self._attributes[key]
   end
   function mock:Show()
+    if Blocked(self) then
+      return
+    end
     self._shown = true
   end
   function mock:Hide()
+    if Blocked(self) then
+      return
+    end
     self._shown = false
   end
-  mock.SetSize = NoOp
-  mock.SetPoint = NoOp
+  function mock:SetSize()
+    Blocked(self)
+  end
+  function mock:SetPoint()
+    Blocked(self)
+  end
   mock.SetFrameLevel = NoOp
   mock.RegisterForClicks = NoOp
   mock.SetScript = NoOp
@@ -151,12 +189,12 @@ local function FindRowForUnit(memberRows, unit)
   return nil
 end
 
--- Combat state for the InCombatLockdown stub installed in WithGlobals below.
--- roster_layout's IsCombatLockdownActive re-reads the global on every call, so
--- flipping this mid-scenario switches the production branch under test.
-local inCombat = false
-local function SetCombat(active)
-  inCombat = active and true or false
+local function CountBlockedCalls(memberRows)
+  local total = 0
+  for i = 1, #memberRows do
+    total = total + memberRows[i].roleButton._blockedCalls
+  end
+  return total
 end
 
 -- Scenarios 9 and 10 live in their own function: folded into the WithGlobals
@@ -208,16 +246,13 @@ local function RunMouseInputScenarios(RI, addon)
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 10: in combat the button must also disappear when the row stops
-  -- qualifying for one, not only when the macro text changes.
+  -- Scenario 10: a member who turns into a ghost in combat loses the role
+  -- button once combat ends.
   --
-  -- SetAttribute is forbidden under lockdown, so the renderer can only Hide().
-  -- Matching on the macro alone missed the case where the macro is still
-  -- correct but the button no longer belongs on screen: a member turning into
-  -- a ghost keeps the same name, so the macro is unchanged and the button
-  -- stayed up on a dead player.
+  -- In combat the protected button cannot be hidden (Hide is blocked), so the
+  -- renderer must not even try; the out-of-combat re-render hides it.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 10: combat ghost state hides the role button ==========")
+  print("\n========== Scenario 10: ghost state hides the role button after combat ==========")
   do
     local memberRows = BuildMemberRows()
     local state = BuildState(memberRows, addon)
@@ -250,10 +285,21 @@ local function RunMouseInputScenarios(RI, addon)
         "in combat: the ghost row's macro is unchanged (SetAttribute stays forbidden)"
       )
       Check(
-        healAfter.roleButton._shown == false,
-        "in combat: a ghost member's role button is hidden even though its macro is unchanged"
+        healAfter.roleButton._blockedCalls == 0,
+        "in combat: no protected call is attempted on the ghost row's role button"
       )
     end
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER", isGhost = true },
+    })
+    local healPost = FindRowForUnit(memberRows, "party1")
+    Check(
+      healPost ~= nil and healPost.roleButton._shown == false,
+      "post-combat: a ghost member's role button is hidden"
+    )
   end
 end
 
@@ -345,12 +391,14 @@ Harness.WithGlobals({
     Check(tank ~= nil, "TANK row rendered")
     if tank then
       Check(
-        tank.roleButton:GetAttribute("macrotext1") == "/target Felix\n/tm 6\n/targetlasttarget",
-        "TANK macrotext1 = '/target Felix\\n/tm 6\\n/targetlasttarget' (no realm, no token)"
+        tank.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
+        "TANK macrotext1 targets bare 'Felix' behind the /stopmacro guard (no realm, no token)"
       )
       Check(
-        tank.roleButton:GetAttribute("macrotext2") == "/target Felix\n/tm 0\n/targetlasttarget",
-        "TANK macrotext2 (clear) = '/target Felix\\n/tm 0\\n/targetlasttarget'"
+        tank.roleButton:GetAttribute("macrotext2")
+          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
+        "TANK macrotext2 (clear) = '/cleartarget\\n/target Felix\\n/stopmacro [noexists]\\n/tm 0\\n/targetlasttarget'"
       )
     end
 
@@ -358,8 +406,9 @@ Harness.WithGlobals({
     Check(heal ~= nil, "HEALER row rendered")
     if heal then
       Check(
-        heal.roleButton:GetAttribute("macrotext1") == "/target Anna\n/tm 4\n/targetlasttarget",
-        "HEALER macrotext1 = '/target Anna\\n/tm 4\\n/targetlasttarget'"
+        heal.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Anna\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
+        "HEALER macrotext1 = '/cleartarget\\n/target Anna\\n/stopmacro [noexists]\\n/tm 4\\n/targetlasttarget'"
       )
     end
 
@@ -390,7 +439,8 @@ Harness.WithGlobals({
     local tank = FindRowForUnit(memberRows, "player")
     if tank then
       Check(
-        tank.roleButton:GetAttribute("macrotext1") == "/target Felix-Tichondrius\n/tm 6\n/targetlasttarget",
+        tank.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Felix-Tichondrius\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
         "TANK cross-realm macrotext1 has '-Tichondrius' suffix"
       )
     end
@@ -398,7 +448,8 @@ Harness.WithGlobals({
     local heal = FindRowForUnit(memberRows, "party1")
     if heal then
       Check(
-        heal.roleButton:GetAttribute("macrotext1") == "/target Anna-TwistingNether\n/tm 4\n/targetlasttarget",
+        heal.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Anna-TwistingNether\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
         "HEALER cross-realm macrotext1 has '-TwistingNether' suffix"
       )
     end
@@ -447,7 +498,7 @@ Harness.WithGlobals({
       if tank then
         local m1 = tank.roleButton:GetAttribute("macrotext1") or ""
         Check(
-          m1 == "/target " .. tankExpect .. "\n/tm 6\n/targetlasttarget",
+          m1 == "/cleartarget\n/target " .. tankExpect .. "\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
           locale .. ": TANK macrotext1 has UTF-8 name byte-for-byte (" .. tankExpect .. ")"
         )
       end
@@ -456,7 +507,7 @@ Harness.WithGlobals({
       if heal then
         local m1 = heal.roleButton:GetAttribute("macrotext1") or ""
         Check(
-          m1 == "/target " .. healerExpect .. "\n/tm 4\n/targetlasttarget",
+          m1 == "/cleartarget\n/target " .. healerExpect .. "\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
           locale .. ": HEALER macrotext1 has UTF-8 name byte-for-byte (" .. healerExpect .. ")"
         )
       end
@@ -548,11 +599,13 @@ Harness.WithGlobals({
     local tank = FindRowForUnit(memberRows, "player")
     if tank then
       Check(
-        tank.roleButton:GetAttribute("macrotext1") == "/target Pinto\n/tm 6\n/targetlasttarget",
+        tank.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Pinto\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
         "TANK home-realm match: macrotext1 must drop the '-Stormrage' suffix"
       )
       Check(
-        tank.roleButton:GetAttribute("macrotext2") == "/target Pinto\n/tm 0\n/targetlasttarget",
+        tank.roleButton:GetAttribute("macrotext2")
+          == "/cleartarget\n/target Pinto\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
         "TANK home-realm match: macrotext2 must drop the '-Stormrage' suffix"
       )
     end
@@ -560,7 +613,8 @@ Harness.WithGlobals({
     local heal = FindRowForUnit(memberRows, "party1")
     if heal then
       Check(
-        heal.roleButton:GetAttribute("macrotext1") == "/target Cross-Tichondrius\n/tm 4\n/targetlasttarget",
+        heal.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Cross-Tichondrius\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
         "HEALER cross-realm: macrotext1 must keep the '-Tichondrius' suffix"
       )
     end
@@ -593,22 +647,16 @@ Harness.WithGlobals({
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 7: combat lockdown must never leave a STALE macro on the button.
+  -- Scenario 7: roster churn during combat lockdown.
   --
-  -- SetAttribute is forbidden during combat lockdown, so production skips the
-  -- whole roleButton block while InCombatLockdown() is true. The danger is not
-  -- the skipped write — it is what stays behind: the macro from the PREVIOUS
-  -- render still names the previous occupant of that row. A click then targets
-  -- and marks the wrong player, which is the exact failure class CLAUDE.md
-  -- records for v0.9.203 and v0.9.208.
-  --
-  -- Roster churn mid-combat is routine in a key: a death re-sorts rows (ghosts
-  -- sort last), a role swap re-sorts them, a disconnect drops a member. So the
-  -- contract is: while a row's macro cannot be rewritten, that row must not
-  -- offer a clickable marker at all. Hide() is not protected, so hiding is
-  -- always available even in combat.
+  -- SetAttribute, Show and Hide on the protected role button are all blocked
+  -- for addon code in combat (ADDON_ACTION_BLOCKED). The renderer must not
+  -- attempt any of them -- a blocked call changes nothing and only raises the
+  -- "interface action failed" error. The button keeps the macro of the
+  -- previous render until combat ends; the PLAYER_REGEN_ENABLED re-render must
+  -- then reconcile it with the current occupant.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 7: combat lockdown must not leave a stale macro ==========")
+  print("\n========== Scenario 7: combat churn attempts no protected call ==========")
   do
     local memberRows = BuildMemberRows()
     local state = BuildState(memberRows, addon)
@@ -623,7 +671,8 @@ Harness.WithGlobals({
     local tankRowBefore = FindRowForUnit(memberRows, "player")
     Check(
       tankRowBefore ~= nil
-        and tankRowBefore.roleButton:GetAttribute("macrotext1") == "/target Felix\n/tm 6\n/targetlasttarget",
+        and tankRowBefore.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
       "pre-combat baseline: TANK row macro targets Felix"
     )
 
@@ -636,20 +685,7 @@ Harness.WithGlobals({
       party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
     })
 
-    local healRow = FindRowForUnit(memberRows, "party1")
-    if healRow then
-      local macro = healRow.roleButton:GetAttribute("macrotext1")
-      local namesStalePlayer = type(macro) == "string" and macro:find("Anna", 1, true) ~= nil
-      local isClickable = healRow.roleButton._shown == true
-
-      -- The button may keep a stale macro string (SetAttribute is forbidden),
-      -- but it must not simultaneously be shown — that combination is what
-      -- marks the wrong player.
-      Check(
-        not (namesStalePlayer and isClickable),
-        "in combat: healer row must not be BOTH shown AND still naming the departed player"
-      )
-    end
+    Check(CountBlockedCalls(memberRows) == 0, "in combat: no protected call is attempted on any role button")
 
     -- Combat ends: the deferred render must reconcile the button with reality.
     SetCombat(false)
@@ -661,7 +697,8 @@ Harness.WithGlobals({
     local healAfter = FindRowForUnit(memberRows, "party1")
     if healAfter then
       Check(
-        healAfter.roleButton:GetAttribute("macrotext1") == "/target Zara\n/tm 4\n/targetlasttarget",
+        healAfter.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Zara\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
         "post-combat: healer row macro targets the current occupant (Zara)"
       )
       Check(healAfter.roleButton._shown == true, "post-combat: healer role button is shown again")
@@ -669,16 +706,14 @@ Harness.WithGlobals({
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 8: group SHRINK during combat must also drop the marker.
+  -- Scenario 8: group SHRINK during combat.
   --
-  -- Same failure class as scenario 7, reached through the other code path:
-  -- when the group shrinks, the vacated rows go through ClearMemberRow instead
-  -- of the per-member render loop. A row cleared in combat keeps whatever macro
-  -- it last held, so a leftover button would still target the member who left.
-  -- Hide() is not protected, so clearing a row must hide its role button
-  -- regardless of combat state.
+  -- Same contract as scenario 7 through the other code path: vacated rows go
+  -- through ClearMemberRow instead of the per-member render loop. In combat
+  -- the protected button must not be touched; after combat the vacated row's
+  -- button must be hidden.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 8: combat group shrink hides the vacated row's marker ==========")
+  print("\n========== Scenario 8: combat group shrink, vacated marker hidden after combat ==========")
   do
     local memberRows = BuildMemberRows()
     local state = BuildState(memberRows, addon)
@@ -703,13 +738,16 @@ Harness.WithGlobals({
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
     })
 
+    Check(CountBlockedCalls(memberRows) == 0, "in combat: clearing a row attempts no protected call")
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+    })
     if healerRowIndex then
-      local vacated = memberRows[healerRowIndex]
-      local macro = vacated.roleButton:GetAttribute("macrotext1")
-      local namesDepartedPlayer = type(macro) == "string" and macro:find("Anna", 1, true) ~= nil
       Check(
-        not (namesDepartedPlayer and vacated.roleButton._shown == true),
-        "in combat: vacated row must not keep a shown marker naming the departed player"
+        memberRows[healerRowIndex].roleButton._shown == false,
+        "post-combat: the vacated row's role button is hidden"
       )
     end
   end

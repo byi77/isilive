@@ -304,11 +304,7 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     return pendingVisible
   end
 
-  local function ClearPendingVisible()
-    pendingVisible = nil
-  end
-
-  return SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible
+  return SetVisible, ToggleVisibility, GetPendingVisible
 end
 
 local function CreateHeightController(frame, isInCombat)
@@ -381,8 +377,13 @@ function UI.CreateMainFrame(opts)
     end
   end
 
+  -- The main frame parents secure buttons (ready check, role markers, world
+  -- markers), so the client treats it as protected during combat lockdown:
+  -- StartMoving, Show/Hide, SetScale and re-anchoring from addon code raise
+  -- ADDON_ACTION_BLOCKED there and do not run. Drag is skipped in combat;
+  -- visibility, scale and position changes are queued for PLAYER_REGEN_ENABLED.
   local function BeginDrag()
-    if dragLocked then
+    if dragLocked or isInCombat() then
       return
     end
     dragActive = true
@@ -462,7 +463,7 @@ function UI.CreateMainFrame(opts)
 
   SetDragLocked(dragLocked)
 
-  local SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible =
+  local SetVisible, ToggleVisibility, GetPendingVisible =
     CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
   local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
   local SetWidthSafe, GetPendingWidth = CreateWidthController(frame, isInCombat)
@@ -482,11 +483,19 @@ function UI.CreateMainFrame(opts)
   -- UI-scale slider moves. Rescaling the stored offsets by oldScale/newScale
   -- keeps the frame where the user put it. The corrected offsets are persisted
   -- right away, so the next login restores the same spot.
+  local pendingScale = nil
+  local pendingResetPosition = false
+
   local function ApplyScale(scale)
     local newScale = tonumber(scale)
     if not newScale or newScale <= 0 or type(frame.SetScale) ~= "function" then
       return false
     end
+    if isInCombat() then
+      pendingScale = newScale
+      return false
+    end
+    pendingScale = nil
 
     local oldScale = nil
     if type(frame.GetScale) == "function" then
@@ -515,15 +524,36 @@ function UI.CreateMainFrame(opts)
   end
 
   local function ResetPosition()
+    if isInCombat() then
+      pendingResetPosition = true
+      return false
+    end
+    pendingResetPosition = false
     frame:ClearAllPoints()
     frame:SetPoint("CENTER", parent, "CENTER", 0, 0)
     SavePosition(frame)
     NotifyPositionChanged()
+    return true
   end
 
+  -- Drained by PLAYER_REGEN_ENABLED: scale first, so a queued reset centres
+  -- the frame at its final scale.
+  local function ApplyPendingGeometry()
+    if isInCombat() then
+      return
+    end
+    if pendingScale then
+      ApplyScale(pendingScale)
+    end
+    if pendingResetPosition then
+      ResetPosition()
+    end
+  end
+
+  -- Routed through SetVisible so a click in combat is queued for the
+  -- PLAYER_REGEN_ENABLED drain instead of issuing a blocked Hide().
   closeButton:SetScript("OnClick", function()
-    frame:Hide()
-    ClearPendingVisible()
+    SetVisible(false)
   end)
 
   return {
@@ -538,6 +568,7 @@ function UI.CreateMainFrame(opts)
     ApplyStoredPosition = ApplyStoredPosition,
     ApplyScale = ApplyScale,
     ResetPosition = ResetPosition,
+    ApplyPendingGeometry = ApplyPendingGeometry,
     GetPendingHeight = GetPendingHeight,
     GetPendingVisible = GetPendingVisible,
     SetWidthSafe = SetWidthSafe,

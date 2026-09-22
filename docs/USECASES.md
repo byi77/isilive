@@ -167,19 +167,24 @@ markieren.
    verifizierten Charakternamen inklusive Realm statt eines instabilen Unit-Slots.
 3. Ergebnis: Tank wird mit dem blauen, Heiler mit dem gruenen Zielmarker markiert.
 4. Combat-Lockdown: Im Kampf ist `SetAttribute` gesperrt, das Makro einer Zeile
-   kann also nicht aktualisiert werden. Wechselt eine Zeile waehrend des Kampfes
-   den Insassen (Tod mit Ghost-Umsortierung, Rollenwechsel, Gruppenaustritt),
-   wird der Button ausgeblendet statt mit dem Namen des Vorgaengers sichtbar zu
-   bleiben. `Hide` ist nicht geschuetzt und daher auch im Kampf erlaubt. Eine
-   geleerte Roster-Zeile blendet ihren Rollen-Button immer aus, unabhaengig vom
-   Kampfzustand.
-5. Ergebnis nach Kampfende: `PLAYER_REGEN_ENABLED` rendert das Roster neu und
-   stellt den Button mit korrektem Makro wieder her; ein eigener Retry-Frame ist
+   kann also nicht aktualisiert werden. Da der Rollen-Button ein geschuetzter
+   `SecureActionButtonTemplate`-Frame ist, sind im Kampf auch `Show`, `Hide`,
+   `EnableMouse` und Re-Anchoring fuer Addon-Code gesperrt
+   (`ADDON_ACTION_BLOCKED`, der Aufruf wird nicht ausgefuehrt). Der Renderer
+   fasst den Button im Kampf daher gar nicht an, auch nicht beim Leeren einer
+   Roster-Zeile; er behaelt bis Kampfende das Makro des letzten Renders. Damit
+   ein solches Makro keinen falschen Spieler markiert, lautet es
+   `/cleartarget`, `/target <Name[-Realm]>`, `/stopmacro [noexists]`,
+   `/tm <n>`, `/targetlasttarget`: findet `/target` den Spieler nicht mehr
+   (Gruppe verlassen), bleibt kein Ziel stehen und `/tm` wird nicht ausgefuehrt.
+5. Ergebnis nach Kampfende: `PLAYER_REGEN_ENABLED` rendert das Roster neu,
+   stellt den Button mit korrektem Makro wieder her und blendet ihn fuer
+   Ghost-, geleerte oder eingeklappte Zeilen aus; ein eigener Retry-Frame ist
    dafuer nicht noetig.
 6. Erfolgskriterium: Es gibt keinen direkten geschuetzten Marker-API-Aufruf aus
-   unsicherem Runtime-Code, kein Namensraten und zu keinem Zeitpunkt einen
-   sichtbaren Rollen-Marker, dessen Makro einen anderen Spieler adressiert als
-   die Zeile anzeigt.
+   unsicherem Runtime-Code, keinen geschuetzten Frame-Aufruf am Rollen-Button
+   waehrend Combat-Lockdown, kein Namensraten, und nach Kampfende addressiert
+   jedes sichtbare Rollen-Marker-Makro genau den Spieler der Zeile.
 
 ## UC-10 Raid-Zero-Process-Transition
 

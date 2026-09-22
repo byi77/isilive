@@ -97,6 +97,19 @@ local ROW_RIGHT_INSET = 4
 local ROLE_MARKER = { TANK = 6, HEALER = 4 }
 local CLEAR_MARKER = 0
 
+-- Role-marker macro, target by character name (see CLAUDE.md "Role-marker
+-- click feature"). /cleartarget + /stopmacro [noexists] make a failed /target
+-- a no-op: during combat lockdown the button keeps the macro of the previous
+-- render, and when that player has left the group /target finds nobody. Without
+-- the guard the previous target would survive and /tm would mark it instead.
+local function BuildRoleMarkerMacro(target, marker)
+  return "/cleartarget\n/target "
+    .. target
+    .. "\n/stopmacro [noexists]\n/tm "
+    .. tostring(marker)
+    .. "\n/targetlasttarget"
+end
+
 -- These settings are temporarily hidden from Blizzard Settings.
 -- Keep the runtime behavior hard-forced until the controls are re-enabled.
 local FORCE_SHOW_DPS_COLUMN = true
@@ -520,10 +533,12 @@ local function RenderRosterImpl(state, roster)
     if row.readyCheckBackground then
       row.readyCheckBackground:Hide()
     end
-    -- Hide() is not protected, so a cleared row drops its marker even during
-    -- combat lockdown. Leaving it shown would keep offering a click that still
-    -- targets the member who just left the group.
-    if row.roleButton then
+    -- The role button is a SecureActionButtonTemplate frame. Show(), Hide(),
+    -- SetAttribute() and re-anchoring of a protected frame are all blocked for
+    -- addon code during combat lockdown (ADDON_ACTION_BLOCKED, the call does
+    -- not run). A vacated row therefore keeps its button until the
+    -- out-of-combat re-render (PLAYER_REGEN_ENABLED runs ctx.updateUI).
+    if row.roleButton and not IsCombatLockdownActive() then
       row.roleButton:Hide()
     end
   end
@@ -643,8 +658,8 @@ local function RenderRosterImpl(state, roster)
       -- character name".
       local target = addonTable.StringUtils.BuildSlashTargetName(info.name, info.realm)
       local marker = target and ROLE_MARKER[role]
-      local macroText1 = marker and ("/target " .. target .. "\n/tm " .. marker .. "\n/targetlasttarget") or nil
-      local macroText2 = marker and ("/target " .. target .. "\n/tm " .. CLEAR_MARKER .. "\n/targetlasttarget") or nil
+      local macroText1 = marker and BuildRoleMarkerMacro(target, marker) or nil
+      local macroText2 = marker and BuildRoleMarkerMacro(target, CLEAR_MARKER) or nil
 
       if not IsCombatLockdownActive() then
         if showButton and not isCollapsed then
@@ -665,24 +680,12 @@ local function RenderRosterImpl(state, roster)
         else
           row.roleButton:Hide()
         end
-      elseif not showButton or isCollapsed or row.roleButton:GetAttribute("macrotext1") ~= macroText1 then
-        -- Combat lockdown: SetAttribute is forbidden, so the button still holds
-        -- the macro from the previous render. When the row has since changed
-        -- occupant (death re-sorts rows, role swap, member leaves), that macro
-        -- names somebody else and a click would target and mark the wrong
-        -- player -- the v0.9.203 / v0.9.208 failure class.
-        --
-        -- The showButton / isCollapsed terms cover the cases where the macro is
-        -- still correct but the button no longer belongs on screen: the member
-        -- turned into a ghost, or the panel collapsed mid-combat. Matching on
-        -- the macro alone left the button standing in both.
-        --
-        -- Hide() is not protected, so it works in combat. Hiding the button is
-        -- strictly better than offering a wrong one; the next out-of-combat
-        -- render (PLAYER_REGEN_ENABLED runs ctx.updateUI) restores it with a
-        -- correct macro.
-        row.roleButton:Hide()
       end
+      -- Combat lockdown: the secure role button is left untouched. SetAttribute,
+      -- Show and Hide on a protected frame are all blocked for addon code in
+      -- combat (ADDON_ACTION_BLOCKED; the blocked call does not run), so hiding
+      -- a button whose macro went stale is not possible here. The out-of-combat
+      -- re-render (PLAYER_REGEN_ENABLED runs ctx.updateUI) rewrites the macro.
     end
 
     local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)

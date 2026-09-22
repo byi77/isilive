@@ -52,6 +52,45 @@ return function(test, ctx)
     end)
   end)
 
+  test("Sync ProcessAddonMessage rejects PI recipients carrying chat markup", function()
+    WithGlobals({
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      local plain = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:Priest-Realm:Müller-OtherRealm:10060",
+        "Priest-Realm",
+        "MyPlayer",
+        "Realm",
+        "PARTY"
+      )
+      Assert.NotNil(plain.powerInfusionAnnounce, "a plain UTF-8 recipient name must still be announced")
+      Assert.Equal(plain.powerInfusionAnnounce.recipient, "Müller-OtherRealm", "recipient bytes must pass through")
+
+      local hostileRecipients = {
+        "|cffff0000Fake|r",
+        "|Hitem:19019|h[Thunderfury]|h",
+        "|TInterface\\Icons\\Temp:64|t",
+        "Line\nBreak",
+        string.rep("A", 97),
+      }
+      for _, recipient in ipairs(hostileRecipients) do
+        local result = addon.Sync.ProcessAddonMessage(
+          "ISILIVE",
+          "PI:Priest-Realm:" .. recipient .. ":10060",
+          "Priest-Realm",
+          "MyPlayer",
+          "Realm",
+          "PARTY"
+        )
+        Assert.Nil(result.powerInfusionAnnounce, "PI recipient with markup or overlength must be dropped")
+      end
+    end)
+  end)
+
   test("Sync ProcessAddonMessage rejects non-finite numeric payloads without dispatch errors", function()
     WithGlobals({
       GetRealmName = function()

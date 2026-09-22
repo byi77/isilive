@@ -128,12 +128,16 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       db.uiScale = 1.0
       db.bgAlpha = defaultBgAlpha
 
+      -- See ResetMainFrameDefaults in isiLive_factory.lua: ApplyScale and
+      -- ResetPosition queue the change while the main frame is combat-locked.
       local mainFrame = ctx.mainFrame
-      if mainFrame and type(mainFrame.SetScale) == "function" then
+      local mainUI = ctx.mainUI
+      if mainUI and type(mainUI.ApplyScale) == "function" then
+        mainUI.ApplyScale(1.0)
+      elseif mainFrame and type(mainFrame.SetScale) == "function" then
         mainFrame:SetScale(1.0)
       end
 
-      local mainUI = ctx.mainUI
       if mainUI and type(mainUI.ResetPosition) == "function" then
         mainUI.ResetPosition()
       end

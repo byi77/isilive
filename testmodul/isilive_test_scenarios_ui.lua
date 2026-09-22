@@ -436,7 +436,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
     end)
   end)
 
-  test("UI drag start/stop remains available during combat", function()
+  test("UI drag start is skipped and geometry changes are queued during combat", function()
+    -- The main frame parents secure buttons, so the client blocks StartMoving,
+    -- SetScale and re-anchoring on it from addon code during combat lockdown.
     local inCombat = true
     local positionChangedCalls = 0
     WithGlobals({
@@ -464,12 +466,35 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       onDragStop = Assert.NotNil(onDragStop, "main frame should define OnDragStop handler")
       onDragStart(mainUI.frame)
       onDragStop(mainUI.frame)
-      Assert.Equal(mainUI.frame._startMovingCalls, 1, "combat drag start should still call StartMoving")
-      Assert.Equal(mainUI.frame._stopMovingCalls, 1, "combat drag stop should still call StopMovingOrSizing")
-      Assert.NotNil(IsiLiveDB.position, "drag stop should persist main-frame position")
-      Assert.Equal(positionChangedCalls, 1, "drag stop must notify docked companion frames after saving position")
-      mainUI.ResetPosition()
-      Assert.Equal(positionChangedCalls, 2, "position reset must notify docked companion frames")
+      Assert.Equal(mainUI.frame._startMovingCalls or 0, 0, "combat drag start must not call StartMoving")
+      Assert.Equal(mainUI.frame._stopMovingCalls or 0, 0, "a drag that never started must not stop moving")
+      Assert.Nil(IsiLiveDB.position, "a skipped combat drag must not persist a position")
+
+      mainUI.frame:ClearAllPoints()
+      mainUI.frame:SetPoint("CENTER", UIParent, "CENTER", -400, 200)
+      Assert.False(mainUI.ApplyScale(2.0), "a combat scale change must be queued, not applied")
+      Assert.False(mainUI.ResetPosition(), "a combat position reset must be queued, not applied")
+      Assert.True(mainUI.frame._scale == nil or mainUI.frame._scale == 1, "the frame scale must stay untouched")
+      local _, _, _, x, y = mainUI.frame:GetPoint()
+      Assert.Equal(x, -400, "the frame must not be re-anchored during combat")
+      Assert.Equal(y, 200, "the frame must not be re-anchored during combat")
+      Assert.Equal(positionChangedCalls, 0, "nothing moved, so docked frames must not be re-anchored")
+
+      mainUI.ApplyPendingGeometry()
+      Assert.True(mainUI.frame._scale == nil or mainUI.frame._scale == 1, "pending geometry waits for combat end")
+
+      inCombat = false
+      mainUI.ApplyPendingGeometry()
+      Assert.Equal(mainUI.frame._scale, 2.0, "the queued scale must be applied after combat")
+      local point, _, _, resetX, resetY = mainUI.frame:GetPoint()
+      Assert.Equal(point, "CENTER", "the queued reset must centre the frame after combat")
+      Assert.Equal(resetX, 0, "the queued reset must centre the frame after combat")
+      Assert.Equal(resetY, 0, "the queued reset must centre the frame after combat")
+      Assert.True(positionChangedCalls >= 1, "applied geometry must notify docked companion frames")
+
+      local callsAfterDrain = positionChangedCalls
+      mainUI.ApplyPendingGeometry()
+      Assert.Equal(positionChangedCalls, callsAfterDrain, "a drained queue must not replay")
     end)
   end)
   test("UI drag grip lines can be hidden without disabling the drag handle", function()
@@ -557,7 +582,7 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.Equal(settingsOpenCalls, 1, "settings button should call the settings opener")
     end)
   end)
-  test("UI close button hides frame even during combat", function()
+  test("UI close button defers hiding during combat and applies after regen", function()
     local inCombat = true
     WithGlobals({
       UIParent = {},
@@ -579,7 +604,13 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       local onClick = mainUI.closeButton._scripts and mainUI.closeButton._scripts.OnClick or nil
       onClick = Assert.NotNil(onClick, "close button should define OnClick handler")
       onClick(mainUI.closeButton, "LeftButton")
-      Assert.False(mainUI.frame:IsShown(), "close button must hide frame immediately even during combat")
+      -- Hide() on the combat-locked main frame is blocked by the client; the
+      -- click is queued for the PLAYER_REGEN_ENABLED drain instead.
+      Assert.True(mainUI.frame:IsShown(), "close button must not issue a blocked Hide() during combat")
+      Assert.Equal(mainUI.GetPendingVisible(), false, "close button must queue the hide for regen")
+      inCombat = false
+      mainUI.SetVisible(mainUI.GetPendingVisible())
+      Assert.False(mainUI.frame:IsShown(), "the queued close must hide the frame after combat")
     end)
   end)
 end

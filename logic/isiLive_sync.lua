@@ -221,6 +221,17 @@ local function NormalizeSyncAddonVersion(addonVersion)
   return text:sub(1, MAX_SYNC_ADDON_VERSION_LENGTH)
 end
 
+-- Peer-supplied player names that are not checked against the authenticated
+-- sender (the Power Infusion recipient) are printed into the local chat frame,
+-- which interprets the same `|` escapes. A real "Name-Realm" never contains a
+-- pipe or a control character, so such a name is rejected rather than cleaned
+-- up. The byte cap covers a 12-glyph UTF-8 name plus the longest realm suffix.
+local MAX_SYNC_PEER_NAME_LENGTH = 96
+
+local function IsPlainPeerName(text)
+  return type(text) == "string" and text ~= "" and #text <= MAX_SYNC_PEER_NAME_LENGTH and not text:find("[|%c]")
+end
+
 local function NormalizeSyncProtocolVersion(protocolVersion)
   local numericVersion = ToFiniteNumber(protocolVersion)
   if not numericVersion or numericVersion <= 0 then
@@ -2170,7 +2181,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
       local caster = parts[2]
       local recipient = parts[3]
       local spellID = ToFiniteNumber(parts[4]) or 0
-      if caster ~= "" and recipient ~= "" and spellID == 10060 then
+      if caster ~= "" and IsPlainPeerName(recipient) and spellID == 10060 then
         payloadValid = true
         powerInfusionAnnounce = {
           caster = caster,

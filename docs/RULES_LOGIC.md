@@ -148,6 +148,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 119. Ein abgebrochener Key (verlassen, nicht abgeschlossen) zeichnet den DPS-Snapshot trotzdem auf. Die Run-Identitaet dafuer wird beim `CHALLENGE_MODE_START` aus dem laufenden Keystein gemerkt; ein abgeschlossener Key loescht diesen Merker, damit er nie doppelt aufzeichnet.
 
+120. Eine Completion-Info mit Map-ID oder Stufe `<= 0` (dokumentierte Null-Defaults) gilt nicht als Abschluss; beim Reset zaehlt sie nur, wenn sie zum gemerkten laufenden Key passt.
+
+121. Die Main-UI ist im Kampf geschuetzt: Drag-Start ist dort ein No-op, Schliessen, Skalierung und Positions-Reset werden gependelt und bei `PLAYER_REGEN_ENABLED` nachgezogen.
+
+122. Ein PI-Empfaengername mit `|`, Steuerzeichen oder mehr als 96 Byte verwirft die gesamte PI-Ansage.
+
+123. Das Rollen-Marker-Makro schuetzt das Namensziel mit `/cleartarget` und `/stopmacro [noexists]`; im Kampf wird der geschuetzte Rollen-Button nicht angefasst.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1915,7 +1923,41 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ABGEBROCHENER-KEY-DPS-SNAPSHOT
 - Regelnummer: 119
 - Status: aktiv
-- Zusammenfassung: Ein Key, der ohne Abschluss endet -- verlassen, abgebrochen oder mitten im Lauf die Gruppe verlassen --, zeichnet den Last-Run-DPS-Snapshot trotzdem auf. Weil dafuer keine Completion-Info existiert, wird die Run-Identitaet (Map-ID und Keysteinstufe) bei `CHALLENGE_MODE_START` aus `C_ChallengeMode.GetActiveChallengeMapID()` und `GetActiveKeystoneInfo()` gemerkt; beide Reads fallen bei fehlender API oder maskierten Werten geschlossen aus, und ohne verifizierte Map-ID entsteht kein Merker. Der Snapshot traegt `onTime=false`. Ausgeloest wird er bei `CHALLENGE_MODE_RESET` und beim Instanz- beziehungsweise Gruppenwechsel nach `PLAYER_ENTERING_WORLD`, weil ein Gruppenaustritt mitten im Key kein Reset-Event erzeugt; der Damage-Meter haelt seine Session ueber diesen Moment hinaus. Eine erfolgreiche Aufzeichnung eines abgeschlossenen Runs loescht den Merker, sodass ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet wird. Benutzerentscheidung vom 2026-09-17.
+- Zusammenfassung: Ein Key, der ohne Abschluss endet -- verlassen, abgebrochen oder mitten im Lauf die Gruppe verlassen --, zeichnet den Last-Run-DPS-Snapshot trotzdem auf. Weil dafuer keine Completion-Info existiert, wird die Run-Identitaet (Map-ID und Keysteinstufe) bei `CHALLENGE_MODE_START` aus `C_ChallengeMode.GetActiveChallengeMapID()` und `GetActiveKeystoneInfo()` gemerkt; beide Reads fallen bei fehlender API oder maskierten Werten geschlossen aus, und ohne verifizierte Map-ID entsteht kein Merker. Der Snapshot traegt `onTime=false`. Ausgeloest wird er bei `CHALLENGE_MODE_RESET` und beim Instanz- beziehungsweise Gruppenwechsel nach `PLAYER_ENTERING_WORLD`, weil ein Gruppenaustritt mitten im Key kein Reset-Event erzeugt; der Damage-Meter haelt seine Session ueber diesen Moment hinaus. Sobald `CHALLENGE_MODE_COMPLETED` eine gueltige Completion-Info liefert, gehoert der Run dem Completion-Pfad und der Merker wird sofort geloescht, auch wenn die erste Aufzeichnung noch auf einen Retry wartet; so wird ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet. Benutzerentscheidung vom 2026-09-17.
+- Ersetzte Festlegung (Audit, 2026-09-22): zuvor "Eine erfolgreiche Aufzeichnung eines abgeschlossenen Runs loescht den Merker, sodass ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet wird." Geloescht wurde der Merker nur bei erfolgreicher Aufzeichnung; schlug die erste Erfassung fehl und lieferte der folgende Reset keine Completion-Info mehr, wurde derselbe abgeschlossene Key zusaetzlich als abgebrochener Run mit `onTime=false` erfasst. Die Absicht der Regel bleibt unveraendert, nur der Loeschzeitpunkt wird vorgezogen.
 - Erforderliche Tests:
   - Event handlers record an abandoned key from the identity stashed at start
   - Event handlers do not record an abandoned run for a key that completed
+  - Event handlers do not record a completed key as abandoned while its capture retry is pending
+
+### RULE-COMPLETION-INFO-NULLDEFAULTS
+- Regelnummer: 120
+- Status: aktiv
+- Zusammenfassung: `ChallengeCompletionInfo` dokumentiert fuer alle numerischen Felder den Default `0`. Eine Completion-Info mit `mapChallengeModeID <= 0` oder `level <= 0` gilt nicht als abgeschlossener Run und fuehrt zu keiner Aufzeichnung. Bei `CHALLENGE_MODE_RESET` wird eine Completion-Info zusaetzlich nur verwendet, wenn Map-ID und (sofern bekannt) Stufe zum bei `CHALLENGE_MODE_START` gemerkten laufenden Key passen; eine abweichende Info stammt von einem frueheren Run und darf den abgebrochenen Key weder umbenennen noch dessen Merker verbrauchen.
+- Erforderliche Tests:
+  - Event handlers treat a zero-default completion struct as no completion
+  - Event handlers ignore completion info left over from an earlier key on reset
+
+### RULE-MAIN-UI-KAMPF-GEOMETRIE
+- Regelnummer: 121
+- Status: aktiv
+- Zusammenfassung: Die Main-UI ist Parent sicherer Buttons und damit im Kampf-Lockdown selbst geschuetzt; `StartMoving`, `Show`/`Hide`, `SetScale` und Re-Anchoring aus Addon-Code werden dort blockiert (`ADDON_ACTION_BLOCKED`). Ein Drag-Start im Kampf ist daher ein No-op. Ein Klick auf das `×`-Control im Kampf blendet nicht sofort aus, sondern wird ueber den Sichtbarkeits-Controller gependelt und bei `PLAYER_REGEN_ENABLED` angewendet (vgl. Regel 27). Skalierungswechsel und Positions-Reset (Settings-Slider, `/isilive resetui`) werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` in der Reihenfolge Skalierung vor Reset genau einmal nachgezogen.
+- Erforderliche Tests:
+  - UI drag start is skipped and geometry changes are queued during combat
+  - UI close button defers hiding during combat and applies after regen
+  - PLAYER_REGEN_ENABLED applies pending main-frame scale and position
+
+### RULE-SYNC-PI-EMPFAENGER-KLARTEXT
+- Regelnummer: 122
+- Status: aktiv
+- Zusammenfassung: Der Empfaengername einer eingehenden `PI`-Sync-Nachricht wird nicht gegen den authentifizierten Sender geprueft und landet im lokalen Chat, der `|`-Escapes interpretiert. Enthaelt er ein `|`, ein Steuerzeichen oder mehr als 96 Byte, wird die gesamte PI-Ansage verworfen statt bereinigt; UTF-8-Namen bleiben byte-identisch erhalten.
+- Erforderliche Tests:
+  - Sync ProcessAddonMessage rejects PI recipients carrying chat markup
+
+### RULE-ROLLEN-MARKER-MAKRO-SCHUTZ
+- Regelnummer: 123
+- Status: aktiv
+- Zusammenfassung: Das Rollen-Marker-Makro zielt per Charaktername und umschliesst das Ziel mit `/cleartarget` und `/stopmacro [noexists]`: `/cleartarget`, `/target <Name[-Realm]>`, `/stopmacro [noexists]`, `/tm <n>`, `/targetlasttarget`. Weil der geschuetzte Rollen-Button im Kampf-Lockdown weder umgeschrieben noch ausgeblendet werden kann, kann er bis Kampfende ein Makro fuer einen Spieler tragen, der die Gruppe verlassen hat; der Schutz sorgt dafuer, dass ein fehlschlagendes `/target` dann kein anderes Ziel markiert. Der Renderer ruft im Kampf keine geschuetzte Methode (`Show`, `Hide`, `SetAttribute`, `EnableMouse`) am Rollen-Button auf.
+- Erforderliche Tests:
+  - Roster Tank role button targets by character name (not unit token)
+  - Roster Healer role button targets by character name with cross-realm suffix

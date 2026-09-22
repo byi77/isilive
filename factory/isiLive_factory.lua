@@ -58,12 +58,17 @@ local function ResetMainFrameDefaults(ctx)
     db.bgAlpha = defaultBgAlpha
   end
 
+  -- mainUI.ApplyScale / ResetPosition queue the change for
+  -- PLAYER_REGEN_ENABLED while the protected main frame is combat-locked; the
+  -- bare SetScale stays as the fallback without a mainUI.
   local mainFrame = ctx.mainFrame
-  if mainFrame and type(mainFrame.SetScale) == "function" then
+  local mainUI = ctx.mainUI
+  if mainUI and type(mainUI.ApplyScale) == "function" then
+    mainUI.ApplyScale(1.0)
+  elseif mainFrame and type(mainFrame.SetScale) == "function" then
     mainFrame:SetScale(1.0)
   end
 
-  local mainUI = ctx.mainUI
   if mainUI and type(mainUI.ResetPosition) == "function" then
     mainUI.ResetPosition()
   end

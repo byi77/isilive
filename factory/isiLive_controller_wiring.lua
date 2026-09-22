@@ -446,6 +446,11 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.getPendingMainFrameVisible = function()
     return refs.mainUI.GetPendingVisible()
   end
+  config.applyPendingMainFrameGeometry = function()
+    if type(refs.mainUI.ApplyPendingGeometry) == "function" then
+      refs.mainUI.ApplyPendingGeometry()
+    end
+  end
   config.setMainFrameHeightSafe = RequireFunction(callbacks.setMainFrameHeightSafe, "callbacks.setMainFrameHeightSafe")
   config.setMainFrameWidthSafe = RequireFunction(callbacks.setMainFrameWidthSafe, "callbacks.setMainFrameWidthSafe")
   config.tryRestoreCenterNoticeTeleportButton = function()

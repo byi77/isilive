@@ -869,6 +869,11 @@ local function ApplyPendingMainFrameSize(ctx)
   if pendingMainFrameWidth then
     ctx.setMainFrameWidthSafe(pendingMainFrameWidth)
   end
+  -- Scale and position changes requested during combat (UI-scale slider,
+  -- /isilive resetui) are queued by the main frame and applied here.
+  if type(ctx.applyPendingMainFrameGeometry) == "function" then
+    ctx.applyPendingMainFrameGeometry()
+  end
 end
 
 --- Restores the main frame geometry that only becomes readable once WoW has

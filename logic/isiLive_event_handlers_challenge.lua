@@ -76,9 +76,15 @@ local function GetChallengeCompletionInfoSafe()
   return mapID, level, time, onTime
 end
 
+-- ChallengeCompletionInfo documents every numeric field as "default 0", so a
+-- client with no completion to report answers mapChallengeModeID = 0 and
+-- level = 0 rather than nil. Zero is truthy in Lua; without the explicit
+-- bounds such a struct would be taken for a completed run.
 local function ResolveCompletedRunInfo()
   local mapID, level, time, onTime = GetChallengeCompletionInfoSafe()
-  if not (mapID and level) then
+  mapID = tonumber(mapID)
+  level = tonumber(level)
+  if not (mapID and level) or mapID <= 0 or level <= 0 then
     return nil
   end
 
@@ -716,6 +722,22 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     -- finished POS run leaking into a subsequent NPX +15 run).
     ctx.handleLFGDetectEvent(event)
     local runInfo = ResolveCompletedRunInfo()
+    local identity = ctx.activeChallengeRunIdentity
+    if event == "CHALLENGE_MODE_RESET" and runInfo and type(identity) == "table" then
+      -- A reset carries no completion of its own. Completion info that names a
+      -- different key than the one stashed at start is left over from an
+      -- earlier run; recording under it would file this key's damage under the
+      -- wrong dungeon and consume the stash the abandoned path needs.
+      if runInfo.mapID ~= identity.mapID or (identity.level > 0 and runInfo.level ~= identity.level) then
+        runInfo = nil
+      end
+    elseif event == "CHALLENGE_MODE_COMPLETED" and runInfo then
+      -- The run has real completion info, so the completion path owns it. The
+      -- stash is dropped now rather than on a successful capture: while a
+      -- capture retry is still pending, the following reset must not record the
+      -- same key a second time as abandoned.
+      ctx.activeChallengeRunIdentity = nil
+    end
     if type(ctx.logRuntimeTracef) == "function" then
       ctx.logRuntimeTracef(
         "[RC] challenge_mode_end mapID=%s level=%s onTime=%s",

@@ -798,12 +798,12 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
     roleButton = RequireNonNil(roleButton, "tank row should create a role button")
     Assert.Equal(
       roleButton:GetAttribute("macrotext1"),
-      "/target Felix\n/tm 6\n/targetlasttarget",
+      "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
       "tank role button must target by character name (not party-token; 12.0.5 secret-token regression)"
     )
     Assert.Equal(
       roleButton:GetAttribute("macrotext2"),
-      "/target Felix\n/tm 0\n/targetlasttarget",
+      "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
       "tank role button right click must clear marker on the same character name"
     )
   end)
@@ -828,12 +828,12 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
     roleButton = RequireNonNil(roleButton, "healer row should create a role button")
     Assert.Equal(
       roleButton:GetAttribute("macrotext1"),
-      "/target Anna-Tichondrius\n/tm 4\n/targetlasttarget",
+      "/cleartarget\n/target Anna-Tichondrius\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
       "cross-realm healer role button must include '-Realm' suffix in the target"
     )
     Assert.Equal(
       roleButton:GetAttribute("macrotext2"),
-      "/target Anna-Tichondrius\n/tm 0\n/targetlasttarget",
+      "/cleartarget\n/target Anna-Tichondrius\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
       "cross-realm healer right click must clear marker on the same name-realm"
     )
   end)
