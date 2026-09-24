@@ -105,6 +105,7 @@ local helpers = {
   { key = "bloodlust", fn = SoundUtils.PlayBloodlust },
   { key = "bloodlust_ready", fn = SoundUtils.PlayBloodlustReady },
   { key = "power_infusion_received", fn = SoundUtils.PlayPowerInfusionReceived },
+  { key = "pet_stuck", fn = SoundUtils.PlayPetStuck },
 }
 
 local fail = false

@@ -156,6 +156,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 123. Das Rollen-Marker-Makro schuetzt das Namensziel mit `/cleartarget` und `/stopmacro [noexists]`; im Kampf wird der geschuetzte Rollen-Button nicht angefasst.
 
+124. Meldet der Client per `UI_ERROR_MESSAGE` exakt den lokalisierten Text `ERR_PET_SPELL_NOPATH`, spielt ausserhalb des Raids sofort die statische Pet-Stuck-Sprachansage (`deDE` deutsch, sonst englisch), hoechstens einmal pro 5 Sekunden und per Settings abschaltbar (Default an).
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1961,3 +1963,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Roster Tank role button targets by character name (not unit token)
   - Roster Healer role button targets by character name with cross-realm suffix
+
+### RULE-PET-STUCK-SPRACHANSAGE
+- Regelnummer: 124
+- Status: aktiv
+- Zusammenfassung: Die rote Blizzard-Fehlermeldung "No path available for your pet" (`ERR_PET_SPELL_NOPATH`) ist im Stress leicht zu uebersehen. isiLive registriert `UI_ERROR_MESSAGE` statisch (kampf- und sichtbarkeitsunabhaengig) und vergleicht den Meldungstext ausschliesslich mit der clientseitig lokalisierten Konstante `ERR_PET_SPELL_NOPATH`; es gibt keinen hart kodierten Fallback-Text. Ein Secret-Value-Payload, ein fehlender oder leerer Konstantenwert oder eine andere Meldung bleibt stumm. Bei Treffer spielt sofort `PetStuck.wav` beziehungsweise auf `deDE` `PetStuck_deDE.wav` ueber die Sound-Registry (`pet_stuck`, Setting `soundPetStuckEnabled`, Default an); weitere Treffer innerhalb von 5 Sekunden bleiben stumm. Im Raid-Laufzeitprofil `OFF` bleibt die Ansage aus.
+- Erforderliche Tests:
+  - UI_ERROR_MESSAGE plays pet-stuck sound for the pet no-path error
+  - UI_ERROR_MESSAGE ignores unrelated error messages
+  - UI_ERROR_MESSAGE throttles repeated pet no-path errors
+  - UI_ERROR_MESSAGE stays silent in raid mode
+  - UI_ERROR_MESSAGE fails closed on secret or missing error text
+  - SoundUtils pet stuck WAV assets stay short and loud

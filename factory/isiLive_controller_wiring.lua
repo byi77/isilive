@@ -513,6 +513,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function(_info) end
   config.playIncomingSummonSound = type(deps.playIncomingSummonSound) == "function" and deps.playIncomingSummonSound
     or function() end
+  config.playPetStuckSound = type(deps.playPetStuckSound) == "function" and deps.playPetStuckSound or function() end
   config.isIncomingSummonSoundLoopEnabled = type(deps.isIncomingSummonSoundLoopEnabled) == "function"
       and deps.isIncomingSummonSoundLoopEnabled
     or function()
@@ -818,6 +819,12 @@ local function BuildEventHandlersDepsFromContext(ctx)
       local soundUtils = addonTable.SoundUtils
       if type(soundUtils) == "table" and type(soundUtils.PlayIncomingSummon) == "function" then
         soundUtils.PlayIncomingSummon()
+      end
+    end,
+    playPetStuckSound = function()
+      local soundUtils = addonTable.SoundUtils
+      if type(soundUtils) == "table" and type(soundUtils.PlayPetStuck) == "function" then
+        soundUtils.PlayPetStuck()
       end
     end,
     isIncomingSummonSoundLoopEnabled = function()

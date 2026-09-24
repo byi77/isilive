@@ -1005,6 +1005,10 @@ function SoundUtils.PlayPowerInfusionReceived()
   return SoundUtils.PlayKey("power_infusion_received")
 end
 
+function SoundUtils.PlayPetStuck()
+  return SoundUtils.PlayKey("pet_stuck")
+end
+
 function SoundUtils.PlayTankDied()
   return SoundUtils.PlayKey("tank_died")
 end

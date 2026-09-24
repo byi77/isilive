@@ -475,6 +475,84 @@ return function(test, ctx)
     Assert.Equal(calls, 0, "incoming summon confirmation must stay silent in raid mode")
   end)
 
+  local PET_NO_PATH_TEXT = "No path available for your pet"
+
+  local function RunPetStuckErrors(ctxOverrides, messages, clock, extraGlobals)
+    local calls = 0
+    local overrides = ctxOverrides or {}
+    overrides.playPetStuckSound = function()
+      calls = calls + 1
+    end
+    local handlers = LoadHandlers(overrides)
+    local globals = {
+      ERR_PET_SPELL_NOPATH = PET_NO_PATH_TEXT,
+      GetTime = function()
+        return clock.now
+      end,
+    }
+    for key, value in pairs(extraGlobals or {}) do
+      globals[key] = value
+    end
+    WithGlobals(globals, function()
+      for _, step in ipairs(messages) do
+        clock.now = step.at
+        handlers.UI_ERROR_MESSAGE(nil, 1, step.message)
+      end
+    end)
+    return calls
+  end
+
+  test("UI_ERROR_MESSAGE plays pet-stuck sound for the pet no-path error", function()
+    local calls = RunPetStuckErrors(nil, { { at = 10, message = PET_NO_PATH_TEXT } }, { now = 0 })
+    Assert.Equal(calls, 1, "the pet no-path error must play the pet-stuck voice alert immediately")
+  end)
+
+  test("UI_ERROR_MESSAGE ignores unrelated error messages", function()
+    local calls = RunPetStuckErrors(nil, {
+      { at = 10, message = "Not enough rage" },
+      { at = 11, message = "Your pet is out of range." },
+    }, { now = 0 })
+    Assert.Equal(calls, 0, "other red error messages must not play the pet-stuck alert")
+  end)
+
+  test("UI_ERROR_MESSAGE throttles repeated pet no-path errors", function()
+    local calls = RunPetStuckErrors(nil, {
+      { at = 10, message = PET_NO_PATH_TEXT },
+      { at = 11, message = PET_NO_PATH_TEXT },
+      { at = 14.9, message = PET_NO_PATH_TEXT },
+      { at = 15, message = PET_NO_PATH_TEXT },
+    }, { now = 0 })
+    Assert.Equal(calls, 2, "repeated no-path errors must play once per 5-second window")
+  end)
+
+  test("UI_ERROR_MESSAGE stays silent in raid mode", function()
+    local calls = RunPetStuckErrors({
+      isRaidGroup = function()
+        return true
+      end,
+    }, { { at = 10, message = PET_NO_PATH_TEXT } }, { now = 0 })
+    Assert.Equal(calls, 0, "the pet-stuck alert must follow the raid hard-off")
+  end)
+
+  test("UI_ERROR_MESSAGE fails closed on secret or missing error text", function()
+    local secret = setmetatable({}, {
+      __eq = function()
+        error("secret value compared")
+      end,
+    })
+    local calls = RunPetStuckErrors(nil, { { at = 10, message = secret } }, { now = 0 }, {
+      issecretvalue = function(value)
+        return value == nil and false or rawequal(value, secret)
+      end,
+    })
+    Assert.Equal(calls, 0, "a secret error payload must never be compared")
+
+    calls = RunPetStuckErrors(nil, { { at = 10, message = PET_NO_PATH_TEXT } }, { now = 0 }, {
+      ERR_PET_SPELL_NOPATH = false,
+    })
+    Assert.Equal(calls, 0, "without the client global the alert must stay silent instead of guessing the text")
+  end)
+
   test("INCOMING_SUMMON_CHANGED plays incoming-summon sound for pending player summons", function()
     local calls = 0
     local globals = {

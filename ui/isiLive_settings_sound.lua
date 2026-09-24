@@ -113,6 +113,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundPowerInfusionReceivedEnabled",
     defaultEnabled = true,
   },
+  pet_stuck = {
+    labelKey = "SETTINGS_SOUND_PET_STUCK",
+    descKey = "SETTINGS_SOUND_PET_STUCK_DESC",
+    labelFallback = "Sound: Pet stuck",
+    descFallback = "Plays a voice alert as soon as the game reports that your pet has no path to follow you.",
+    settingKey = "soundPetStuckEnabled",
+    defaultEnabled = true,
+  },
   tank_died = {
     labelKey = "SETTINGS_SOUND_TANK_DIED",
     descKey = "SETTINGS_SOUND_TANK_DIED_DESC",

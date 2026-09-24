@@ -717,6 +717,7 @@ return function(test, ctx)
         battle_res_ready = "BattleRezReady_deDE.wav",
         bloodlust_ready = "BloodlustReady_deDE.wav",
         power_infusion_received = "PowerInfusionReceived_deDE.wav",
+        pet_stuck = "PetStuck_deDE.wav",
         portal_available = "Portal_deDE.wav",
         tank_died = "TankDied_deDE.wav",
         healer_died = "HealerDied_deDE.wav",
@@ -745,12 +746,14 @@ return function(test, ctx)
       addon.SoundUtils.PlayPortalAvailable()
       addon.SoundUtils.PlayTankDied()
       addon.SoundUtils.PlayHealerDied()
+      addon.SoundUtils.PlayPetStuck()
       Assert.True(calls[1].path:find("BattleRezReady.wav", 1, true) ~= nil, "frFR must use English BR-ready")
       Assert.True(calls[2].path:find("BloodlustReady.wav", 1, true) ~= nil, "frFR must use English BL-ready")
       Assert.True(calls[3].path:find("PowerInfusionReceived.wav", 1, true) ~= nil, "frFR must use English PI")
       Assert.True(calls[4].path:find("Portal.ogg", 1, true) ~= nil, "frFR must use default incoming summon")
       Assert.True(calls[5].path:find("TankDied.wav", 1, true) ~= nil, "frFR must use English tank death")
       Assert.True(calls[6].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
+      Assert.True(calls[7].path:find("PetStuck.wav", 1, true) ~= nil, "frFR must use English pet stuck")
     end)
   end)
 

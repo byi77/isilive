@@ -92,6 +92,19 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
+    pet_stuck = {
+      file = "Interface\\AddOns\\isiLive\\sounds\\PetStuck.wav",
+      localizedFiles = {
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\PetStuck_deDE.wav",
+      },
+      labelKey = "SETTINGS_SOUND_PET_STUCK",
+      descKey = "SETTINGS_SOUND_PET_STUCK_DESC",
+      labelFallback = "Sound: Pet stuck",
+      descFallback = "Plays a voice alert as soon as the game reports that your pet has no path to follow you.",
+      settingKey = "soundPetStuckEnabled",
+      defaultEnabled = true,
+      defaultChannel = "Master",
+    },
     tank_died = {
       file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
       localizedFiles = {
@@ -129,6 +142,7 @@ local SoundRegistry = {
     "bloodlust",
     "bloodlust_ready",
     "power_infusion_received",
+    "pet_stuck",
     "tank_died",
     "healer_died",
   },

@@ -178,6 +178,7 @@ local function BuildContext(opts)
   ctx.sendAck = RequireFunction(opts.sendAck, "sendAck")
   ctx.showCombatAnnounce = RequireFunction(opts.showCombatAnnounce, "showCombatAnnounce")
   ctx.playIncomingSummonSound = OptionalFunction(opts.playIncomingSummonSound, function() end)
+  ctx.playPetStuckSound = OptionalFunction(opts.playPetStuckSound, function() end)
   ctx.isIncomingSummonSoundLoopEnabled = OptionalFunction(opts.isIncomingSummonSoundLoopEnabled, function()
     return true
   end)

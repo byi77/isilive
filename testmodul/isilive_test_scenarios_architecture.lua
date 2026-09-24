@@ -807,6 +807,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "BloodlustReady_deDE.wav",
       "PowerInfusionReceived.wav",
       "PowerInfusionReceived_deDE.wav",
+      "PetStuck.wav",
+      "PetStuck_deDE.wav",
       "HealerDied.wav",
       "HealerDied_deDE.wav",
       "Portal.ogg",

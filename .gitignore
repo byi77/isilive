@@ -32,6 +32,8 @@ sounds/*
 !sounds/BloodlustReady_deDE.wav
 !sounds/PowerInfusionReceived.wav
 !sounds/PowerInfusionReceived_deDE.wav
+!sounds/PetStuck.wav
+!sounds/PetStuck_deDE.wav
 !sounds/BttF_Tinkle.wav
 !sounds/TankDied.wav
 !sounds/TankDied_deDE.wav

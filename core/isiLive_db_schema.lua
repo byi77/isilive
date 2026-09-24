@@ -220,6 +220,7 @@ local SCHEMA = {
   soundBloodlustReadyEnabled = { type = "boolean", default = true },
   soundBloodlustReadyReminderEnabled = { type = "boolean", default = true },
   soundPowerInfusionReceivedEnabled = { type = "boolean", default = true },
+  soundPetStuckEnabled = { type = "boolean", default = true },
   soundGroupJoinEnabled = { type = "boolean", default = true },
   soundLeadEnabled = { type = "boolean", default = true },
   soundPortalAvailableEnabled = { type = "boolean", default = true },

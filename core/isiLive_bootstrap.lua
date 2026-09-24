@@ -166,6 +166,10 @@ local EVENT_REGISTRY = {
   { "PLAYER_ALIVE", true, true, false },
   { "PLAYER_UNGHOST", true, true, false },
   { "UNIT_PET", false, true, false, "player" },
+  -- Pet-stuck voice alert: the red "No path available for your pet" error
+  -- (ERR_PET_SPELL_NOPATH) mostly appears mid-pull, so combat=true;
+  -- hidden=true because the cue is independent of main-UI visibility.
+  { "UI_ERROR_MESSAGE", true, true, false },
   { "UNIT_SPELLCAST_SUCCEEDED", true, true, false, { "player", "pet" } },
   { "READY_CHECK", true, false, false },
   { "READY_CHECK_CONFIRM", true, false, false },

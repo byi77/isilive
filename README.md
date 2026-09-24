@@ -118,6 +118,7 @@ When you join a group, isiLive gives you a colorful, compact overview of the thi
 - Track enemy forces through a bottom progress bar, live pull prediction, nameplates, and mob tooltips.
 - Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
 - Get clear red tank/healer death alerts during active keys, with separate sound toggles.
+- Hear a voice alert the moment the game reports that your pet has no path to follow you, so a stuck pet no longer costs you damage unnoticed.
 - Use optional VIP helpers: a default-off Bloodlust button debuff warning for verified BL class and pet buttons, including ingame-validated Mage Time Warp `80353` and Marksmanship Hunter Harrier's Cry `466904`, plus a separated DK block for Soul Reaper / Putrefy warnings, Riders horse sound mute, and a localized movable missing-ghoul reminder.
 - Keep departed players as ghost rows so post-wipe or post-reset context does not vanish immediately.
 - Use optional support tools: ESC-menu shortcuts, Hearthstone and Dalaran travel shortcuts, player stats box, nameplate controls, safe position lock, runtime logs, and a responsive demo simulator with local-only preview categories.
@@ -361,7 +362,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Display** — UI scale, background opacity, player stats box controls, minimap button, Portal Navigator, Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
-- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
+- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder

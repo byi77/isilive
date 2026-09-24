@@ -13,6 +13,10 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local IsRaidModeActive
 local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
+-- The client repeats the no-path error for every pet order that fails, so one
+-- stuck pet can raise it several times per second while the player spams
+-- /petattack. One voice alert per window is enough to get noticed.
+local PET_STUCK_SOUND_COOLDOWN_SECONDS = 5
 
 local function GetDB()
   return rawget(_G, "IsiLiveDB")
@@ -108,6 +112,32 @@ local function HandleIncomingSummonChangedSound(ctx, unitTarget)
   end
   ctx.playIncomingSummonSound()
   StartIncomingSummonSoundLoopIfPending(ctx)
+end
+
+-- Matches the error text against the client's own localized global instead of
+-- a hard-coded string, so every client locale is covered. The payload is not
+-- documented as secret, but it is checked first anyway: comparing a Secret
+-- Value raises and would taint the whole dispatch.
+local function IsPetNoPathError(message)
+  if IsSecretValue(message) or type(message) ~= "string" then
+    return false
+  end
+  local noPathText = rawget(_G, "ERR_PET_SPELL_NOPATH")
+  return type(noPathText) == "string" and noPathText ~= "" and message == noPathText
+end
+
+local function HandlePetStuckErrorSound(ctx, message)
+  if IsRaidModeActive(ctx) or not IsPetNoPathError(message) then
+    return
+  end
+  local getTime = rawget(_G, "GetTime")
+  local now = type(getTime) == "function" and getTime() or 0
+  local last = ctx.lastPetStuckSoundAt
+  if last and (now - last) < PET_STUCK_SOUND_COOLDOWN_SECONDS then
+    return
+  end
+  ctx.lastPetStuckSoundAt = now
+  ctx.playPetStuckSound()
 end
 
 -- Which party difficulties open a tracked run is not decided here: the answer
@@ -1294,6 +1324,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end,
     INCOMING_SUMMON_CHANGED = function(_self, unitTarget)
       HandleIncomingSummonChangedSound(ctx, unitTarget)
+    end,
+    UI_ERROR_MESSAGE = function(_self, _errorType, message)
+      HandlePetStuckErrorSound(ctx, message)
     end,
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
