@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-24 - Version 0.9.400 (patch)
+
+Pet-stuck voice alert.
+
+- Play a voice alert the moment the game reports that your pet has no path to
+  follow you. The red "No path available for your pet" error is easy to miss
+  mid-pull, and a stuck pet silently costs a large share of your damage.
+  `UI_ERROR_MESSAGE` is registered statically and matched exactly against the
+  client's own localized `ERR_PET_SPELL_NOPATH`, so every client language is
+  covered without a hard-coded text. The alert plays `PetStuck.wav`
+  ("Check your pet!") or, on German clients, `PetStuck_deDE.wav`
+  ("Achte auf deinen Begleiter!") on the configured sound channel, at most
+  once per 5 seconds, and stays silent in raids.
+- A secret error payload, a missing client constant and every other red error
+  message stay silent.
+- New Sounds setting "Sound alert when your pet is stuck"
+  (`soundPetStuckEnabled`, default on) with a preview button, translated into
+  all eight UI languages.
+
 ## 2026-09-22 - Version 0.9.399 (patch)
 
 Audit fixes: combat-locked frames, sync input and abandoned-key capture.
