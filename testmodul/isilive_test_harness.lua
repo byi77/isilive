@@ -105,6 +105,7 @@ local FILE_PATHS = {
   ["isiLive_leader_watch.lua"] = "logic/isiLive_leader_watch.lua",
   ["isiLive_demo.lua"] = "logic/isiLive_demo.lua",
   ["isiLive_test_mode.lua"] = "logic/isiLive_test_mode.lua",
+  ["isiLive_sync_receive.lua"] = "logic/isiLive_sync_receive.lua",
   ["isiLive_sync.lua"] = "logic/isiLive_sync.lua",
   ["isiLive_keysync.lua"] = "logic/isiLive_keysync.lua",
   ["isiLive_refresh.lua"] = "logic/isiLive_refresh.lua",
@@ -162,6 +163,9 @@ local UNIVERSAL_DEPENDENCIES = {
 }
 
 local IMPLICIT_DEPENDENCIES = {
+  ["isiLive_sync.lua"] = {
+    "isiLive_sync_receive.lua",
+  },
   ["isiLive_notice.lua"] = {
     "isiLive_notice_common.lua",
     "isiLive_portal_navigator_notice.lua",

@@ -57,7 +57,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2311 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (die aktuelle Anzahl wird bei jedem Lauf ausgegeben). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Alle externen Actions in `.github/workflows/` werden auf vollstaendige Commit-SHAs gepinnt und behalten den Major-Tag als Kommentar. `.github/dependabot.yml` prueft diese `github-actions`-Pins woechentlich auf Updates. Der geplante MDT-Forces-Refresh darf fremde Dungeonquellen nur in der globalfreien, groessen- und instruktionsbegrenzten Generator-Sandbox verarbeiten und muss den exakten 40-stelligen MDT-Checkout-Commit im generierten Snapshot persistieren. Coverage-Reports mit einer LuaCov-Meldung ueber nicht lesbare Quelldateien gelten lokal und in GitHub als fehlgeschlagen.
 

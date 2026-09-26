@@ -28,6 +28,30 @@ return function(test, ctx)
     Assert.True(metrics:find("watchlist missing", 1, true) ~= nil, "metrics must fail for missing entries")
   end)
 
+  test("Architecture sync receive module is isolated behind injected facade", function()
+    local toc = ReadFile("isiLive.toc")
+    local receive = ReadFile("logic/isiLive_sync_receive.lua")
+    local sync = ReadFile("logic/isiLive_sync.lua")
+    local receiveIndex = toc:find("logic/isiLive_sync_receive.lua", 1, true)
+    local syncIndex = toc:find("logic/isiLive_sync.lua", 1, true)
+    Assert.True(
+      receiveIndex ~= nil and syncIndex ~= nil and receiveIndex < syncIndex,
+      "receiver factory must load before the Sync facade"
+    )
+    Assert.True(
+      receive:find("addonTable.SyncReceiveFactory = function(deps)", 1, true) ~= nil,
+      "receive behavior must be exposed as a dependency-injected factory"
+    )
+    Assert.True(
+      sync:find("Sync.ProcessAddonMessage = receiveFactory({", 1, true) ~= nil,
+      "Sync facade must attach the extracted receiver with its required local dependencies"
+    )
+    Assert.Nil(
+      sync:find("function Sync.ProcessAddonMessage", 1, true),
+      "Sync facade must not retain the receive implementation"
+    )
+  end)
+
   test("Architecture LFG entry resolver owns verified listing normalization behind LFGDetect facade", function()
     local toc = ReadFile("isiLive.toc")
     local resolverIndex = toc:find("game/isiLive_lfg_entry_resolver.lua", 1, true)

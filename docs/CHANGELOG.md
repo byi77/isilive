@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-26 - Version 0.9.401 (patch)
+
+- Extracted incoming isiLive/LibKS payload processing into `logic/isiLive_sync_receive.lua` behind an injected factory; the public `Sync.ProcessAddonMessage` surface and protocol behavior stay unchanged.
+- Removed the fixed validator scenario count from maintained documentation; `lua tools/validate_usecases.lua` prints the current count on every run.
+- Split the Sync deterministic scenario file into focused modules for basic state, runtime logging, key state, receive handling, send handling and transport/reset behavior; test names remain stable.
+- Added a manual in-game smoke checklist for login/reload, hidden sync, combat secure actions, Mythic+ lifecycle, raid hard-off and two-client sync observation.
+
 ## 2026-09-24 - Version 0.9.400 (patch)
 
 Pet-stuck voice alert.

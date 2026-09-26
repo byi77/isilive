@@ -3,9 +3,9 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.400`.
+Current version: `0.9.401`.
 
-<!-- highlights-reviewed-for: 0.9.400 -->
+<!-- highlights-reviewed-for: 0.9.401 -->
 
 Highlights:
 - **Never miss a stuck pet again.** When your pet gets stuck and the game shows the red "No path available for your pet" message, isiLive now says "Check your pet!" (German clients: "Achte auf deinen Begleiter!") right away, so a pet stranded behind a pull no longer quietly halves your damage. It works in every client language, repeats at most every 5 seconds, and can be switched off under Sounds, where a preview button lets you hear it.

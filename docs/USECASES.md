@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.400`
+Versionsbasis: `0.9.401`
 Zuletzt aktualisiert: `2026-09-24`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
@@ -498,7 +498,7 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2311` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases.lua` ausgegeben; eine fest eingetragene Baseline waere regelmaessig veraltet.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

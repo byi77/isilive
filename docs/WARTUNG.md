@@ -581,3 +581,16 @@ Dann genau das:
 5. `isiLive.toc` auf aktuelle WoW-Interface-Version pruefen
 
 Wenn einer dieser Punkte rot ist, nicht blind releasen.
+
+## 3.7 Manueller WoW-Ingame-Smoke-Test
+
+Nach strukturellen Aenderungen an Sync, Event-Gate oder Secure-UI ergaenzt dieser kurze Lauf die deterministischen Lua-Szenarien. Er benoetigt zwei isiLive-Clients in einer normalen Gruppe; Aussagen ueber Peer-Zustaende sind nur zu notieren, wenn sie in der aktuellen Client-Version direkt beobachtet werden koennen.
+
+1. **Login und Reload:** Solo einloggen und `/reload` ausfuehren. Die Main-UI muss gemaess Startup-Option erscheinen; unbekannte oder nicht verfuegbare Daten duerfen keine erfundenen Anzeigen erzeugen.
+2. **Hidden Sync:** In einer normalen Gruppe die UI mit `CTRL+F9` schliessen. Gruppen- und Addon-Sync muessen weiterlaufen; Queue-Scanning und nicht-sync-bezogenes dauerhaftes Polling bleiben aus. Die UI erneut oeffnen und pruefen, dass das Roster den aktuellen Gruppenstand zeigt.
+3. **Secure-Aktionen im Kampf:** Im Kampf Sichtbarkeit und Layout anfordern. Kein geschuetzter Button darf sofort umgeschrieben werden; ausstehende UI-Aenderungen muessen nach Kampfende konsistent nachgezogen werden.
+4. **M+-Lifecycle:** Einen echten Challenge-Run starten, Timer/Forces beobachten und den Run beenden oder zuruecksetzen. Timer- und CD-Zustaende muessen beim Ende sofort verschwinden; waehrend eines aktiven Runs darf Voll-Refresh nicht starten.
+5. **Raid-Hard-off:** Vor dem Raid UI-Sichtbarkeit merken, in Raid-Groesse wechseln und wieder herauswechseln. Im Raid bleibt die Main-UI aus und die Hintergrundverarbeitung still; beim Verlassen wird nur eine zuvor sichtbare UI wiederhergestellt.
+6. **Zwei-Client-Sync:** In einer normalen Party eine Key-/Roster-Aenderung und eine manuelle Sync-Aktion ausloesen. Auf beiden Clients nur die tatsaechlich verifizierten Werte vergleichen; wiederholte identische Updates duerfen keine sichtbaren Folgeaenderungen erzeugen.
+
+Bei einem Fehler Version, Locale, Gruppenart (Party/Instance/Raid), UI-Sichtbarkeit, Kampfstatus, genaue Aktion und beobachtetes Ergebnis notieren. Keine unbekannten Blizzard- oder Peer-Werte aus Log-Ausgaben ableiten.

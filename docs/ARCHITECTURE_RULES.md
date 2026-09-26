@@ -159,6 +159,7 @@ Darstellungsvertraege und Regressionstests stehen in den aktiven Regeln 27,
   - Architecture LFG entry resolver owns verified listing normalization behind LFGDetect facade
   - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
   - Architecture LFG view hooks own Blizzard frame lifecycle behind LFGFlags facade
+  - Architecture sync receive module is isolated behind injected facade
 
 ### RULE-ARCH-ROSTER-UI-GRENZE
 - Regelnummer: 14
