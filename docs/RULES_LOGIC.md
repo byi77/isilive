@@ -358,6 +358,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt. Der Readycheck-Button muss als Secure-Macro-Button mit `/readycheck` fuer Default-, Links- und Rechtsklick konfiguriert bleiben, Mouse-Up- und Mouse-Down-Klicks registrieren und darf den Secure-Action-OnClick nicht durch einen normalen Lua-Clickhandler ersetzen.
 - Erforderliche Tests:
   - Roster panel leader-only buttons disable when player is not leader
+  - UICommon action availability keeps locked and cooldown visuals through hover
   - Roster panel ready-check button uses a secure macro action
   - LeaderWatch detects leader gain via PARTY_LEADER_CHANGED
   - LeaderWatch detects leader loss
@@ -1428,6 +1429,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Simulation tablet category tabs keep the control surface compact
   - DeathAlert renders big red death text and restarts animation on repeated show
   - Settings panel exposes ready-check-complete sound toggle and preview
+  - Settings section navigation keeps ten fixed-width tabs and jumps within the existing scroll frame
+  - Settings display preview follows live values and reset restores display defaults only
 
 ### RULE-INCOMING-SUMMON-SOUND-LOOP
 - Regelnummer: 87
@@ -1729,6 +1732,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - UICommon semantic design system exposes shared modern surface and spacing roles
   - UICommon action button switches deterministic primary visual states
+  - UICommon action availability keeps locked and cooldown visuals through hover
+  - RosterLayout header band belongs only to full roster layouts
   - UICommon panel chrome creates a bounded title surface and separator
   - UICommon close button uses compact semantic visual states
   - UICommon background opacity repaints semantic title and run surfaces
@@ -1748,6 +1753,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UICommon notice chrome creates a shared top accent and semantic role
   - Center notice close button hides center notice directly
   - CreateCdTrackerRow renders M+ grade badges and wide timer fields
+  - CreateKillTrackRow uses readable section color for its run label
   - RosterLayout M+ action portal timer and kill rows share one right edge
   - TeleportUI tooltip shows English dungeon name below the localized title
   - Portal navigator notice lays out the five portal positions in a crescent

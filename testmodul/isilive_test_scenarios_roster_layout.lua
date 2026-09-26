@@ -16,6 +16,21 @@ return function(test, ctx)
     return LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel_chrome.lua" })._RosterInternal
   end
 
+  test("RosterLayout header band belongs only to full roster layouts", function()
+    local RI = loadRI()
+    local found = false
+    for _, rule in ipairs(RI.UI_VISIBILITY_RULES) do
+      if rule[1] == "headerBand" then
+        found = true
+        Assert.True(
+          rule[2] == true and rule[3] == false and rule[4] == false and rule[5] == true,
+          "header band must stay out of compact V and H surfaces"
+        )
+      end
+    end
+    Assert.True(found, "roster layout must own header band visibility")
+  end)
+
   test("RosterLayout system option watcher owns ticker only while main frame is visible", function()
     local watcher
     local ticker

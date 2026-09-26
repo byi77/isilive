@@ -93,7 +93,9 @@ local function NewCreateFrameRecorder()
     function fs.SetText(self, text)
       self._text = text
     end
-    function fs.SetTextColor() end
+    function fs.SetTextColor(self, ...)
+      self._textColor = { ... }
+    end
     function fs.GetFont()
       return "font", 10, ""
     end
@@ -259,6 +261,25 @@ return function(test, ctx)
       Assert.Equal(activeText._alpha, 0.92, "active dungeon context starts with the configured default alpha")
       Assert.Equal(row._points[2][1], "BOTTOMRIGHT", "kill tracker row must expose an explicit right anchor")
       Assert.Equal(row._points[2][2], -6, "kill tracker row must end at the shared M+ right edge")
+    end)
+  end)
+
+  test("CreateKillTrackRow uses readable section color for its run label", function()
+    local recorder = NewCreateFrameRecorder()
+    WithGlobals({ CreateFrame = recorder.createFrame }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_roster_panel_helpers.lua",
+        "isiLive_roster_panel_kill_row.lua",
+      })
+      local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
+      local label = Assert.NotNil(row.killTrackLabel, "run label must be exposed")
+      Assert.Equal(label._text, "M+Killtracker", "run label must remain the same brand text")
+      Assert.Equal(
+        label._textColor[1],
+        addon.UICommon.Colors.TEXT_SECTION[1],
+        "run label must use readable section contrast"
+      )
     end)
   end)
 

@@ -178,6 +178,7 @@ local UI_VISIBILITY_RULES = {
   { "title", true, false, false, true },
   { "titleVersion", true, false, false, true },
   { "titleHint", false, false, false, false },
+  { "headerBand", true, false, false, true },
   { "headerSepLeft", true, false, false, true },
   { "headerSepRight", true, false, false, true },
   { "versionLine", true, false, false, true },

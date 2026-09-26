@@ -1,5 +1,6 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
 
 local SettingsSections = {}
 addonTable.SettingsSections = SettingsSections
@@ -30,6 +31,7 @@ local CreateChildSeparator = addonTable.SettingsControls.CreateChildSeparator
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local CreateSettingsSlider = addonTable.SettingsControls.CreateSettingsSlider
+local CreateSettingsActionButton = addonTable.SettingsControls.CreateSettingsActionButton
 local CreateLanguageSelector = addonTable.SettingsControls.CreateLanguageSelector
 local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 local CreateSettingsDropdownSelector = addonTable.SettingsControls.CreateSettingsDropdownSelector
@@ -206,7 +208,7 @@ end
 
 -- Kept out of BuildDisplaySection: that builder is close to the 420-line
 -- function limit the metrics gate enforces.
-local function CreateFontFamilySelector(canvas, yOffset, labels, config)
+local function CreateFontFamilySelector(canvas, yOffset, labels, config, onChanged)
   return CreateSettingsDropdownSelector(
     canvas,
     yOffset,
@@ -224,6 +226,9 @@ local function CreateFontFamilySelector(canvas, yOffset, labels, config)
       if type(config.onUiFontFamilyChange) == "function" then
         config.onUiFontFamilyChange(db.uiFontFamily)
       end
+      if type(onChanged) == "function" then
+        onChanged()
+      end
     end,
     nil,
     false,
@@ -235,6 +240,152 @@ local function CreateFontFamilySelector(canvas, yOffset, labels, config)
       descriptionWordWrap = true,
     }
   )
+end
+
+local DISPLAY_DEFAULTS = {
+  uiScale = 1.0,
+  bgAlpha = DEFAULT_BG_ALPHA,
+  uiFontFamily = "",
+  statsBoxEnabled = false,
+  statsBoxLocked = false,
+  statsBoxBgAlpha = 0.0,
+  statsBoxFontSizeOffset = 0,
+  statsBoxDisplayMode = "both",
+  statsBoxShowLeech = true,
+  statsBoxShowSpeed = true,
+  statsBoxShowDurability = false,
+  statsBoxShowStamina = false,
+  statsBoxShowAvoidance = false,
+  showMinimapButton = false,
+  showPortalNavigator = true,
+  lfgFlagsEnabled = true,
+  lfgGroupBonusesEnabled = true,
+  tooltipFlagsEnabled = true,
+  acceptedInviteNoticeEnabled = true,
+  groupJoinNoticeEnabled = true,
+}
+
+local DISPLAY_CALLBACKS = {
+  uiScale = "onUiScaleChange",
+  bgAlpha = "onBgAlphaChange",
+  uiFontFamily = "onUiFontFamilyChange",
+  statsBoxEnabled = "onStatsBoxToggle",
+  statsBoxLocked = "onStatsBoxLockToggle",
+  statsBoxBgAlpha = "onStatsBoxBgAlphaChange",
+  statsBoxFontSizeOffset = "onStatsBoxFontSizeOffsetChange",
+  showMinimapButton = "onMinimapButtonToggle",
+  showPortalNavigator = "onPortalNavigatorToggle",
+  lfgFlagsEnabled = "onLfgFlagsToggle",
+  lfgGroupBonusesEnabled = "onLfgGroupBonusesToggle",
+  tooltipFlagsEnabled = "onTooltipFlagsToggle",
+}
+local DISPLAY_DEFAULT_ORDER = {
+  "uiScale",
+  "bgAlpha",
+  "uiFontFamily",
+  "statsBoxEnabled",
+  "statsBoxLocked",
+  "statsBoxBgAlpha",
+  "statsBoxFontSizeOffset",
+  "statsBoxDisplayMode",
+  "statsBoxShowLeech",
+  "statsBoxShowSpeed",
+  "statsBoxShowDurability",
+  "statsBoxShowStamina",
+  "statsBoxShowAvoidance",
+  "showMinimapButton",
+  "showPortalNavigator",
+  "lfgFlagsEnabled",
+  "lfgGroupBonusesEnabled",
+  "tooltipFlagsEnabled",
+  "acceptedInviteNoticeEnabled",
+  "groupJoinNoticeEnabled",
+}
+
+local function RestoreDisplayDefaults(config)
+  local db = config.getDB()
+  local statsOptionsChanged = false
+  for _, field in ipairs(DISPLAY_DEFAULT_ORDER) do
+    local default = DISPLAY_DEFAULTS[field]
+    if db[field] ~= default then
+      db[field] = default
+      local callbackName = DISPLAY_CALLBACKS[field]
+      if callbackName and type(config[callbackName]) == "function" then
+        config[callbackName](default)
+      end
+      if field == "statsBoxDisplayMode" or field:find("^statsBoxShow") then
+        statsOptionsChanged = true
+      end
+    end
+  end
+  if statsOptionsChanged and type(config.onStatsBoxOptionsChange) == "function" then
+    config.onStatsBoxOptionsChange()
+  end
+end
+
+local function CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
+  return CreateSettingsActionButton(
+    canvas,
+    yOffset,
+    labels.SETTINGS_DISPLAY_RESET or "Restore display defaults",
+    260,
+    function()
+      RestoreDisplayDefaults(config)
+      SettingsSections.RefreshDisplayControls(controls, config.getL(), config.getDB(), config)
+    end,
+    "SETTINGS_DISPLAY_RESET"
+  )
+end
+
+local function CreateDisplayPreview(canvas, yOffset, config)
+  local UICommon = addonTable.UICommon or {}
+  local colors = UICommon.Colors or {}
+  local frame = CreateFrame("Frame", nil, canvas, "BackdropTemplate")
+  frame._settingKey = "SETTINGS_DISPLAY_PREVIEW"
+  frame:SetSize(650, 76)
+  frame:SetPoint("TOPLEFT", canvas, "TOPLEFT", 16, yOffset)
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(frame, "MAIN_FRAME")
+  end
+
+  local caption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  caption:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -8)
+  caption:SetTextColor(unpack(colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }))
+
+  local sample = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+  frame._sample = sample
+  sample:SetSize(220, 35)
+  sample:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(sample, "MAIN_FRAME")
+  end
+  local title = sample:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  title:SetPoint("LEFT", sample, "LEFT", 9, 0)
+  title:SetTextColor(unpack(colors.TEXT_HEADING or { 0.93, 0.96, 1 }))
+  local size = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  size:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
+  size:SetTextColor(unpack(colors.TEXT_SUPPORTING or { 0.58, 0.65, 0.74 }))
+
+  local function Refresh()
+    local db = config.getDB()
+    local scale = tonumber(db.uiScale) or 1
+    local alpha = tonumber(db.bgAlpha) or DEFAULT_BG_ALPHA
+    scale = math.max(0.5, math.min(2, scale))
+    alpha = math.max(0.3, math.min(1, alpha))
+    sample:SetScale(scale)
+    local surface = colors.SURFACE_MAIN_FRAME or { 0.035, 0.045, 0.065 }
+    sample:SetBackdropColor(surface[1], surface[2], surface[3], alpha)
+    caption:SetText((config.getL().SETTINGS_DISPLAY_PREVIEW or "Preview"))
+    if type(UICommon.SetReadableText) == "function" then
+      UICommon.SetReadableText(title, config.getL().TITLE or "isiLive")
+    else
+      title:SetText(config.getL().TITLE or "isiLive")
+    end
+    size:SetText(string.format("%.0f%%", scale * 100))
+  end
+  Refresh()
+  return { frame = frame, sample = sample, caption = caption, title = title, size = size, Refresh = Refresh },
+    yOffset - 86
 end
 
 local function NormalizeStoredLayoutMode(layoutMode)
@@ -451,6 +602,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   if controls.displayHint then
     controls.displayHint._sectionKey = "SETTINGS_SECTION_DISPLAY"
   end
+  controls.displayPreview, yOffset = CreateDisplayPreview(canvas, yOffset, config)
 
   controls.uiScale, yOffset = CreateSettingsSlider(
     canvas,
@@ -469,6 +621,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       if type(config.onUiScaleChange) == "function" then
         config.onUiScaleChange(val)
       end
+      controls.displayPreview.Refresh()
     end,
     function(val)
       return string.format("%.0f%%", val * 100)
@@ -494,6 +647,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       if type(config.onBgAlphaChange) == "function" then
         config.onBgAlphaChange(val)
       end
+      controls.displayPreview.Refresh()
     end,
     function(val)
       return string.format("%.0f%%", val * 100)
@@ -502,7 +656,9 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     SettingDescriptionOptions(labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window.")
   )
 
-  controls.uiFontFamily, yOffset = CreateFontFamilySelector(canvas, yOffset, labels, config)
+  controls.uiFontFamily, yOffset = CreateFontFamilySelector(canvas, yOffset, labels, config, function()
+    controls.displayPreview.Refresh()
+  end)
 
   controls.statsBoxSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -846,6 +1002,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     )
   )
 
+  controls.displayReset, yOffset = CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
+
   return yOffset
 end
 
@@ -906,6 +1064,12 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     "SETTINGS_SECTION_DISPLAY_HINT",
     "Scale, opacity, and UI recovery tools."
   )
+  if controls.displayPreview then
+    controls.displayPreview.Refresh()
+  end
+  if controls.displayReset then
+    controls.displayReset.label:SetText(labels.SETTINGS_DISPLAY_RESET or "Restore display defaults")
+  end
 
   if controls.bgAlpha then
     controls.bgAlpha.label:SetText(labels.SETTINGS_BG_ALPHA or "Background Opacity")

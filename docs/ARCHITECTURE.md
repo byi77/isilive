@@ -1,9 +1,11 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.401`
-Zuletzt aktualisiert: `2026-09-26`
+Versionsbasis: `0.10.0`
+Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
+
+Stand 0.10.0: Die Settings-Navigation bleibt oberhalb des vorhandenen Scrollbereichs sichtbar. Der Anzeige-Abschnitt besitzt eine skalierte Vorschau und stellt nur Anzeigeoptionen auf ihre Schema-Defaults zurueck. Die Main-UI nutzt eine Spaltenkopf-Leiste und gemeinsame visuelle Zustaende fuer verfuegbare, gesperrte und abklingende Aktionen. Geschuetzte Leader-Buttons werden im Kampf nicht mutiert.
 
 ## Zweck
 
@@ -27,6 +29,10 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, normalisiertes Season-Manifest als einzige manuell gepflegte Runtime-Saisonquelle, daraus erzeugte Season-Indizes, separat generierter M+-Forces-Datensatz (`data/isiLive_mplus_forces.lua`) mit `expiresAt`-Lifetime-Stempel, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsamer Actionbar-Kreuz-Overlay-Helfer, gemeinsame Validierungs-/String-Helfer, zentraler Sound-Registry-/Playback-Helfer inklusive Battle-Res-ready-, Bloodlust-ready- und Tank-/Heiler-died-WAV-Assets, deaktivierter nativer WoW-Text-to-Speech-Ausgabe und verifizierter VIP-Mount-Sound-Datei-IDs fuer Mute/Unmute, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua` (Aggregator) mit `isiLive_texts_common.lua` und den Pro-Sprache-Tabellen `isiLive_texts_<tag>.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `data/isiLive_seasons.lua`, `isiLive_season_data.lua`, `isiLive_mplus_forces.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_ui_fonts.lua`, `isiLive_action_button_overlay.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 | Gebuendelte Assets und Designhilfen | Runtime-Medien bleiben in `media/` und `sounds/`; bekannte und unbekannte Herkunft wird ohne Guessing in `docs/ASSET_PROVENANCE.md` gepflegt. Oeffentliche visuelle Entwicklungs-Mockups liegen unter `tools/mockups/`, dokumentieren ihre Abhaengigkeiten lokal und bleiben ausserhalb des Addonpakets. | `media/`, `sounds/`, `docs/ASSET_PROVENANCE.md`, `tools/mockups/README.md` |
 | Vendored Libraries | Shared Addon-Message-Throttling ueber ChatThrottleLib v24 mit Prioritaets-Routing (`ALERT` / `NORMAL` / `BULK`) pro Nachrichtentyp; Fallback auf raw `C_ChatInfo.SendAddonMessage`, wenn die Lib nicht geladen ist | `libs/ChatThrottleLib/ChatThrottleLib.lua` |
+
+`ui/isiLive_settings_sections.lua` bleibt auf der Grossmodul-Watchlist, weil
+der Display-Abschnitt die persistierten Anzeigeoptionen, ihre Live-Callbacks,
+die Vorschau und die Standardwert-Aktion zusammenhaelt.
 
 Der 500 px breite M+-Modus besitzt einen expliziten Darstellungsvertrag: Beide
 blauen Header-Trenner liegen links und rechts jeweils 8 px innerhalb des
@@ -310,7 +316,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.401                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.10.0                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

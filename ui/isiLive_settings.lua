@@ -9,6 +9,24 @@ local PADDING_TOP = 16
 local SECTION_GAP = 22
 local SETTINGS_SCROLL_STEP = 32
 local SETTINGS_CONTENT_WIDTH = 700
+local NAV_COLUMNS = 5
+local NAV_BUTTON_WIDTH = 126
+local NAV_BUTTON_HEIGHT = 22
+local NAV_BUTTON_GAP = 6
+local NAV_TOP = 8
+local NAV_HEIGHT = (NAV_BUTTON_HEIGHT * 2) + NAV_BUTTON_GAP + (NAV_TOP * 2)
+local NAV_SECTIONS = {
+  { key = "general", labelKey = "SETTINGS_NAV_GENERAL", fallback = "General" },
+  { key = "display", labelKey = "SETTINGS_NAV_DISPLAY", fallback = "Display" },
+  { key = "behavior", labelKey = "SETTINGS_NAV_BEHAVIOR", fallback = "Behavior" },
+  { key = "nameplates", labelKey = "SETTINGS_NAV_NAMEPLATES", fallback = "Nameplates" },
+  { key = "sounds", labelKey = "SETTINGS_NAV_SOUNDS", fallback = "Sounds" },
+  { key = "chat", labelKey = "SETTINGS_NAV_CHAT", fallback = "Chat" },
+  { key = "esc", labelKey = "SETTINGS_NAV_ESC", fallback = "ESC Menu" },
+  { key = "admin", labelKey = "SETTINGS_NAV_ADMIN", fallback = "Admin" },
+  { key = "reset", labelKey = "SETTINGS_NAV_RESET", fallback = "Reset" },
+  { key = "vip", labelKey = "SETTINGS_NAV_VIP", fallback = "VIP" },
+}
 local ISILIVE_BRAND_TITLE = "isi|cff1e90ffLive|r"
 local CreateSettingsIntro = addonTable.SettingsControls.CreateSettingsIntro
 local BuildGeneralSettingsSection = addonTable.SettingsSections.BuildGeneralSection
@@ -198,6 +216,79 @@ local function RefreshSettingsControls(controls, config)
   end
 end
 
+local function CreateSectionNavigation(canvas, scrollFrame, getL)
+  local nav = { buttons = {}, offsets = {} }
+  local createButton = addonTable.UICommon and addonTable.UICommon.CreateActionButton
+  local left = PADDING_X
+
+  local function Select(key)
+    for _, section in ipairs(NAV_SECTIONS) do
+      local button = nav.buttons[section.key]
+      if button and type(button.SetSemanticRole) == "function" then
+        button:SetSemanticRole(section.key == key and "primary" or "title")
+      end
+    end
+    nav.activeKey = key
+  end
+
+  for index, section in ipairs(NAV_SECTIONS) do
+    local button = createButton(canvas, {
+      width = NAV_BUTTON_WIDTH,
+      height = NAV_BUTTON_HEIGHT,
+      fontObject = "GameFontNormalSmall",
+      role = "title",
+    })
+    local column = (index - 1) % NAV_COLUMNS
+    local row = math.floor((index - 1) / NAV_COLUMNS)
+    button:SetPoint(
+      "TOPLEFT",
+      canvas,
+      "TOPLEFT",
+      left + column * (NAV_BUTTON_WIDTH + NAV_BUTTON_GAP),
+      -NAV_TOP - row * (NAV_BUTTON_HEIGHT + NAV_BUTTON_GAP)
+    )
+    button._isiLiveSettingsSection = section.key
+    button:SetScript("OnClick", function()
+      local offset = nav.offsets[section.key]
+      if offset == nil then
+        return
+      end
+      local maximum = type(scrollFrame.GetVerticalScrollRange) == "function" and scrollFrame:GetVerticalScrollRange()
+        or offset
+      scrollFrame:SetVerticalScroll(math.max(0, math.min(offset, maximum)))
+      Select(section.key)
+    end)
+    nav.buttons[section.key] = button
+  end
+
+  function nav.Refresh()
+    local labels = getL()
+    for _, section in ipairs(NAV_SECTIONS) do
+      local button = nav.buttons[section.key]
+      if button and button._flatLabel then
+        button._flatLabel:SetWidth(NAV_BUTTON_WIDTH - 8)
+        button._flatLabel:SetWordWrap(false)
+        addonTable.UICommon.SetReadableText(button._flatLabel, labels[section.labelKey] or section.fallback)
+      end
+    end
+  end
+
+  function nav.UpdateFromScroll()
+    local position = type(scrollFrame.GetVerticalScroll) == "function" and scrollFrame:GetVerticalScroll() or 0
+    local active = NAV_SECTIONS[1].key
+    for _, section in ipairs(NAV_SECTIONS) do
+      if nav.offsets[section.key] and position >= nav.offsets[section.key] - 12 then
+        active = section.key
+      end
+    end
+    Select(active)
+  end
+
+  nav.Refresh()
+  Select(NAV_SECTIONS[1].key)
+  return nav
+end
+
 function SettingsPanel.Create(opts)
   local config = ResolveSettingsOptions(opts)
 
@@ -209,7 +300,7 @@ function SettingsPanel.Create(opts)
   local canvas = CreateFrame("Frame", nil, rawget(_G, "UIParent"), "BackdropTemplate")
   ApplySettingsBackdrop(canvas)
   local scrollFrame = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
-  scrollFrame:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -PADDING_TOP)
+  scrollFrame:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -NAV_HEIGHT)
   scrollFrame:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -PADDING_X, PADDING_TOP)
   if type(scrollFrame.EnableMouseWheel) == "function" then
     scrollFrame:EnableMouseWheel(true)
@@ -226,7 +317,11 @@ function SettingsPanel.Create(opts)
     scrollFrame:SetScrollChild(content)
   end
 
+  local nav = CreateSectionNavigation(canvas, scrollFrame, config.getL)
   if type(scrollFrame.SetScript) == "function" then
+    scrollFrame:SetScript("OnVerticalScroll", function()
+      nav.UpdateFromScroll()
+    end)
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)
       local currentScroll = type(self.GetVerticalScroll) == "function" and (self:GetVerticalScroll() or 0) or 0
       local maxScroll = type(self.GetVerticalScrollRange) == "function" and (self:GetVerticalScrollRange() or 0) or 0
@@ -238,6 +333,7 @@ function SettingsPanel.Create(opts)
       end
       if type(self.SetVerticalScroll) == "function" then
         self:SetVerticalScroll(nextScroll)
+        nav.UpdateFromScroll()
       end
     end)
   end
@@ -264,24 +360,34 @@ function SettingsPanel.Create(opts)
   )
   y = BuildBetaSection(content, y, L, controls)
   y = y - SECTION_GAP
+  nav.offsets.general = -y
   y = BuildGeneralSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.display = -y
   y = BuildDisplaySettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.behavior = -y
   y = BuildBehaviorSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.nameplates = -y
   y = BuildNameplatesSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.sounds = -y
   y = BuildSoundSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.chat = -y
   y = BuildChatSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.esc = -y
   y = BuildEscMenuSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.admin = -y
   y = BuildDebugSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.reset = -y
   y = BuildResetSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  nav.offsets.vip = -y
   y = BuildVIPGuestSettingsSection(content, y, L, config, controls)
 
   local finalYOffset = tonumber(y) or 0
@@ -303,6 +409,7 @@ function SettingsPanel.Create(opts)
 
   local function Refresh()
     RefreshSettingsControls(controls, config)
+    nav.Refresh()
   end
   canvas.Refresh = Refresh
 
@@ -310,6 +417,7 @@ function SettingsPanel.Create(opts)
     category = category,
     canvas = canvas,
     scrollFrame = scrollFrame,
+    navigation = nav,
     content = content,
     Refresh = Refresh,
   }

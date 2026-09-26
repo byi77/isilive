@@ -261,6 +261,12 @@ local function CreateFlatButton(parent, width, height, template)
 end
 
 local function CreatePanelHeaders(mainFrame)
+  local headerBand = mainFrame:CreateTexture(nil, "BACKGROUND")
+  headerBand:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 8, -29)
+  headerBand:SetPoint("BOTTOMRIGHT", mainFrame, "TOPRIGHT", -8, -48)
+  local bandColor = Colors.SURFACE_TITLE_BAR or { 0.025, 0.055, 0.085, 0.82 }
+  headerBand:SetColorTexture(bandColor[1], bandColor[2], bandColor[3], 0.46)
+
   local specHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   specHeader:SetPoint("TOPLEFT", SPEC_COL_X, -34)
   specHeader:SetWidth(SPEC_COL_WIDTH)
@@ -381,6 +387,7 @@ local function CreatePanelHeaders(mainFrame)
   end
 
   return {
+    headerBand = headerBand,
     specHeader = specHeader,
     nameHeader = nameHeader,
     ilvlHeader = ilvlHeader,

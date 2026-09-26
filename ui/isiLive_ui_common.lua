@@ -586,6 +586,13 @@ local function ApplyColorTuple(target, methodName, color)
   method(target, color[1], color[2], color[3], color[4] or 1)
 end
 
+local ACTION_AVAILABILITY_COLORS = {
+  cooldown = UICommon.Colors.MUTED_GOLD_PCT_TEXT,
+  combat = UICommon.Colors.ORANGE_WARNING_LABEL,
+  leader = UICommon.Colors.TEXT_SUPPORTING,
+  unavailable = UICommon.Colors.TEXT_DIM,
+}
+
 function UICommon.ApplyActionButtonVisual(button, role, state)
   if type(button) ~= "table" then
     return false
@@ -595,10 +602,19 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
   local resolvedState = state == "hover" and "hover" or (state == "pressed" and "pressed" or "default")
   local background = resolvedState == "hover" and style.hoverBg
     or (resolvedState == "pressed" and style.pressedBg or style.defaultBg)
+  local availability = button._isiLiveAvailability or "available"
+  if availability ~= "available" then
+    background = UICommon.Colors.SURFACE_ACTION_SECONDARY_PRESSED
+  end
 
   ApplyColorTuple(button, "SetBackdropColor", background)
-  ApplyColorTuple(button, "SetBackdropBorderColor", style.border)
-  ApplyColorTuple(button._flatLabel, "SetTextColor", style.text)
+  ApplyColorTuple(button, "SetBackdropBorderColor", ACTION_AVAILABILITY_COLORS[availability] or style.border)
+  ApplyColorTuple(
+    button._flatLabel,
+    "SetTextColor",
+    availability == "available" and style.text or UICommon.Colors.TEXT_SUPPORTING
+  )
+  ApplyColorTuple(button._availabilityMark, "SetTextColor", ACTION_AVAILABILITY_COLORS[availability])
   button._isiLiveSemanticRole = resolvedRole
   button._isiLiveVisualState = resolvedState
   return true
@@ -627,9 +643,24 @@ function UICommon.CreateActionButton(parent, opts)
       label:SetPoint("CENTER", button, "CENTER", 0, 0)
     end
     button._flatLabel = label
+    local mark = button:CreateFontString(nil, "OVERLAY", UICommon.Theme.typography.body)
+    mark:SetPoint("LEFT", button, "LEFT", 5, 0)
+    button._availabilityMark = mark
   end
 
   local role = ACTION_BUTTON_STYLE_BY_ROLE[opts.role] and opts.role or "secondary"
+  function button:SetAvailabilityState(nextState)
+    local marks = { cooldown = "~", combat = "!", leader = "x", unavailable = "-" }
+    self._isiLiveAvailability = marks[nextState] and nextState or "available"
+    if self._availabilityMark then
+      self._availabilityMark:SetText(marks[self._isiLiveAvailability] or "")
+    end
+    if type(self.SetAlpha) == "function" then
+      self:SetAlpha(self._isiLiveAvailability == "available" and 1 or 0.72)
+    end
+    UICommon.ApplyActionButtonVisual(self, role, "default")
+  end
+
   function button:SetSemanticRole(nextRole)
     role = ACTION_BUTTON_STYLE_BY_ROLE[nextRole] and nextRole or "secondary"
     UICommon.ApplyActionButtonVisual(self, role, "default")

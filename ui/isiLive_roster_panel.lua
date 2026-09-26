@@ -234,7 +234,11 @@ local function CreateShareKeysButton(mainFrame, deps)
 
     local enabled = shareKeysAvailable and not cooldownActive
     button:SetEnabled(enabled)
-    if cooldownActive then
+    if type(button.SetAvailabilityState) == "function" then
+      button:SetAvailabilityState(
+        cooldownActive and "cooldown" or (shareKeysAvailable and "available" or "unavailable")
+      )
+    elseif cooldownActive then
       button:SetAlpha(0.5)
     else
       button:SetAlpha(shareKeysAvailable and 1.0 or 0.45)
@@ -952,9 +956,13 @@ function RosterPanel.CreateController(opts)
     readyCheckButton:SetEnabled(enabled)
     countdownButton:SetEnabled(enabled)
     countdownCancelButton:SetEnabled(enabled)
-    readyCheckButton:SetAlpha(enabled and 1 or 0.45)
-    countdownButton:SetAlpha(enabled and 1 or 0.45)
-    countdownCancelButton:SetAlpha(enabled and 1 or 0.45)
+    for _, button in ipairs({ readyCheckButton, countdownButton, countdownCancelButton }) do
+      if type(button.SetAvailabilityState) == "function" then
+        button:SetAvailabilityState(enabled and "available" or "leader")
+      else
+        button:SetAlpha(enabled and 1 or 0.45)
+      end
+    end
     RefreshSystemOptionToggles(ui)
     updateStatusLine()
   end

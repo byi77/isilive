@@ -1,9 +1,11 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.401`
-Zuletzt aktualisiert: `2026-09-24`
+Versionsbasis: `0.10.0`
+Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
+
+Stand 0.10.0: Ein Klick auf einen der zehn Settings-Abschnitte scrollt zum Abschnitt; manuelles Scrollen aktualisiert die aktive Navigation. Skalierung und Deckkraft aktualisieren die Anzeige-Vorschau direkt. Die Anzeige-Standardwert-Aktion setzt nur Anzeigeoptionen zurueck und wendet ihre Live-Callbacks an. Leader-Sperren und Share-Keys-Cooldown erhalten getrennte visuelle Zustaende.
 
 ## Akteure
 
@@ -238,6 +240,7 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
 5. Regel: Der Spellbook-Shortcut muss spellbook-spezifische Opener nutzen und darf nicht ueber das Talents-Panel routen.
 6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
 7. Ergebnis B: Blizzard Settings zeigen — gruppiert in eigene Hauptsektionen mit Beta-Hinweis oben und VIP-Gast-Einstellungen unten:
+   Die feste zweizeilige Abschnittsnavigation bleibt beim Scrollen sichtbar, springt beim Klick zum gewaehlten Abschnitt und markiert beim manuellen Scrollen den aktuellen Abschnitt. Ihre zehn Buttons haben feste Breiten und aktualisieren ihre Texte beim Sprachwechsel.
    - **Beta-Hinweis**: Issue-Tracker- und CurseForge-Kommentar-Link.
    - **General**: Sprache und `Default UI on Open`.
    - **ESC-Menue**: `Show ESC Menu Shortcuts` und `Hearthstone Selection`.
@@ -568,6 +571,7 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | VIP-Bloodlust-Debuff-Button-Warnung | `isiLive_bloodlust_button_warning.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
+| Anzeige-Vorschau, Anzeige-Standardwerte und Aktionszustaende | `isiLive_settings_sections.lua`, `isiLive_ui_common.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_layout.lua`, `isiLive_roster_panel_kill_row.lua` |
 | Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
 | Auto-Marker-Logik, entfernt oder ersetzt | `isiLive_group.lua` nach Bereinigung |
 | Raid-Size-H-Mode-UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |

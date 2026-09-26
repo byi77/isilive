@@ -52,7 +52,12 @@ local function CreateKillTrackRow(mainFrame)
   label:SetPoint("LEFT", box, "LEFT", 6, 0)
   label:SetWidth(84)
   label:SetJustifyH("LEFT")
-  label:SetText("|cff888888M+Killtracker|r") -- i18n-ok: brand name, kept across all locales
+  label:SetText("M+Killtracker") -- i18n-ok: brand name, kept across all locales
+  local labelColor = UICommon.Colors and UICommon.Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
+  if type(label.SetTextColor) == "function" then
+    label:SetTextColor(labelColor[1], labelColor[2], labelColor[3], labelColor[4] or 1)
+  end
+  row.killTrackLabel = label
   ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
 
   local pullText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")

@@ -535,6 +535,67 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("Settings display preview follows live values and reset restores display defaults only", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = { uiScale = 1.4, bgAlpha = 0.8, statsBoxEnabled = true, showMinimapButton = true, syncEnabled = false }
+    local changed = {}
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return { SETTINGS_DISPLAY_PREVIEW = "Preview", SETTINGS_DISPLAY_RESET = "Restore display defaults" }
+        end,
+        getDB = function()
+          return db
+        end,
+        onUiScaleChange = function(value)
+          changed.scale = value
+        end,
+        onBgAlphaChange = function(value)
+          changed.alpha = value
+        end,
+        onStatsBoxToggle = function(value)
+          changed.stats = value
+        end,
+      })
+      local preview, reset
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_DISPLAY_PREVIEW" then
+          preview = frame
+        elseif frame._settingKey == "SETTINGS_DISPLAY_RESET" then
+          reset = frame
+        end
+      end
+      preview = Assert.NotNil(preview, "display preview must exist")
+      reset = Assert.NotNil(reset, "display reset action must exist")
+      Assert.Equal(preview._sample._scale, 1.4, "preview sample must reflect saved scale")
+      Assert.Equal(preview._sample._backdropColor[4], 0.8, "preview sample must reflect saved opacity")
+      reset._scripts.OnClick(reset)
+      Assert.Equal(db.uiScale, 1, "reset must restore default scale")
+      Assert.Equal(db.bgAlpha, 0.5, "reset must restore default opacity")
+      Assert.Equal(db.statsBoxEnabled, false, "reset must restore display toggles")
+      Assert.Equal(db.showMinimapButton, false, "reset must restore minimap display")
+      Assert.Equal(db.syncEnabled, false, "reset must preserve unrelated behavior settings")
+      Assert.Equal(changed.scale, 1, "reset must apply scale change live")
+      Assert.Equal(changed.alpha, 0.5, "reset must apply opacity change live")
+      Assert.Equal(changed.stats, false, "reset must apply stats box toggle live")
+      Assert.Equal(preview._sample._scale, 1, "preview must refresh after reset")
+      Assert.Equal(preview._sample._backdropColor[4], 0.5, "preview opacity must refresh after reset")
+      panel.Refresh()
+      Assert.Equal(db.syncEnabled, false, "refresh must not change unrelated settings")
+    end)
+  end)
+
   RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, LoadAddonModules)
 
   test("Settings panel exposes stats box position lock toggle", function()
@@ -2835,6 +2896,55 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " and the two auto-close split checkboxes"
       )
+    end)
+  end)
+
+  test("Settings section navigation keeps ten fixed-width tabs and jumps within the existing scroll frame", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local labels = { SETTINGS_NAV_GENERAL = "General", SETTINGS_NAV_VIP = "VIP" }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {},
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return labels
+        end,
+        getDB = function()
+          return IsiLiveDB
+        end,
+      })
+      local nav = Assert.NotNil(panel.navigation, "settings navigation must exist")
+      local count = 0
+      for _, button in pairs(nav.buttons) do
+        count = count + 1
+        Assert.Equal(button:GetWidth(), 126, "navigation tabs must keep their width budget")
+        Assert.Equal(button._parent, panel.canvas, "navigation must stay outside the scroll child")
+      end
+      Assert.Equal(count, 10, "all settings sections need a navigation tab")
+      Assert.True(nav.offsets.vip > nav.offsets.general, "section offsets must follow content order")
+
+      local display = nav.buttons.display
+      display._scripts.OnClick(display)
+      Assert.Equal(panel.scrollFrame:GetVerticalScroll(), nav.offsets.display, "tab click must jump to its section")
+      Assert.Equal(nav.activeKey, "display", "clicked section must be marked active")
+
+      labels.SETTINGS_NAV_DISPLAY = "Anzeige"
+      panel.Refresh()
+      Assert.Equal(display._flatLabel:GetText(), "Anzeige", "navigation must refresh after a language change")
+      Assert.False(display._flatLabel._wordWrap, "navigation labels must stay within one line")
+
+      panel.scrollFrame:SetVerticalScroll(nav.offsets.behavior)
+      panel.scrollFrame._scripts.OnVerticalScroll(panel.scrollFrame)
+      Assert.Equal(nav.activeKey, "behavior", "manual scrolling must update the active section")
     end)
   end)
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-27 - Version 0.10.0 (minor)
+
+- Added a fixed two-row section navigation to the Settings panel. Its ten localized buttons jump within the existing scroll area, follow manual scrolling, and refresh after a language change.
+- Added a live scale/opacity preview and a display-only defaults action. The latter reapplies display callbacks and leaves unrelated settings intact.
+- Strengthened the roster header and M+ killtracker label, and added shared visual availability states for leader-locked and cooling-down actions.
+
+The German Settings navigation was reviewed at normal UI scale. Small scale, other locales, and combat-state presentation remain on the UI modernization checklist for in-game review.
+
 ## 2026-09-26 - Version 0.9.401 (patch)
 
 - Extracted incoming isiLive/LibKS payload processing into `logic/isiLive_sync_receive.lua` behind an injected factory; the public `Sync.ProcessAddonMessage` surface and protocol behavior stay unchanged.

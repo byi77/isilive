@@ -649,6 +649,37 @@ return function(test, ctx)
     end)
   end)
 
+  test("UICommon action availability keeps locked and cooldown visuals through hover", function()
+    WithGlobals({
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local common = LoadAddonModules({ "isiLive_ui_common.lua" }).UICommon
+      local button = common.CreateActionButton(MakeFrameStub(), { role = "primary" })
+      button:SetAvailabilityState("leader")
+      Assert.Equal(button._isiLiveAvailability, "leader", "leader lock must be explicit")
+      Assert.Equal(button._availabilityMark:GetText(), "x", "leader lock must have a text marker")
+      button._hookScripts.OnEnter(button)
+      Assert.Equal(
+        button._backdropColor[1],
+        common.Colors.SURFACE_ACTION_SECONDARY_PRESSED[1],
+        "locked hover must stay muted"
+      )
+      button:SetAvailabilityState("cooldown")
+      Assert.Equal(button._availabilityMark:GetText(), "~", "cooldown must have a distinct marker")
+      button:SetAvailabilityState("combat")
+      Assert.Equal(button._availabilityMark:GetText(), "!", "combat lock must have a distinct marker")
+      button:SetAvailabilityState("available")
+      Assert.Equal(button._availabilityMark:GetText(), "", "available action must clear the marker")
+      Assert.Equal(
+        button._backdropColor[1],
+        common.Colors.SURFACE_ACTION_PRIMARY[1],
+        "available action must regain its primary role"
+      )
+    end)
+  end)
+
   test("UICommon panel chrome creates a bounded title surface and separator", function()
     local UICommon = LoadUICommon()
     local parent = MakeFrameStub()
