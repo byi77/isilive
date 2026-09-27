@@ -246,5 +246,8 @@ function Roster.BuildDisplayData(info, opts)
     readyCheckStatus = readyCheckStatus,
     readyCheckBackgroundColor = readyCheckBackgroundColor,
     readyCheckMarkup = readyCheckMarkup,
+    -- Offline members and ghost rows (players who left the group) are no
+    -- longer live data; the renderer fades the whole row for them.
+    isInactive = info.isGhost == true or isOffline == true,
   }
 end

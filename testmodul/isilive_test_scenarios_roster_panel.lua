@@ -892,6 +892,9 @@ local function NewRecordedFontString(createdFontStrings)
   function fontString.SetText(self, value)
     self.text = value
   end
+  function fontString.SetAlpha(self, value)
+    self.alpha = value
+  end
   function fontString.SetWordWrap(self, value)
     self.wordWrap = value
   end
@@ -2051,6 +2054,108 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
       -- the primary purpose of this test — a Lua error from the new clear
       -- loop would surface here as a thrown WithGlobals failure.
       Assert.True(#createdFrames > 0, "render must have created at least one row frame")
+    end)
+  end)
+
+  test("Roster render fades offline and ghost rows and restores them when the member is back", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local connected = { player = true, party1 = false, party2 = true }
+
+    local function FindFontStringByText(text)
+      for _, fontString in ipairs(createdFontStrings) do
+        if fontString.text == text then
+          return fontString
+        end
+      end
+      return nil
+    end
+
+    local function FindFontStringContaining(fragment)
+      for _, fontString in ipairs(createdFontStrings) do
+        if type(fontString.text) == "string" and fontString.text:find(fragment, 1, true) then
+          return fontString
+        end
+      end
+      return nil
+    end
+
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      UnitExists = function(unit)
+        return connected[unit] ~= nil
+      end,
+      UnitIsConnected = function(unit)
+        return connected[unit]
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+        PRIEST = { r = 1, g = 1, b = 1 },
+        MAGE = { r = 0.41, g = 0.8, b = 0.94 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua", "isiLive_roster.lua" })
+      local roster = {
+        player = { name = "Online", class = "WARRIOR", role = "TANK", ilvl = 611, rio = 2811 },
+        party1 = { name = "Offline", class = "PRIEST", role = "HEALER", ilvl = 622, rio = 2822 },
+        ["ghost:Leaver-Realm"] = { name = "Leaver", class = "MAGE", role = "DAMAGER", ilvl = 633, isGhost = true },
+      }
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        buildOrderedRoster = function(currentRoster)
+          local ordered = {}
+          for _, unit in ipairs({ "player", "party1", "ghost:Leaver-Realm" }) do
+            if currentRoster[unit] then
+              ordered[#ordered + 1] = { unit = unit, info = currentRoster[unit] }
+            end
+          end
+          return ordered
+        end,
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+        isReadyCheckActive = function()
+          return false
+        end,
+        getTime = function()
+          return 100
+        end,
+      })
+
+      controller.RenderRoster(roster)
+
+      Assert.Equal(FindFontStringByText("611").alpha, 1, "an online member's data must stay fully visible")
+      Assert.Equal(FindFontStringContaining("Online").alpha, 1, "an online member's name must stay fully visible")
+      Assert.Equal(FindFontStringByText("622").alpha, 0.45, "an offline member's item level must be faded")
+      Assert.Equal(FindFontStringByText("2822").alpha, 0.45, "an offline member's score must be faded")
+      Assert.Equal(FindFontStringContaining("Offline").alpha, 0.75, "an offline name must keep more contrast")
+      Assert.Equal(FindFontStringByText("633").alpha, 0.45, "a ghost row's data must be faded")
+      Assert.Equal(FindFontStringContaining("Leaver").alpha, 0.75, "a ghost row's name must keep more contrast")
+
+      connected.party1 = true
+      controller.RenderRoster(roster)
+      Assert.Equal(FindFontStringByText("622").alpha, 1, "a reconnected member's data must return to full opacity")
+      Assert.Equal(FindFontStringContaining("Offline").alpha, 1, "a reconnected member's name must return")
     end)
   end)
 

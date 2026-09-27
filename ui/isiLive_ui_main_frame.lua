@@ -2,10 +2,6 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
--- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
--- has `table.unpack`. Bridge locally so this file works under both without
--- depending on the entrypoint script to have set up a global compat shim.
-local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
 addonTable.UI = addonTable.UI or {}
 
 local UI = addonTable.UI
@@ -15,7 +11,9 @@ local GetLocalizedText =
   assert(addonTable.UICommon and addonTable.UICommon.GetLocalizedText, "isiLive: UICommon.GetLocalizedText missing")
 local ApplyBackdrop = addonTable.UICommon.ApplyBackdrop
 local ApplyActionButtonVisual = addonTable.UICommon.ApplyActionButtonVisual
+local ApplyStateIcon = addonTable.UICommon.ApplyStateIcon
 local Colors = addonTable.UICommon.Colors
+local UNLOCKED_ICON_ALPHA = 0.5
 
 local function SavePosition(target)
   -- SavedVariables are restored by Blizzard before ADDON_LOADED and the main
@@ -116,7 +114,16 @@ local function CreateTitleBarIconButton(
   local icon = button:CreateTexture(nil, "OVERLAY")
   icon:SetSize(14, 14)
   icon:SetPoint("CENTER", button, "CENTER", 0, 0)
-  icon:SetTexture(iconTexture)
+  -- A UICommon state-icon key gets the shared texture plus the cool title-bar
+  -- tint; anything else is a plain texture path.
+  if type(ApplyStateIcon) == "function" and ApplyStateIcon(icon, iconTexture) then
+    local tint = Colors and Colors.TEXT_SECTION
+    if type(tint) == "table" and type(icon.SetVertexColor) == "function" then
+      icon:SetVertexColor(tint[1], tint[2], tint[3])
+    end
+  else
+    icon:SetTexture(iconTexture)
+  end
   button.icon = icon
 
   local resolvedTooltipTitle = GetLocalizedText(tooltipTitleKey, tooltipTitle)
@@ -172,17 +179,24 @@ local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLoc
     ApplyBackdrop(button, "TITLE_BUTTON")
   end
 
-  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-  label:SetPoint("CENTER", button, "CENTER", 0, -1)
-  label:SetText("L")
+  -- Lock symbol instead of the former "L" letter: full strength while the
+  -- frame is locked, desaturated and faded while it can be dragged.
+  local icon = button:CreateTexture(nil, "OVERLAY")
+  icon:SetSize(14, 14)
+  icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+  if type(ApplyStateIcon) == "function" then
+    ApplyStateIcon(icon, "lock")
+  end
+  button.icon = icon
 
   local function UpdateVisual()
     local locked = type(getDragLocked) == "function" and getDragLocked() == true
     button._isLocked = locked
-    if locked then
-      label:SetTextColor(unpack(Colors.GOLD_MAINFRAME_LABEL))
-    else
-      label:SetTextColor(unpack(Colors.LIGHT_BLUE_MAINFRAME_LABEL))
+    if type(icon.SetDesaturated) == "function" then
+      icon:SetDesaturated(not locked)
+    end
+    if type(icon.SetAlpha) == "function" then
+      icon:SetAlpha(locked and 1 or UNLOCKED_ICON_ALPHA)
     end
   end
 
@@ -234,7 +248,7 @@ local function CreateSettingsButton(frame, dragHandle, onOpenSettings)
     frame,
     dragHandle,
     -46,
-    "Interface\\Icons\\INV_Misc_Gear_01",
+    "settings",
     "TOOLTIP_OPEN_ISILIVE_SETTINGS",
     "TOOLTIP_OPEN_ISILIVE_SETTINGS_HINT",
     "Open isiLive settings",

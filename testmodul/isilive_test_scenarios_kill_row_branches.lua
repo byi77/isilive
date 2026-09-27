@@ -30,6 +30,37 @@ local function NewBarStub(getWidth)
   function bar.GetWidth(self)
     return getWidth and getWidth(self) or self._width
   end
+  function bar.GetAlpha(self)
+    return self._alpha or 1
+  end
+  function bar.SetAlpha(self, alpha)
+    self._alpha = alpha
+  end
+  -- Records decorative transitions started through UICommon.PlayAlphaTransition.
+  function bar.CreateAnimationGroup(self)
+    local group = { plays = 0, _playing = false }
+    function group.CreateAnimation()
+      return {
+        SetFromAlpha = function() end,
+        SetToAlpha = function() end,
+        SetDuration = function() end,
+        SetSmoothing = function() end,
+      }
+    end
+    function group.SetScript() end
+    function group.IsPlaying(g)
+      return g._playing
+    end
+    function group.Play(g)
+      g.plays = g.plays + 1
+      g._playing = true
+    end
+    function group.Stop(g)
+      g._playing = false
+    end
+    self._animGroup = group
+    return group
+  end
   return bar
 end
 
@@ -312,7 +343,7 @@ return function(test, ctx)
       Assert.Equal(row.killTrackTargetText._text, "", "target text must clear")
       Assert.Equal(row.killTrackTargetLevelText._text, "", "target level text must clear")
       Assert.Equal(row.killTrackActiveDungeonText._text, "", "active dungeon context must clear")
-      Assert.Equal(row.killTrackPctText._text, "--,--", "pct text must reset")
+      Assert.Equal(row.killTrackPctText._text, "--.--", "pct text must reset to the enUS placeholder")
       Assert.Equal(row.killTrackPullText._text, "", "pull text must clear")
     end)
   end)
@@ -324,7 +355,7 @@ return function(test, ctx)
       row.killTrackBarFill._shown = true
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.True(row.killTrackBarFill._shown == false, "inactive must hide fill bar")
-      Assert.Equal(row.killTrackPctText._text, "--,--", "inactive must reset pct text")
+      Assert.Equal(row.killTrackPctText._text, "--.--", "inactive must reset pct text")
     end)
   end)
 
@@ -480,7 +511,7 @@ return function(test, ctx)
       Assert.Equal(row.killTrackTargetText._text, "", "key-start boundary must clear pre-key target text")
       Assert.Equal(row.killTrackTargetLevelText._text, "", "key-start boundary must clear pre-key level text")
       Assert.Equal(row.killTrackActiveDungeonText._text, "", "inactive post-start row must not show active context")
-      Assert.Equal(row.killTrackPctText._text, "--,--", "inactive post-start row must use the percent placeholder")
+      Assert.Equal(row.killTrackPctText._text, "--.--", "inactive post-start row must use the percent placeholder")
       Assert.True(row.killTrackBarContainer._shown == true, "post-start placeholder must restore the percent bar")
     end)
   end)
@@ -553,7 +584,7 @@ return function(test, ctx)
         "active dungeon context must use bright outline text for bar legibility"
       )
       Assert.True(row.killTrackActiveDungeonBackdrop._shown == true, "active dungeon backdrop must show behind text")
-      Assert.Equal(row.killTrackPctText._text, "42,00%", "active percent text must stay primary")
+      Assert.Equal(row.killTrackPctText._text, "42.00%", "active percent text must stay primary")
     end)
   end)
 
@@ -628,47 +659,132 @@ return function(test, ctx)
     end)
   end)
 
-  -- Active path: green band (pct < 80) -----------------------------------------
+  -- Active path: colors, number format, motion ---------------------------------
 
-  test("UpdateKillTrackRow renders green fill when percent < 80", function()
+  local function AssertRgb(actual, expected, message)
+    Assert.Equal(actual[1], expected[1], message .. " (r)")
+    Assert.Equal(actual[2], expected[2], message .. " (g)")
+    Assert.Equal(actual[3], expected[3], message .. " (b)")
+  end
+
+  -- NewRow's bar container has no SetScript, so updates apply directly. This
+  -- variant records OnUpdate like a real frame so the easing can be driven.
+  local function NewAnimatedRow(barContainerWidth)
+    local row = NewRow(barContainerWidth)
+    local container = row.killTrackBarContainer
+    container._scripts = {}
+    function container.SetScript(self, name, handler)
+      self._scripts[name] = handler
+    end
+    return row
+  end
+
+  test("UpdateKillTrackRow renders open forces in calm blue and full forces in green", function()
     WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 50 })
+      local killTrackData = { active = true, percent = 50 }
+      local addon = LoadKillRow(killTrackData)
+      local Colors = addon.UICommon.Colors
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
       local fill = row.killTrackBarFill
       Assert.True(fill._shown == true, "fill must show for active data")
       Assert.Equal(fill._width, 100, "fill width must be 50% of 200")
-      Assert.Equal(fill._color[1], 0.2, "green r")
-      Assert.Equal(fill._color[2], 0.75, "green g")
-      Assert.Equal(fill._color[3], 0.35, "green b")
-      Assert.Equal(row.killTrackPctText._text, "50,00%", "pct text must be 50,00%% with comma")
-      Assert.Equal(row.killTrackPctText._color[1], 0.2, "pct text color matches band")
+      AssertRgb(fill._color, Colors.MPLUS_FORCES_PROGRESS_FILL, "open forces must use the calm progress blue")
+      AssertRgb(row.killTrackPctText._color, Colors.LIGHT_BLUE_LEVEL_TEXT, "open forces text must stay cool")
+      Assert.Equal(row.killTrackPctText._text, "50.00%", "enUS percent text must use a decimal point")
+
+      killTrackData.percent = 99
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      AssertRgb(fill._color, Colors.MPLUS_FORCES_PROGRESS_FILL, "near-complete forces must not turn into a warning")
+
+      killTrackData.percent = 100
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      AssertRgb(fill._color, Colors.SUCCESS_GREEN_BAR, "complete forces must turn green")
+      AssertRgb(row.killTrackPctText._color, Colors.GREEN_HINT_TEXT, "complete forces text must turn green")
     end)
   end)
 
-  -- Active path: yellow band (80 <= pct < 95) ---------------------------------
-
-  test("UpdateKillTrackRow renders yellow fill when 80 <= percent < 95", function()
-    WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 90 })
+  test("UpdateKillTrackRow formats percentages with the addon language decimal separator", function()
+    WithGlobals({ IsiLiveDB = { locale = "deDE" } }, function()
+      local killTrackData = { active = true, percent = 42.5, inCombat = true, pullPercent = 3.25 }
+      local addon = LoadKillRow(killTrackData)
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(row.killTrackBarFill._color[1], 0.9, "yellow r")
-      Assert.Equal(row.killTrackBarFill._color[2], 0.75, "yellow g")
-      Assert.Equal(row.killTrackBarFill._color[3], 0.1, "yellow b")
+      Assert.Equal(row.killTrackPctText._text, "42,50%", "deDE percent text must use a decimal comma")
+      Assert.Equal(row.killTrackPullText._text, "+3,25%", "deDE pull text must use a decimal comma")
+
+      killTrackData.active = false
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackPctText._text, "--,--", "deDE placeholder must use a decimal comma")
     end)
   end)
 
-  -- Active path: red band (pct >= 95) ------------------------------------------
-
-  test("UpdateKillTrackRow renders red fill when percent >= 95", function()
+  test("UpdateKillTrackRow eases a changed fill width over the shared motion duration", function()
     WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 99 })
+      local killTrackData = { active = true, percent = 40 }
+      local addon = LoadKillRow(killTrackData)
+      local row = NewAnimatedRow(200)
+      local container = row.killTrackBarContainer
+      local fill = row.killTrackBarFill
+
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(fill._width, 80, "the first width must apply directly")
+      Assert.Nil(container._scripts.OnUpdate, "the first width must not start an animation")
+
+      killTrackData.percent = 60
+      killTrackData.inCombat = true
+      killTrackData.pullPercent = 50
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(fill._width, 80, "a changed width must not jump to the target")
+      Assert.Equal(row.killTrackBarPull._width, 80, "pull clamp must use the target fill width (200 - 120)")
+      local onUpdate = Assert.NotNil(container._scripts.OnUpdate, "a changed width must animate")
+
+      onUpdate(container, 0.1)
+      Assert.Equal(fill._width, 110, "halfway through 0.2 s the ease-out must cover 75% of the change")
+      onUpdate(container, 0.1)
+      Assert.Equal(fill._width, 120, "the animation must end exactly on the target width")
+      Assert.Nil(container._scripts.OnUpdate, "the finished animation must release its OnUpdate script")
+
+      killTrackData.percent = 80
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.NotNil(container._scripts.OnUpdate, "a further change must animate again")
+      killTrackData.active = false
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Nil(container._scripts.OnUpdate, "hiding the fill must stop a running animation")
+      Assert.True(fill._shown == false, "inactive data must hide the fill")
+    end)
+  end)
+
+  test("UpdateKillTrackRow applies fill width directly when reduced motion is enabled", function()
+    WithGlobals({ IsiLiveDB = { reduceMotion = true } }, function()
+      local killTrackData = { active = true, percent = 40 }
+      local addon = LoadKillRow(killTrackData)
+      local row = NewAnimatedRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      killTrackData.percent = 60
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarFill._width, 120, "reduced motion must apply the new width at once")
+      Assert.Nil(row.killTrackBarContainer._scripts.OnUpdate, "reduced motion must not start an animation")
+    end)
+  end)
+
+  test("UpdateKillTrackRow flashes the fill once when forces reach 100 percent", function()
+    WithGlobals({}, function()
+      local killTrackData = { active = true, percent = 90 }
+      local addon = LoadKillRow(killTrackData)
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(row.killTrackBarFill._color[1], 0.9, "red r")
-      Assert.Equal(row.killTrackBarFill._color[2], 0.3, "red g")
-      Assert.Equal(row.killTrackBarFill._color[3], 0.15, "red b")
+      Assert.Nil(row.killTrackBarFill._animGroup, "open forces must not flash")
+
+      killTrackData.percent = 100
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarFill._animGroup.plays, 1, "reaching 100% must flash the fill once")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarFill._animGroup.plays, 1, "staying at 100% must not flash again")
+
+      local freshRow = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(freshRow)
+      Assert.Nil(freshRow.killTrackBarFill._animGroup, "a first render already at 100% must stay quiet")
     end)
   end)
 
@@ -680,7 +796,7 @@ return function(test, ctx)
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(row.killTrackBarFill._width, 200, "clamped percent must yield full width")
-      Assert.Equal(row.killTrackPctText._text, "100,00%", "pct text must be clamped to 100")
+      Assert.Equal(row.killTrackPctText._text, "100.00%", "pct text must be clamped to 100")
     end)
   end)
 
@@ -704,7 +820,7 @@ return function(test, ctx)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.True(row.killTrackBarPull._shown == true, "pull bar must show in combat")
       Assert.Equal(row.killTrackBarPull._width, 40, "pull width = 20% of 200 = 40")
-      Assert.Equal(row.killTrackPullText._text, "+20,00%", "pull text must show pull percent with plus prefix")
+      Assert.Equal(row.killTrackPullText._text, "+20.00%", "pull text must show pull percent with plus prefix")
       Assert.Equal(row.killTrackPullText._color[1], 0.6, "pull text color r")
     end)
   end)

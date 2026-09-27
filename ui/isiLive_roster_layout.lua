@@ -332,6 +332,9 @@ end
 local function CreateSystemOptionToggle(mainFrame, cvarName)
   local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
   button:SetSize(18, 18)
+  if type(UICommon.ApplyFlatCheckboxStyle) == "function" then
+    UICommon.ApplyFlatCheckboxStyle(button)
+  end
   button._cvarName = cvarName
 
   local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

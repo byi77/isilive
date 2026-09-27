@@ -126,9 +126,54 @@ local function BuildAlertFrame(createFrame)
       frame:Hide()
     end)
     frame.animGroup = animGroup
+
+    -- Reduced-motion variant: the text appears at full size and alpha and
+    -- stays for the same total time. Only the closing fade remains, because
+    -- it is what ends the alert rather than decoration.
+    local calmGroup = frame:CreateAnimationGroup()
+    local calmFadeOut = calmGroup:CreateAnimation("Alpha")
+    calmFadeOut:SetFromAlpha(1)
+    calmFadeOut:SetToAlpha(0)
+    calmFadeOut:SetStartDelay(PUNCH_DURATION + HOLD_SECONDS)
+    calmFadeOut:SetDuration(FADE_OUT_DURATION)
+    calmFadeOut:SetSmoothing("IN")
+    calmFadeOut:SetOrder(1)
+    calmGroup:SetScript("OnFinished", function()
+      frame:Hide()
+    end)
+    frame.calmAnimGroup = calmGroup
   end
 
   return frame
+end
+
+local function IsReducedMotionEnabled()
+  local uiCommon = addonTable.UICommon
+  return type(uiCommon) == "table"
+    and type(uiCommon.IsReducedMotionEnabled) == "function"
+    and uiCommon.IsReducedMotionEnabled() == true
+end
+
+local function StopGroup(group)
+  if group and type(group.Stop) == "function" then
+    group:Stop()
+  end
+end
+
+-- Stops both variants before every show so a second death mid-animation
+-- restarts cleanly, and so a reduced-motion toggle between two alerts cannot
+-- leave the other variant running.
+local function PlayAlertAnimation(frame)
+  StopGroup(frame.animGroup)
+  StopGroup(frame.calmAnimGroup)
+  local group = IsReducedMotionEnabled() and frame.calmAnimGroup or frame.animGroup
+  if type(frame.SetAlpha) == "function" then
+    frame:SetAlpha(1)
+  end
+  frame:Show()
+  if group and type(group.Play) == "function" then
+    group:Play()
+  end
 end
 
 function DeathAlert.CreateController(opts)
@@ -150,14 +195,7 @@ function DeathAlert.CreateController(opts)
       frame = BuildAlertFrame(createFrame)
     end
     ApplyAlertText(frame.text, ResolveAlertText(getL, kind))
-    if frame.animGroup and type(frame.animGroup.Stop) == "function" then
-      -- Restart cleanly when a second death lands mid-animation.
-      frame.animGroup:Stop()
-    end
-    frame:Show()
-    if frame.animGroup and type(frame.animGroup.Play) == "function" then
-      frame.animGroup:Play()
-    end
+    PlayAlertAnimation(frame)
     return true
   end
 

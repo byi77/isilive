@@ -383,6 +383,31 @@ local function ApplyRowSpecDisplay(row, displayData)
   SetReadableText(row.spec, "|c" .. displayData.colorHex .. displayData.specText .. "|r")
 end
 
+-- Offline members and ghost rows fade as a whole row so their values read as
+-- history rather than live data. The name keeps more contrast than the data
+-- columns because it is what identifies the row. The secure role button is
+-- deliberately left alone (see ClearMemberRow).
+local INACTIVE_ROW_DATA_ALPHA = 0.45
+local INACTIVE_ROW_NAME_ALPHA = 0.75
+local ROW_DATA_FIELDS = { "spec", "realm", "key", "ilvl", "rio", "dps", "kick" }
+
+local function SetRowFieldAlpha(fontString, alpha)
+  if type(fontString) == "table" and type(fontString.SetAlpha) == "function" then
+    fontString:SetAlpha(alpha)
+  end
+end
+
+local function ApplyRowActivityDisplay(row, displayData)
+  if not row then
+    return
+  end
+  local inactive = type(displayData) == "table" and displayData.isInactive == true
+  for _, field in ipairs(ROW_DATA_FIELDS) do
+    SetRowFieldAlpha(row[field], inactive and INACTIVE_ROW_DATA_ALPHA or 1)
+  end
+  SetRowFieldAlpha(row.name, inactive and INACTIVE_ROW_NAME_ALPHA or 1)
+end
+
 local function ApplyRowReadyCheckDisplay(row, displayData)
   local background = row and row.readyCheckBackground or nil
   local color = displayData and displayData.readyCheckBackgroundColor or nil
@@ -515,6 +540,7 @@ local function RenderRosterImpl(state, roster)
     if row.kick then
       SetReadableText(row.kick, "")
     end
+    ApplyRowActivityDisplay(row, nil)
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
@@ -694,6 +720,7 @@ local function RenderRosterImpl(state, roster)
     -- Skip displayData.roleIconMarkup since we render it as a secure button
     ApplyRowNameDisplay(row, displayData)
     ApplyRowReadyCheckDisplay(row, displayData)
+    ApplyRowActivityDisplay(row, displayData)
     SetReadableText(row.realm, displayData.languageDisplay)
     if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
       SetReadableText(row.key, "|cffff4040" .. displayData.keyText .. "|r")
@@ -809,6 +836,7 @@ RefreshReadyCheckStateImpl = function(state, roster)
       ApplyRowReadyCheckDisplay(row, displayData)
       ApplyRowSpecDisplay(row, displayData)
       ApplyRowNameDisplay(row, displayData)
+      ApplyRowActivityDisplay(row, displayData)
     end
 
     index = index + 1
@@ -821,6 +849,7 @@ RI.BuildRowDisplayData = BuildRowDisplayData
 RI.ApplyRowNameDisplay = ApplyRowNameDisplay
 RI.ApplyRowSpecDisplay = ApplyRowSpecDisplay
 RI.ApplyRowReadyCheckDisplay = ApplyRowReadyCheckDisplay
+RI.ApplyRowActivityDisplay = ApplyRowActivityDisplay
 RI.HasReadyCheckHoldInRoster = HasReadyCheckHoldInRoster
 RI.SetKickCellText = SetKickCellText
 RI.ResolveReadyCheckActive = ResolveReadyCheckActive

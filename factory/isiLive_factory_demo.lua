@@ -640,8 +640,8 @@ local function SetDemoTimerData(ctx, runtimeState)
     C_Timer_ref.After(0.2, function()
       if ctx.cdTrackerController and type(ctx.cdTrackerController.SetDemoData) == "function" then
         ctx.cdTrackerController.SetDemoData({
-          bres = { charges = 0, maxCharges = 1, cooldownRemain = 112 },
-          lust = { remain = 23, icon = nil },
+          bres = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 },
+          lust = { remain = 23, duration = 600, icon = nil },
         })
       end
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
@@ -831,8 +831,8 @@ local function BuildSimulationTabletActions(ctx)
       run = function()
         if ctx.cdTrackerController and type(ctx.cdTrackerController.SetDemoData) == "function" then
           ctx.cdTrackerController.SetDemoData({
-            bres = { charges = 0, maxCharges = 1, cooldownRemain = 112 },
-            lust = { remain = 23, icon = nil },
+            bres = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 },
+            lust = { remain = 23, duration = 600, icon = nil },
           })
         end
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then

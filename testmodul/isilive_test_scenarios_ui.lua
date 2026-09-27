@@ -2049,6 +2049,16 @@ local function RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.NotNil(mainUI.lockButton, "main UI should expose the lock button")
       Assert.True(mainUI.GetDragLocked(), "main UI should start locked")
       Assert.True(mainUI.lockButton._isLocked, "lock button should reflect the initial locked state")
+      local lockIcon = mainUI.lockButton.icon
+      Assert.Equal(lockIcon._isiLiveStateIcon, "lock", "lock button should show a lock symbol instead of a letter")
+      Assert.False(lockIcon._desaturated, "a locked frame should show the lock in full color")
+      Assert.Equal(lockIcon._alpha, 1, "a locked frame should show the lock at full strength")
+      Assert.Equal(
+        mainUI.settingsButton.icon._isiLiveStateIcon,
+        "settings",
+        "settings button should use the shared gear symbol"
+      )
+      Assert.NotNil(mainUI.settingsButton.icon._vertexColor, "settings gear should take the cool title tint")
 
       local onClick = mainUI.lockButton._scripts and mainUI.lockButton._scripts.OnClick or nil
       onClick = Assert.NotNil(onClick, "lock button should define OnClick")
@@ -2056,10 +2066,68 @@ local function RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonMo
 
       Assert.False(mainUI.GetDragLocked(), "first click should unlock the frame")
       Assert.False(mainUI.lockButton._isLocked, "lock button should reflect the unlocked state")
+      Assert.True(lockIcon._desaturated, "an unlocked frame should grey out the lock")
+      Assert.Equal(lockIcon._alpha, 0.5, "an unlocked frame should fade the lock")
 
       onClick(mainUI.lockButton, "LeftButton")
       Assert.True(mainUI.GetDragLocked(), "second click should lock the frame again")
       Assert.True(mainUI.lockButton._isLocked, "lock button should reflect the relocked state")
+    end)
+  end)
+
+  test("UI game-menu panel buttons use one hover state without an extra highlight layer", function()
+    local layers = {}
+    local function NewRegion()
+      local region = {}
+      setmetatable(region, {
+        __index = function(_, key)
+          -- Only method names resolve to no-ops; data fields stay nil.
+          return type(key) == "string" and key:match("^%u") and function() end or nil
+        end,
+      })
+      return region
+    end
+    local function NewButton()
+      local button = { _scripts = {} }
+      function button.CreateTexture(_, _, layer)
+        layers[#layers + 1] = layer
+        return NewRegion()
+      end
+      function button.CreateFontString()
+        return NewRegion()
+      end
+      function button.SetScript(self, name, handler)
+        self._scripts[name] = handler
+      end
+      function button.SetBackdropColor(self, ...)
+        self._backdropColor = { ... }
+      end
+      setmetatable(button, {
+        __index = function(_, key)
+          return type(key) == "string" and key:match("^%u") and function() end or nil
+        end,
+      })
+      return button
+    end
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewButton()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui_game_menu_panel.lua" })
+      local Panel = RequireValue(addon.UIGameMenuPanel, "game-menu panel module should load")
+      local button = Panel.CreateButton(NewButton(), nil, 1, 1, "Interface\\Icons\\INV_Misc_Map_01")
+
+      for _, layer in ipairs(layers) do
+        Assert.True(layer ~= "HIGHLIGHT", "panel buttons must not stack a white HIGHLIGHT layer on the hover state")
+      end
+      button._scripts.OnEnter(button)
+      Assert.Equal(
+        button._backdropColor[1],
+        addon.UICommon.Colors.SURFACE_ACTION_SECONDARY_HOVER[1],
+        "hover must come from the shared secondary-button state"
+      )
     end)
   end)
 

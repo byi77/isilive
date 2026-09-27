@@ -24,7 +24,15 @@ local function CreateTextureStub()
     end,
     SetTexCoord = function() end,
     SetBlendMode = function() end,
-    SetVertexColor = function() end,
+    SetVertexColor = function(self, ...)
+      self._vertexColor = { ... }
+    end,
+    SetDesaturated = function(self, desaturated)
+      self._desaturated = desaturated
+    end,
+    SetAlpha = function(self, alpha)
+      self._alpha = alpha
+    end,
     Hide = function(self)
       self.hidden = true
     end,

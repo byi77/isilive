@@ -157,17 +157,8 @@ function Panel.CreateButton(
     return self._panelText or ""
   end
 
-  if type(button.CreateTexture) == "function" then
-    local highlightColor = Colors.HOVER_HIGHLIGHT
-    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    if type(highlight.SetAllPoints) == "function" then
-      highlight:SetAllPoints()
-    end
-    if type(highlight.SetColorTexture) == "function" then
-      highlight:SetColorTexture(highlightColor[1], highlightColor[2], highlightColor[3], highlightColor[4])
-    end
-  end
-
+  -- Hover feedback comes only from the shared secondary-button states below.
+  -- An extra white HIGHLIGHT layer used to stack on top of them.
   if type(button.SetScript) == "function" then
     button:SetScript("OnEnter", function(self)
       if type(UICommon.ApplyActionButtonVisual) == "function" then

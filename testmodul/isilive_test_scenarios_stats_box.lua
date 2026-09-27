@@ -423,8 +423,7 @@ return function(test, ctx)
       })
 
       Assert.Nil(box.header, "stats box should not render a title/header row")
-      Assert.True(box.separator.hidden, "value-percent separator should stay hidden when percent data is visible")
-      Assert.Equal(box.separator._color[4], 0, "value-percent separator should be invisible")
+      Assert.Nil(box.separator, "no value-percent separator should be rendered, even with percent data")
       Assert.Equal(box.lines[1].tint._color[4], 0.22, "primary stat tint should be stronger than secondary rows")
       Assert.Equal(box.lines[2].tint._color[4], 0.12, "secondary stat tint should stay subtle")
 

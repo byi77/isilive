@@ -85,7 +85,6 @@ UICommon.Colors = {
   TOOLTIP_BG_BLACK = { 0, 0, 0, 0.92 },
   BG_NOTICE_CARD = { 0.05, 0.05, 0.08, 0.75 },
   BG_NOTICE_CARD_BASE = { 0.05, 0.05, 0.08 },
-  GOLD_SEPARATOR_BASE = { 1, 0.9, 0.45 },
 
   -- Deliberate semantic design tokens. Unlike the compatibility colors above,
   -- these values define the shared modern isiLive visual language and may be
@@ -111,6 +110,18 @@ UICommon.Colors = {
   ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
   SURFACE_COMPACT_OVERLAY = { 0.025, 0.04, 0.06, 0.78 },
   TEXT_ALERT_DANGER = { 1, 0.14, 0.16 },
+
+  -- M+ timer timeline: quiet track and cutoff ticks, fill in the color of the
+  -- chest grade that is still reachable.
+  MPLUS_TIMELINE_TRACK = { 0, 0, 0, 0.45 },
+  MPLUS_TIMELINE_TICK = { 0.9, 0.95, 1, 0.6 },
+  MPLUS_GRADE3_FILL = { 0.3, 0.85, 0.4, 0.9 },
+  MPLUS_GRADE2_FILL = { 1, 0.82, 0.2, 0.9 },
+  MPLUS_GRADE1_FILL = { 0.85, 0.88, 0.95, 0.85 },
+  MPLUS_OVERTIME_FILL = { 1, 0.3, 0.3, 0.9 },
+  -- M+ killtracker: calm blue while forces are open, the shared success green
+  -- (SUCCESS_GREEN_BAR) once 100% is reached.
+  MPLUS_FORCES_PROGRESS_FILL = { 0.26, 0.56, 0.9 },
 
   -- Restrained danger states for the shared close control. Only hover and
   -- press expose red; the default state uses the quiet secondary surface.
@@ -198,6 +209,38 @@ end
 -- one chain instead of re-implementing it; internal callers keep the local
 -- upvalue.
 UICommon.ResolveActiveLocale = ResolveActiveLocale
+
+-- Supported languages that write decimals with a comma. Follows the addon
+-- language like every other visible string, not the client locale.
+local DECIMAL_COMMA_LOCALES = {
+  deDE = true,
+  frFR = true,
+  esES = true,
+  esMX = true,
+  ptBR = true,
+  itIT = true,
+  ruRU = true,
+  trTR = true,
+}
+
+function UICommon.GetDecimalSeparator(localeTag)
+  return DECIMAL_COMMA_LOCALES[ResolveActiveLocale(localeTag)] and "," or "."
+end
+
+-- Formats a plain number with a fixed number of decimals and the decimal
+-- separator of the addon language. Returns nil when the value cannot be
+-- formatted (non-number or masked value).
+function UICommon.FormatDecimal(value, decimals, localeTag)
+  local places = math.max(0, math.floor(tonumber(decimals) or 0))
+  local ok, text = pcall(string.format, "%." .. places .. "f", value)
+  if not ok or type(text) ~= "string" then
+    return nil
+  end
+  if UICommon.GetDecimalSeparator(localeTag) == "," then
+    text = text:gsub("%.", ",")
+  end
+  return text
+end
 
 function UICommon.GetLocaleFontPath(localeTag)
   return UICommon.LOCALE_FONT_OVERRIDES[ResolveActiveLocale(localeTag)]
@@ -586,6 +629,69 @@ local function ApplyColorTuple(target, methodName, color)
   method(target, color[1], color[2], color[3], color[4] or 1)
 end
 
+local function CallMethod(target, methodName, ...)
+  local method = type(target) == "table" and target[methodName] or nil
+  if type(method) == "function" then
+    return method(target, ...)
+  end
+  return nil
+end
+
+-- Client textures behind the semantic state icons. Only textures that other
+-- maintained addons already load are used here, so every path is known to
+-- exist in the client. Item icons carry the usual 0.08 icon-border crop.
+local ICON_CROP = { 0.08, 0.92, 0.08, 0.92 }
+UICommon.StateIcons = {
+  lock = { path = "Interface\\PetBattles\\PetBattle-LockIcon" },
+  cooldown = { path = "Interface\\Icons\\INV_Relics_Hourglass_02", texCoord = ICON_CROP },
+  warning = { path = "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew" },
+  unavailable = { path = "Interface\\RAIDFRAME\\ReadyCheck-NotReady" },
+  info = { path = "Interface\\common\\help-i" },
+  action = { path = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up" },
+  death = {
+    path = "Interface\\WorldStateFrame\\SkullBones",
+    texCoord = { 0.046875, 0.453125, 0.046875, 0.46875 },
+  },
+  settings = { path = "Interface\\WorldMap\\GEAR_64GREY" },
+}
+
+-- Puts a named state icon onto a texture; `nil` clears and hides it.
+function UICommon.ApplyStateIcon(texture, iconKey)
+  if type(texture) ~= "table" then
+    return false
+  end
+  local icon = iconKey and UICommon.StateIcons[iconKey] or nil
+  if not icon then
+    if type(texture.SetTexture) == "function" then
+      texture:SetTexture(nil)
+    end
+    if type(texture.Hide) == "function" then
+      texture:Hide()
+    end
+    texture._isiLiveStateIcon = nil
+    return false
+  end
+  if type(texture.SetTexture) == "function" then
+    texture:SetTexture(icon.path)
+  end
+  if type(texture.SetTexCoord) == "function" then
+    local coords = icon.texCoord or { 0, 1, 0, 1 }
+    texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+  end
+  if type(texture.Show) == "function" then
+    texture:Show()
+  end
+  texture._isiLiveStateIcon = iconKey
+  return true
+end
+
+local AVAILABILITY_ICON_KEYS = {
+  cooldown = "cooldown",
+  combat = "warning",
+  leader = "lock",
+  unavailable = "unavailable",
+}
+
 local ACTION_AVAILABILITY_COLORS = {
   cooldown = UICommon.Colors.MUTED_GOLD_PCT_TEXT,
   combat = UICommon.Colors.ORANGE_WARNING_LABEL,
@@ -614,7 +720,6 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
     "SetTextColor",
     availability == "available" and style.text or UICommon.Colors.TEXT_SUPPORTING
   )
-  ApplyColorTuple(button._availabilityMark, "SetTextColor", ACTION_AVAILABILITY_COLORS[availability])
   button._isiLiveSemanticRole = resolvedRole
   button._isiLiveVisualState = resolvedState
   return true
@@ -643,18 +748,19 @@ function UICommon.CreateActionButton(parent, opts)
       label:SetPoint("CENTER", button, "CENTER", 0, 0)
     end
     button._flatLabel = label
-    local mark = button:CreateFontString(nil, "OVERLAY", UICommon.Theme.typography.body)
-    mark:SetPoint("LEFT", button, "LEFT", 5, 0)
-    button._availabilityMark = mark
+  end
+  if type(button.CreateTexture) == "function" then
+    local icon = button:CreateTexture(nil, "OVERLAY")
+    CallMethod(icon, "SetSize", 12, 12)
+    CallMethod(icon, "SetPoint", "LEFT", button, "LEFT", 5, 0)
+    CallMethod(icon, "Hide")
+    button._availabilityIcon = icon
   end
 
   local role = ACTION_BUTTON_STYLE_BY_ROLE[opts.role] and opts.role or "secondary"
   function button:SetAvailabilityState(nextState)
-    local marks = { cooldown = "~", combat = "!", leader = "x", unavailable = "-" }
-    self._isiLiveAvailability = marks[nextState] and nextState or "available"
-    if self._availabilityMark then
-      self._availabilityMark:SetText(marks[self._isiLiveAvailability] or "")
-    end
+    self._isiLiveAvailability = AVAILABILITY_ICON_KEYS[nextState] and nextState or "available"
+    UICommon.ApplyStateIcon(self._availabilityIcon, AVAILABILITY_ICON_KEYS[self._isiLiveAvailability])
     if type(self.SetAlpha) == "function" then
       self:SetAlpha(self._isiLiveAvailability == "available" and 1 or 0.72)
     end
@@ -684,6 +790,74 @@ function UICommon.CreateActionButton(parent, opts)
 
   UICommon.ApplyActionButtonVisual(button, role, "default")
   return button
+end
+
+-- Replaces the classic UICheckButtonTemplate art with the flat isiLive look:
+-- a thin cool outline around a dark box, a filled accent square when checked
+-- and a soft additive hover. Works on any CheckButton, so the template keeps
+-- providing click handling, checked state and accessibility.
+local function InsetRegion(region, anchor, inset)
+  if type(region.ClearAllPoints) == "function" and type(region.SetPoint) == "function" then
+    region:ClearAllPoints()
+    region:SetPoint("TOPLEFT", anchor, "TOPLEFT", inset, -inset)
+    region:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -inset, inset)
+  end
+end
+
+-- Draw layers are set explicitly instead of trusting the template defaults:
+-- outline BACKGROUND, box fill ARTWORK, check mark OVERLAY, so the mark can
+-- never end up underneath the fill.
+local function StyleCheckboxSlot(check, slot)
+  local setter, getter = check["Set" .. slot.name], check["Get" .. slot.name]
+  if type(setter) ~= "function" or type(getter) ~= "function" then
+    return nil
+  end
+  setter(check, "Interface\\Buttons\\WHITE8X8")
+  local texture = getter(check)
+  if type(texture) ~= "table" then
+    return nil
+  end
+  InsetRegion(texture, check, slot.inset)
+  ApplyColorTuple(texture, "SetVertexColor", slot.color)
+  if slot.layer and type(texture.SetDrawLayer) == "function" then
+    texture:SetDrawLayer(slot.layer, 0)
+  end
+  if slot.blendMode and type(texture.SetBlendMode) == "function" then
+    texture:SetBlendMode(slot.blendMode)
+  end
+  return texture
+end
+
+function UICommon.ApplyFlatCheckboxStyle(check)
+  if type(check) ~= "table" then
+    return false
+  end
+  local size = type(check.GetWidth) == "function" and tonumber(check:GetWidth()) or nil
+  local large = (size or 24) >= 22
+  local boxInset = large and 3 or 2
+  local fillInset = boxInset + 1
+  local markInset = boxInset + (large and 4 or 3)
+  local colors = UICommon.Colors
+
+  if not check._isiLiveFlatOutline and type(check.CreateTexture) == "function" then
+    local outline = check:CreateTexture(nil, "BACKGROUND")
+    InsetRegion(outline, check, boxInset)
+    ApplyColorTuple(outline, "SetColorTexture", colors.BORDER_ACTION_PRIMARY)
+    check._isiLiveFlatOutline = outline
+  end
+
+  local slots = {
+    { name = "NormalTexture", inset = fillInset, color = colors.SURFACE_ACTION_SECONDARY_PRESSED, layer = "ARTWORK" },
+    { name = "PushedTexture", inset = fillInset, color = colors.SURFACE_ACTION_PRIMARY_PRESSED, layer = "ARTWORK" },
+    { name = "HighlightTexture", inset = fillInset, color = colors.HOVER_HIGHLIGHT, blendMode = "ADD" },
+    { name = "CheckedTexture", inset = markInset, color = colors.ACCENT_BLUE, layer = "OVERLAY" },
+    { name = "DisabledCheckedTexture", inset = markInset, color = colors.GRAY_INACTIVE, layer = "OVERLAY" },
+  }
+  for _, slot in ipairs(slots) do
+    StyleCheckboxSlot(check, slot)
+  end
+  check._isiLiveFlatCheckbox = true
+  return true
 end
 
 function UICommon.CreatePanelChrome(parent, opts)
@@ -736,9 +910,9 @@ function UICommon.ApplyNoticeKind(parent, kind)
     return false
   end
   local kinds = {
-    info = { marker = "i", color = UICommon.Colors.ACCENT_NOTICE_TOP },
-    warning = { marker = "!", color = UICommon.Colors.TEXT_ALERT_DANGER },
-    action = { marker = ">", color = UICommon.Colors.SUCCESS_GREEN_BAR },
+    info = { icon = "info", color = UICommon.Colors.ACCENT_NOTICE_TOP },
+    warning = { icon = "warning", color = UICommon.Colors.TEXT_ALERT_DANGER },
+    action = { icon = "action", color = UICommon.Colors.SUCCESS_GREEN_BAR },
   }
   local style = kinds[kind]
   if not style then
@@ -754,19 +928,14 @@ function UICommon.ApplyNoticeKind(parent, kind)
     parent._isiLiveNoticeKindRail = rail
   end
   ApplyColorTuple(rail, "SetColorTexture", style.color)
-  local marker = parent._isiLiveNoticeKindMarker
-  if not marker and type(parent.CreateFontString) == "function" then
-    marker = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    marker:SetPoint("TOPLEFT", parent, "TOPLEFT", 9, -8)
-    marker:SetJustifyH("LEFT")
-    parent._isiLiveNoticeKindMarker = marker
+  local icon = parent._isiLiveNoticeKindIcon
+  if not icon then
+    icon = parent:CreateTexture(nil, "OVERLAY")
+    CallMethod(icon, "SetSize", 16, 16)
+    CallMethod(icon, "SetPoint", "TOPLEFT", parent, "TOPLEFT", 9, -7)
+    parent._isiLiveNoticeKindIcon = icon
   end
-  if marker then
-    marker:SetText(style.marker)
-    if marker.SetTextColor then
-      ApplyColorTuple(marker, "SetTextColor", style.color)
-    end
-  end
+  UICommon.ApplyStateIcon(icon, style.icon)
   local changed = parent._isiLiveNoticeKind ~= nil and parent._isiLiveNoticeKind ~= kind
   parent._isiLiveNoticeKind = kind
   return true, changed
@@ -777,7 +946,45 @@ function UICommon.IsReducedMotionEnabled()
   return type(db) == "table" and db.reduceMotion == true
 end
 
-local noticeTransitionFrames = setmetatable({}, { __mode = "k" })
+-- Shared motion vocabulary. New animations take their durations and easing
+-- from here instead of inventing literals, so the addon moves at one tempo.
+-- `fast` is the existing Center-Notice fade and must stay 0.14 s.
+UICommon.Motion = {
+  duration = {
+    fast = 0.14,
+    normal = 0.2,
+    slow = 0.35,
+  },
+  smoothing = {
+    enter = "OUT",
+    exit = "IN",
+    loop = "IN_OUT",
+  },
+}
+
+function UICommon.ResolveMotionDuration(token)
+  if type(token) == "number" and token >= 0 then
+    return token
+  end
+  local durations = UICommon.Motion.duration
+  return durations[token] or durations.normal
+end
+
+-- Every transition that is decorative registers here. Switching reduced
+-- motion on stops all of them at once and leaves each frame at its resting
+-- alpha, so the setting takes effect without a reload. Weak keys: a frame
+-- that goes away must not be kept alive by this table.
+local motionTransitions = setmetatable({}, { __mode = "k" })
+
+local function SettleMotionTransition(frame, transition)
+  local group = transition.group
+  if group and group.IsPlaying and group:IsPlaying() and group.Stop then
+    group:Stop()
+  end
+  if type(frame.SetAlpha) == "function" then
+    frame:SetAlpha(transition.restAlpha or 1)
+  end
+end
 
 function UICommon.SetReducedMotionEnabled(enabled)
   local db = rawget(_G, "IsiLiveDB")
@@ -788,50 +995,100 @@ function UICommon.SetReducedMotionEnabled(enabled)
   if not db.reduceMotion then
     return true
   end
-  for frame, group in pairs(noticeTransitionFrames) do
-    if group.IsPlaying and group:IsPlaying() and group.Stop then
-      group:Stop()
-    end
-    if type(frame.SetAlpha) == "function" and type(frame.GetAlpha) == "function" then
-      frame:SetAlpha(frame._isiLiveNoticeBaseAlpha or frame:GetAlpha())
+  for frame, transitions in pairs(motionTransitions) do
+    for _, transition in pairs(transitions) do
+      SettleMotionTransition(frame, transition)
     end
   end
   return true
 end
 
-function UICommon.PlayNoticeTransition(parent)
+local function GetMotionTransition(frame, key)
+  local transitions = motionTransitions[frame]
+  return transitions and transitions[key] or nil
+end
+
+local function CreateAlphaTransition(frame, key, opts)
+  local group = frame:CreateAnimationGroup()
+  local alpha = group:CreateAnimation("Alpha")
+  alpha:SetFromAlpha(tonumber(opts.fromAlpha) or 0)
+  alpha:SetToAlpha(tonumber(opts.toAlpha) or 1)
+  alpha:SetDuration(UICommon.ResolveMotionDuration(opts.duration))
+  alpha:SetSmoothing(opts.smoothing or UICommon.Motion.smoothing.enter)
+
+  local transition = { group = group, restAlpha = 1 }
+  if type(group.SetScript) == "function" then
+    group:SetScript("OnFinished", function()
+      if type(frame.SetAlpha) == "function" then
+        frame:SetAlpha(transition.restAlpha or 1)
+      end
+    end)
+  end
+
+  motionTransitions[frame] = motionTransitions[frame] or {}
+  motionTransitions[frame][key] = transition
+  return transition
+end
+
+-- Plays a decorative alpha transition on `frame` and settles it at its
+-- current alpha afterwards. The animation is built once per (frame, key) and
+-- restarted on later calls. Returns false without touching the frame when
+-- reduced motion is on or the frame cannot animate.
+--
+-- opts: fromAlpha, toAlpha (defaults 0 -> 1), duration (Motion token or
+-- seconds), smoothing (defaults to the enter easing).
+function UICommon.PlayAlphaTransition(frame, key, opts)
   if UICommon.IsReducedMotionEnabled() then
     return false
   end
-  if type(parent) ~= "table" or type(parent.CreateAnimationGroup) ~= "function" then
+  if type(frame) ~= "table" or type(frame.CreateAnimationGroup) ~= "function" or type(key) ~= "string" then
     return false
   end
-  local group = parent._isiLiveNoticeTransition
-  if not group then
-    group = parent:CreateAnimationGroup()
-    local alpha = group:CreateAnimation("Alpha")
-    alpha:SetFromAlpha(0.86)
-    alpha:SetToAlpha(1)
-    alpha:SetDuration(0.14)
-    alpha:SetSmoothing("OUT")
-    if type(group.SetScript) == "function" then
-      group:SetScript("OnFinished", function()
-        if type(parent.SetAlpha) == "function" then
-          parent:SetAlpha(parent._isiLiveNoticeBaseAlpha or 1)
-        end
-      end)
+  local transition = GetMotionTransition(frame, key) or CreateAlphaTransition(frame, key, opts or {})
+  if type(frame.GetAlpha) == "function" then
+    transition.restAlpha = frame:GetAlpha()
+  end
+  -- One alpha transition per frame at a time: a newer one replaces a running
+  -- sibling instead of stacking two fades.
+  for otherKey, other in pairs(motionTransitions[frame]) do
+    local otherGroup = other.group
+    if otherKey ~= key and otherGroup.IsPlaying and otherGroup:IsPlaying() and otherGroup.Stop then
+      otherGroup:Stop()
     end
-    parent._isiLiveNoticeTransition = group
-    noticeTransitionFrames[parent] = group
   end
-  if type(parent.GetAlpha) == "function" then
-    parent._isiLiveNoticeBaseAlpha = parent:GetAlpha()
-  end
+  local group = transition.group
   if group.IsPlaying and group:IsPlaying() and group.Stop then
     group:Stop()
   end
   group:Play()
   return true
+end
+
+function UICommon.PlayNoticeTransition(parent)
+  local played = UICommon.PlayAlphaTransition(parent, "notice", {
+    fromAlpha = 0.86,
+    toAlpha = 1,
+    duration = "fast",
+  })
+  if played then
+    parent._isiLiveNoticeTransition = GetMotionTransition(parent, "notice").group
+  end
+  return played
+end
+
+-- Entrance of a notice card that was hidden: a full fade from transparent
+-- over the `normal` duration, clearly noticeable without moving the card.
+-- PlayNoticeTransition stays the quieter refresh for a card already on screen.
+function UICommon.PlayNoticeEntrance(parent)
+  local played = UICommon.PlayAlphaTransition(parent, "noticeEntrance", {
+    fromAlpha = 0,
+    toAlpha = 1,
+    duration = "normal",
+  })
+  if played then
+    parent._isiLiveNoticeEntrance = GetMotionTransition(parent, "noticeEntrance").group
+  end
+  return played
 end
 
 local TOOLTIP_HORIZONTAL_PADDING = 10

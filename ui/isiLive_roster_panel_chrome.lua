@@ -530,17 +530,50 @@ local function AttachModeButtonTooltip(
   end)
 end
 
+-- The client ships the marker names localized as RAID_TARGET_<icon index>
+-- (1 Star ... 8 Skull, the same index as UI-RaidTargetingIcon_<n>). The
+-- English names only remain as a fail-closed fallback.
+local function ResolveMarkerName(marker)
+  local localized = rawget(_G, "RAID_TARGET_" .. tostring(marker.iconIndex))
+  if type(localized) == "string" and localized ~= "" then
+    return localized
+  end
+  return marker.name
+end
+
+-- Hover feedback for the secure marker buttons. Set once at creation (out of
+-- combat), so no protected call happens later.
+local function ApplyMarkerButtonHighlight(btn)
+  if type(btn.SetHighlightTexture) ~= "function" then
+    return
+  end
+  btn:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")
+  local highlight = type(btn.GetHighlightTexture) == "function" and btn:GetHighlightTexture() or nil
+  local color = Colors.BLUE_HOVER_GLOW or { 0.3, 0.65, 1, 0.2 }
+  if type(highlight) == "table" then
+    if type(highlight.SetVertexColor) == "function" then
+      highlight:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+    end
+    if type(highlight.SetBlendMode) == "function" then
+      highlight:SetBlendMode("ADD")
+    end
+  end
+end
+
 local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   local markers = {
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 1, name = "Square (Blue)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_4", id = 2, name = "Triangle (Green)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_3", id = 3, name = "Diamond (Purple)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 4, name = "Cross (Red)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 5, name = "Star (Yellow)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_2", id = 6, name = "Circle (Orange)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_5", id = 7, name = "Moon (Silver)" },
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8", id = 8, name = "Skull (White)" },
+    { iconIndex = 6, id = 1, name = "Square (Blue)" },
+    { iconIndex = 4, id = 2, name = "Triangle (Green)" },
+    { iconIndex = 3, id = 3, name = "Diamond (Purple)" },
+    { iconIndex = 7, id = 4, name = "Cross (Red)" },
+    { iconIndex = 1, id = 5, name = "Star (Yellow)" },
+    { iconIndex = 2, id = 6, name = "Circle (Orange)" },
+    { iconIndex = 5, id = 7, name = "Moon (Silver)" },
+    { iconIndex = 8, id = 8, name = "Skull (White)" },
   }
+  for _, marker in ipairs(markers) do
+    marker.icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. marker.iconIndex
+  end
 
   local buttons = {}
   local startY = -60
@@ -564,6 +597,7 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
     if btn.SetNormalTexture then
       btn:SetNormalTexture(marker.icon)
     end
+    ApplyMarkerButtonHighlight(btn)
     if btn.SetAttribute then
       btn:SetAttribute("type", "worldmarker")
       btn:SetAttribute("marker", marker.id)
@@ -591,7 +625,7 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
           or "Left-Click: Place"
         local rclick = type(L.TOOLTIP_WORLDMARKER_RCLICK) == "string" and L.TOOLTIP_WORLDMARKER_RCLICK
           or "Right-Click: Clear"
-        tooltip:SetText(string.format(titleFmt, marker.name), 1, 1, 1)
+        tooltip:SetText(string.format(titleFmt, ResolveMarkerName(marker)), 1, 1, 1)
         if type(tooltip.AddLine) == "function" then
           tooltip:AddLine(lclick, 0, 1, 0)
           tooltip:AddLine(rclick, 1, 0.2, 0.2)

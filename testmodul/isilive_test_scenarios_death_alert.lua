@@ -605,8 +605,8 @@ local function BuildFrameStub(track)
     return region
   end
 
-  local function NewAnimation()
-    local anim = {}
+  local function NewAnimation(animType)
+    local anim = { type = animType }
     local names = {
       "SetScaleFrom",
       "SetScaleTo",
@@ -615,38 +615,53 @@ local function BuildFrameStub(track)
       "SetOrder",
       "SetFromAlpha",
       "SetToAlpha",
-      "SetStartDelay",
     }
     for _, name in ipairs(names) do
       anim[name] = function() end
+    end
+    anim.SetStartDelay = function(_, delay)
+      anim.startDelay = delay
     end
     return anim
   end
 
   local frame = NewRegion()
   frame.shown = false
+  frame.alpha = 1
   frame.Show = function()
     frame.shown = true
   end
   frame.Hide = function()
     frame.shown = false
   end
+  frame.SetAlpha = function(_, alpha)
+    frame.alpha = alpha
+  end
   frame.SetFrameStrata = function() end
   frame.CreateFontString = function()
     return NewRegion()
   end
+  -- Each animation group records its own plays, stops and animation types, in
+  -- creation order: groups[1] is the full alert, groups[2] the calm variant.
+  track.groups = {}
   frame.CreateAnimationGroup = function()
-    local group = {}
-    group.CreateAnimation = function()
-      return NewAnimation()
+    local group = { plays = 0, stops = 0, animations = {} }
+    group.CreateAnimation = function(_, animType)
+      local anim = NewAnimation(animType)
+      table.insert(group.animations, anim)
+      return anim
     end
-    group.SetScript = function() end
+    group.SetScript = function(_, name, handler)
+      group[name] = handler
+    end
     group.Play = function()
+      group.plays = group.plays + 1
       track.plays = (track.plays or 0) + 1
     end
     group.Stop = function()
-      track.stops = (track.stops or 0) + 1
+      group.stops = group.stops + 1
     end
+    table.insert(track.groups, group)
     return group
   end
   return frame
@@ -691,9 +706,51 @@ local function RegisterDeathAlertUiTests(test, ctx)
 
     Assert.Equal(controller.ShowRoleDeath("HEALER"), true, "healer alert must render")
     Assert.Equal(track.text, "HEALER DIED", "healer alert must show the configured text")
-    Assert.Equal(track.stops, 2, "animation must stop before every (re)play")
-    Assert.Equal(track.plays, 2, "animation must restart for the second death")
+    local fullGroup = track.groups[1]
+    local calmGroup = track.groups[2]
+    Assert.Equal(fullGroup.stops, 2, "animation must stop before every (re)play")
+    Assert.Equal(calmGroup.stops, 2, "the calm variant must be stopped before every (re)play as well")
+    Assert.Equal(fullGroup.plays, 2, "animation must restart for the second death")
+    Assert.Equal(calmGroup.plays, 0, "without reduced motion the calm variant must stay idle")
     Assert.True(controller._Test_GetFrame().shown == true, "alert frame must be visible after show")
+  end)
+
+  test("DeathAlert drops the scale punch and fade-in when reduced motion is enabled", function()
+    local db = { reduceMotion = true }
+    local track = {}
+    WithGlobals({ IsiLiveDB = db }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_death_alert.lua" })
+      local controller = addon.DeathAlert.CreateController({
+        createFrame = function()
+          return BuildFrameStub(track)
+        end,
+        getL = function()
+          return { DEATH_ALERT_TANK = "TANK DIED" }
+        end,
+      })
+
+      Assert.Equal(controller.ShowRoleDeath("TANK"), true, "tank alert must still render with reduced motion")
+      local fullGroup = track.groups[1]
+      local calmGroup = track.groups[2]
+      Assert.Equal(fullGroup.plays, 0, "reduced motion must not play the scale-punch animation")
+      Assert.Equal(calmGroup.plays, 1, "reduced motion must play the calm variant")
+      Assert.Equal(#calmGroup.animations, 1, "the calm variant carries exactly one animation")
+      Assert.Equal(calmGroup.animations[1].type, "Alpha", "the calm variant must only fade, never scale")
+      Assert.True(
+        math.abs((tonumber(calmGroup.animations[1].startDelay) or 0) - 1.55) < 1e-9,
+        "the calm variant must keep the full alert's visible time before fading"
+      )
+      Assert.Equal(controller._Test_GetFrame().alpha, 1, "the calm alert must appear at full opacity")
+      Assert.Equal(track.text, "TANK DIED", "reduced motion must not change the alert text")
+
+      calmGroup.OnFinished()
+      Assert.False(controller._Test_GetFrame().shown, "the calm variant must hide the alert when it ends")
+
+      db.reduceMotion = false
+      controller.ShowRoleDeath("TANK")
+      Assert.Equal(fullGroup.plays, 1, "switching reduced motion off must restore the scale punch live")
+      Assert.Equal(calmGroup.plays, 1, "the calm variant must not replay once reduced motion is off")
+    end)
   end)
 
   test("DeathAlert renders Power Infusion alert with the death-alert animation style", function()

@@ -31,6 +31,100 @@ local ACTIVE_DUNGEON_RIGHT_OFFSET = 122
 local ACTIVE_DUNGEON_LABEL_WIDTH = 146
 local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
+local FILL_MOTION_TOKEN = "normal"
+local FILL_MOTION_FALLBACK_SECONDS = 0.2
+
+-- Number text in the addon language's decimal format. Falls back to a plain
+-- dot when UICommon is not loaded (standalone harness loads).
+local function FormatPercentText(value)
+  local format = type(UICommon.FormatDecimal) == "function" and UICommon.FormatDecimal or nil
+  local text = format and format(value, 2) or string.format("%.2f", value)
+  return (text or "") .. "%"
+end
+
+local function BuildPercentPlaceholder()
+  local separator = type(UICommon.GetDecimalSeparator) == "function" and UICommon.GetDecimalSeparator() or "."
+  return "--" .. separator .. "--"
+end
+
+local function IsReducedMotionEnabled()
+  return type(UICommon.IsReducedMotionEnabled) == "function" and UICommon.IsReducedMotionEnabled() == true
+end
+
+local function ResolveFillMotionSeconds()
+  if type(UICommon.ResolveMotionDuration) == "function" then
+    return UICommon.ResolveMotionDuration(FILL_MOTION_TOKEN)
+  end
+  return FILL_MOTION_FALLBACK_SECONDS
+end
+
+local function StopFillMotion(row)
+  row._fillMotion = nil
+  local container = row.killTrackBarContainer
+  if container and type(container.SetScript) == "function" then
+    container:SetScript("OnUpdate", nil)
+  end
+end
+
+-- Moves the progress fill to `targetWidth`. A change of an already visible
+-- fill eases out over the shared `normal` motion duration; the first width,
+-- reduced motion, and containers without OnUpdate apply it directly. The
+-- OnUpdate script only runs while a change is in flight.
+local function ApplyFillWidth(row, targetWidth)
+  local fill = row.killTrackBarFill
+  local container = row.killTrackBarContainer
+  local current = row._fillDisplayedWidth
+  local canAnimate = current ~= nil
+    and current ~= targetWidth
+    and not IsReducedMotionEnabled()
+    and container
+    and type(container.SetScript) == "function"
+  if not canAnimate then
+    StopFillMotion(row)
+    fill:SetWidth(targetWidth)
+    row._fillDisplayedWidth = targetWidth
+    return
+  end
+
+  local motion = { from = current, to = targetWidth, elapsed = 0, duration = ResolveFillMotionSeconds() }
+  row._fillMotion = motion
+  container:SetScript("OnUpdate", function(_, elapsed)
+    motion.elapsed = motion.elapsed + (tonumber(elapsed) or 0)
+    local progress = motion.duration > 0 and math.min(motion.elapsed / motion.duration, 1) or 1
+    local eased = 1 - ((1 - progress) * (1 - progress))
+    local width = math.max(1, motion.from + ((motion.to - motion.from) * eased))
+    fill:SetWidth(width)
+    row._fillDisplayedWidth = width
+    if progress >= 1 then
+      StopFillMotion(row)
+    end
+  end)
+end
+
+local function HideFill(row)
+  StopFillMotion(row)
+  row._fillDisplayedWidth = nil
+  if row.killTrackBarFill then
+    row.killTrackBarFill:Hide()
+  end
+end
+
+-- One short fade on the fill when forces reach 100% during a run. Only a
+-- crossing counts: a first render that already shows 100% stays quiet.
+local function MaybeFlashForcesComplete(row, isComplete)
+  local wasComplete = row._forcesComplete
+  row._forcesComplete = isComplete
+  if not isComplete or wasComplete ~= false then
+    return
+  end
+  if type(UICommon.PlayAlphaTransition) == "function" then
+    UICommon.PlayAlphaTransition(row.killTrackBarFill, "forcesComplete", {
+      fromAlpha = 0.35,
+      toAlpha = 1,
+      duration = "slow",
+    })
+  end
+end
 
 local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
@@ -176,7 +270,7 @@ local function CreateKillTrackRow(mainFrame)
   pctText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
   pctText:SetWidth(58)
   pctText:SetJustifyH("RIGHT")
-  pctText:SetText("--,--")
+  pctText:SetText(BuildPercentPlaceholder())
   ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE + 2)
 
   row.killTrackBarContainer = barContainer
@@ -343,32 +437,36 @@ local function UpdateKillTrackRow(row, deps)
     activeDungeonName = AppendDeathCountToActiveDungeonName(activeDungeonName)
     SetActiveDungeonContext(activeDungeonName)
     local pct = math.max(0, math.min(data.percent, 100))
-    local r, g, b
-    if pct < 80 then
-      r, g, b = 0.2, 0.75, 0.35
-    elseif pct < 95 then
-      r, g, b = 0.9, 0.75, 0.1
-    else
-      r, g, b = 0.9, 0.3, 0.15
-    end
+    -- Calm blue while forces are open; green only once 100% is reached.
+    local isComplete = pct >= 100
+    local colors = UICommon.Colors or {}
+    local fillColor = isComplete and (colors.SUCCESS_GREEN_BAR or { 0.2, 0.75, 0.35 })
+      or (colors.MPLUS_FORCES_PROGRESS_FILL or { 0.26, 0.56, 0.9 })
+    local textColor = isComplete and (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
+      or (colors.LIGHT_BLUE_LEVEL_TEXT or { 0.65, 0.85, 1.0 })
     local w = type(barContainer.GetWidth) == "function" and barContainer:GetWidth() or 0
+    local fillTargetWidth = 0
     if barFill then
       local fw = math.floor(w * pct / 100 + 0.5)
       if fw > 0 then
-        barFill:SetWidth(fw)
-        barFill:SetVertexColor(r, g, b)
+        fillTargetWidth = fw
+        ApplyFillWidth(row, fw)
+        barFill:SetVertexColor(fillColor[1], fillColor[2], fillColor[3])
         barFill:Show()
+        MaybeFlashForcesComplete(row, isComplete)
       else
-        barFill:Hide()
+        HideFill(row)
+        row._forcesComplete = false
       end
     end
     local pullPct = (data.inCombat and type(data.pullPercent) == "number") and data.pullPercent or 0
     if barPull then
       if data.inCombat and pullPct > 0 and w > 0 then
         local pw = math.floor(w * pullPct / 100 + 0.5)
-        local fw = barFill and (type(barFill.GetWidth) == "function" and barFill:GetWidth() or 0) or 0
-        if fw + pw > w then
-          pw = math.max(1, w - fw)
+        -- Clamp against the target fill width, not the width currently on
+        -- screen, so an easing fill cannot let the pull overlay overshoot.
+        if fillTargetWidth + pw > w then
+          pw = math.max(1, w - fillTargetWidth)
         end
         barPull:SetWidth(math.max(1, pw))
         barPull:Show()
@@ -377,14 +475,14 @@ local function UpdateKillTrackRow(row, deps)
       end
     end
     if pctText then
-      pctText:SetText(string.format("%.2f%%", pct):gsub("%.", ","))
+      pctText:SetText(FormatPercentText(pct))
       if type(pctText.SetTextColor) == "function" then
-        pctText:SetTextColor(r, g, b)
+        pctText:SetTextColor(textColor[1], textColor[2], textColor[3])
       end
     end
     if pullText then
       if data.inCombat and pullPct > 0 then
-        pullText:SetText("+" .. string.format("%.2f%%", pullPct):gsub("%.", ","))
+        pullText:SetText("+" .. FormatPercentText(pullPct))
         if type(pullText.SetTextColor) == "function" then
           pullText:SetTextColor(
             unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_PULL_TEXT) or { 0.6, 0.85, 1.0 })
@@ -402,7 +500,8 @@ local function UpdateKillTrackRow(row, deps)
       barBg:Hide()
     end
     if barFill then
-      barFill:Hide()
+      row._forcesComplete = nil
+      HideFill(row)
     end
     if barPull then
       barPull:Hide()
@@ -445,7 +544,8 @@ local function UpdateKillTrackRow(row, deps)
       barBg:Show()
     end
     if barFill then
-      barFill:Hide()
+      row._forcesComplete = nil
+      HideFill(row)
     end
     if barPull then
       barPull:Hide()
@@ -458,7 +558,7 @@ local function UpdateKillTrackRow(row, deps)
     end
     SetActiveDungeonContext(nil)
     if pctText then
-      pctText:SetText("--,--")
+      pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then
         pctText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GRAY_MUTED_PCT) or { 0.4, 0.4, 0.5 }))
       end

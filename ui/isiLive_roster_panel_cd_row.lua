@@ -18,6 +18,36 @@ local CD_TRACKER_FONT_SIZE = 12
 local MPLUS_TIMER_TEXT_WIDTH = 48
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 
+-- Timeline along the bottom edge of the M+ timer box. It lives inside the
+-- existing 20 px box, so the run-zone geometry stays untouched.
+local TIMELINE_HEIGHT = 2
+local TIMELINE_TICK_HEIGHT = 4
+-- 1 px backdrop border plus 1 px air.
+local TIMELINE_INSET = 2
+-- +3 and +2 cutoffs as fractions of the time limit (see MplusTimer.StartTimer).
+local TIMELINE_TICK_FRACTIONS = { 0.6, 0.8 }
+local INACTIVE_GRADE_ALPHA = 0.5
+local GRADE_ELEMENTS = {
+  [3] = { badge = "mp3Icon", text = "mp3Text" },
+  [2] = { badge = "mp2Icon", text = "mp2Text" },
+  [1] = { badge = "mp1Icon", text = "mp1Text" },
+}
+-- Fail-closed fallbacks for harness loads without UICommon.Colors.
+local FALLBACK_TIMELINE_COLORS = {
+  MPLUS_TIMELINE_TRACK = { 0, 0, 0, 0.45 },
+  MPLUS_TIMELINE_TICK = { 0.9, 0.95, 1, 0.6 },
+  MPLUS_GRADE3_FILL = { 0.3, 0.85, 0.4, 0.9 },
+  MPLUS_GRADE2_FILL = { 1, 0.82, 0.2, 0.9 },
+  MPLUS_GRADE1_FILL = { 0.85, 0.88, 0.95, 0.85 },
+  MPLUS_OVERTIME_FILL = { 1, 0.3, 0.3, 0.9 },
+}
+local GRADE_FILL_COLOR_KEYS = {
+  [3] = "MPLUS_GRADE3_FILL",
+  [2] = "MPLUS_GRADE2_FILL",
+  [1] = "MPLUS_GRADE1_FILL",
+  [0] = "MPLUS_OVERTIME_FILL",
+}
+
 local function BuildDeathSummaryTooltipLines(summaries)
   local lines = {}
   if type(summaries) ~= "table" then
@@ -96,6 +126,210 @@ local function CreateMplusGradeBadge(parent, leftOffset, bgR, bgG, bgB, labelTex
   return badge
 end
 
+local function CallIfPresent(target, method, ...)
+  local fn = type(target) == "table" and target[method] or nil
+  if type(fn) == "function" then
+    return fn(target, ...)
+  end
+  return nil
+end
+
+local function ResolveTimelineColor(key)
+  local common = addonTable.UICommon
+  local colors = type(common) == "table" and common.Colors or nil
+  local color = type(colors) == "table" and colors[key] or nil
+  return type(color) == "table" and color or FALLBACK_TIMELINE_COLORS[key]
+end
+
+local function PaintTimelineTexture(texture, colorKey)
+  local color = ResolveTimelineColor(colorKey)
+  if type(color) == "table" then
+    CallIfPresent(texture, "SetColorTexture", color[1], color[2], color[3], color[4] or 1)
+  end
+end
+
+local function CreateMplusTimeline(box)
+  if type(box) ~= "table" or type(box.CreateTexture) ~= "function" then
+    return nil
+  end
+
+  local track = box:CreateTexture(nil, "ARTWORK")
+  CallIfPresent(track, "SetPoint", "BOTTOMLEFT", box, "BOTTOMLEFT", TIMELINE_INSET, TIMELINE_INSET)
+  CallIfPresent(track, "SetPoint", "BOTTOMRIGHT", box, "BOTTOMRIGHT", -TIMELINE_INSET, TIMELINE_INSET)
+  CallIfPresent(track, "SetHeight", TIMELINE_HEIGHT)
+  CallIfPresent(track, "Hide")
+
+  local fill = box:CreateTexture(nil, "ARTWORK", nil, 1)
+  CallIfPresent(fill, "SetPoint", "BOTTOMLEFT", track, "BOTTOMLEFT", 0, 0)
+  CallIfPresent(fill, "SetHeight", TIMELINE_HEIGHT)
+  CallIfPresent(fill, "Hide")
+
+  local ticks = {}
+  for index = 1, #TIMELINE_TICK_FRACTIONS do
+    local tick = box:CreateTexture(nil, "OVERLAY")
+    CallIfPresent(tick, "SetSize", 1, TIMELINE_TICK_HEIGHT)
+    CallIfPresent(tick, "Hide")
+    ticks[index] = tick
+  end
+
+  return { track = track, fill = fill, ticks = ticks }
+end
+
+local function ReadPlainTimerNumber(value)
+  local validators = addonTable.Validators
+  if
+    type(validators) == "table"
+    and type(validators.IsSecretValue) == "function"
+    and validators.IsSecretValue(value)
+  then
+    return nil
+  end
+  return type(value) == "number" and value or nil
+end
+
+-- Share of the time limit already spent, clamped to [0, 1]; nil when the
+-- snapshot carries no usable timer or limit.
+local function ResolveTimelineFraction(data)
+  if type(data) ~= "table" then
+    return nil
+  end
+  local timer = ReadPlainTimerNumber(data.timer)
+  local limit = ReadPlainTimerNumber(data.timeLimit)
+  if not timer or not limit or limit <= 0 or timer < 0 then
+    return nil
+  end
+  return math.min(timer / limit, 1)
+end
+
+-- Highest chest grade that is still reachable: 3, 2 or 1, and 0 once the
+-- +1 cutoff has passed.
+local function ResolveActiveGrade(data)
+  if (tonumber(data.timeRemaining3) or -1) >= 0 then
+    return 3
+  elseif (tonumber(data.timeRemaining2) or -1) >= 0 then
+    return 2
+  elseif (tonumber(data.timeRemaining1) or -1) >= 0 then
+    return 1
+  end
+  return 0
+end
+
+local function HideMplusTimeline(timeline)
+  if not timeline then
+    return
+  end
+  CallIfPresent(timeline.track, "Hide")
+  CallIfPresent(timeline.fill, "Hide")
+  for _, tick in ipairs(timeline.ticks) do
+    CallIfPresent(tick, "Hide")
+  end
+end
+
+local function UpdateMplusTimeline(timeline, box, data, activeGrade)
+  if not timeline then
+    return
+  end
+  local fraction = ResolveTimelineFraction(data)
+  local width = fraction and tonumber(CallIfPresent(box, "GetWidth")) or nil
+  local innerWidth = width and (width - (TIMELINE_INSET * 2)) or 0
+  if not fraction or innerWidth <= 0 then
+    HideMplusTimeline(timeline)
+    return
+  end
+
+  PaintTimelineTexture(timeline.track, "MPLUS_TIMELINE_TRACK")
+  CallIfPresent(timeline.track, "Show")
+
+  local fillWidth = math.floor((innerWidth * fraction) + 0.5)
+  if fillWidth > 0 then
+    CallIfPresent(timeline.fill, "SetWidth", fillWidth)
+    PaintTimelineTexture(timeline.fill, GRADE_FILL_COLOR_KEYS[activeGrade] or "MPLUS_GRADE1_FILL")
+    CallIfPresent(timeline.fill, "Show")
+  else
+    CallIfPresent(timeline.fill, "Hide")
+  end
+
+  for index, tick in ipairs(timeline.ticks) do
+    local x = math.floor((innerWidth * TIMELINE_TICK_FRACTIONS[index]) + 0.5)
+    CallIfPresent(tick, "ClearAllPoints")
+    CallIfPresent(tick, "SetPoint", "BOTTOMLEFT", timeline.track, "BOTTOMLEFT", x, 0)
+    PaintTimelineTexture(tick, "MPLUS_TIMELINE_TICK")
+    CallIfPresent(tick, "Show")
+  end
+end
+
+-- Keeps the reachable grade at full opacity and dims the others. In overtime
+-- the red +1 overshoot stays emphasized. `activeGrade == nil` (no key)
+-- restores every grade. A grade change after the first render briefly fades
+-- the newly active time in; reduced motion skips that through UICommon.
+local function ApplyGradeEmphasis(row, activeGrade)
+  local emphasized = activeGrade == 0 and 1 or activeGrade
+  for grade, elements in pairs(GRADE_ELEMENTS) do
+    local alpha = (emphasized == nil or grade == emphasized) and 1 or INACTIVE_GRADE_ALPHA
+    CallIfPresent(row[elements.badge], "SetAlpha", alpha)
+    CallIfPresent(row[elements.text], "SetAlpha", alpha)
+  end
+
+  local previous = row._activeGrade
+  row._activeGrade = activeGrade
+  if emphasized == nil or previous == nil or previous == activeGrade then
+    return
+  end
+  local common = addonTable.UICommon
+  if type(common) == "table" and type(common.PlayAlphaTransition) == "function" then
+    common.PlayAlphaTransition(row[GRADE_ELEMENTS[emphasized].text], "mplusGrade", {
+      fromAlpha = 0.35,
+      toAlpha = 1,
+      duration = "slow",
+    })
+  end
+end
+
+-- Cooldown swipe over a BR/BL icon. The countdown numbers stay hidden because
+-- the row already prints the remaining time next to the icon.
+local function CreateIconCooldown(parent, icon)
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) ~= "function" or type(icon) ~= "table" then
+    return nil
+  end
+  local cooldown = createFrame("Cooldown", nil, parent, "CooldownFrameTemplate")
+  if type(cooldown) ~= "table" then
+    return nil
+  end
+  CallIfPresent(cooldown, "SetAllPoints", icon)
+  CallIfPresent(cooldown, "SetDrawEdge", false)
+  CallIfPresent(cooldown, "SetHideCountdownNumbers", true)
+  return cooldown
+end
+
+-- Keeps the swipe in step with `remain` / `duration`. The swipe is only
+-- restarted when the end time moves by more than half a second, so the
+-- once-per-second refresh does not make it stutter.
+local ICON_COOLDOWN_RESYNC_SECONDS = 0.5
+
+local function UpdateIconCooldown(row, stateKey, cooldown, remain, duration)
+  if not cooldown then
+    return
+  end
+  remain = ReadPlainTimerNumber(remain)
+  duration = ReadPlainTimerNumber(duration)
+  local getTime = rawget(_G, "GetTime")
+  local now = type(getTime) == "function" and ReadPlainTimerNumber(getTime()) or nil
+  if not (remain and duration and now and remain > 0 and duration >= remain) then
+    if row[stateKey] ~= nil then
+      CallIfPresent(cooldown, "SetCooldown", 0, 0)
+      row[stateKey] = nil
+    end
+    return
+  end
+  local endTime = now + remain
+  local shownEnd = row[stateKey]
+  if shownEnd == nil or math.abs(shownEnd - endTime) > ICON_COOLDOWN_RESYNC_SECONDS then
+    CallIfPresent(cooldown, "SetCooldown", endTime - duration, duration)
+    row[stateKey] = endTime
+  end
+end
+
 local function CreateCdTrackerRow(mainFrame, opts)
   opts = opts or {}
   local UICommon = addonTable.UICommon or {}
@@ -164,6 +398,9 @@ local function CreateCdTrackerRow(mainFrame, opts)
   row.lustText:SetJustifyH("LEFT")
   row.lustText:SetText("")
   ApplyFontStringSize(row.lustText, CD_TRACKER_FONT_SIZE)
+
+  row.bresCooldown = CreateIconCooldown(cdBox, row.bresIcon)
+  row.lustCooldown = CreateIconCooldown(cdBox, row.lustIcon)
 
   -- Cache spell icons once at creation time to avoid repeated API calls on every refresh.
   local C_Spell_ref = rawget(_G, "C_Spell")
@@ -251,7 +488,11 @@ local function CreateCdTrackerRow(mainFrame, opts)
   if type(row.mpDeathIcon.SetPoint) == "function" then
     row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 246, 0)
   end
-  if type(row.mpDeathIcon.SetTexture) == "function" then
+  -- Skull-and-bones death icon instead of the raid-target skull, which the
+  -- world-marker buttons right next to this row already use.
+  if type(UICommon.ApplyStateIcon) == "function" then
+    UICommon.ApplyStateIcon(row.mpDeathIcon, "death")
+  elseif type(row.mpDeathIcon.SetTexture) == "function" then
     row.mpDeathIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
   end
 
@@ -308,6 +549,8 @@ local function CreateCdTrackerRow(mainFrame, opts)
   row.mpDeathText:SetText("")
   ApplyFontStringSize(row.mpDeathText, CD_TRACKER_FONT_SIZE)
 
+  row.mpTimeline = CreateMplusTimeline(mplusBox)
+
   return row
 end
 
@@ -333,8 +576,13 @@ local function UpdateCdTrackerRow(row, cdController)
       else
         row.bresText:SetText(string.format("%d/%d", charges, maxCharges))
       end
+      -- No charge left: the icon greys out until the next charge is back.
+      CallIfPresent(row.bresIcon, "SetDesaturated", charges <= 0)
+      UpdateIconCooldown(row, "_bresCooldownEnd", row.bresCooldown, remain, bres.cooldownDuration)
     else
       row.bresText:SetText("BR: --")
+      CallIfPresent(row.bresIcon, "SetDesaturated", false)
+      UpdateIconCooldown(row, "_bresCooldownEnd", row.bresCooldown, nil, nil)
     end
   end
 
@@ -357,6 +605,7 @@ local function UpdateCdTrackerRow(row, cdController)
       local mins = math.floor(remain / 60)
       local secs = math.floor(remain % 60)
       row.lustText:SetText(string.format("%02d:%02d", mins, secs))
+      UpdateIconCooldown(row, "_lustCooldownEnd", row.lustCooldown, remain, lust.duration)
     else
       if row._lustDefaultIcon then
         row.lustIcon:SetTexture(row._lustDefaultIcon)
@@ -365,6 +614,7 @@ local function UpdateCdTrackerRow(row, cdController)
         row.lustIcon:Show()
       end
       row.lustText:SetText("BL: --")
+      UpdateIconCooldown(row, "_lustCooldownEnd", row.lustCooldown, nil, nil)
     end
   end
 
@@ -414,6 +664,10 @@ local function UpdateCdTrackerRow(row, cdController)
         row._deathTimeLost = 0
         row.mpDeathText:SetText("")
       end
+
+      local activeGrade = ResolveActiveGrade(data)
+      ApplyGradeEmphasis(row, activeGrade)
+      UpdateMplusTimeline(row.mpTimeline, row.mplusBox, data, activeGrade)
     else
       -- no active key: show --:-- for all
       SetFontStringTextColorSafe(row.mp3Text, 0.4, 0.4, 0.5)
@@ -425,6 +679,8 @@ local function UpdateCdTrackerRow(row, cdController)
       SetFontStringTextColorSafe(row.mpDeathText, 0.4, 0.4, 0.5)
       row._deathTimeLost = 0
       row.mpDeathText:SetText("--")
+      ApplyGradeEmphasis(row, nil)
+      HideMplusTimeline(row.mpTimeline)
     end
   end
 end

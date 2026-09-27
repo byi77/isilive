@@ -27,8 +27,6 @@ local ROW_TINT_ALPHA = 0.12
 local PRIMARY_ROW_TINT_ALPHA = 0.22
 local ROW_TINT_SIDE_PADDING = 3
 local ROW_TINT_VERTICAL_INSET = 1
-local SEPARATOR_ALPHA = 0
-local SEPARATOR_WIDTH = 1
 local HOVER_MIN_BG_ALPHA = 0.18
 local LABEL_COLUMN_WIDTH = 35
 local VALUE_COLUMN_WIDTH = 60
@@ -232,7 +230,6 @@ local function ResolveLayout()
     rightPadding = ScaleDimension(RIGHT_PADDING, scale),
     topPadding = ScaleDimension(TOP_PADDING, scale),
     bottomPadding = ScaleDimension(BOTTOM_PADDING, scale),
-    separatorWidth = ScaleDimension(SEPARATOR_WIDTH, scale),
     columnGap = ScaleDimension(COLUMN_GAP, scale),
     valuePercentGap = ScaleDimension(VALUE_PERCENT_GAP, scale),
   }
@@ -821,33 +818,6 @@ end
 ApplyLayout = function(state, layout)
   state.layout = layout
   state.frame:SetSize(layout.width, layout.height)
-  if state.separator then
-    if layout.hasPercent then
-      if type(state.separator.ClearAllPoints) == "function" then
-        state.separator:ClearAllPoints()
-      end
-      if type(state.separator.SetPoint) == "function" then
-        local xOffset = layout.leftPadding
-          + layout.labelWidth
-          + layout.columnGap
-          + layout.valueWidth
-          + math.floor((layout.valuePercentGap - layout.separatorWidth) / 2)
-        state.separator:SetPoint("TOPLEFT", state.frame, "TOPLEFT", xOffset, -layout.topPadding)
-        state.separator:SetPoint(
-          "BOTTOMRIGHT",
-          state.frame,
-          "BOTTOMLEFT",
-          xOffset + layout.separatorWidth,
-          layout.bottomPadding
-        )
-      end
-      if type(state.separator.Hide) == "function" then
-        state.separator:Hide()
-      end
-    elseif type(state.separator.Hide) == "function" then
-      state.separator:Hide()
-    end
-  end
   for index, rowFrame in ipairs(state.lines) do
     local yOffset = -layout.topPadding - ((index - 1) * layout.lineHeight)
     if rowFrame.tint then
@@ -947,25 +917,14 @@ function StatsBox.Create(opts)
     ApplyBackdrop(frame, "BUTTON_BG")
   end
 
+  -- No value/percent separator: the columns read cleanly on their own, and a
+  -- permanently hidden texture was only layout overhead.
   local state = {
     frame = frame,
-    separator = nil,
     lines = {},
     elapsed = 0,
     collectStats = opts.collectStats or StatsBox.CollectPlayerStats,
   }
-
-  if type(frame.CreateTexture) == "function" then
-    local separator = frame:CreateTexture(nil, "BORDER")
-    if type(separator.SetColorTexture) == "function" then
-      local gold = Colors.GOLD_SEPARATOR_BASE or { 1, 0.9, 0.45 }
-      separator:SetColorTexture(gold[1], gold[2], gold[3], SEPARATOR_ALPHA)
-    end
-    if type(separator.Hide) == "function" then
-      separator:Hide()
-    end
-    state.separator = separator
-  end
 
   for index = 1, 10 do
     local tint = nil

@@ -707,7 +707,7 @@ return function(test, ctx)
       local button = common.CreateActionButton(MakeFrameStub(), { role = "primary" })
       button:SetAvailabilityState("leader")
       Assert.Equal(button._isiLiveAvailability, "leader", "leader lock must be explicit")
-      Assert.Equal(button._availabilityMark:GetText(), "x", "leader lock must have a text marker")
+      Assert.Equal(button._availabilityIcon._isiLiveStateIcon, "lock", "leader lock must show the lock icon")
       button._hookScripts.OnEnter(button)
       Assert.Equal(
         button._backdropColor[1],
@@ -715,11 +715,13 @@ return function(test, ctx)
         "locked hover must stay muted"
       )
       button:SetAvailabilityState("cooldown")
-      Assert.Equal(button._availabilityMark:GetText(), "~", "cooldown must have a distinct marker")
+      Assert.Equal(button._availabilityIcon._isiLiveStateIcon, "cooldown", "cooldown must show the hourglass icon")
       button:SetAvailabilityState("combat")
-      Assert.Equal(button._availabilityMark:GetText(), "!", "combat lock must have a distinct marker")
+      Assert.Equal(button._availabilityIcon._isiLiveStateIcon, "warning", "combat lock must show the warning icon")
+      button:SetAvailabilityState("unavailable")
+      Assert.Equal(button._availabilityIcon._isiLiveStateIcon, "unavailable", "unavailable must show its own icon")
       button:SetAvailabilityState("available")
-      Assert.Equal(button._availabilityMark:GetText(), "", "available action must clear the marker")
+      Assert.Nil(button._availabilityIcon._isiLiveStateIcon, "available action must clear the icon")
       Assert.Equal(
         button._backdropColor[1],
         common.Colors.SURFACE_ACTION_PRIMARY[1],
@@ -760,10 +762,10 @@ return function(test, ctx)
     local ok, changed = UICommon.ApplyNoticeKind(parent, "info")
     Assert.True(ok, "info notice kind should apply")
     Assert.False(changed, "initial notice kind is not a status switch")
-    Assert.Equal(parent._isiLiveNoticeKindMarker:GetText(), "i", "info uses a readable marker")
+    Assert.Equal(parent._isiLiveNoticeKindIcon._isiLiveStateIcon, "info", "info uses the info icon")
     local _, switched = UICommon.ApplyNoticeKind(parent, "warning")
     Assert.True(switched, "changing notice kind should report a status switch")
-    Assert.Equal(parent._isiLiveNoticeKindMarker:GetText(), "!", "warning uses an alert marker")
+    Assert.Equal(parent._isiLiveNoticeKindIcon._isiLiveStateIcon, "warning", "warning uses the alert icon")
     Assert.True(UICommon.PlayNoticeTransition(parent), "notice transition should start")
     Assert.True(parent._isiLiveNoticeTransition:IsPlaying(), "transition group should be playing")
     Assert.Equal(UICommon.ApplyNoticeKind(parent, "unknown"), false, "unknown notice kind should fail closed")
@@ -775,6 +777,275 @@ return function(test, ctx)
         "enabling reduced motion should stop an active notice fade"
       )
       Assert.False(UICommon.PlayNoticeTransition(parent), "reduced motion should skip decorative notice fades")
+    end)
+  end)
+
+  local function MakeMotionFrameStub(initialAlpha)
+    local frame = { alpha = initialAlpha or 1, groupCount = 0 }
+    function frame:GetAlpha()
+      return self.alpha
+    end
+    function frame:SetAlpha(alpha)
+      self.alpha = alpha
+    end
+    function frame:CreateAnimationGroup()
+      self.groupCount = self.groupCount + 1
+      local group = { _playing = false, scripts = {}, animations = {} }
+      function group:CreateAnimation(animType)
+        local anim = { type = animType }
+        function anim:SetFromAlpha(value)
+          self.fromAlpha = value
+        end
+        function anim:SetToAlpha(value)
+          self.toAlpha = value
+        end
+        function anim:SetDuration(value)
+          self.duration = value
+        end
+        function anim:SetSmoothing(value)
+          self.smoothing = value
+        end
+        table.insert(self.animations, anim)
+        return anim
+      end
+      function group:SetScript(name, handler)
+        self.scripts[name] = handler
+      end
+      function group:IsPlaying()
+        return self._playing
+      end
+      function group:Play()
+        self._playing = true
+      end
+      function group:Stop()
+        self._playing = false
+      end
+      self.lastGroup = group
+      return group
+    end
+    return frame
+  end
+
+  local function MakeRecordingTexture()
+    local texture = { _shown = true }
+    function texture:SetTexture(path)
+      self._path = path
+    end
+    function texture:SetTexCoord(...)
+      self._texCoord = { ... }
+    end
+    function texture:Show()
+      self._shown = true
+    end
+    function texture:Hide()
+      self._shown = false
+    end
+    function texture:ClearAllPoints()
+      self._points = {}
+    end
+    function texture:SetPoint(...)
+      self._points = self._points or {}
+      self._points[#self._points + 1] = { ... }
+    end
+    function texture:SetVertexColor(...)
+      self._vertexColor = { ... }
+    end
+    function texture:SetColorTexture(...)
+      self._colorTexture = { ... }
+    end
+    function texture:SetDrawLayer(layer, sublevel)
+      self._drawLayer = { layer, sublevel }
+    end
+    function texture:SetBlendMode(mode)
+      self._blendMode = mode
+    end
+    return texture
+  end
+
+  test("UICommon state icons map semantic keys to client textures and clear on nil", function()
+    local UICommon = LoadUICommon()
+    local texture = MakeRecordingTexture()
+
+    Assert.True(UICommon.ApplyStateIcon(texture, "death"), "known icon keys must apply")
+    Assert.Equal(texture._path, "Interface\\WorldStateFrame\\SkullBones", "death must use the skull-and-bones art")
+    Assert.Equal(texture._texCoord[1], 0.046875, "death must crop the skull from its sprite sheet")
+    Assert.Equal(texture._texCoord[4], 0.46875, "death crop must end at the skull's lower edge")
+    Assert.Equal(texture._isiLiveStateIcon, "death", "applied icon key must be observable")
+
+    UICommon.ApplyStateIcon(texture, "lock")
+    Assert.Equal(texture._path, "Interface\\PetBattles\\PetBattle-LockIcon", "lock must use the pet battle lock")
+    Assert.Equal(texture._texCoord[2], 1, "a plain texture must reset a previous crop")
+
+    UICommon.ApplyStateIcon(texture, "cooldown")
+    Assert.Equal(texture._texCoord[1], 0.08, "item icons must drop their built-in border")
+
+    Assert.False(UICommon.ApplyStateIcon(texture, nil), "nil must clear the icon")
+    Assert.False(texture._shown, "a cleared icon must be hidden")
+    Assert.Nil(texture._isiLiveStateIcon, "a cleared icon must drop its key")
+    Assert.False(UICommon.ApplyStateIcon(texture, "unknown"), "unknown icon keys must fail closed")
+    Assert.False(UICommon.ApplyStateIcon(nil, "lock"), "a missing texture must fail closed")
+  end)
+
+  test("UICommon flat checkbox style replaces template art with layered flat textures", function()
+    local UICommon = LoadUICommon()
+    local function MakeCheckStub(width)
+      local check = { _slots = {}, _created = {} }
+      function check:GetWidth()
+        return width
+      end
+      function check:CreateTexture(_, layer)
+        local texture = MakeRecordingTexture()
+        texture._createdLayer = layer
+        table.insert(self._created, texture)
+        return texture
+      end
+      for _, slot in ipairs({
+        "NormalTexture",
+        "PushedTexture",
+        "HighlightTexture",
+        "CheckedTexture",
+        "DisabledCheckedTexture",
+      }) do
+        check["Set" .. slot] = function(self, path)
+          self._slots[slot] = self._slots[slot] or MakeRecordingTexture()
+          self._slots[slot]._path = path
+        end
+        check["Get" .. slot] = function(self)
+          return self._slots[slot]
+        end
+      end
+      return check
+    end
+
+    local check = MakeCheckStub(24)
+    Assert.True(UICommon.ApplyFlatCheckboxStyle(check), "flat style must apply to a check button")
+    Assert.True(check._isiLiveFlatCheckbox, "styled checkboxes must be observable")
+    Assert.Equal(check._slots.NormalTexture._path, "Interface\\Buttons\\WHITE8X8", "template art must be replaced")
+    Assert.Equal(check._slots.NormalTexture._drawLayer[1], "ARTWORK", "the box fill must draw on ARTWORK")
+    Assert.Equal(check._slots.CheckedTexture._drawLayer[1], "OVERLAY", "the check mark must draw above the fill")
+    Assert.Equal(check._slots.HighlightTexture._blendMode, "ADD", "hover must blend additively")
+    Assert.Equal(
+      check._slots.CheckedTexture._vertexColor[1],
+      UICommon.Colors.ACCENT_BLUE[1],
+      "the check mark must use the cool accent"
+    )
+    Assert.Equal(check._slots.NormalTexture._points[1][4], 4, "a 24 px box fill must sit 4 px inside")
+    Assert.Equal(check._slots.CheckedTexture._points[1][4], 7, "a 24 px check mark must sit 7 px inside")
+    Assert.Equal(check._isiLiveFlatOutline._createdLayer, "BACKGROUND", "the outline must stay behind the fill")
+    Assert.Equal(check._isiLiveFlatOutline._points[1][4], 3, "a 24 px outline must sit 3 px inside")
+
+    local small = MakeCheckStub(18)
+    UICommon.ApplyFlatCheckboxStyle(small)
+    Assert.Equal(small._isiLiveFlatOutline._points[1][4], 2, "an 18 px outline must sit 2 px inside")
+    Assert.Equal(small._slots.CheckedTexture._points[1][4], 5, "an 18 px check mark must sit 5 px inside")
+
+    UICommon.ApplyFlatCheckboxStyle(check)
+    Assert.Equal(#check._created, 1, "restyling must not stack a second outline")
+    Assert.False(UICommon.ApplyFlatCheckboxStyle(nil), "a missing check button must fail closed")
+  end)
+
+  test("UICommon decimal format follows the addon language and fails closed", function()
+    local UICommon = LoadUICommon()
+    WithGlobals({ IsiLiveDB = { locale = "deDE" } }, function()
+      Assert.Equal(UICommon.GetDecimalSeparator(), ",", "stored deDE addon language must use a decimal comma")
+      Assert.Equal(UICommon.FormatDecimal(12.345, 2), "12,35", "deDE decimals must be rounded and comma separated")
+    end)
+    WithGlobals({ IsiLiveDB = { locale = "enUS" } }, function()
+      Assert.Equal(UICommon.FormatDecimal(12.345, 2), "12.35", "enUS decimals must use a decimal point")
+    end)
+    for _, tag in ipairs({ "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }) do
+      Assert.Equal(UICommon.GetDecimalSeparator(tag), ",", tag .. " must use a decimal comma")
+    end
+    Assert.Equal(UICommon.GetDecimalSeparator("enUS"), ".", "enUS must use a decimal point")
+    Assert.Equal(UICommon.FormatDecimal(7, 0, "deDE"), "7", "zero decimals must not add a separator")
+    Assert.Nil(UICommon.FormatDecimal("abc", 2, "enUS"), "non-numeric input must fail closed")
+  end)
+
+  test("UICommon motion tokens resolve shared durations and easing", function()
+    local UICommon = LoadUICommon()
+    Assert.Equal(UICommon.Motion.duration.fast, 0.14, "fast must stay the existing Center-Notice fade")
+    Assert.Equal(UICommon.Motion.duration.normal, 0.2, "normal transition token")
+    Assert.Equal(UICommon.Motion.duration.slow, 0.35, "slow transition token")
+    Assert.Equal(UICommon.Motion.smoothing.enter, "OUT", "entering motion decelerates")
+    Assert.Equal(UICommon.Motion.smoothing.exit, "IN", "leaving motion accelerates")
+    Assert.Equal(UICommon.ResolveMotionDuration("slow"), 0.35, "named tokens resolve to their duration")
+    Assert.Equal(UICommon.ResolveMotionDuration(0.5), 0.5, "explicit seconds pass through")
+    Assert.Equal(UICommon.ResolveMotionDuration("unknown"), 0.2, "unknown tokens fall back to normal")
+    Assert.Equal(UICommon.ResolveMotionDuration(-1), 0.2, "negative seconds fall back to normal")
+  end)
+
+  test("UICommon alpha transition builds once, restarts and settles at the resting alpha", function()
+    local UICommon = LoadUICommon()
+    local frame = MakeMotionFrameStub(0.8)
+
+    Assert.True(
+      UICommon.PlayAlphaTransition(frame, "fade", { fromAlpha = 0, toAlpha = 1, duration = "normal" }),
+      "alpha transition should start"
+    )
+    local group = frame.lastGroup
+    local anim = group.animations[1]
+    Assert.Equal(anim.type, "Alpha", "transition must animate alpha only")
+    Assert.Equal(anim.fromAlpha, 0, "transition must start at the requested alpha")
+    Assert.Equal(anim.toAlpha, 1, "transition must end at the requested alpha")
+    Assert.Equal(anim.duration, 0.2, "duration tokens must resolve through the motion table")
+    Assert.Equal(anim.smoothing, "OUT", "transition must default to the enter easing")
+    Assert.True(group:IsPlaying(), "transition group should be playing")
+
+    Assert.True(UICommon.PlayAlphaTransition(frame, "fade"), "a repeated transition should restart")
+    Assert.Equal(frame.groupCount, 1, "the animation group must be built once per frame and key")
+
+    frame.alpha = 0.3
+    group.scripts.OnFinished()
+    Assert.Equal(frame.alpha, 0.8, "a finished transition must settle at the frame's resting alpha")
+
+    Assert.False(UICommon.PlayAlphaTransition(frame, nil), "a transition without a key must fail closed")
+    Assert.False(UICommon.PlayAlphaTransition({}, "fade"), "a frame that cannot animate must fail closed")
+  end)
+
+  test("UICommon notice entrance fades a hidden card fully in and yields to a refresh", function()
+    local UICommon = LoadUICommon()
+    local frame = MakeMotionFrameStub(1)
+    Assert.True(UICommon.PlayNoticeEntrance(frame), "notice entrance should start")
+    local entrance = frame._isiLiveNoticeEntrance
+    local anim = entrance.animations[1]
+    Assert.Equal(anim.fromAlpha, 0, "entrance must start fully transparent")
+    Assert.Equal(anim.toAlpha, 1, "entrance must end fully opaque")
+    Assert.Equal(anim.duration, 0.2, "entrance must use the normal motion duration")
+    Assert.Equal(anim.smoothing, "OUT", "entrance must decelerate")
+    Assert.True(entrance:IsPlaying(), "entrance group should be playing")
+
+    Assert.True(UICommon.PlayNoticeTransition(frame), "refresh transition should start")
+    Assert.False(entrance:IsPlaying(), "a refresh must replace a running entrance instead of stacking")
+    Assert.True(frame._isiLiveNoticeTransition:IsPlaying(), "refresh group should be playing")
+
+    WithGlobals({ IsiLiveDB = { reduceMotion = true } }, function()
+      local fresh = MakeMotionFrameStub(1)
+      Assert.False(UICommon.PlayNoticeEntrance(fresh), "reduced motion must skip the entrance")
+      Assert.Equal(fresh.groupCount, 0, "a skipped entrance must not build an animation group")
+    end)
+  end)
+
+  test("UICommon reduced motion stops every registered transition and skips new ones", function()
+    local UICommon = LoadUICommon()
+    local notice = MakeMotionFrameStub(1)
+    local panel = MakeMotionFrameStub(0.6)
+    Assert.True(UICommon.PlayNoticeTransition(notice), "notice transition should start")
+    Assert.True(UICommon.PlayAlphaTransition(panel, "panel", { duration = "slow" }), "panel transition should start")
+    panel.alpha = 0.1
+
+    local db = { reduceMotion = false }
+    WithGlobals({ IsiLiveDB = db }, function()
+      Assert.True(UICommon.SetReducedMotionEnabled(true), "motion setting should apply immediately")
+      Assert.False(notice.lastGroup:IsPlaying(), "reduced motion must stop the notice transition")
+      Assert.False(panel.lastGroup:IsPlaying(), "reduced motion must stop every other registered transition")
+      Assert.Equal(panel.alpha, 0.6, "a stopped transition must leave the frame at its resting alpha")
+
+      local fresh = MakeMotionFrameStub(1)
+      Assert.False(UICommon.PlayAlphaTransition(fresh, "fade"), "reduced motion must skip new transitions")
+      Assert.Equal(fresh.groupCount, 0, "a skipped transition must not build an animation group")
+
+      Assert.True(UICommon.SetReducedMotionEnabled(false), "motion can be re-enabled live")
+      Assert.True(UICommon.PlayAlphaTransition(panel, "panel"), "transitions must resume once motion is allowed")
     end)
   end)
 

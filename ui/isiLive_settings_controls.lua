@@ -169,6 +169,10 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
   if type(check.SetSize) == "function" then
     check:SetSize(24, 24)
   end
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ApplyFlatCheckboxStyle) == "function" then
+    uiCommon.ApplyFlatCheckboxStyle(check)
+  end
   if type(settingKey) == "string" and settingKey ~= "" then
     check._settingKey = settingKey
   end

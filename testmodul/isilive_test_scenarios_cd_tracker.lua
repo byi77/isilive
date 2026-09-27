@@ -130,6 +130,40 @@ return function(test, ctx)
     end)
   end)
 
+  test("CdTracker exposes recharge and Sated durations for the cooldown swipe", function()
+    local charges = { currentCharges = 0, maxCharges = 1, cooldownStartTime = 900, cooldownDuration = 480 }
+    local aura = MakeLustAura(1100, 57723)
+    aura.duration = 600
+    WithGlobals({
+      C_Spell = {
+        GetSpellCharges = function()
+          return charges
+        end,
+      },
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        return { aura }
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return 1000
+        end,
+      })
+      ctrl.Scan()
+      Assert.Equal(ctrl.GetBResInfo().cooldownDuration, 480, "a recharging BR must expose its full recharge time")
+      Assert.Equal(ctrl.GetLustInfo().duration, 600, "an observed Sated debuff must expose its full duration")
+
+      charges.currentCharges = 1
+      aura.duration = nil
+      ctrl.Scan()
+      Assert.Nil(ctrl.GetBResInfo().cooldownDuration, "a fully charged BR must not expose a stale duration")
+      Assert.Nil(ctrl.GetLustInfo().duration, "an aura without a duration must fail closed")
+
+      ctrl.ClearRuntimeData()
+      Assert.Nil(ctrl.GetBResInfo(), "clearing runtime data must drop BR info with its duration")
+    end)
+  end)
+
   test("CdTracker calculates remaining cooldown when BRes is on cooldown", function()
     WithGlobals({
       C_Spell = {

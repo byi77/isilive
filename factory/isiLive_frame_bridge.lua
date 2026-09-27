@@ -88,6 +88,8 @@ function FrameBridge.CreateContext(opts)
     applySecureSpellToButton = applySecureSpellToButton,
     isSpellKnown = isSpellKnown,
     getTeleportCooldownRemaining = getTeleportCooldownRemaining,
+    getCooldownFrameStartForRemaining = opts.getCooldownFrameStartForRemaining,
+    applyCooldownFrameSafe = opts.applyCooldownFrameSafe,
     formatCooldownSeconds = formatCooldownSeconds,
     getDungeonName = getDungeonName,
     getL = getL,

@@ -276,6 +276,33 @@ local function RegisterPortalNavigatorBranchTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("PortalNavigator fades in when it appears and stays quiet while already visible", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local portal = Notice.CreatePortalNavigatorNotice({ parent = UIParent })
+      Assert.False(portal.frame:IsShown(), "portal navigator starts hidden")
+
+      portal.SetVisible(true)
+      local entrance = RequireValue(portal.frame._isiLiveNoticeEntrance, "appearing must start the entrance")
+      Assert.True(entrance:IsPlaying(), "a newly shown portal navigator should fade in")
+
+      entrance:Stop()
+      portal.SetVisible(true)
+      Assert.False(entrance:IsPlaying(), "an already visible portal navigator must not fade in again")
+
+      portal.SetVisible(false)
+      portal.SetVisible(true)
+      Assert.True(entrance:IsPlaying(), "showing the portal navigator again must fade in again")
+    end)
+  end)
+
   test("PortalNavigator left-click does NOT hide the frame", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
@@ -446,6 +473,62 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     })
   end
 
+  test("Center notice teleport button draws a cooldown swipe that follows the remaining time", function()
+    local now = 500
+    local remaining = 90
+    local applied = {}
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        getTeleportCooldownRemaining = function()
+          return remaining
+        end,
+        -- Same start/duration contract as SpellUtils.GetCooldownFrameStartForRemaining.
+        getCooldownFrameStartForRemaining = function(value)
+          return now, value
+        end,
+        applyCooldownFrameSafe = function(frame, start, duration, enabled)
+          applied[#applied + 1] = { frame = frame, start = start, duration = duration, enabled = enabled }
+        end,
+      })
+      local button = centerNotice.teleportButton
+      local swipe = RequireValue(button.cooldown, "the teleport button must carry a cooldown swipe frame")
+      button.spellID = 1234
+      button:Show()
+      button:GetScript("OnShow")(button)
+      local onUpdate = RequireValue(button:GetScript("OnUpdate"), "showing the button must start its refresh")
+
+      onUpdate(button, 0.2)
+      Assert.Equal(#applied, 1, "a running cooldown must start the swipe")
+      Assert.Equal(applied[1].frame, swipe, "the swipe must be applied to the button's cooldown frame")
+      Assert.Equal(applied[1].start, 500, "the swipe starts now")
+      Assert.Equal(applied[1].duration, 90, "the swipe runs over the remaining time")
+      Assert.True(applied[1].enabled, "a running cooldown must enable the swipe")
+
+      now, remaining = 501, 89
+      onUpdate(button, 0.2)
+      Assert.Equal(#applied, 1, "an unchanged end time must not restart the swipe")
+
+      remaining = 0
+      onUpdate(button, 0.2)
+      Assert.Equal(#applied, 2, "a finished cooldown must clear the swipe")
+      Assert.False(applied[2].enabled, "clearing must disable the swipe")
+      onUpdate(button, 0.2)
+      Assert.Equal(#applied, 2, "an already cleared swipe must not be cleared again")
+    end)
+  end)
+
   test("Center notice exposes rich-layout primitives (title, separator, fieldRows, teleportHeader)", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
@@ -571,8 +654,38 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       })
 
       Assert.Equal(centerNotice.frame._isiLiveNoticeKind, "warning", "warning fields should classify the whole notice")
-      Assert.Equal(centerNotice.frame._isiLiveNoticeKindMarker:GetText(), "!", "warning notice should expose a marker")
-      Assert.True(centerNotice.frame._isiLiveNoticeTransition:IsPlaying(), "newly shown notice should animate in")
+      Assert.Equal(
+        centerNotice.frame._isiLiveNoticeKindIcon._isiLiveStateIcon,
+        "warning",
+        "warning notice should expose the alert icon"
+      )
+      Assert.True(centerNotice.frame._isiLiveNoticeEntrance:IsPlaying(), "newly shown notice should fade in")
+      Assert.Nil(
+        centerNotice.frame._isiLiveNoticeTransition,
+        "a first appearance must use the entrance, not the refresh transition"
+      )
+
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+        },
+      })
+      Assert.True(
+        centerNotice.frame._isiLiveNoticeTransition:IsPlaying(),
+        "a category change on a visible notice should use the quieter refresh transition"
+      )
+      Assert.False(
+        centerNotice.frame._isiLiveNoticeEntrance:IsPlaying(),
+        "the refresh transition must replace a still running entrance"
+      )
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+          { label = "Hint:", value = "Not a Mythic+ dungeon", warning = true, blink = true },
+        },
+      })
 
       local labelR, labelG, labelB, labelA = centerNotice.fieldRows[2].label:GetTextColor()
       local valueR, valueG, valueB, valueA = centerNotice.fieldRows[2].value:GetTextColor()

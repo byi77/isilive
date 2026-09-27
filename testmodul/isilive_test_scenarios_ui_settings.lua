@@ -757,6 +757,10 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_STAMINA, "stats-box details should include stamina checkbox")
       Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_AVOIDANCE, "stats-box details should include avoidance checkbox")
       Assert.False(checks.SETTINGS_STATS_BOX_SHOW_SPEED:GetChecked(), "Speed checkbox should reflect disabled DB state")
+      Assert.True(
+        checks.SETTINGS_STATS_BOX_SHOW_SPEED._isiLiveFlatCheckbox == true,
+        "settings checkboxes should use the flat isiLive checkbox style"
+      )
 
       checks.SETTINGS_STATS_BOX_SHOW_SPEED:SetChecked(true)
       checks.SETTINGS_STATS_BOX_SHOW_SPEED._scripts.OnClick(checks.SETTINGS_STATS_BOX_SHOW_SPEED)

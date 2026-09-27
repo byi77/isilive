@@ -158,6 +158,28 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 124. Meldet der Client per `UI_ERROR_MESSAGE` exakt den lokalisierten Text `ERR_PET_SPELL_NOPATH`, spielt ausserhalb des Raids sofort die statische Pet-Stuck-Sprachansage (`deDE` deutsch, sonst englisch), hoechstens einmal pro 5 Sekunden und per Settings abschaltbar (Default an).
 
+125. Dekorative UI-Bewegung nutzt die gemeinsamen Bewegungs-Tokens aus `UICommon`; die Option fuer reduzierte Animationen stoppt alle registrierten Uebergaenge sofort und laesst den Death-/PI-Alert ohne Scale-Punch und Einblendung erscheinen.
+
+126. Die M+-Timerbox zeigt am unteren Innenrand eine schmale Zeitleiste der verstrichenen Zeit mit Markierungen an den +3- und +2-Grenzen in der Farbe der noch erreichbaren Truhenstufe; diese Stufe bleibt voll deckend, die uebrigen werden abgedunkelt, ohne die Geometrie der Run-Zone zu veraendern.
+
+127. Der Killtracker-Balken ist bei offenem Fortschritt ruhig blau und erst bei 100 % gruen, gleitet bei Aenderungen weich auf den neuen Wert (bei reduzierten Animationen sofort) und zeigt Prozentwerte mit dem Dezimaltrennzeichen der gewaehlten isiLive-Sprache.
+
+128. Eine erscheinende Center-Notice und ein erscheinender Portal-Navigator blenden vollstaendig von transparent ein (bei reduzierten Animationen sofort sichtbar); pro Frame laeuft hoechstens ein Alpha-Uebergang.
+
+129. Offline-Mitglieder und Ghost-Zeilen werden im Roster als ganze Zeile abgedunkelt (Daten 45 %, Name 75 %) und kehren beim Wiederverbinden auf volle Deckkraft zurueck.
+
+130. Aktions-Sperrzustaende, Notice-Kategorien, der Todeszaehler der M+-Timerbox sowie Schloss und Einstellungen in der Titelleiste verwenden gemeinsame Zustandssymbole aus belegten Client-Texturen statt ASCII-Zeichen oder Buchstaben.
+
+131. Die BR-/BL-Icons zeigen einen Cooldown-Swipe aus der verifizierten Gesamtdauer; ein BR ohne Ladung wird entsaettigt; die reservierten Platzhalter `BR: --` und `BL: --` bleiben unveraendert.
+
+132. Die Weltmarker-Buttons zeigen einen kuehlen Hover-Zustand und im Tooltip die vom Client lokalisierten Markernamen.
+
+133. Settings-Checkboxen und die Systemoptionen der Main-UI verwenden einen flachen isiLive-Checkbox-Stil statt der klassischen Template-Grafik.
+
+134. Der Teleport-Button der Center-Notice zeigt waehrend einer Abklingzeit denselben Cooldown-Swipe wie das Portal-Grid; der Status-Text bleibt darueber lesbar.
+
+135. Die ESC-Panel-Buttons zeigen Hover nur ueber den gemeinsamen Sekundaerbutton-Zustand, ohne zusaetzliche weisse Highlight-Ebene.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1295,7 +1317,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-DEATH-ALERT-MPLUS
 - Regelnummer: 80
 - Status: aktiv
-- Zusammenfassung: Der Todesalarm rendert nur waehrend eines aktiven M+-Runs eine grosse rote rahmenlose Bildschirmwarnung mit Scale-Punch-Animation. Diese Bildschirmwarnung ist strikt auf Tank und Heiler begrenzt und zeigt ausschliesslich den lokalisierten rollenbasierten Text ohne Namen in Grossbuchstaben; `enUS` und alle nicht separat lokalisierten Client-Locales zeigen `TANK DIED` / `HEALER DIED`, `deDE` zeigt `TANK TOT` / `HEILER TOT`. Die Erkennung laeuft edge-getriggert ueber `UNIT_HEALTH` pro GUID fuer `player` und `party1`-`party4` und feuert fuer Tank, Heiler und Schadensausteiler: nur der Uebergang lebendig zu tot loest genau einen Alarm aus, eine Wiederbelebung schaltet die Flanke neu scharf, Challenge-Start, Challenge-Ende und Challenge-Abbruch setzen die Death-Edge-Flags, die Death-Audio-Burst-Pause und die sichtbaren Death-Counter zurueck, und Roster-Updates verwerfen Flags verlassener Spieler. Da der `UNIT_HEALTH`-Strom fuer den lokalen Spieler weder im Totfenster noch am Ende eines Geisterlaufs eine garantierte Stichprobe liefert, muessen `PLAYER_DEAD`, `PLAYER_ALIVE` und `PLAYER_UNGHOST` dieselbe Auswertung fuer `player` zusaetzlich ausloesen: `PLAYER_DEAD` gilt auch dann als Tod, wenn der Zustandslesevorgang maskiert ist, waehrend `PLAYER_ALIVE` und `PLAYER_UNGHOST` nur neu auswerten und die Flanke niemals blind zuruecksetzen duerfen. `CHALLENGE_MODE_DEATH_COUNT_UPDATED` muss zusaetzlich zum M+-Timer alle fuenf Slots in fester Reihenfolge neu abtasten, damit Tode ohne Health-Stichprobe nicht verloren gehen. Aus denselben beobachteten DeathWatch-Flanken muss pro Spieler ein Death-Counter gefuehrt werden; dieser Counter muss auch fuer Schadensausteiler-Tode inkrementieren, deren Audio-Event nach totem Tank plus totem Heiler oder wegen aktiver Death-Audio-Burst-Pause unterdrueckt wird. Die Roster-Zeile muss fuer Spieler mit mindestens einem gezaehlten Tod einen Totenkopfmarker am Namen mit der gezaehlten Todesanzahl als roter Zahl anzeigen, bereits ab dem ersten Tod; der Roster-Mouseover muss die genaue Todesanzahl anzeigen. Die M+-Timer-Zeile darf neben dem Totenkopf nur die gezaehlte Gesamttodesanzahl sichtbar anzeigen, nicht die Zeitstrafe. Der Mouseover ueber dem Totenkopf in der M+-Timer-Zeile muss die gezaehlten Spieler-Tode als alphabetisch nach Spielernamen sortierte Liste `Name Anzahl` anzeigen und eine positive M+-Todeszeitstrafe als eigene Tooltip-Zeile anzeigen. Im aktiven M+-Killtracker muss derselbe gezaehlte Gesamtwert als Totenkopfmarker mit roter Zahl direkt hinter dem aktiven Dungeon-/Keynamen erscheinen. Diese Death-Counter-Anzeigen werden bei Key-Abschluss, Key-Abbruch und stale Challenge-Reset zusammen mit dem M+-Timer sowie den Battle-Res- und Bloodlust-Timern geloescht; Gruppenverlassen ohne Challenge-Ende darf keine neuen Werte erfinden. Wenn nach den aktuellen DeathWatch-Flags bereits mindestens ein Tank und mindestens ein Heiler tot sind, darf ein danach sterbender Schadensausteiler kein Rollen-Todesevent mehr fuer die Audio-Ausgabe ausloesen. Wenn zwei unterschiedliche Spieler in direkt aufeinanderfolgenden DeathWatch-Todesflanken sterben, muss die zweite Flanke sofort eine 30-Sekunden-Pause fuer Death-Audio starten und selbst als audio-unterdrueckt markiert werden; weitere Death-Audio-Ausgaben bleiben bis zum Ablauf dieser festen Pause stumm, die Pause wird durch weitere Tode waehrenddessen nicht verlaengert, und die naechste Todesflanke nach Ablauf darf wieder Audio erlauben. Der eigene Tod alarmiert ebenfalls; Disconnects und Zustaende ausserhalb eines aktiven Keys bleiben stumm. Statische Death-WAV-Dateien existieren nur fuer Tank und Heiler und muessen ueber `TankDied.wav` beziehungsweise `HealerDied.wav` aus der Sound-Registry abgespielt werden; fuer `deDE` muessen stattdessen `TankDied_deDE.wav` beziehungsweise `HealerDied_deDE.wav` abgespielt werden, waehrend alle anderen Client-Locales die englischen Dateien verwenden. Ein fehlgeschlagener Tank-/Heiler-WAV-Start muss eine Diagnose mit Rolle, Fehlergrund, Kanal und Asset-Pfad ausgeben, ohne auf native TTS zurueckzufallen. Ein Schadensausteiler-Tod erzeugt keinen Bildschirmtext und mangels statischer WAV-Datei keine Audioausgabe, bleibt aber fuer Death-Counter und Tooltips gezaehlt. Der Settings-Schalter (`deathAlertEnabled`, Default an) ist der Master-Gate fuer DeathWatch-Erkennung und Bildschirmwarnung; Tank- und Heiler-WAV-Ausgaben werden separat ueber `soundTankDiedEnabled` und `soundHealerDiedEnabled` geschaltet. Stirbt der lokale Spieler selbst als Tank oder Heiler, duerfen die zusaetzlichen Settings-Schalter `soundOwnTankDiedEnabled` und `soundOwnHealerDiedEnabled` als Child-Optionen unter den jeweiligen Tank-/Heiler-WAV-Schaltern nur die eigene WAV-Ausgabe stummschalten; Bildschirmwarnung, Death-Counter und Tank-/Heiler-WAVs fuer andere Gruppenmitglieder bleiben unveraendert. Im Raid bleibt der Pfad ueber die Raid-Unterdrueckung des Event-Dispatches aus.
+- Zusammenfassung: Der Todesalarm rendert nur waehrend eines aktiven M+-Runs eine grosse rote rahmenlose Bildschirmwarnung mit Scale-Punch-Animation; bei reduzierten Animationen erscheint sie ohne Scale-Punch und Einblendung (Regel 125). Diese Bildschirmwarnung ist strikt auf Tank und Heiler begrenzt und zeigt ausschliesslich den lokalisierten rollenbasierten Text ohne Namen in Grossbuchstaben; `enUS` und alle nicht separat lokalisierten Client-Locales zeigen `TANK DIED` / `HEALER DIED`, `deDE` zeigt `TANK TOT` / `HEILER TOT`. Die Erkennung laeuft edge-getriggert ueber `UNIT_HEALTH` pro GUID fuer `player` und `party1`-`party4` und feuert fuer Tank, Heiler und Schadensausteiler: nur der Uebergang lebendig zu tot loest genau einen Alarm aus, eine Wiederbelebung schaltet die Flanke neu scharf, Challenge-Start, Challenge-Ende und Challenge-Abbruch setzen die Death-Edge-Flags, die Death-Audio-Burst-Pause und die sichtbaren Death-Counter zurueck, und Roster-Updates verwerfen Flags verlassener Spieler. Da der `UNIT_HEALTH`-Strom fuer den lokalen Spieler weder im Totfenster noch am Ende eines Geisterlaufs eine garantierte Stichprobe liefert, muessen `PLAYER_DEAD`, `PLAYER_ALIVE` und `PLAYER_UNGHOST` dieselbe Auswertung fuer `player` zusaetzlich ausloesen: `PLAYER_DEAD` gilt auch dann als Tod, wenn der Zustandslesevorgang maskiert ist, waehrend `PLAYER_ALIVE` und `PLAYER_UNGHOST` nur neu auswerten und die Flanke niemals blind zuruecksetzen duerfen. `CHALLENGE_MODE_DEATH_COUNT_UPDATED` muss zusaetzlich zum M+-Timer alle fuenf Slots in fester Reihenfolge neu abtasten, damit Tode ohne Health-Stichprobe nicht verloren gehen. Aus denselben beobachteten DeathWatch-Flanken muss pro Spieler ein Death-Counter gefuehrt werden; dieser Counter muss auch fuer Schadensausteiler-Tode inkrementieren, deren Audio-Event nach totem Tank plus totem Heiler oder wegen aktiver Death-Audio-Burst-Pause unterdrueckt wird. Die Roster-Zeile muss fuer Spieler mit mindestens einem gezaehlten Tod einen Totenkopfmarker am Namen mit der gezaehlten Todesanzahl als roter Zahl anzeigen, bereits ab dem ersten Tod; der Roster-Mouseover muss die genaue Todesanzahl anzeigen. Die M+-Timer-Zeile darf neben dem Totenkopf nur die gezaehlte Gesamttodesanzahl sichtbar anzeigen, nicht die Zeitstrafe. Der Mouseover ueber dem Totenkopf in der M+-Timer-Zeile muss die gezaehlten Spieler-Tode als alphabetisch nach Spielernamen sortierte Liste `Name Anzahl` anzeigen und eine positive M+-Todeszeitstrafe als eigene Tooltip-Zeile anzeigen. Im aktiven M+-Killtracker muss derselbe gezaehlte Gesamtwert als Totenkopfmarker mit roter Zahl direkt hinter dem aktiven Dungeon-/Keynamen erscheinen. Diese Death-Counter-Anzeigen werden bei Key-Abschluss, Key-Abbruch und stale Challenge-Reset zusammen mit dem M+-Timer sowie den Battle-Res- und Bloodlust-Timern geloescht; Gruppenverlassen ohne Challenge-Ende darf keine neuen Werte erfinden. Wenn nach den aktuellen DeathWatch-Flags bereits mindestens ein Tank und mindestens ein Heiler tot sind, darf ein danach sterbender Schadensausteiler kein Rollen-Todesevent mehr fuer die Audio-Ausgabe ausloesen. Wenn zwei unterschiedliche Spieler in direkt aufeinanderfolgenden DeathWatch-Todesflanken sterben, muss die zweite Flanke sofort eine 30-Sekunden-Pause fuer Death-Audio starten und selbst als audio-unterdrueckt markiert werden; weitere Death-Audio-Ausgaben bleiben bis zum Ablauf dieser festen Pause stumm, die Pause wird durch weitere Tode waehrenddessen nicht verlaengert, und die naechste Todesflanke nach Ablauf darf wieder Audio erlauben. Der eigene Tod alarmiert ebenfalls; Disconnects und Zustaende ausserhalb eines aktiven Keys bleiben stumm. Statische Death-WAV-Dateien existieren nur fuer Tank und Heiler und muessen ueber `TankDied.wav` beziehungsweise `HealerDied.wav` aus der Sound-Registry abgespielt werden; fuer `deDE` muessen stattdessen `TankDied_deDE.wav` beziehungsweise `HealerDied_deDE.wav` abgespielt werden, waehrend alle anderen Client-Locales die englischen Dateien verwenden. Ein fehlgeschlagener Tank-/Heiler-WAV-Start muss eine Diagnose mit Rolle, Fehlergrund, Kanal und Asset-Pfad ausgeben, ohne auf native TTS zurueckzufallen. Ein Schadensausteiler-Tod erzeugt keinen Bildschirmtext und mangels statischer WAV-Datei keine Audioausgabe, bleibt aber fuer Death-Counter und Tooltips gezaehlt. Der Settings-Schalter (`deathAlertEnabled`, Default an) ist der Master-Gate fuer DeathWatch-Erkennung und Bildschirmwarnung; Tank- und Heiler-WAV-Ausgaben werden separat ueber `soundTankDiedEnabled` und `soundHealerDiedEnabled` geschaltet. Stirbt der lokale Spieler selbst als Tank oder Heiler, duerfen die zusaetzlichen Settings-Schalter `soundOwnTankDiedEnabled` und `soundOwnHealerDiedEnabled` als Child-Optionen unter den jeweiligen Tank-/Heiler-WAV-Schaltern nur die eigene WAV-Ausgabe stummschalten; Bildschirmwarnung, Death-Counter und Tank-/Heiler-WAVs fuer andere Gruppenmitglieder bleiben unveraendert. Im Raid bleibt der Pfad ueber die Raid-Unterdrueckung des Event-Dispatches aus.
 - Erforderliche Tests:
   - DeathWatch fires tank death alert once per active-key death
   - DeathWatch fires healer death alert with role resolved at death time
@@ -1317,6 +1339,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - DeathWatch roster update drops dead flags of departed players
   - UpdateKillTrackRow appends death count behind active dungeon name
   - DeathAlert renders big red death text and restarts animation on repeated show
+  - DeathAlert drops the scale punch and fade-in when reduced motion is enabled
   - DeathAlert uses German role death text for deDE locale
   - Factory death alert wiring routes role deaths to alert and static WAV sound
   - Factory death alert keeps the on-screen warning to tank and healer
@@ -1989,3 +2012,113 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI_ERROR_MESSAGE stays silent in raid mode
   - UI_ERROR_MESSAGE fails closed on secret or missing error text
   - SoundUtils pet stuck WAV assets stay short and loud
+
+### RULE-UI-BEWEGUNG-TOKENS-UND-REDUZIERTE-ANIMATION
+- Regelnummer: 125
+- Status: aktiv
+- Zusammenfassung: Dekorative UI-Bewegung bezieht Dauer und Easing aus `UICommon.Motion` (`fast` = 0,14 s, `normal` = 0,2 s, `slow` = 0,35 s; Easing `OUT` beim Erscheinen, `IN` beim Verschwinden). Alpha-Uebergaenge laufen ueber `UICommon.PlayAlphaTransition`, das die Animationsgruppe pro Frame und Schluessel genau einmal baut, bei erneutem Aufruf neu startet und den Frame danach auf seinem Ruhe-Alpha belaesst. Ist `reduceMotion` aktiv, startet kein dekorativer Uebergang und es wird keine Animationsgruppe gebaut; das Einschalten der Option stoppt alle registrierten Uebergaenge sofort und setzt jeden Frame auf sein Ruhe-Alpha zurueck. Der Refresh-Uebergang einer bereits sichtbaren Center-Notice bei einem Kategoriewechsel bleibt in Staerke und Dauer unveraendert (0,86 auf 1 ueber `fast`); das erste Erscheinen einer Notice regelt Regel 128. Der Death-/PI-Alert erscheint bei aktiver Option in voller Groesse und Deckkraft ohne Scale-Punch und ohne Einblendung, bleibt genauso lange sichtbar wie in der vollen Variante und blendet dann aus; Text, Farbe und Ausloeser bleiben unveraendert, und ein Umschalten der Option wirkt ab dem naechsten Alert ohne Reload.
+- Erforderliche Tests:
+  - UICommon motion tokens resolve shared durations and easing
+  - UICommon alpha transition builds once, restarts and settles at the resting alpha
+  - UICommon reduced motion stops every registered transition and skips new ones
+  - UICommon notice kind and reduced motion use semantic markers and brief transitions
+  - DeathAlert renders big red death text and restarts animation on repeated show
+  - DeathAlert drops the scale punch and fade-in when reduced motion is enabled
+
+### RULE-MPLUS-TIMER-ZEITLEISTE-UND-STUFENFOKUS
+- Regelnummer: 126
+- Status: aktiv
+- Zusammenfassung: Die M+-Timerbox traegt am unteren Innenrand eine 2 Pixel hohe Zeitleiste, die links und rechts sowie unten 2 Pixel Abstand zur Box haelt und damit innerhalb der bestehenden 20-Pixel-Box bleibt; Zeilenhoehe, Boxbreiten, die 48 Pixel breiten Timerfelder, Badges, Todeszaehler und die gemeinsame rechte Kante aus Regel 107 bleiben unveraendert. Die Fuellung zeigt den Anteil `timer / timeLimit` aus dem `MplusTimer.GetTimerData`-Snapshot, auf die Leistenbreite begrenzt; zwei 1 Pixel breite Markierungen stehen bei 60 % (+3-Grenze) und 80 % (+2-Grenze). Die aktive Stufe ist die hoechste noch erreichbare (+3, sonst +2, sonst +1) beziehungsweise Ueberzeit, sobald auch die +1-Grenze vorbei ist. Die Fuellfarbe folgt der aktiven Stufe ueber die UICommon-Tokens `MPLUS_GRADE3_FILL`, `MPLUS_GRADE2_FILL`, `MPLUS_GRADE1_FILL` und `MPLUS_OVERTIME_FILL`. Badge und Zeit der aktiven Stufe bleiben voll deckend, alle anderen Stufen werden auf 50 % Deckkraft abgedunkelt; in Ueberzeit bleibt die rote +1-Ueberschreitung hervorgehoben. Wechselt die aktive Stufe nach dem ersten Rendern, blendet die Zeit der neuen Stufe einmal ueber `UICommon.PlayAlphaTransition` (0,35 auf 1, Token `slow`) auf; bei reduzierten Animationen entfaellt nur dieses Aufblenden (Regel 125). Fehlt ein verwertbarer Timer oder ein positives Zeitlimit, ist ein Wert ein Secret Value oder ist die Box nicht messbar, bleibt die Zeitleiste verborgen, waehrend die Textzeiten unveraendert rendern. Ohne aktiven Key ist die Zeitleiste verborgen und alle Stufen sind voll deckend. Timer-, Tode- und Killtracker-Datenlogik bleiben unveraendert.
+- Erforderliche Tests:
+  - CreateCdTrackerRow places a slim hidden timeline inside the M+ timer box
+  - UpdateCdTrackerRow draws elapsed time and cutoff ticks and emphasizes the reachable grade
+  - UpdateCdTrackerRow hides the timeline for snapshots without a usable limit
+  - UpdateCdTrackerRow grade change skips the fade when reduced motion is enabled
+  - CreateCdTrackerRow renders M+ grade badges and wide timer fields
+  - UICommon.Colors has no two keys sharing the exact same value tuple
+
+### RULE-MPLUS-KILLTRACKER-FARBE-BEWEGUNG-ZAHLENFORMAT
+- Regelnummer: 127
+- Status: aktiv
+- Zusammenfassung: Der Fuellbalken des M+-Killtrackers verwendet bei aktivem Fortschritt unter 100 % die ruhige Fortschrittsfarbe `MPLUS_FORCES_PROGRESS_FILL` und fuer den Prozenttext `LIGHT_BLUE_LEVEL_TEXT`; erst ab 100 % wechseln Balken und Text auf `SUCCESS_GREEN_BAR` beziehungsweise `GREEN_HINT_TEXT`. Die frueheren Warnfarben Gelb ab 80 % und Rot ab 95 % entfallen. Die erste Breite eines sichtbar werdenden Balkens wird direkt gesetzt; jede weitere Breitenaenderung gleitet mit Ease-out ueber die gemeinsame Dauer `normal` (0,2 s) aus Regel 125 auf den Zielwert und gibt ihr `OnUpdate`-Skript danach wieder frei. Bei reduzierten Animationen wird jede Breite sofort gesetzt. Beim Ausblenden des Balkens stoppt eine laufende Bewegung. Der Pull-Balken wird gegen die Zielbreite des Fuellbalkens begrenzt, nicht gegen die gerade sichtbare Zwischenbreite. Erreicht der Fortschritt waehrend eines sichtbaren Runs 100 %, blendet der Fuellbalken einmal ueber `UICommon.PlayAlphaTransition` (0,35 auf 1, Token `slow`) auf; ein erster Render, der bereits 100 % zeigt, und weitere Renders bei 100 % bleiben ruhig, und bei reduzierten Animationen entfaellt das Aufblenden. Prozent-, Pull- und Platzhaltertexte (`--,--` beziehungsweise `--.--`) verwenden das Dezimaltrennzeichen der aktiven isiLive-Sprache ueber `UICommon.FormatDecimal`: Komma fuer `deDE`, `frFR`, `esES`, `esMX`, `ptBR`, `itIT`, `ruRU` und `trTR`, sonst Punkt. Balkenhoehe, Zeilengeometrie, Vor-Key-Anzeige und Killtracker-Datenlogik bleiben unveraendert.
+- Erforderliche Tests:
+  - UpdateKillTrackRow renders open forces in calm blue and full forces in green
+  - UpdateKillTrackRow formats percentages with the addon language decimal separator
+  - UpdateKillTrackRow eases a changed fill width over the shared motion duration
+  - UpdateKillTrackRow applies fill width directly when reduced motion is enabled
+  - UpdateKillTrackRow flashes the fill once when forces reach 100 percent
+  - UpdateKillTrackRow clamps pull width when fill + pull would exceed bar width
+  - UICommon decimal format follows the addon language and fails closed
+
+### RULE-NOTICE-EINBLENDUNG
+- Regelnummer: 128
+- Status: aktiv
+- Zusammenfassung: Wird eine zuvor verborgene Center-Notice oder ein zuvor verborgener Portal-Navigator sichtbar, blendet die Karte ueber `UICommon.PlayNoticeEntrance` von Alpha 0 auf 1 ueber die gemeinsame Dauer `normal` (0,2 s) mit Easing `OUT` ein; die Karte bewegt sich dabei nicht. Eine bereits sichtbare Center-Notice nutzt bei einem Kategoriewechsel weiter den kurzen Refresh-Uebergang aus Regel 125, ein bereits sichtbarer Portal-Navigator bei einer Aktualisierung ebenso; ein erneutes Sichtbarschalten einer schon sichtbaren Karte startet keine Einblendung. Auf einem Frame laeuft hoechstens ein Alpha-Uebergang gleichzeitig: ein neu gestarteter Uebergang stoppt einen noch laufenden anderen Uebergang desselben Frames. Bei reduzierten Animationen erscheint die Karte sofort voll sichtbar und es wird keine Animationsgruppe gebaut. Das Ausblenden bleibt sofort, damit Schliessen, Rechtsklick und Auto-Hide die Karte weiterhin direkt verbergen.
+- Erforderliche Tests:
+  - UICommon notice entrance fades a hidden card fully in and yields to a refresh
+  - Center notice rich warning field renders red and blinks
+  - PortalNavigator fades in when it appears and stays quiet while already visible
+  - PortalNavigator hides itself when right-clicked
+  - Center notice close button hides center notice directly
+
+### RULE-ROSTER-INAKTIVE-ZEILEN-ABGEDUNKELT
+- Regelnummer: 129
+- Status: aktiv
+- Zusammenfassung: `Roster.BuildDisplayData` markiert eine Zeile als inaktiv, wenn sie eine Ghost-Zeile eines Spielers ist, der die Gruppe verlassen hat, oder wenn `UnitIsConnected` fuer ein existierendes Mitglied verifiziert `false` liefert; ein nicht lesbarer oder maskierter Verbindungswert zaehlt wie bisher als verbunden. Der Roster-Renderer setzt fuer inaktive Zeilen Spec, Sprache, Key, iLvl, RIO, DPS und Kick auf 45 % Deckkraft und den Namen, der zusaetzlich grau bleibt, auf 75 %; aktive Zeilen und geleerte Zeilenplaetze stehen auf voller Deckkraft. Die Deckkraft wird bei jedem Roster-Render und bei jedem Ready-Check-Refresh neu gesetzt, sodass ein wieder verbundenes Mitglied sofort auf volle Deckkraft zurueckkehrt. Der geschuetzte Rollen-Button wird dafuer nicht angefasst. Inhalte der Zeilen, Sortierung, Tooltips und Ghost-Zeilen-Vertraege bleiben unveraendert.
+- Erforderliche Tests:
+  - Roster render fades offline and ghost rows and restores them when the member is back
+  - Roster renders ghost member name in grey
+  - Roster renders offline member name in grey
+
+### RULE-UI-ZUSTANDSSYMBOLE
+- Regelnummer: 130
+- Status: aktiv
+- Zusammenfassung: `UICommon.StateIcons` ist die einzige Quelle fuer semantische Zustandssymbole; jeder Eintrag verweist auf eine Client-Textur, die andere gepflegte Addons nachweislich laden. `UICommon.ApplyStateIcon` setzt Textur und Ausschnitt (Item-Icons mit dem ueblichen 0,08-Randabschnitt, `SkullBones` mit dem Totenkopf-Ausschnitt 0,046875/0,453125/0,046875/0,46875), zeigt die Textur an und haelt den Schluessel in `_isiLiveStateIcon` fest; ein fehlender Schluessel blendet das Symbol aus, ein unbekannter scheitert geschlossen. Aktionsbuttons zeigen ihren Sperrzustand als 12-Pixel-Symbol links im Button: Leader-Sperre als Schloss (`PetBattle-LockIcon`), Abklingzeit als Sanduhr (`INV_Relics_Hourglass_02`), Kampfsperre als Warnsymbol (`UI-Dialog-Icon-AlertNew`), nicht verfuegbar als `ReadyCheck-NotReady`; verfuegbare Aktionen zeigen kein Symbol. Rahmenfarbe, gedaempfte Flaeche und 72-%-Deckkraft der Sperrzustaende bleiben unveraendert. Center-Notice und Portal-Navigator zeigen ihre Kategorie als 16-Pixel-Symbol oben links (Information `help-i`, Warnung `UI-Dialog-Icon-AlertNew`, Aktion `UI-SpellbookIcon-NextPage-Up`), Farbstreifen und Kategorielogik bleiben. Der Todeszaehler in der M+-Timerbox verwendet das Tode-Symbol `SkullBones` statt des Raid-Totenkopfs der Weltmarker; Todesanzahl, Tooltip und die Totenkopfmarker in Roster und Killtracker bleiben unveraendert. Der Lock-Button der Titelleiste zeigt das Schloss-Symbol, voll farbig bei gesperrter und entsaettigt mit 50 % Deckkraft bei entsperrter Position; der Einstellungsbutton zeigt das Zahnrad `GEAR_64GREY` in der kuehlen Abschnittsfarbe. Klickpfade, Tooltips und die Titelleisten-Geometrie bleiben unveraendert.
+- Erforderliche Tests:
+  - UICommon state icons map semantic keys to client textures and clear on nil
+  - UICommon action availability keeps locked and cooldown visuals through hover
+  - UICommon notice kind and reduced motion use semantic markers and brief transitions
+  - Center notice rich warning field renders red and blinks
+  - UpdateCdTrackerRow draws BR and BL cooldown swipes and greys out an empty BR
+  - UI main frame lock button toggles the drag lock state
+
+### RULE-BR-BL-COOLDOWN-SWIPE
+- Regelnummer: 131
+- Status: aktiv
+- Zusammenfassung: Der CD-Tracker liefert zusaetzlich zur Restzeit die Gesamtdauer: fuer einen aufladenden Battle-Res `cooldownDuration` aus denselben Ladungsdaten, fuer das beobachtete Sated-/Exhaustion-Debuff `duration` aus dem Aura-Feld ueber den geschuetzten Plain-Reader; ohne laufende Aufladung, ohne lesbaren Wert oder nach `ClearRuntimeData` ist die Dauer `nil`. Ueber BR- und BL-Icon liegt je ein `CooldownFrameTemplate`-Swipe ohne Kante und ohne eigene Countdown-Zahlen. Ist die Restzeit groesser 0 und die Gesamtdauer mindestens so gross wie die Restzeit, zeigt der Swipe `SetCooldown(jetzt + Rest - Dauer, Dauer)`; er wird nur neu gesetzt, wenn sich das Ende um mehr als 0,5 Sekunden verschiebt. Fehlen diese Werte, wird ein zuvor gezeigter Swipe genau einmal mit `SetCooldown(0, 0)` geloescht. Ein BR mit 0 Ladungen wird entsaettigt, sonst farbig dargestellt. Texte, Formate und die in Regel 71 reservierten Platzhalter `BR: --` und `BL: --` bleiben unveraendert; die Demo-Simulation liefert fuer beide eine Gesamtdauer von 600 Sekunden.
+- Erforderliche Tests:
+  - CdTracker exposes recharge and Sated durations for the cooldown swipe
+  - UpdateCdTrackerRow draws BR and BL cooldown swipes and greys out an empty BR
+  - UpdateCdTrackerRow renders BR placeholder when controller has no BR info
+  - UpdateCdTrackerRow restores default BL icon and renders BL: -- when no BL context exists
+
+### RULE-WELTMARKER-HOVER-UND-NAMEN
+- Regelnummer: 132
+- Status: aktiv
+- Zusammenfassung: Die acht M+Marker-Buttons erhalten bei ihrer Erzeugung eine Hover-Textur mit dem kuehlen, durchscheinenden Token `BLUE_HOVER_GLOW` in `ADD`-Blending; sie wird ausschliesslich bei der Erzeugung gesetzt, sodass im Kampf keine geschuetzte Methode aufgerufen wird. Der Tooltip-Titel nennt den Marker ueber den vom Client lokalisierten String `RAID_TARGET_<n>`, wobei `n` der Index des verwendeten `UI-RaidTargetingIcon_<n>` ist; fehlt der String, gilt der bisherige englische Name. Icons, Secure-Attribute, Klickpfade und Reihenfolge der Marker bleiben unveraendert.
+- Erforderliche Tests:
+  - CreateTankHelperButtons uses client marker names and a cool hover highlight
+  - CreateTankHelperButtons attaches hover tooltips that render marker name and click hints
+  - M+Marker buttons use native world-marker secure attributes
+
+### RULE-FLACHE-CHECKBOXEN
+- Regelnummer: 133
+- Status: aktiv
+- Zusammenfassung: `UICommon.ApplyFlatCheckboxStyle` ersetzt die Grafik einer `UICheckButtonTemplate`-Checkbox durch den flachen isiLive-Stil und laesst Klickverhalten, Checked-Zustand und Groesse unveraendert: ein Umriss in `BORDER_ACTION_PRIMARY` auf der Ebene `BACKGROUND`, eine dunkle Fuellung als Normal-Textur auf `ARTWORK`, die Checked-Markierung als gefuelltes Quadrat in `ACCENT_BLUE` auf `OVERLAY`, eine additive Hover-Textur in `HOVER_HIGHLIGHT` und eine graue deaktivierte Markierung. Ab 22 Pixeln Breite liegen Umriss, Fuellung und Markierung 3, 4 und 7 Pixel innen, darunter 2, 3 und 5 Pixel. Ein erneuter Aufruf erzeugt keinen zweiten Umriss. Alle Settings-Checkboxen und die beiden Systemoptionen der Main-UI verwenden diesen Stil.
+- Erforderliche Tests:
+  - UICommon flat checkbox style replaces template art with layered flat textures
+  - Settings panel exposes stats box detail checkboxes and display mode
+
+### RULE-NOTICE-TELEPORT-SWIPE
+- Regelnummer: 134
+- Status: aktiv
+- Zusammenfassung: Der Teleport-Button der Center-Notice traegt ueber seinem Icon einen `CooldownFrameTemplate`-Swipe ohne Kante und ohne eigene Countdown-Zahlen; der Status-Text (Restzeit beziehungsweise Portal-bereit) liegt auf einer eigenen Ebene oberhalb des Swipes. Die Notice erhaelt dafuer optional dieselben Helfer wie das Portal-Grid, `getCooldownFrameStartForRemaining` und `applyCooldownFrameSafe`; fehlen sie, bleibt es bei der reinen Textanzeige. Solange `getTeleportCooldownRemaining` einen Rest groesser 0 liefert, wird der Swipe mit Start und Dauer aus `getCooldownFrameStartForRemaining(Rest)` gesetzt, aber nur neu, wenn sich das Ende um mehr als 0,5 Sekunden verschiebt; ohne Rest, ohne Zauber, bei verborgenem Button oder beim Ausblenden wird ein gezeigter Swipe genau einmal geloescht. Secure-Attribute, Klickpfad, Text-Refresh im 0,1-Sekunden-Takt und Tooltip bleiben unveraendert.
+- Erforderliche Tests:
+  - Center notice teleport button draws a cooldown swipe that follows the remaining time
+
+### RULE-ESC-PANEL-EIN-HOVER
+- Regelnummer: 135
+- Status: aktiv
+- Zusammenfassung: Buttons aus `UIGameMenuPanel.CreateButton` erzeugen keine zusaetzliche `HIGHLIGHT`-Textur mehr; ihr Hover-, Druck- und Grundzustand kommt ausschliesslich aus `UICommon.ApplyActionButtonVisual` mit der Rolle `secondary`. Icons, Beschriftung, Klickregistrierung und Secure-Templates der Buttons bleiben unveraendert.
+- Erforderliche Tests:
+  - UI game-menu panel buttons use one hover state without an extra highlight layer

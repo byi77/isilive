@@ -34,7 +34,11 @@ function CdTracker.CreateController(opts)
   local bresCharges = nil
   local bresMaxCharges = nil
   local bresCooldownRemain = nil
+  -- Total length of the running recharge / Sated debuff. Only used to draw a
+  -- cooldown swipe; nil whenever the client did not report a plain value.
+  local bresCooldownDuration = nil
   local lustRemain = nil
+  local lustDuration = nil
   local lustIcon = nil
 
   local function ResolveBResChargeInfo(C_Spell_ref)
@@ -66,8 +70,10 @@ function CdTracker.CreateController(opts)
     bresMaxCharges = maxCharges
     if charges < maxCharges and chargeStart and chargeStart > 0 and chargeDuration then
       bresCooldownRemain = math.max(0, chargeStart + chargeDuration - getTime())
+      bresCooldownDuration = chargeDuration
     else
       bresCooldownRemain = 0
+      bresCooldownDuration = nil
     end
     return true
   end
@@ -113,6 +119,7 @@ function CdTracker.CreateController(opts)
             lustRemain = 0
           end
           lustIcon = ReadPlainField(aura, "icon")
+          lustDuration = ReadPlainNumber(aura, "duration")
           found = true
           break
         end
@@ -120,6 +127,7 @@ function CdTracker.CreateController(opts)
     end
     if not found then
       lustRemain = nil
+      lustDuration = nil
       lustIcon = nil
     end
   end
@@ -140,7 +148,9 @@ function CdTracker.CreateController(opts)
     bresCharges = nil
     bresMaxCharges = nil
     bresCooldownRemain = nil
+    bresCooldownDuration = nil
     lustRemain = nil
+    lustDuration = nil
     lustIcon = nil
   end
 
@@ -155,6 +165,7 @@ function CdTracker.CreateController(opts)
       charges = bresCharges,
       maxCharges = bresMaxCharges,
       cooldownRemain = bresCooldownRemain,
+      cooldownDuration = bresCooldownDuration,
     }
   end
 
@@ -165,7 +176,7 @@ function CdTracker.CreateController(opts)
     if lustRemain == nil then
       return nil
     end
-    return { remain = lustRemain, icon = lustIcon }
+    return { remain = lustRemain, duration = lustDuration, icon = lustIcon }
   end
 
   function controller.Scan()

@@ -308,8 +308,8 @@ local function BuildController(state)
         ResetToConfiguredPosition()
         state.frame:Show()
         local UICommon = addonTable and addonTable.UICommon
-        if type(UICommon) == "table" and type(UICommon.PlayNoticeTransition) == "function" then
-          UICommon.PlayNoticeTransition(state.frame)
+        if type(UICommon) == "table" and type(UICommon.PlayNoticeEntrance) == "function" then
+          UICommon.PlayNoticeEntrance(state.frame)
         end
       end
       return

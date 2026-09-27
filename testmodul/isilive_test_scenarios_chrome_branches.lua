@@ -40,7 +40,24 @@ local function NewBackdropFrame(opts)
   function frame.SetTexture() end
   function frame.SetGradient() end
   function frame.SetColorTexture() end
-  function frame.SetNormalTexture() end
+  function frame.SetNormalTexture(self, path)
+    self._normalPath = path
+  end
+  function frame.SetHighlightTexture(self, path)
+    self._highlightPath = path
+    self._highlight = self._highlight
+      or {
+        SetVertexColor = function(texture, ...)
+          texture._color = { ... }
+        end,
+        SetBlendMode = function(texture, mode)
+          texture._blendMode = mode
+        end,
+      }
+  end
+  function frame.GetHighlightTexture(self)
+    return self._highlight
+  end
   function frame.SetAttribute(self, key, value)
     self._attributes[key] = value
   end
@@ -498,6 +515,53 @@ return function(test, ctx)
       Assert.Equal(tooltip._title, "Marker: Square (Blue)", "marker name must format into title")
       Assert.Equal(tooltip._lines[1], "L", "left-click hint line")
       Assert.Equal(tooltip._lines[2], "R", "right-click hint line")
+    end)
+  end)
+
+  test("CreateTankHelperButtons uses client marker names and a cool hover highlight", function()
+    local globals = MinimalGlobals()
+    globals.RAID_TARGET_6 = "Viereck"
+    globals.RAID_TARGET_8 = "Totenschaedel"
+    WithGlobals(globals, function()
+      local tooltip = {
+        _lines = {},
+        SetText = function(self, text)
+          self._title = text
+        end,
+        AddLine = function(self, line)
+          table.insert(self._lines, line)
+        end,
+        Show = function() end,
+      }
+      local addon = LoadChromeWithTooltipStubs({
+        anchor = function()
+          return tooltip
+        end,
+        hide = function() end,
+      })
+      local buttons = addon._RosterInternal.CreateTankHelperButtons(NewLooseFrame(), nil, function()
+        return { TOOLTIP_WORLDMARKER_TITLE_FMT = "Marker: %s" }
+      end)
+
+      buttons[1]:Trigger("OnEnter")
+      Assert.Equal(tooltip._title, "Marker: Viereck", "square marker must use the client's RAID_TARGET_6 name")
+      buttons[8]:Trigger("OnEnter")
+      Assert.Equal(tooltip._title, "Marker: Totenschaedel", "skull marker must use the client's RAID_TARGET_8 name")
+      buttons[5]:Trigger("OnEnter")
+      Assert.Equal(tooltip._title, "Marker: Star (Yellow)", "a missing client name must fall back to English")
+
+      Assert.Equal(
+        buttons[1]._normalPath,
+        "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6",
+        "square marker must keep its raid-target icon"
+      )
+      Assert.Equal(buttons[1]._highlightPath, "Interface\\Buttons\\WHITE8X8", "marker buttons must get a hover texture")
+      local highlight = buttons[1]:GetHighlightTexture()
+      Assert.Equal(highlight._blendMode, "ADD", "marker hover must blend softly")
+      -- BLUE_HOVER_GLOW = { 0.3, 0.65, 1, 0.2 }: cool, translucent, never gold.
+      Assert.Equal(highlight._color[1], 0.3, "marker hover must use the cool hover red channel")
+      Assert.Equal(highlight._color[3], 1, "marker hover must be blue-dominant")
+      Assert.Equal(highlight._color[4], 0.2, "marker hover must stay translucent")
     end)
   end)
 end

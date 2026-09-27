@@ -37,6 +37,14 @@ local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82
 -- Sandbox-safe GetTime read: WoW always exposes the global, but the test
 -- _G can omit it. Falling back to 0 keeps endsAt arithmetic numeric on a
 -- mocked _G; in WoW the function path is always taken.
+local function CallIfPresent(target, methodName, ...)
+  local method = type(target) == "table" and target[methodName] or nil
+  if type(method) == "function" then
+    return method(target, ...)
+  end
+  return nil
+end
+
 local function CurrentTime()
   local getTimeFn = rawget(_G, "GetTime")
   return type(getTimeFn) == "function" and getTimeFn() or 0
@@ -91,6 +99,9 @@ local function BuildCenterNoticeConfig(opts)
     formatCooldownSeconds = opts.formatCooldownSeconds or function(sec)
       return tostring(sec or 0)
     end,
+    -- Optional: without them the teleport button keeps its text-only cooldown.
+    getCooldownFrameStartForRemaining = opts.getCooldownFrameStartForRemaining,
+    applyCooldownFrameSafe = opts.applyCooldownFrameSafe,
     getDungeonName = opts.getDungeonName or function(_mapID, _localeTag)
       return nil
     end,
@@ -308,7 +319,25 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button.overlay = button:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(unpack(Colors.TRANSPARENT or { 0, 0, 0, 0 }))
-  button.cooldownText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+
+  -- Cooldown swipe over the icon, like the portal grid. The status text sits
+  -- on its own layer above the swipe, otherwise the swipe would cover it.
+  local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+  if type(cooldown) == "table" then
+    CallIfPresent(cooldown, "SetAllPoints", button.icon)
+    CallIfPresent(cooldown, "SetDrawEdge", false)
+    CallIfPresent(cooldown, "SetHideCountdownNumbers", true)
+    button.cooldown = cooldown
+  end
+  local textLayer = CreateFrame("Frame", nil, button)
+  CallIfPresent(textLayer, "SetAllPoints", button)
+  local cooldownLevel = CallIfPresent(cooldown, "GetFrameLevel")
+  if type(cooldownLevel) == "number" then
+    CallIfPresent(textLayer, "SetFrameLevel", cooldownLevel + 1)
+  end
+  local textParent = type(textLayer) == "table" and type(textLayer.CreateFontString) == "function" and textLayer
+    or button
+  button.cooldownText = textParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   IncreaseFontSize(button.cooldownText, RICH_TELEPORT_STATUS_FONT_DELTA)
   button.cooldownText:SetPoint("TOP", button, "TOP", 0, -4)
   button.cooldownText:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1 }))
@@ -892,11 +921,12 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
 
   state.endsAt = state.isPersistent and math.huge or (CurrentTime() + (durationSeconds or 20))
   SetCenterNoticeVisible(state, true)
-  if
-    (not wasShown or kindChanged)
-    and type(SemanticUICommon) == "table"
-    and type(SemanticUICommon.PlayNoticeTransition) == "function"
-  then
+  if type(SemanticUICommon) ~= "table" then
+    return
+  end
+  if not wasShown and type(SemanticUICommon.PlayNoticeEntrance) == "function" then
+    SemanticUICommon.PlayNoticeEntrance(state.frame)
+  elseif kindChanged and type(SemanticUICommon.PlayNoticeTransition) == "function" then
     SemanticUICommon.PlayNoticeTransition(state.frame)
   end
 end
@@ -956,6 +986,30 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
   -- + formatCooldownSeconds + SetText each time. 0.1s accumulator matches the same
   -- pattern as game/isiLive_mplus_timer.lua.
   state.teleportButton._cooldownTextAccum = 0
+
+  -- Mirrors the portal grid: the swipe starts now and runs over the remaining
+  -- time (GetCooldownFrameStartForRemaining + ApplyCooldownFrameSafe). It is
+  -- only re-applied when the end time moves by more than half a second, so the
+  -- 0.1 s text refresh does not restart the swipe every tick.
+  local function SyncTeleportSwipe(button, remaining)
+    local apply = state.config.applyCooldownFrameSafe
+    if not button.cooldown or type(apply) ~= "function" then
+      return
+    end
+    local startFor = state.config.getCooldownFrameStartForRemaining
+    if remaining > 0 and type(startFor) == "function" then
+      local start, duration = startFor(remaining)
+      local endTime = (tonumber(start) or 0) + (tonumber(duration) or 0)
+      if button._swipeEnd == nil or math.abs(button._swipeEnd - endTime) > 0.5 then
+        apply(button.cooldown, start, duration, true)
+        button._swipeEnd = endTime
+      end
+    elseif button._swipeEnd ~= nil then
+      apply(button.cooldown, 0, 0, false)
+      button._swipeEnd = nil
+    end
+  end
+
   local function UpdateTeleportCooldownText(self, elapsed)
     self._cooldownTextAccum = (self._cooldownTextAccum or 0) + (elapsed or 0)
     if self._cooldownTextAccum < 0.1 then
@@ -965,10 +1019,12 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
 
     if not self.spellID or not self:IsShown() then
       self.cooldownText:Hide()
+      SyncTeleportSwipe(self, 0)
       return
     end
 
     local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
+    SyncTeleportSwipe(self, remaining)
     if remaining > 0 then
       self.cooldownText:SetText(state.config.formatCooldownSeconds(remaining))
       self.cooldownText:Show()
@@ -985,6 +1041,7 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
   state.teleportButton:SetScript("OnHide", function(self)
     self:SetScript("OnUpdate", nil)
     self._cooldownTextAccum = 0
+    SyncTeleportSwipe(self, 0)
   end)
   if state.teleportButton:IsShown() then
     state.teleportButton:SetScript("OnUpdate", UpdateTeleportCooldownText)
