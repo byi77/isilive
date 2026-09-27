@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-27 - Version 0.9.408 (patch)
+
+- The main window fades in when it opens outside combat (0.2 s), or appears at once with reduced motion.
+- Stats Box values that change (a proc, a buff, new gear) briefly fade in; the first value and changes caused by settings stay still. A masked stat is never compared or remembered, so the primary stat inside restricted content cannot raise errors or taint the addon.
+- Settings sliders show the filled share left of the thumb, a slightly wider thumb and a hover state.
+- The font dropdown shows every font in its own typeface; text that needs Cyrillic glyphs keeps the base font.
+- Consolidated the color palette: eleven near-identical compatibility colors (at most 0.05 per channel apart, same meaning) were folded into existing tokens and four unused colors were removed. Visible changes stay within 5% per channel, most noticeably slightly cooler settings borders. A test now rejects new near-duplicates.
+- Turning on reduced motion now only resets transitions that are actually running, so it can no longer override the main window's combat fade.
+- Added rules 138-142 with deterministic coverage and moved the new settings-control test into its own scenario file to keep the settings suite under the file-size limit.
+
 ## 2026-09-27 - Version 0.9.407 (patch)
 
 - Every roster row carries a 2 px accent strip on its left edge in the player's class color; offline players and players who left the group get a grey strip, and rows without a known class color show none.
