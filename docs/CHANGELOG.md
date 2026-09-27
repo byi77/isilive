@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-27 - Version 0.9.407 (patch)
+
+- Every roster row carries a 2 px accent strip on its left edge in the player's class color; offline players and players who left the group get a grey strip, and rows without a known class color show none.
+- The blue row highlight fades in briefly on hover (0.14 s), or appears at once with reduced motion.
+- A ready-check row tint fades in when its status changes instead of snapping on.
+- During the 20-second hold after a ready check, a 2 px bar along the bottom of the row counts down until the ready/not-ready marking clears. It shrinks with a scale animation instead of a per-frame update and stays active with reduced motion, because it is a countdown rather than decoration.
+- Added rules 136 and 137 with an end-to-end roster render test; in-client visual checks remain listed in the UI modernization checklist.
+
 ## 2026-09-27 - Version 0.9.406 (patch)
 
 - Added shared motion tokens (`fast` 0.14 s, `normal` 0.2 s, `slow` 0.35 s) and one reusable alpha transition in `UICommon`; turning on reduced motion now stops every registered transition at once, and only one alpha transition runs per frame.
