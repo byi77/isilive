@@ -243,7 +243,7 @@ local function CreateKillTrackRow(mainFrame)
   end
   if type(activeDungeonBackdrop.SetVertexColor) == "function" then
     activeDungeonBackdrop:SetVertexColor(
-      unpack((UICommon.Colors and UICommon.Colors.NEAR_BLACK_BACKDROP) or { 0.02, 0.02, 0.02, 0.5 })
+      unpack((UICommon.Colors and UICommon.Colors.BLACK_OVERLAY_50) or { 0, 0, 0, 0.5 })
     )
   end
   if type(activeDungeonBackdrop.Hide) == "function" then
@@ -485,7 +485,7 @@ local function UpdateKillTrackRow(row, deps)
         pullText:SetText("+" .. FormatPercentText(pullPct))
         if type(pullText.SetTextColor) == "function" then
           pullText:SetTextColor(
-            unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_PULL_TEXT) or { 0.6, 0.85, 1.0 })
+            unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
           )
         end
       else

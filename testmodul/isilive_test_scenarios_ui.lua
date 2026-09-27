@@ -2075,6 +2075,37 @@ local function RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("UI main frame fades in when opened and skips the fade with reduced motion", function()
+    local function OpenMainFrame(db)
+      local mainUI
+      WithGlobals({
+        UIParent = {},
+        IsiLiveDB = db,
+        CreateFrame = BuildCreateFrameStub(),
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+        local UI = RequireValue(addon.UI, "UI module should load")
+        mainUI = UI.CreateMainFrame({
+          parent = UIParent,
+          isInCombat = function()
+            return false
+          end,
+        })
+        Assert.True(mainUI.SetVisible(true), "opening the main frame should show it")
+        Assert.False(mainUI.SetVisible(true), "opening an already visible main frame is a no-op")
+      end)
+      return mainUI.frame
+    end
+
+    local frame = OpenMainFrame({})
+    local groups = frame._animGroups or {}
+    Assert.Equal(#groups, 1, "opening the main frame should build exactly one entrance fade")
+    Assert.True(groups[1]:IsPlaying(), "the entrance fade should play when the window opens")
+
+    local calmFrame = OpenMainFrame({ reduceMotion = true })
+    Assert.Nil(calmFrame._animGroups, "reduced motion should open the window without a fade")
+  end)
+
   test("UI game-menu panel buttons use one hover state without an extra highlight layer", function()
     local layers = {}
     local function NewRegion()

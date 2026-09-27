@@ -440,6 +440,96 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox fades changed stat values in but stays still on settings changes", function()
+    local db = { statsBoxEnabled = true }
+    local haste = { key = "haste", label = "Haste", value = 528, percent = 16.48 }
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return { haste }
+        end,
+      })
+      local valueText = box.lines[1].value
+      local percentText = box.lines[1].percent
+      local onUpdate = Assert.NotNil(box.frame._scripts.OnUpdate, "an enabled stats box should refresh itself")
+
+      Assert.Nil(valueText._animGroups, "the first shown value must not flash")
+      onUpdate(box.frame, 1.1)
+      Assert.Nil(valueText._animGroups, "an unchanged value must not flash")
+
+      haste.value = 812
+      haste.percent = 24.61
+      onUpdate(box.frame, 1.1)
+      local groups = Assert.NotNil(valueText._animGroups, "a changed value must fade in")
+      Assert.True(groups[1]:IsPlaying(), "the value fade must play")
+      Assert.True(percentText._animGroups[1]:IsPlaying(), "the percentage must fade in with its value")
+
+      groups[1]:Stop()
+      db.statsBoxDisplayMode = "value"
+      box.ApplySettings()
+      Assert.False(groups[1]:IsPlaying(), "a display-mode change must not flash the values")
+    end)
+  end)
+
+  -- Regression (2026-09-27, 1287x in-game): the primary stat from UnitStat is a
+  -- Secret Value; formatting it yields a secret string, and comparing two of
+  -- those in the change flash raised "attempt to compare ... secret string"
+  -- on every refresh and tainted the addon.
+  test("StatsBox change flash never compares or stores a secret stat text", function()
+    local secretMeta = {}
+    secretMeta.__concat = function()
+      return setmetatable({}, secretMeta)
+    end
+    secretMeta.__eq = function()
+      error("attempt to compare a secret string value")
+    end
+    secretMeta.__tostring = function()
+      return "<secret string>"
+    end
+    local function NewSecret()
+      return setmetatable({}, secretMeta)
+    end
+
+    local db = { statsBoxEnabled = true }
+    local primary = { key = "strength", label = "Str", valueText = NewSecret() }
+    local haste = { key = "haste", label = "Haste", value = 528, percent = 16.48 }
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = BuildCreateFrameStub(),
+      issecretvalue = function(value)
+        return getmetatable(value) == secretMeta
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return { primary, haste }
+        end,
+      })
+      local onUpdate = Assert.NotNil(box.frame._scripts.OnUpdate, "an enabled stats box should refresh itself")
+
+      primary.valueText = NewSecret()
+      onUpdate(box.frame, 1.1)
+      primary.valueText = NewSecret()
+      onUpdate(box.frame, 1.1)
+      Assert.Nil(box.lines[1].value._animGroups, "a secret stat must never flash")
+
+      haste.value = 812
+      onUpdate(box.frame, 1.1)
+      Assert.NotNil(box.lines[2].value._animGroups, "readable stats next to a secret one must still flash")
+    end)
+  end)
+
   test("StatsBox applies font size offset from settings", function()
     local createFrameStub = BuildCreateFrameStub()
     local db = {

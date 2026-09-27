@@ -20,8 +20,6 @@ UICommon.LOCALE_FONT_OVERRIDES = {
 UICommon.Colors = {
   BG_PRIMARY = { 0.08, 0.08, 0.12, UICommon.DEFAULT_BG_ALPHA },
   BG_SECONDARY = { 0.12, 0.12, 0.18, 0.7 },
-  BORDER_DEFAULT = { 0.35, 0.35, 0.50, 0.65 },
-  ACCENT_GOLD = { 1, 0.82, 0 },
   ACCENT_BLUE = { 0.3, 0.65, 1 },
   TEXT_NORMAL = { 0.85, 0.85, 0.9 },
   TEXT_DIM = { 0.5, 0.5, 0.6 },
@@ -32,28 +30,23 @@ UICommon.Colors = {
   -- SetColorTexture call sites (UI modernization pass). Each entry preserves
   -- the exact original arity (3 = RGB, alpha left untouched by the widget
   -- API; 4 = RGBA) so migrating a call site to `unpack(...)` is behavior-
-  -- neutral. Values are extracted verbatim, not semantically merged with
-  -- near-identical tones — unifying visually-similar colors is a separate,
-  -- deliberate design decision this pass deliberately did not make.
-  WHITE_OPAQUE = { 1, 1, 1, 1 },
+  -- neutral.
+  --
+  -- Consolidated 2026-09-27 (rule 142): a compatibility color that matched
+  -- another token of the same meaning within 0.05 per channel was folded into
+  -- it, preferring the semantic token below, and unused colors were dropped.
+  -- New colors reuse an existing token when one is within that tolerance.
   WHITE_RGB = { 1, 1, 1 },
   GOLD_TITLE = { 1, 0.85, 0 },
-  GOLD_TITLE_OPAQUE = { 1, 0.85, 0, 1 },
   GOLD_LABEL_ALT = { 1, 0.82, 0.18 },
-  GOLD_MAINFRAME_LABEL = { 1, 0.85, 0.2, 1 },
   GOLD_TARGET_TEXT = { 1.0, 0.84, 0.35 },
   MUTED_GOLD_PCT_TEXT = { 0.9, 0.82, 0.45 },
-  LIGHT_GOLD_LABEL = { 1, 0.92, 0.45, 1 },
-  AMBER_BETA_LABEL = { 1, 0.83, 0.35, 0.95 },
   AMBER_SUPPORT_NOTICE = { 1, 0.75, 0.2, 1 },
   ORANGE_RAID_NOTICE = { 1, 0.5, 0 },
   ORANGE_WARNING_LABEL = { 1, 0.55, 0.2, 1 },
   WARM_WHITE_TEXT = { 1, 0.92, 0.7 },
   BLUE_VERSION_TEXT = { 0.55, 0.75, 1.0 },
-  LIGHT_BLUE_PULL_TEXT = { 0.6, 0.85, 1.0 },
   LIGHT_BLUE_LEVEL_TEXT = { 0.65, 0.85, 1.0 },
-  LIGHT_BLUE_MAINFRAME_LABEL = { 0.75, 0.9, 1, 1 },
-  PALE_BLUE_SUBTITLE = { 0.88, 0.92, 1, 1 },
   CYAN_EYEBROW = { 0.46, 0.94, 1 },
   CYAN_DIRECTION = { 0.38, 0.92, 1 },
   CYAN_GUIDE_LINE = { 0.2, 0.8, 1, 0.28 },
@@ -64,9 +57,7 @@ UICommon.Colors = {
   BLUE_ROW_HIGHLIGHT = { 0.3, 0.65, 1, 0.08 },
   BLUE_PULL_BAR = { 0.4, 0.7, 1.0, 0.7 },
   STEEL_BLUE_OVERLAY = { 0.15, 0.35, 0.55, 0.25 },
-  DEEP_BLUE_ICON_BG = { 0.05, 0.2, 0.34, 0.65 },
   DARK_SLATE_ICON_BG = { 0.13, 0.15, 0.18, 0.55 },
-  SLATE_DETAIL_TEXT = { 0.62, 0.68, 0.76 },
   GREEN_HINT_TEXT = { 0.45, 0.85, 0.45 },
   SUCCESS_GREEN_BAR = { 0.2, 0.75, 0.35 },
   GRAY_INACTIVE = { 0.5, 0.5, 0.5 },
@@ -74,17 +65,14 @@ UICommon.Colors = {
   GRAY_MUTED_PCT = { 0.4, 0.4, 0.5 },
   LIGHT_GRAY_ARROW = { 0.8, 0.8, 0.8 },
   DARK_GRAY_BAR_BG = { 0.12, 0.12, 0.12 },
-  NEAR_BLACK_BACKDROP = { 0.02, 0.02, 0.02, 0.5 },
   RED_DANGER_OVERLAY = { 0.4, 0.05, 0.05, 0.55 },
   TRANSPARENT = { 0, 0, 0, 0 },
   BLACK_OVERLAY_28 = { 0, 0, 0, 0.28 },
   BLACK_OVERLAY_35 = { 0, 0, 0, 0.35 },
   BLACK_OVERLAY_50 = { 0, 0, 0, 0.5 },
   BLACK_OVERLAY_60 = { 0, 0, 0, 0.6 },
-  BLACK_OVERLAY_62 = { 0, 0, 0, 0.62 },
   TOOLTIP_BG_BLACK = { 0, 0, 0, 0.92 },
   BG_NOTICE_CARD = { 0.05, 0.05, 0.08, 0.75 },
-  BG_NOTICE_CARD_BASE = { 0.05, 0.05, 0.08 },
 
   -- Deliberate semantic design tokens. Unlike the compatibility colors above,
   -- these values define the shared modern isiLive visual language and may be
@@ -518,7 +506,7 @@ UICommon.BACKDROP_PRESETS = {
       local bg = UICommon.Colors.BG_PRIMARY
       return bg[1], bg[2], bg[3], UICommon.GetBackgroundAlpha()
     end,
-    borderColor = UICommon.Colors.BORDER_DEFAULT,
+    borderColor = UICommon.Colors.BORDER_ACTION_SECONDARY,
   },
   MAIN_FRAME = {
     backdrop = BACKDROP_PANEL,
@@ -546,7 +534,7 @@ UICommon.BACKDROP_PRESETS = {
   FLAT_BUTTON = {
     backdrop = BACKDROP_FLAT_BUTTON,
     bgColor = UICommon.Colors.BG_SECONDARY,
-    borderColor = UICommon.Colors.BORDER_DEFAULT,
+    borderColor = UICommon.Colors.BORDER_ACTION_SECONDARY,
   },
   TITLE_BUTTON = {
     backdrop = BACKDROP_FLAT_BUTTON,
@@ -976,9 +964,15 @@ end
 -- that goes away must not be kept alive by this table.
 local motionTransitions = setmetatable({}, { __mode = "k" })
 
+-- Only a transition that is actually running gets stopped and put back to
+-- its resting alpha. An idle one is left alone: its frame's alpha may since
+-- have been set by someone else (the main frame's combat fade, for one).
 local function SettleMotionTransition(frame, transition)
   local group = transition.group
-  if group and group.IsPlaying and group:IsPlaying() and group.Stop then
+  if not (group and group.IsPlaying and group:IsPlaying()) then
+    return
+  end
+  if group.Stop then
     group:Stop()
   end
   if type(frame.SetAlpha) == "function" then

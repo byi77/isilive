@@ -420,14 +420,14 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
   preview.name:SetPoint("CENTER", previewHealthBar, "CENTER", 0, 0)
   preview.name:SetText(labels.SETTINGS_NAMEPLATE_PREVIEW_MOB or "Test Mob")
   if type(preview.name.SetTextColor) == "function" then
-    preview.name:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
+    preview.name:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1, 1 }))
   end
 
   local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
   previewOverlayFrame._isiLiveSettingsPreviewOverlay = true
   preview.overlay = previewOverlayFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   if type(preview.overlay.SetTextColor) == "function" then
-    preview.overlay:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
+    preview.overlay:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1, 1 }))
   end
   previewOverlayFrame.text = preview.overlay
   preview.overlay:SetPoint("CENTER", previewOverlayFrame, "CENTER", 0, 0)

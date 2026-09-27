@@ -85,7 +85,7 @@ local function CreateFrameRoot(config, deps)
     if type(frame.CreateTexture) == "function" then
       local bg = frame:CreateTexture(nil, "BACKGROUND")
       bg:SetAllPoints()
-      local base = colors.BG_NOTICE_CARD_BASE or { 0.05, 0.05, 0.08 }
+      local base = colors.SURFACE_MAIN_FRAME or { 0.035, 0.045, 0.065 }
       bg:SetColorTexture(base[1], base[2], base[3], config.backgroundAlpha)
     end
   elseif type(frame.SetBackdropColor) == "function" then
@@ -163,7 +163,7 @@ local function CreateEntry(frame, config, slot, deps)
     iconBg:SetSize(44, 44)
   end
   iconBg:SetPoint("TOP", direction, "BOTTOM", pointDef.iconX, pointDef.iconY)
-  iconBg:SetColorTexture(unpack(colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
+  iconBg:SetColorTexture(unpack(colors.BLUE_ACTION_BG or { 0.04, 0.18, 0.32, 0.62 }))
 
   local iconCore = frame:CreateTexture(nil, "ARTWORK")
   if type(iconCore.SetSize) == "function" then
@@ -189,7 +189,7 @@ local function CreateEntry(frame, config, slot, deps)
   if detail.SetNonSpaceWrap then
     detail:SetNonSpaceWrap(false)
   end
-  detail:SetTextColor(unpack(colors.SLATE_DETAIL_TEXT or { 0.62, 0.68, 0.76 }))
+  detail:SetTextColor(unpack(colors.TEXT_SUPPORTING or { 0.58, 0.65, 0.74 }))
   detail:SetPoint("TOP", text, "BOTTOM", 0, -2)
 
   return {
@@ -233,7 +233,7 @@ local function ClearEntries(state)
       entry.direction:SetText("")
       entry.destination:SetText("")
       entry.detail:SetText("")
-      entry.iconBg:SetColorTexture(unpack(colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
+      entry.iconBg:SetColorTexture(unpack(colors.BLUE_ACTION_BG or { 0.04, 0.18, 0.32, 0.62 }))
       SetIconColor(entry.iconCore, 0.1, 0.45, 1, 0.92)
     end
   end
@@ -279,7 +279,7 @@ local function ApplyLayout(state, layout)
         node.iconBg:SetColorTexture(unpack(colors.DARK_SLATE_ICON_BG or { 0.13, 0.15, 0.18, 0.55 }))
         SetIconColor(node.iconCore, 0.36, 0.4, 0.46, 0.78)
       else
-        node.iconBg:SetColorTexture(unpack(colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
+        node.iconBg:SetColorTexture(unpack(colors.BLUE_ACTION_BG or { 0.04, 0.18, 0.32, 0.62 }))
         if type(entry.icon) == "string" or type(entry.icon) == "number" then
           SetIconTexture(node.iconCore, entry.icon)
         else

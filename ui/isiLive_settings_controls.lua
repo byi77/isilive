@@ -28,6 +28,10 @@ local LANG_BUTTON_WIDTH = 90
 local LANG_BUTTON_HEIGHT = 22
 local SLIDER_WIDTH = 180
 local SLIDER_HEIGHT = 16
+local SLIDER_THUMB_WIDTH = 12
+local SLIDER_THUMB_ALPHA = 0.8
+local SLIDER_FILL_ALPHA = 0.35
+local SLIDER_HOVER_BORDER_ALPHA = 0.7
 local SETTINGS_CONTENT_WIDTH = 700
 local SLIDER_LABEL_WIDTH = 150
 local CHECKBOX_LABEL_WIDTH = SETTINGS_CONTENT_WIDTH - (PADDING_X * 2) - 28
@@ -84,7 +88,7 @@ function SettingsControls.CreateChildSeparator(parent, yOffset)
   line:SetHeight(1)
   line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 5)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - 5)
-  local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+  local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
   line:SetColorTexture(bd[1], bd[2], bd[3], 0.28)
   line._isiLiveSettingsSeparator = "child"
   return line, yOffset - 14
@@ -261,19 +265,68 @@ function SettingsControls.CreateSettingsSlider(
     })
     local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
     slider:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
-    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
     slider:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
   end
+  local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+  local thumb = nil
   if type(slider.SetThumbTexture) == "function" then
-    local thumb = slider:CreateTexture(nil, "OVERLAY")
+    thumb = slider:CreateTexture(nil, "OVERLAY")
     if type(thumb.SetSize) == "function" then
-      thumb:SetSize(10, SLIDER_HEIGHT)
+      thumb:SetSize(SLIDER_THUMB_WIDTH, SLIDER_HEIGHT)
     end
-    local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
     if type(thumb.SetColorTexture) == "function" then
-      thumb:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], 0.8)
+      thumb:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], SLIDER_THUMB_ALPHA)
     end
     slider:SetThumbTexture(thumb)
+    slider.thumb = thumb
+  end
+
+  -- Filled share left of the thumb, so the value reads as an amount at a
+  -- glance. Width is computed from the value, not anchored to the thumb.
+  local fill = type(slider.CreateTexture) == "function" and slider:CreateTexture(nil, "ARTWORK") or nil
+  if fill then
+    if type(fill.SetPoint) == "function" then
+      fill:SetPoint("TOPLEFT", slider, "TOPLEFT", 1, -1)
+      fill:SetPoint("BOTTOMLEFT", slider, "BOTTOMLEFT", 1, 1)
+    end
+    if type(fill.SetColorTexture) == "function" then
+      fill:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], SLIDER_FILL_ALPHA)
+    end
+    slider.fill = fill
+  end
+  local function UpdateFill(val)
+    if not fill or type(fill.SetWidth) ~= "function" then
+      return
+    end
+    local range = (tonumber(maxVal) or 0) - (tonumber(minVal) or 0)
+    local share = range > 0 and ((tonumber(val) or 0) - minVal) / range or 0
+    share = math.max(0, math.min(1, share))
+    -- The thumb centre travels between half a thumb from either edge.
+    local travel = SLIDER_WIDTH - SLIDER_THUMB_WIDTH
+    fill:SetWidth(math.max(1, math.floor((SLIDER_THUMB_WIDTH / 2) + (travel * share) + 0.5)))
+  end
+  slider.UpdateFill = UpdateFill
+
+  -- Hover: brighter thumb and accent border.
+  if type(slider.HookScript) == "function" then
+    slider:HookScript("OnEnter", function(self)
+      if thumb and type(thumb.SetColorTexture) == "function" then
+        thumb:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], 1)
+      end
+      if type(self.SetBackdropBorderColor) == "function" then
+        self:SetBackdropBorderColor(acBlue[1], acBlue[2], acBlue[3], SLIDER_HOVER_BORDER_ALPHA)
+      end
+    end)
+    slider:HookScript("OnLeave", function(self)
+      if thumb and type(thumb.SetColorTexture) == "function" then
+        thumb:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], SLIDER_THUMB_ALPHA)
+      end
+      if type(self.SetBackdropBorderColor) == "function" then
+        local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
+        self:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+      end
+    end)
   end
   local valueLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   valueLabel:SetTextColor(tn[1], tn[2], tn[3], 1)
@@ -298,6 +351,7 @@ function SettingsControls.CreateSettingsSlider(
     else
       valueLabel:SetText(string.format("%.0f%%", val * 100))
     end
+    UpdateFill(val)
   end
 
   local function SetValueSilently(val)
@@ -377,7 +431,7 @@ function SettingsControls.CreateSettingsActionButton(
     })
     local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
     button:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
-    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
     button:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
   end
 
@@ -442,7 +496,7 @@ function SettingsControls.CreateSettingsActionButton(
 
   local function SetHoverState(isHover)
     local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
-    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
     if isHover then
       if type(button.SetBackdropColor) == "function" then
         button:SetBackdropColor(0.14, 0.14, 0.20, 0.92)
@@ -451,10 +505,10 @@ function SettingsControls.CreateSettingsActionButton(
         button:SetBackdropBorderColor(hoverLabelColor[1], hoverLabelColor[2], hoverLabelColor[3], 0.95)
       end
       if type(label.SetTextColor) == "function" then
-        label:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
+        label:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1, 1 }))
       end
       if subtitle and type(subtitle.SetTextColor) == "function" then
-        subtitle:SetTextColor(unpack(Colors.PALE_BLUE_SUBTITLE or { 0.88, 0.92, 1, 1 }))
+        subtitle:SetTextColor(unpack(Colors.TEXT_HEADING or { 0.93, 0.96, 1 }))
       end
       if hoverGlow and type(hoverGlow.Show) == "function" then
         hoverGlow:Show()
@@ -661,7 +715,7 @@ function SettingsControls.CreateSettingsOptionSelector(
     or yOffset
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
-  local borderDefault = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+  local borderDefault = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
   local buttonPadding = 22
   local currentOptions = {}
   local buttonRowCount = 1
@@ -717,7 +771,7 @@ function SettingsControls.CreateSettingsOptionSelector(
     end
     if button.label and type(button.label.SetTextColor) == "function" then
       if selected then
-        button.label:SetTextColor(unpack(Colors.GOLD_TITLE_OPAQUE or { 1, 0.85, 0, 1 }))
+        button.label:SetTextColor(unpack(Colors.GOLD_TITLE or { 1, 0.85, 0, 1 }))
       else
         button.label:SetTextColor(tn[1], tn[2], tn[3], 1)
       end
@@ -813,6 +867,37 @@ function SettingsControls.CreateSettingsOptionSelector(
     yOffset - totalHeight
 end
 
+-- Renders a dropdown entry in its own typeface when the option carries a
+-- `previewFontPath` (the font selector's options do). Text that needs Cyrillic
+-- glyphs keeps the baseline font, because several selectable fonts have none.
+local function ApplyOptionPreviewFont(fontString, option, text)
+  if
+    type(fontString) ~= "table"
+    or type(fontString.GetFont) ~= "function"
+    or type(fontString.SetFont) ~= "function"
+  then
+    return
+  end
+  if not fontString._isiLiveOptionBaseFont then
+    local path, size, flags = fontString:GetFont()
+    if type(path) ~= "string" or type(size) ~= "number" then
+      return
+    end
+    fontString._isiLiveOptionBaseFont = { path = path, size = size, flags = flags }
+  end
+  local base = fontString._isiLiveOptionBaseFont
+  local previewPath = type(option) == "table" and option.previewFontPath or nil
+  local uiCommon = addonTable.UICommon
+  local needsCyrillic = type(uiCommon) == "table"
+    and type(uiCommon.TextNeedsCyrillicFont) == "function"
+    and uiCommon.TextNeedsCyrillicFont(text)
+  if type(previewPath) == "string" and previewPath ~= "" and not needsCyrillic then
+    fontString:SetFont(previewPath, base.size, base.flags)
+  else
+    fontString:SetFont(base.path, base.size, base.flags)
+  end
+end
+
 function SettingsControls.CreateSettingsDropdownSelector(
   parent,
   yOffset,
@@ -870,7 +955,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
       insets = { left = 0, right = 0, top = 0, bottom = 0 },
     })
     local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
-    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
     dropdownButton:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
     dropdownButton:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
   end
@@ -905,7 +990,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
       insets = { left = 0, right = 0, top = 0, bottom = 0 },
     })
     local bg = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.88 }
-    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.85 }
+    local bd = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
     menuFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
     menuFrame:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
   end
@@ -945,17 +1030,22 @@ function SettingsControls.CreateSettingsDropdownSelector(
     end
     local selectedValue = GetSelectedValue()
     local selectedText = fallbackLabel or ""
+    local selectedOption = nil
     for _, option in ipairs(currentOptions) do
       if option.value == selectedValue then
         selectedText = ResolveOptionLabel(option, labelsCache)
+        selectedOption = option
         break
       end
     end
     dropdownLabel:SetText(selectedText)
+    ApplyOptionPreviewFont(dropdownLabel, selectedOption, selectedText)
     for index, option in ipairs(currentOptions) do
       local btn = optionButtons[index]
       if btn and btn.label then
-        btn.label:SetText(ResolveOptionLabel(option, labelsCache))
+        local optionText = ResolveOptionLabel(option, labelsCache)
+        btn.label:SetText(optionText)
+        ApplyOptionPreviewFont(btn.label, option, optionText)
       end
     end
   end
@@ -986,7 +1076,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
             insets = { left = 0, right = 0, top = 0, bottom = 0 },
           })
           local bgItem = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.65 }
-          local bdItem = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+          local bdItem = Colors.BORDER_ACTION_SECONDARY or { 0.32, 0.4, 0.52, 0.62 }
           btn:SetBackdropColor(bgItem[1], bgItem[2], bgItem[3], bgItem[4])
           btn:SetBackdropBorderColor(bdItem[1], bdItem[2], bdItem[3], bdItem[4])
         end
@@ -1015,6 +1105,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
       end
       local optionText = ResolveOptionLabel(option, labelsCache)
       btn.label:SetText(optionText)
+      ApplyOptionPreviewFont(btn.label, option, optionText)
       btn:SetScript("OnClick", function()
         if type(setter) == "function" then
           setter(option.value)

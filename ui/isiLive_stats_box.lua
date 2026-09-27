@@ -28,6 +28,7 @@ local PRIMARY_ROW_TINT_ALPHA = 0.22
 local ROW_TINT_SIDE_PADDING = 3
 local ROW_TINT_VERTICAL_INSET = 1
 local HOVER_MIN_BG_ALPHA = 0.18
+local STAT_CHANGE_FLASH_FROM_ALPHA = 0.35
 local LABEL_COLUMN_WIDTH = 35
 local VALUE_COLUMN_WIDTH = 60
 local PERCENT_COLUMN_WIDTH = 70
@@ -765,6 +766,35 @@ local function ResolveRenderableRow(rows, sourceIndex)
   return nil, nil, nil, sourceIndex
 end
 
+-- A stat whose shown value changes (a proc, a buff, new gear) briefly fades its
+-- numbers in, so the change is noticed without reading every row. The first
+-- value a stat shows stays still; reduced motion skips the fade.
+--
+-- Formatting a Secret Value yields a secret string, and comparing one raises
+-- and taints the addon (the primary stat from UnitStat is masked in
+-- restricted content). Such a stat is neither compared nor remembered; it
+-- simply never flashes.
+local function FlashChangedStat(state, key, rowFrame, valueText, percentText)
+  state.lastShownText = state.lastShownText or {}
+  if IsSecretValue(valueText) or IsSecretValue(percentText) then
+    state.lastShownText[key] = nil
+    return
+  end
+  local shownText = (valueText or "") .. "|" .. (percentText or "")
+  local previous = state.lastShownText[key]
+  state.lastShownText[key] = shownText
+  if previous == nil or previous == shownText then
+    return
+  end
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) ~= "table" or type(uiCommon.PlayAlphaTransition) ~= "function" then
+    return
+  end
+  local opts = { fromAlpha = STAT_CHANGE_FLASH_FROM_ALPHA, toAlpha = 1, duration = "slow" }
+  uiCommon.PlayAlphaTransition(rowFrame.value, "statChange", opts)
+  uiCommon.PlayAlphaTransition(rowFrame.percent, "statChange", opts)
+end
+
 local function RenderRows(state, rows, forceLayout)
   rows = type(rows) == "table" and rows or {}
   local layout = state.baseLayout or ResolveLayout()
@@ -792,6 +822,7 @@ local function RenderRows(state, rows, forceLayout)
         rowFrame.percent:SetText("")
         rowFrame.percent:Hide()
       end
+      FlashChangedStat(state, row.key, rowFrame, valueText, percentText)
       if rowFrame.tint and type(rowFrame.tint.Show) == "function" then
         rowFrame.tint:Show()
       end
@@ -985,6 +1016,9 @@ function StatsBox.Create(opts)
       frame:SetMovable(not ResolveLocked())
     end
     state.baseLayout = ResolveLayout()
+    -- A settings change (display mode, optional rows, font size) changes the
+    -- shown text without any stat changing, so it must not flash.
+    state.lastShownText = nil
     for _, rowFrame in ipairs(state.lines) do
       -- Styled directly rather than through a throwaway table: ipairs stops at
       -- the first nil, so a row missing its label used to leave value and

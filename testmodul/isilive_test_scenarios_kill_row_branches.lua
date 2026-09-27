@@ -821,7 +821,11 @@ return function(test, ctx)
       Assert.True(row.killTrackBarPull._shown == true, "pull bar must show in combat")
       Assert.Equal(row.killTrackBarPull._width, 40, "pull width = 20% of 200 = 40")
       Assert.Equal(row.killTrackPullText._text, "+20.00%", "pull text must show pull percent with plus prefix")
-      Assert.Equal(row.killTrackPullText._color[1], 0.6, "pull text color r")
+      Assert.Equal(
+        row.killTrackPullText._color[1],
+        addon.UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT[1],
+        "pull text uses the light-blue level color"
+      )
     end)
   end)
 

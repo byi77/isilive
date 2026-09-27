@@ -273,6 +273,16 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     if visible then
       if not frame:IsShown() then
         frame:Show()
+        -- Out of combat only (the combat branch above returns first): the
+        -- window fades in instead of popping up. Reduced motion skips it.
+        local uiCommon = addonTable.UICommon
+        if type(uiCommon) == "table" and type(uiCommon.PlayAlphaTransition) == "function" then
+          uiCommon.PlayAlphaTransition(frame, "mainFrameEntrance", {
+            fromAlpha = 0,
+            toAlpha = 1,
+            duration = "normal",
+          })
+        end
         return true
       end
       return false

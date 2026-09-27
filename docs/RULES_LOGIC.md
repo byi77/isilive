@@ -158,7 +158,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 124. Meldet der Client per `UI_ERROR_MESSAGE` exakt den lokalisierten Text `ERR_PET_SPELL_NOPATH`, spielt ausserhalb des Raids sofort die statische Pet-Stuck-Sprachansage (`deDE` deutsch, sonst englisch), hoechstens einmal pro 5 Sekunden und per Settings abschaltbar (Default an).
 
-125. Dekorative UI-Bewegung nutzt die gemeinsamen Bewegungs-Tokens aus `UICommon`; die Option fuer reduzierte Animationen stoppt alle registrierten Uebergaenge sofort und laesst den Death-/PI-Alert ohne Scale-Punch und Einblendung erscheinen.
+125. Dekorative UI-Bewegung nutzt die gemeinsamen Bewegungs-Tokens aus `UICommon`; die Option fuer reduzierte Animationen stoppt alle laufenden Uebergaenge sofort und laesst den Death-/PI-Alert ohne Scale-Punch und Einblendung erscheinen.
 
 126. Die M+-Timerbox zeigt am unteren Innenrand eine schmale Zeitleiste der verstrichenen Zeit mit Markierungen an den +3- und +2-Grenzen in der Farbe der noch erreichbaren Truhenstufe; diese Stufe bleibt voll deckend, die uebrigen werden abgedunkelt, ohne die Geometrie der Run-Zone zu veraendern.
 
@@ -183,6 +183,16 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 136. Jede Roster-Zeile traegt links einen 2 Pixel breiten Streifen in Klassenfarbe (grau fuer inaktive Zeilen), und das Hover-Highlight blendet kurz ein.
 
 137. Die Ready-Check-Toenung einer Roster-Zeile blendet bei einem neuen Status ein, und waehrend des 20-Sekunden-Nachhaltefensters zeigt eine schmale Leiste die verbleibende Zeit bis zum Ende der Markierung.
+
+138. Das Hauptfenster blendet beim Oeffnen ausserhalb des Kampfs kurz ein; bei reduzierten Animationen erscheint es sofort.
+
+139. Aendert sich ein angezeigter Statsbox-Wert, blendet seine Zahl kurz ein; der erste Wert und Aenderungen durch Settings bleiben ruhig.
+
+140. Settings-Slider zeigen den gefuellten Anteil links vom Regler, einen etwas breiteren Regler und einen Hover-Zustand.
+
+141. Das Schrift-Dropdown zeigt jede Schrift in ihrer eigenen Schriftart; Texte mit kyrillischen Zeichen behalten die Grundschrift.
+
+142. Farben, die sich je Kanal um hoechstens 0,05 unterscheiden und dieselbe Bedeutung haben, sind ein einziges `UICommon.Colors`-Token; nur ausdruecklich gelistete Designstufen duerfen so nah beieinander liegen.
 
 ## Regelbloecke
 
@@ -2020,7 +2030,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-BEWEGUNG-TOKENS-UND-REDUZIERTE-ANIMATION
 - Regelnummer: 125
 - Status: aktiv
-- Zusammenfassung: Dekorative UI-Bewegung bezieht Dauer und Easing aus `UICommon.Motion` (`fast` = 0,14 s, `normal` = 0,2 s, `slow` = 0,35 s; Easing `OUT` beim Erscheinen, `IN` beim Verschwinden). Alpha-Uebergaenge laufen ueber `UICommon.PlayAlphaTransition`, das die Animationsgruppe pro Frame und Schluessel genau einmal baut, bei erneutem Aufruf neu startet und den Frame danach auf seinem Ruhe-Alpha belaesst. Ist `reduceMotion` aktiv, startet kein dekorativer Uebergang und es wird keine Animationsgruppe gebaut; das Einschalten der Option stoppt alle registrierten Uebergaenge sofort und setzt jeden Frame auf sein Ruhe-Alpha zurueck. Der Refresh-Uebergang einer bereits sichtbaren Center-Notice bei einem Kategoriewechsel bleibt in Staerke und Dauer unveraendert (0,86 auf 1 ueber `fast`); das erste Erscheinen einer Notice regelt Regel 128. Der Death-/PI-Alert erscheint bei aktiver Option in voller Groesse und Deckkraft ohne Scale-Punch und ohne Einblendung, bleibt genauso lange sichtbar wie in der vollen Variante und blendet dann aus; Text, Farbe und Ausloeser bleiben unveraendert, und ein Umschalten der Option wirkt ab dem naechsten Alert ohne Reload.
+- Zusammenfassung: Dekorative UI-Bewegung bezieht Dauer und Easing aus `UICommon.Motion` (`fast` = 0,14 s, `normal` = 0,2 s, `slow` = 0,35 s; Easing `OUT` beim Erscheinen, `IN` beim Verschwinden). Alpha-Uebergaenge laufen ueber `UICommon.PlayAlphaTransition`, das die Animationsgruppe pro Frame und Schluessel genau einmal baut, bei erneutem Aufruf neu startet und den Frame danach auf seinem Ruhe-Alpha belaesst. Ist `reduceMotion` aktiv, startet kein dekorativer Uebergang und es wird keine Animationsgruppe gebaut; das Einschalten der Option stoppt alle gerade laufenden registrierten Uebergaenge sofort und setzt deren Frames auf ihr Ruhe-Alpha zurueck; ein ruhender Uebergang laesst die aktuelle Deckkraft seines Frames unveraendert, damit etwa der Kampf-Fade des Hauptfensters nicht ueberschrieben wird. Der Refresh-Uebergang einer bereits sichtbaren Center-Notice bei einem Kategoriewechsel bleibt in Staerke und Dauer unveraendert (0,86 auf 1 ueber `fast`); das erste Erscheinen einer Notice regelt Regel 128. Der Death-/PI-Alert erscheint bei aktiver Option in voller Groesse und Deckkraft ohne Scale-Punch und ohne Einblendung, bleibt genauso lange sichtbar wie in der vollen Variante und blendet dann aus; Text, Farbe und Ausloeser bleiben unveraendert, und ein Umschalten der Option wirkt ab dem naechsten Alert ohne Reload.
 - Erforderliche Tests:
   - UICommon motion tokens resolve shared durations and easing
   - UICommon alpha transition builds once, restarts and settles at the resting alpha
@@ -2089,7 +2099,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-BR-BL-COOLDOWN-SWIPE
 - Regelnummer: 131
 - Status: aktiv
-- Zusammenfassung: Der CD-Tracker liefert zusaetzlich zur Restzeit die Gesamtdauer: fuer einen aufladenden Battle-Res `cooldownDuration` aus denselben Ladungsdaten, fuer das beobachtete Sated-/Exhaustion-Debuff `duration` aus dem Aura-Feld ueber den geschuetzten Plain-Reader; ohne laufende Aufladung, ohne lesbaren Wert oder nach `ClearRuntimeData` ist die Dauer `nil`. Ueber BR- und BL-Icon liegt je ein `CooldownFrameTemplate`-Swipe ohne Kante und ohne eigene Countdown-Zahlen. Ist die Restzeit groesser 0 und die Gesamtdauer mindestens so gross wie die Restzeit, zeigt der Swipe `SetCooldown(jetzt + Rest - Dauer, Dauer)`; er wird nur neu gesetzt, wenn sich das Ende um mehr als 0,5 Sekunden verschiebt. Fehlen diese Werte, wird ein zuvor gezeigter Swipe genau einmal mit `SetCooldown(0, 0)` geloescht. Ein BR mit 0 Ladungen wird entsaettigt, sonst farbig dargestellt. Texte, Formate und die in Regel 71 reservierten Platzhalter `BR: --` und `BL: --` bleiben unveraendert; die Demo-Simulation liefert fuer beide eine Gesamtdauer von 600 Sekunden.
+- Zusammenfassung: Der CD-Tracker liefert zusaetzlich zur Restzeit die Gesamtdauer: fuer einen aufladenden Battle-Res `cooldownDuration` aus denselben Ladungsdaten, fuer das beobachtete Sated-/Exhaustion-Debuff `duration` aus dem Aura-Feld ueber den geschuetzten Plain-Reader; ohne laufende Aufladung, ohne lesbaren Wert oder nach `ClearRuntimeData` ist die Dauer `nil`. Ueber BR- und BL-Icon liegt je ein `CooldownFrameTemplate`-Swipe ohne Kante und ohne eigene Countdown-Zahlen. Ist die Restzeit groesser 0 und die Gesamtdauer mindestens so gross wie die Restzeit, zeigt der Swipe `SetCooldown(jetzt + Rest - Dauer, Dauer)`; er wird nur neu gesetzt, wenn sich das Ende um mehr als 0,5 Sekunden verschiebt. Fehlen diese Werte, wird ein zuvor gezeigter Swipe genau einmal mit `SetCooldown(0, 0)` geloescht. Ein BR mit lesbar 0 Ladungen wird entsaettigt, sonst farbig dargestellt; eine maskierte Ladungszahl wird nicht verglichen. Texte, Formate und die in Regel 71 reservierten Platzhalter `BR: --` und `BL: --` bleiben unveraendert; die Demo-Simulation liefert fuer beide eine Gesamtdauer von 600 Sekunden.
 - Erforderliche Tests:
   - CdTracker exposes recharge and Sated durations for the cooldown swipe
   - UpdateCdTrackerRow draws BR and BL cooldown swipes and greys out an empty BR
@@ -2144,3 +2154,47 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster ready check stays green for 20 seconds after finish
   - Roster declined ready check stays red for 20 seconds after finish
   - Ready-check dedicated refresh clears declined row background after hold expiry
+
+### RULE-HAUPTFENSTER-EINBLENDUNG
+- Regelnummer: 138
+- Status: aktiv
+- Zusammenfassung: Zeigt der Sichtbarkeits-Controller das zuvor verborgene Hauptfenster an, blendet es ueber `UICommon.PlayAlphaTransition` (Schluessel `mainFrameEntrance`) von 0 auf 1 ueber die Dauer `normal` ein. Das geschieht nur auf dem Pfad ausserhalb des Kampfs, weil ein Sichtbarkeitswunsch im Kampf weiterhin gependelt und erst bei `PLAYER_REGEN_ENABLED` angewendet wird (Regel 121); ein bereits sichtbares Fenster startet keine Einblendung, und bei reduzierten Animationen erscheint es sofort ohne Animationsgruppe. Ausblenden, Kampf-Fade, Skalierung und Position bleiben unveraendert.
+- Erforderliche Tests:
+  - UI main frame fades in when opened and skips the fade with reduced motion
+  - UICommon reduced motion stops every registered transition and skips new ones
+  - UI close button defers hiding during combat and applies after regen
+
+### RULE-STATSBOX-WERTWECHSEL-EINBLENDUNG
+- Regelnummer: 139
+- Status: aktiv
+- Zusammenfassung: Die Statsbox merkt sich pro Stat den zuletzt angezeigten formatierten Wert- und Prozenttext. Aendert er sich bei einem Refresh, blenden Wert und Prozent dieser Zeile ueber `UICommon.PlayAlphaTransition` von 0,35 auf 1 ueber die Dauer `slow` ein. Der erste angezeigte Wert eines Stats bleibt ruhig, und jedes Anwenden der Settings (Anzeigemodus, optionale Zeilen, Schriftgroesse, Sperre, Deckkraft) setzt den Vergleich zurueck, sodass nur echte Statwechsel aufblenden. Das Formatieren eines Secret Value liefert einen geheimen Text; ist Wert- oder Prozenttext eines Stats geheim, wird fuer diesen Stat weder verglichen noch verkettet noch etwas gemerkt, und er blendet nie auf, waehrend lesbare Stats daneben weiter aufblenden. Bei reduzierten Animationen entfaellt das Aufblenden. Werte, Farben, Layout und der 1-Sekunden-Refresh bleiben unveraendert.
+- Erforderliche Tests:
+  - StatsBox fades changed stat values in but stays still on settings changes
+  - StatsBox change flash never compares or stores a secret stat text
+  - StatsBox display mode renders values only or percentages only
+
+### RULE-SETTINGS-SLIDER-FUELLUNG-UND-HOVER
+- Regelnummer: 140
+- Status: aktiv
+- Zusammenfassung: Jeder Settings-Slider zeigt links vom Regler eine Fuellung in `ACCENT_BLUE` mit 35 % Deckkraft. Ihre Breite ergibt sich aus dem Wert: halbe Reglerbreite plus der Wertanteil am Bereich mal der Laufstrecke (Sliderbreite minus Reglerbreite), bei 180 Pixeln Slider und 12 Pixeln Regler also 6 Pixel am Minimum und 174 Pixel am Maximum; sie folgt jeder Wertaenderung, auch der stillen Initialisierung. Der Regler ist 12 Pixel breit und ruht mit 80 % Deckkraft; beim Hover wird er voll deckend und der Rahmen nimmt die Akzentfarbe an, beim Verlassen kehren beide zurueck. Wertebereiche, Schritte, Setter und Wertanzeigen bleiben unveraendert.
+- Erforderliche Tests:
+  - Settings sliders show a filled share and a hover state, and the font menu previews each font
+  - Settings panel background opacity keeps 50 percent default until user changes it
+
+### RULE-SCHRIFT-DROPDOWN-VORSCHAU
+- Regelnummer: 141
+- Status: aktiv
+- Zusammenfassung: Optionen des Settings-Dropdowns duerfen einen `previewFontPath` tragen; die Optionen des Schrift-Selektors setzen ihn auf den Pfad der jeweiligen Clientschrift, die Default-Option setzt keinen. Menueeintraege und die Anzeige der aktuellen Auswahl werden dann in dieser Schrift mit unveraenderter Groesse und unveraenderten Flags gerendert; ohne Vorschaupfad, fuer die Default-Option und fuer jeden Text mit kyrillischen Zeichen gilt die urspruengliche Schrift des Eintrags. Auswahl, gespeicherter Wert und der Vorrang der Locale-Schrift aus Regel 116 bleiben unveraendert.
+- Erforderliche Tests:
+  - Settings sliders show a filled share and a hover state, and the font menu previews each font
+
+### RULE-FARBPALETTE-KONSOLIDIERT
+- Regelnummer: 142
+- Status: aktiv
+- Zusammenfassung: Zwei `UICommon.Colors`-Eintraege, deren RGB-Kanaele sich jeweils um hoechstens 0,05 und deren Alpha sich um hoechstens 0,05 unterscheiden, muessen ein einziges Token sein, es sei denn, das Paar ist als bewusste, eigenstaendig benannte Designstufe im Test gelistet: die semantischen Flaechenstufen (`SURFACE_*`), Notice-Akzent gegenueber primaerem Button-Rahmen, Notice-Fallbackkarte gegenueber kompaktem Overlay, M+-Zeitleistenspur gegenueber schwarzem Overlay und der Killtracker-Level-Text gegenueber der Abschnittsfarbe. Bei der Konsolidierung vom 27.09.2026 wurden zusammengelegt: `ACCENT_GOLD` und `GOLD_TITLE_OPAQUE` in `GOLD_TITLE`, `WHITE_OPAQUE` in `WHITE_RGB`, `LIGHT_BLUE_PULL_TEXT` in `LIGHT_BLUE_LEVEL_TEXT`, `PALE_BLUE_SUBTITLE` in `TEXT_HEADING`, `SLATE_DETAIL_TEXT` in `TEXT_SUPPORTING`, `BLACK_OVERLAY_62` in `BLACK_OVERLAY_60`, `NEAR_BLACK_BACKDROP` in `BLACK_OVERLAY_50`, `DEEP_BLUE_ICON_BG` in `BLUE_ACTION_BG`, `BORDER_DEFAULT` in `BORDER_ACTION_SECONDARY` und `BG_NOTICE_CARD_BASE` in `SURFACE_MAIN_FRAME`; die ungenutzten `GOLD_MAINFRAME_LABEL`, `LIGHT_GOLD_LABEL`, `AMBER_BETA_LABEL` und `LIGHT_BLUE_MAINFRAME_LABEL` entfallen. Die sichtbare Aenderung liegt je Kanal bei hoechstens 0,05. Fallback-Literale an den Verwendungsstellen tragen die Werte des verbleibenden Tokens, und die Center-Notice-Feldbeschriftungen und -werte beziehen ihre Farbe aus `TEXT_SUPPORTING` und `TEXT_HEADING`. Die Warnfarbe der Notice-Felder, alle semantischen Tokens und die Regeln 34, 105, 107, 126 und 127 bleiben unveraendert.
+- Erforderliche Tests:
+  - UICommon.Colors keeps near-identical colors as one token unless deliberately distinct
+  - UICommon.Colors has no two keys sharing the exact same value tuple
+  - UICommon.Colors entries are well-formed RGB or RGBA tuples with values in [0, 1]
+  - Settings display section separates child groups with quiet and cool hierarchy lines
+  - UpdateKillTrackRow shows pull overlay during combat with pullPercent > 0

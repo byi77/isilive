@@ -59,7 +59,7 @@ local function CreateSettingsTitle(canvas)
   -- Accent-gold baseline so the plain `isi` prefix in ISILIVE_BRAND_TITLE
   -- renders in the historical brand color. The `Live` segment overrides
   -- this default via its embedded |cff1e90ff...|r color code.
-  local ag = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
+  local ag = Colors.GOLD_TITLE or { 1, 0.85, 0 }
   title:SetTextColor(ag[1], ag[2], ag[3], 1)
   title:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -PADDING_TOP)
   title:SetText(ISILIVE_BRAND_TITLE)

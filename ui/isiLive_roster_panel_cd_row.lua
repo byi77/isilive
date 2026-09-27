@@ -576,8 +576,10 @@ local function UpdateCdTrackerRow(row, cdController)
       else
         row.bresText:SetText(string.format("%d/%d", charges, maxCharges))
       end
-      -- No charge left: the icon greys out until the next charge is back.
-      CallIfPresent(row.bresIcon, "SetDesaturated", charges <= 0)
+      -- No charge left: the icon greys out until the next charge is back. A
+      -- masked charge count is never compared; the icon then stays in color.
+      local plainCharges = ReadPlainTimerNumber(bres.charges)
+      CallIfPresent(row.bresIcon, "SetDesaturated", plainCharges ~= nil and plainCharges <= 0)
       UpdateIconCooldown(row, "_bresCooldownEnd", row.bresCooldown, remain, bres.cooldownDuration)
     else
       row.bresText:SetText("BR: --")

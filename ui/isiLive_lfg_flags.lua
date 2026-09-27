@@ -1116,7 +1116,7 @@ local function ApplyApplicantBonusIconMarkers(member, markerCount)
       end
       if type(icon.SetVertexColor) == "function" then
         icon:SetVertexColor(
-          unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.WHITE_OPAQUE) or { 1, 1, 1, 1 })
+          unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1, 1, 1, 1 })
         )
       end
       AnchorApplicantBonusIcon(member, icon, index)

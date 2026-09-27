@@ -1,3 +1,6 @@
+-- Forward-declared: font-string stubs above its definition create groups too.
+local CreateAnimationGroupStub
+
 local function CreateTextureStub()
   return {
     hidden = false,
@@ -110,15 +113,22 @@ local function CreateFontStringStub(fontObject)
       local size = tonumber(fontSize) or 14
       return #text * math.max(5, math.floor(size * 0.5))
     end,
-    GetFont = function()
-      return "Fonts\\FRIZQT__.TTF", fontSize, fontFlags
+    GetFont = function(self)
+      return self._fontPath or "Fonts\\FRIZQT__.TTF", fontSize, fontFlags
     end,
-    SetFont = function(_self, _path, size, flags)
+    SetFont = function(self, path, size, flags)
+      self._fontPath = path
       fontSize = tonumber(size) or fontSize
       fontFlags = flags
     end,
     SetShadowColor = function(self, r, g, b, a)
       self._shadowColor = { r, g, b, a }
+    end,
+    CreateAnimationGroup = function(self)
+      local group = CreateAnimationGroupStub()
+      self._animGroups = self._animGroups or {}
+      table.insert(self._animGroups, group)
+      return group
     end,
     SetShadowOffset = function(self, x, y)
       self._shadowOffset = { x, y }
@@ -137,7 +147,7 @@ local function CreateFontStringStub(fontObject)
   }
 end
 
-local function CreateAnimationGroupStub()
+CreateAnimationGroupStub = function()
   local group = {
     _playing = false,
   }
@@ -433,8 +443,11 @@ local function ApplyFrameMethods(frame)
   frame.GetValue = function(self)
     return self._value
   end
-  frame.CreateAnimationGroup = function(_self)
-    return CreateAnimationGroupStub()
+  frame.CreateAnimationGroup = function(self)
+    local group = CreateAnimationGroupStub()
+    self._animGroups = self._animGroups or {}
+    table.insert(self._animGroups, group)
+    return group
   end
   frame.SetAutoFocus = function(self, value)
     self._autoFocus = value == true

@@ -767,7 +767,7 @@ function TeleportUI.CreateController(opts)
           button.animGroup:Stop()
         end
       else
-        button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_62 or { 0, 0, 0, 0.62 }))
+        button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_60 or { 0, 0, 0, 0.6 }))
         button.animGroup:Stop()
       end
 

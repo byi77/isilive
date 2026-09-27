@@ -199,7 +199,10 @@ local function BuildFontFamilySettingsOptions(labels)
       else
         label = BUILTIN_FONT_LABELS[entry.key] or entry.label or entry.key
       end
-      options[#options + 1] = { value = entry.key, fallback = label }
+      -- The menu shows each font in its own typeface; the default entry keeps
+      -- the template font.
+      local previewFontPath = type(entry.path) == "string" and entry.path ~= "" and entry.path or nil
+      options[#options + 1] = { value = entry.key, fallback = label, previewFontPath = previewFontPath }
     end
   end
 

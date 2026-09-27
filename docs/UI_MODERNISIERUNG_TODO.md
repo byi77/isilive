@@ -38,6 +38,15 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 - [x] Roster: 2-px-Klassenfarbstreifen links (grau fuer inaktive Zeilen) und kurz eingeblendetes Hover-Highlight (Regel 136).
 - [x] Roster: Ready-Check-Toenung blendet bei neuem Status ein; Restzeitleiste des 20-s-Nachhaltefensters per Scale-Animation (Regel 137). Die Restzeit des laufenden Ready-Checks selbst wird nicht angezeigt, weil `GetReadyCheckTimeLeft` nicht belegt ist.
 - [ ] Klassenstreifen, Hover und Ready-Check-Restzeitleiste im WoW-Client pruefen (Streifen neben rechtsbuendigen langen Spec-Namen, Leiste am Zeilenrand).
+- [x] Hauptfenster blendet beim Oeffnen ausserhalb des Kampfs ein (Regel 138); reduzierte Animationen setzen nur noch laufende Uebergaenge zurueck, damit der Kampf-Fade nicht ueberschrieben wird (Regel 125).
+- [x] Statsbox: geaenderte Werte blenden kurz auf, Settings-Aenderungen nicht (Regel 139).
+- [x] Settings-Slider mit gefuelltem Anteil, 12-px-Regler und Hover (Regel 140).
+- [x] Schrift-Dropdown zeigt jede Schrift in ihrer eigenen Schriftart (Regel 141).
+- [ ] Hauptfenster-Einblendung, Statsbox-Aufblenden bei Procs, Slider und Schrift-Vorschau im WoW-Client pruefen.
+- Nicht umgesetzt (bewusste Entscheidung): Spielername unter dem Death-Alert (D4) - in einer 5er-Gruppe benennt die Rolle die Person bereits eindeutig. Rahmen fuer die entsperrte Statsbox (E2) - widerspricht Regel 65 ("rahmenlos").
+- [x] Farbpalette konsolidiert (A3): 11 fast gleiche Kompatibilitaetsfarben (<= 0,05 je Kanal, gleiche Bedeutung) in bestehende Tokens zusammengelegt, 4 ungenutzte entfernt, Fallbacks angeglichen, Notice-Feldfarben aus Tokens; ein Waechtertest verhindert neue Beinahe-Duplikate (Regel 142).
+- [ ] Farbwirkung nach der Konsolidierung im WoW-Client pruefen (Settings-Rahmen, ESC-Panel, Portal-Navigator, Killtracker-Pulltext).
+- Offen zur Machbarkeitspruefung: Verlaeufe (A4), schraffierte Pull-Vorhersage (B6), Abschluss-Banner (B11).
 - [x] M+-Run-Zone und kompakte Layouts auf schnelle Erfassbarkeit ueberarbeiten. Im kompakten M+-Layout sind der Prozentwert auf 14 px und der Fortschrittsbalken auf 10 px hervorgehoben; Breite, Zeilenhoehe, Daten und Farben bleiben erhalten.
 - [x] ESC-Panels und Teleport-Grid in Gruppierung und Zustaenden angleichen. Tooling, Travel, Mounts und Addons sind in benannten Panel-Flaechen gruppiert und verwenden denselben semantischen Sekundaerbutton-Stil; das Portal-Grid zeigt Abklingzeit, Verfuegbarkeit und aktives Ziel getrennt.
 

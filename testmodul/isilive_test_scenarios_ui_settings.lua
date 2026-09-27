@@ -69,7 +69,7 @@ local function RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, 
           Colors = {
             TEXT_NORMAL = { 0.9, 0.9, 1 },
             ACCENT_BLUE = { 0.1, 0.2, 0.8 },
-            ACCENT_GOLD = { 1, 0.7, 0 },
+            GOLD_TITLE = { 1, 0.7, 0 },
           },
           ApplyBackdrop = function(frame, preset)
             backdropCalls[#backdropCalls + 1] = { frame = frame, preset = preset }
@@ -795,7 +795,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
             TEXT_DIM = { 0.5, 0.5, 0.6 },
             TEXT_NORMAL = { 0.85, 0.85, 0.9 },
             ACCENT_BLUE = { 0.1, 0.2, 0.8 },
-            BORDER_DEFAULT = { 0.2, 0.22, 0.28, 0.5 },
+            BORDER_ACTION_SECONDARY = { 0.2, 0.22, 0.28, 0.5 },
           },
         },
       })
@@ -830,7 +830,11 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         if texture._isiLiveSettingsSeparator == "child" then
           childSeparators = childSeparators + 1
           Assert.Equal(texture._height, 1, "child separator must be a thin one-pixel line")
-          Assert.Equal(texture._color[1], 0.35, "child separator should use the subtle border color")
+          Assert.Equal(
+            texture._color[1],
+            addon.UICommon.Colors.BORDER_ACTION_SECONDARY[1],
+            "child separator should use the shared secondary border color"
+          )
           Assert.Equal(texture._color[4], 0.28, "child separator should stay visually lighter than section lines")
         elseif texture._isiLiveSettingsSeparator == "section" then
           sectionSeparators = sectionSeparators + 1

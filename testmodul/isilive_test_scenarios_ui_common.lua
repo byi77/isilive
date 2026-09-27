@@ -1046,6 +1046,13 @@ return function(test, ctx)
 
       Assert.True(UICommon.SetReducedMotionEnabled(false), "motion can be re-enabled live")
       Assert.True(UICommon.PlayAlphaTransition(panel, "panel"), "transitions must resume once motion is allowed")
+
+      -- An idle transition must not overwrite an alpha set elsewhere since
+      -- (the main frame's combat fade drops it to 0 while fighting).
+      panel.lastGroup:Stop()
+      panel.alpha = 0
+      Assert.True(UICommon.SetReducedMotionEnabled(true), "motion setting should apply again")
+      Assert.Equal(panel.alpha, 0, "an idle transition must leave the frame's current alpha untouched")
     end)
   end)
 
@@ -1065,6 +1072,52 @@ return function(test, ctx)
         local component = color[i]
         Assert.True(type(component) == "number", "Colors." .. name .. "[" .. i .. "] must be numeric")
         Assert.True(component >= 0 and component <= 1, "Colors." .. name .. "[" .. i .. "] must be in [0, 1]")
+      end
+    end
+  end)
+
+  -- Rule 142: colors within 0.05 per channel (and 0.05 alpha) must be one
+  -- token unless they are deliberate, distinctly named design steps. A new
+  -- near-duplicate fails here until it either reuses the existing token or is
+  -- added to this list with its reason.
+  local DELIBERATE_NEAR_PAIRS = {
+    -- Semantic surface tiers: main frame, title bar, run zone, notice, compact overlay.
+    ["SURFACE_ACTION_SECONDARY|SURFACE_NOTICE"] = true,
+    ["SURFACE_ACTION_SECONDARY|SURFACE_RUN_ZONE"] = true,
+    ["SURFACE_ACTION_SECONDARY_PRESSED|SURFACE_MAIN_FRAME"] = true,
+    ["SURFACE_COMPACT_OVERLAY|SURFACE_TITLE_BAR"] = true,
+    ["SURFACE_NOTICE|SURFACE_RUN_ZONE"] = true,
+    ["SURFACE_RUN_ZONE|SURFACE_TITLE_BAR"] = true,
+    -- Notice top accent vs. primary button border: separate semantic roles.
+    ["ACCENT_NOTICE_TOP|BORDER_ACTION_PRIMARY"] = true,
+    -- Notice fallback card vs. compact layout overlay: unrelated surfaces.
+    ["BG_NOTICE_CARD|SURFACE_COMPACT_OVERLAY"] = true,
+    -- M+ timeline track vs. generic black overlay: named for rule 126.
+    ["BLACK_OVERLAY_50|MPLUS_TIMELINE_TRACK"] = true,
+    -- Killtracker level/progress text (rule 127) vs. section headings.
+    ["LIGHT_BLUE_LEVEL_TEXT|TEXT_SECTION"] = true,
+  }
+
+  test("UICommon.Colors keeps near-identical colors as one token unless deliberately distinct", function()
+    local UICommon = LoadUICommon()
+    local names = {}
+    for name in pairs(UICommon.Colors) do
+      names[#names + 1] = name
+    end
+    table.sort(names)
+    local tolerance = 0.05 + 1e-9
+    for i = 1, #names do
+      for j = i + 1, #names do
+        local a, b = UICommon.Colors[names[i]], UICommon.Colors[names[j]]
+        local rgb = math.max(math.abs(a[1] - b[1]), math.abs(a[2] - b[2]), math.abs(a[3] - b[3]))
+        local alpha = math.abs((a[4] or 1) - (b[4] or 1))
+        if rgb <= tolerance and alpha <= tolerance then
+          local pair = names[i] .. "|" .. names[j]
+          Assert.True(
+            DELIBERATE_NEAR_PAIRS[pair] == true,
+            pair .. " are within 0.05 per channel -- reuse one token or list the pair as a deliberate step"
+          )
+        end
       end
     end
   end)
