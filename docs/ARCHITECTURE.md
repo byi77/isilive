@@ -1,11 +1,11 @@
 # isiLive Architektur
 
-Versionsbasis: `0.10.0`
+Versionsbasis: `0.9.402`
 Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 
-Stand 0.10.0: Die Settings-Navigation bleibt oberhalb des vorhandenen Scrollbereichs sichtbar. Der Anzeige-Abschnitt besitzt eine skalierte Vorschau und stellt nur Anzeigeoptionen auf ihre Schema-Defaults zurueck. Die Main-UI nutzt eine Spaltenkopf-Leiste und gemeinsame visuelle Zustaende fuer verfuegbare, gesperrte und abklingende Aktionen. Geschuetzte Leader-Buttons werden im Kampf nicht mutiert.
+Stand 0.9.402: Die Settings-Navigation bleibt oberhalb des vorhandenen Scrollbereichs sichtbar. Der Anzeige-Abschnitt besitzt eine skalierte Vorschau und stellt nur Anzeigeoptionen auf ihre Schema-Defaults zurueck. Die Main-UI nutzt eine Spaltenkopf-Leiste und gemeinsame visuelle Zustaende fuer verfuegbare, gesperrte und abklingende Aktionen. Geschuetzte Leader-Buttons werden im Kampf nicht mutiert.
 
 ## Zweck
 
@@ -316,7 +316,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.10.0                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.402                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

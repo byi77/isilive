@@ -96,8 +96,9 @@
 ## Versionierung
 - Verwendet wird `MAJOR.MINOR.PATCH` im SemVer-light-Stil, zum Beispiel `0.9.1`.
 - Solange das Projekt pre-1.0 ist, bleiben Releases im Schema `0.x.y`.
-- `PATCH`-Bump (`0.9.1 -> 0.9.2`): Bugfixes ohne neue user-facing Features.
-- `MINOR`-Bump (`0.9.2 -> 0.10.0`): neue Features, neue Commands, neue UI-Controls, backward-compatible Verhalten.
+- Bis zu einer ausdruecklichen anderen Benutzerentscheidung bleibt die Release-Reihe bei `0.9.x`; der naechste TOC-Bump erhoeht nur die letzte Zahl, auch bei neuen UI-Controls.
+- `PATCH`-Bump (`0.9.401 -> 0.9.402`): naechste Version innerhalb der aktuellen `0.9.x`-Reihe.
+- `MINOR`-Bump (`0.9.x -> 0.10.0`): nur nach ausdruecklicher Benutzerentscheidung fuer einen Wechsel der Release-Reihe.
 - `MAJOR`-Bump (`0.x -> 1.0.0` oder `1.x -> 2.0.0`): Breaking Changes oder inkompatible Migration.
 - Jede funktionale Aenderung aktualisiert, sofern vom User kein anderer Release-Zuschnitt vorgegeben ist:
 - `CHANGELOG.md` Eintrag mit explizitem Datum (`YYYY-MM-DD`)

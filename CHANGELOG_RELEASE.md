@@ -3,11 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.10.0`.
+Current version: `0.9.402`.
 
-Version 0.10.0: Settings now have a fixed section navigation, a live display preview, and display defaults. The main roster header, M+ run label, and leader/cooldown action states are easier to scan.
+Version 0.9.402: Settings now have a fixed section navigation, a live display preview, and display defaults. The main roster header, M+ run label, and leader/cooldown action states are easier to scan.
 
-<!-- highlights-reviewed-for: 0.10.0 -->
+<!-- highlights-reviewed-for: 0.9.402 -->
 
 Highlights:
 - **Find Settings faster.** Ten always-visible section buttons jump directly to the chosen controls. Display settings now show scale and opacity in a live preview and can restore their own defaults without resetting unrelated preferences.

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-09-27 - Version 0.10.0 (minor)
+## 2026-09-27 - Version 0.9.402 (patch)
 
 - Added a fixed two-row section navigation to the Settings panel. Its ten localized buttons jump within the existing scroll area, follow manual scrolling, and refresh after a language change.
 - Added a live scale/opacity preview and a display-only defaults action. The latter reapplies display callbacks and leaves unrelated settings intact.

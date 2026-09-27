@@ -1,11 +1,11 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.10.0`
+Versionsbasis: `0.9.402`
 Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 
-Stand 0.10.0: Ein Klick auf einen der zehn Settings-Abschnitte scrollt zum Abschnitt; manuelles Scrollen aktualisiert die aktive Navigation. Skalierung und Deckkraft aktualisieren die Anzeige-Vorschau direkt. Die Anzeige-Standardwert-Aktion setzt nur Anzeigeoptionen zurueck und wendet ihre Live-Callbacks an. Leader-Sperren und Share-Keys-Cooldown erhalten getrennte visuelle Zustaende.
+Stand 0.9.402: Ein Klick auf einen der zehn Settings-Abschnitte scrollt zum Abschnitt; manuelles Scrollen aktualisiert die aktive Navigation. Skalierung und Deckkraft aktualisieren die Anzeige-Vorschau direkt. Die Anzeige-Standardwert-Aktion setzt nur Anzeigeoptionen zurueck und wendet ihre Live-Callbacks an. Leader-Sperren und Share-Keys-Cooldown erhalten getrennte visuelle Zustaende.
 
 ## Akteure
 
