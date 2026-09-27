@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-27 - Version 0.9.405 (patch)
+
+- Increased Stats Box numeric and percentage values by 1 px over labels and expanded the baseline row interval to 18 px, scaling with the existing font-size option while preserving stat colors.
+- Matched private tooltip cards to the roster tooltip baseline: 220 px minimum width, 10 px padding and 3 px between lines.
+- Reconciled the UI modernization checklist with existing ESC panel grouping, portal status presentation, and the completed deterministic UI refinements; in-client screenshot checks remain open where required.
+- Added deterministic checks for Stats Box hierarchy and shared tooltip width and spacing.
+
 ## 2026-09-27 - Version 0.9.404 (patch)
 
 - Added an opt-in display setting that stops decorative Center-Notice fades and portal-target pulses while keeping notice content and the static active-target border visible.

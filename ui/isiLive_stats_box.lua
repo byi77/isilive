@@ -15,7 +15,7 @@ local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 
 local BOX_WIDTH = 177
 local BOX_HEIGHT = 158
-local LINE_HEIGHT = 16
+local LINE_HEIGHT = 18
 local UPDATE_INTERVAL = 1
 local DEFAULT_BG_ALPHA = 0
 local BASE_FONT_SIZE = 14
@@ -221,6 +221,7 @@ local function ResolveLayout()
   local scale = fontSize / BASE_FONT_SIZE
   return {
     fontSize = fontSize,
+    valueFontSize = fontSize + 1,
     width = ScaleDimension(BOX_WIDTH, scale),
     height = ScaleDimension(BOX_HEIGHT, scale),
     lineHeight = ScaleDimension(LINE_HEIGHT, scale),
@@ -1030,8 +1031,8 @@ function StatsBox.Create(opts)
       -- the first nil, so a row missing its label used to leave value and
       -- percent unstyled.
       ApplyLineTextStyle(rowFrame.label, state.baseLayout.fontSize)
-      ApplyLineTextStyle(rowFrame.value, state.baseLayout.fontSize)
-      ApplyLineTextStyle(rowFrame.percent, state.baseLayout.fontSize)
+      ApplyLineTextStyle(rowFrame.value, state.baseLayout.valueFontSize)
+      ApplyLineTextStyle(rowFrame.percent, state.baseLayout.valueFontSize)
     end
     Refresh(true)
     if ResolveEnabled() then

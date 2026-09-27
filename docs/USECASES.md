@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.404`
+Versionsbasis: `0.9.405`
 Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
@@ -10,6 +10,8 @@ Stand 0.9.402: Ein Klick auf einen der zehn Settings-Abschnitte scrollt zum Absc
 Stand 0.9.403: Center-Notices unterscheiden Information, Warnung und Portal-Aktion per Marker und Farbstreifen. Ein kurzer, wiederverwendeter Fade kennzeichnet ihr Einblenden und Statuswechsel; Center-Notice-Karten behalten ihre gemeinsame Flaechen- und Titelgestaltung.
 
 Stand 0.9.404: Die Display-Option `reduceMotion` schaltet aktuelle und kuenftige dekorative Notice-Fades und Portal-Zielpulse aus, ohne statische Inhalte oder die aktive Zielmarkierung auszublenden. Display-Reset setzt die Option auf `false`. Im kompakten M+-Layout sind Prozentwert (14 px) und Balken (10 px) innerhalb der bestehenden 20-px-Zeile besser lesbar; Daten, Farben und Verhalten bleiben unveraendert.
+
+Stand 0.9.405: Statsbox-Zahlenwerte sind 1 px groesser als Labels. Die Zeilen nutzen 18 px Grundhoehe und skalieren proportional mit der Schriftoption, ohne die Statfarben oder Datenquellen zu aendern. Private Tooltip-Karten haben mindestens 220 px Breite; Seitenrand (10 px) und Zeilenabstand (3 px) entsprechen den Roster-Tooltips.
 
 ## Akteure
 
@@ -570,6 +572,12 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 1. `reduceMotion` hat den Schema-Default `false`. Bei `true` werden laufende Center-Notice-Uebergaenge gestoppt und kuenftige Notice-Fades sowie Portal-Zielpulse unterdrueckt; Notice-Inhalt und statische aktive Portal-Zielmarkierung bleiben sichtbar. Der Anzeige-Standardwert-Reset setzt die Option auf `false` und wendet den Wert live an.
 2. Die kompakte M+-Run-Zeile verwendet fuer den Prozentwert 14 px und fuer den Fortschrittsbalken 10 px bei unveraenderter Zeilenhoehe, Datenquelle und Farbsemantik.
 3. Deterministische Abdeckung: `UICommon notice kind and reduced motion use semantic markers and brief transitions`, `TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled`, `Settings display preview follows live values and reset restores display defaults only`, `DBSchema.Sanitize fills all defaults on an empty db` und `CreateKillTrackRow uses readable section color for its run label`.
+
+## UI-Vertrag fuer Statsbox-Hierarchie und Tooltip-Geometrie ab 0.9.405
+
+1. Statsbox-Zahlen- und Prozentwerte werden mit einer Schriftgroesse von genau `fontSize + 1` gerendert; die Grundzeilenhoehe ist 18 px und wird mit derselben Fontgroessen-Skalierung angepasst. Gepflegte Statfarben, Datenquellen und Anzeigeoptionen bleiben unveraendert.
+2. Gemeinsame private Tooltip-Karten verwenden 220 px Mindestbreite, 10 px horizontalen und vertikalen Innenrand sowie 3 px Abstand zwischen Zeilen. Roster-Tooltips behalten ihre variable Breite von 220 bis 280 px bei denselben Innenraendern und Zeilenabstaenden.
+3. Deterministische Abdeckung: `StatsBox applies font size offset from settings` und `UICommon.CreatePrivateTooltip + PreparePrivateTooltip + HidePrivateTooltip pipeline renders + hides`.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 

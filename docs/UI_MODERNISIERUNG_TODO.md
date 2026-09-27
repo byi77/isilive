@@ -16,10 +16,10 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 - [x] Kurze, konsistente Einblend- und Statuswechsel-Animationen definieren und umsetzen. Center-Notices blenden mit einer 0,14-Sekunden-Alpha-Animation ein; ein Wechsel der Notice-Kategorie startet denselben Uebergang erneut. Portal-Navigator-Karten nutzen denselben kurzen Uebergang.
 - [x] Option fuer reduzierte Animationen ergaenzen. Die Anzeigeoption schaltet dekorative Notice-Fades und Portal-Zielpulse sofort ab; Inhalt und statische Zielmarkierung bleiben sichtbar.
 - [x] M+-Run-Zone und kompakte Layouts auf schnelle Erfassbarkeit ueberarbeiten. Im kompakten M+-Layout sind der Prozentwert auf 14 px und der Fortschrittsbalken auf 10 px hervorgehoben; Breite, Zeilenhoehe, Daten und Farben bleiben erhalten.
-- [ ] ESC-Panels und Teleport-Grid in Gruppierung und Zustaenden angleichen.
+- [x] ESC-Panels und Teleport-Grid in Gruppierung und Zustaenden angleichen. Tooling, Travel, Mounts und Addons sind in benannten Panel-Flaechen gruppiert und verwenden denselben semantischen Sekundaerbutton-Stil; das Portal-Grid zeigt Abklingzeit, Verfuegbarkeit und aktives Ziel getrennt.
 
 ## P3 — Lesbarkeit im Detail
 
-- [ ] Statsbox-Zahlen und Zeilenabstaende optisch verfeinern, bei unveraenderten Stat-Farben.
+- [x] Statsbox-Zahlen und Zeilenabstaende optisch verfeinern, bei unveraenderten Stat-Farben. Zahlen- und Prozentwerte sind 1 px groesser als Labels; der Zeilenabstand hat 18 px Grundmass und skaliert mit der Schriftoption. Die gepflegten Statfarben bleiben unveraendert.
 - [ ] Nameplates und LFG-Marker mit echten Client-Screenshots auf kleine UI-Skalen pruefen.
-- [ ] Tooltip-Breiten, Abstaende und Zahlenformatierung angleichen.
+- [x] Tooltip-Breiten, Abstaende und Zahlenformatierung angleichen. Private Tooltip-Karten starten wie Roster-Tooltips bei 220 px Breite mit 10 px Seitenrand und 3 px Zeilenabstand; kompakte Rosterzahlen nutzen Blizzards `AbbreviateNumbers`, soweit verfuegbar.

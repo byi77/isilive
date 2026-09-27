@@ -14,7 +14,9 @@ local function MakeFontStringStub()
   function fs:GetText()
     return self._text
   end
-  function fs:SetWidth() end
+  function fs:SetWidth(width)
+    self._width = width
+  end
   function fs:SetJustifyH() end
   function fs:SetJustifyV() end
   function fs:SetWordWrap() end
@@ -31,7 +33,9 @@ local function MakeFontStringStub()
   function fs:GetFont()
     return self._fontPath or "Fonts\\\\X.TTF", self._fontSize or 12, self._fontFlags or "OUTLINE"
   end
-  function fs:SetPoint() end
+  function fs:SetPoint(...)
+    self._point = { ... }
+  end
   function fs:ClearAllPoints() end
   function fs:Show()
     self._shown = true
@@ -81,9 +85,16 @@ local function MakeFrameStub()
   function frame:ClearAllPoints()
     self._points = {}
   end
-  function frame:SetSize() end
-  function frame:SetWidth() end
-  function frame:SetHeight() end
+  function frame:SetSize(width, height)
+    self._width = width
+    self._height = height
+  end
+  function frame:SetWidth(width)
+    self._width = width
+  end
+  function frame:SetHeight(height)
+    self._height = height
+  end
   function frame:SetFrameStrata() end
   function frame:SetFrameLevel() end
   function frame:SetScript(name, fn)
@@ -570,6 +581,22 @@ return function(test, ctx)
       tooltip:Show()
 
       Assert.True(tooltip._shown == true, "tooltip must be visible after Show()")
+      Assert.Equal(tooltip._width, 220, "private tooltip should share the roster tooltip minimum width")
+      Assert.Equal(
+        tooltip._isiLiveTooltipLines[1]._width,
+        200,
+        "private tooltip text should use the shared ten-pixel horizontal insets"
+      )
+      Assert.Equal(
+        tooltip._isiLiveTooltipLines[2]._point[5],
+        -3,
+        "private tooltip rows should keep the shared three-pixel line gap"
+      )
+      Assert.Equal(
+        tooltip._isiLiveTooltipLines[1]._point[5],
+        -10,
+        "private tooltip content should keep the shared ten-pixel top inset"
+      )
       Assert.Equal(tooltip._isiLiveTooltipLineCount, 2, "two lines (header + body) recorded")
 
       -- Hide pipeline must not throw and must clear the visible flag.
