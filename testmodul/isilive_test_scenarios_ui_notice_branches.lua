@@ -184,6 +184,27 @@ local function CreateFrameStub(_frameType, _name, parent, _template)
   function frame:CreateFontString()
     return CreateFontStringStub()
   end
+  function frame:CreateAnimationGroup()
+    local group = { _playing = false }
+    function group:CreateAnimation()
+      return {
+        SetFromAlpha = function() end,
+        SetToAlpha = function() end,
+        SetDuration = function() end,
+        SetSmoothing = function() end,
+      }
+    end
+    function group:IsPlaying()
+      return self._playing
+    end
+    function group:Play()
+      self._playing = true
+    end
+    function group:Stop()
+      self._playing = false
+    end
+    return group
+  end
   function frame:EnableMouse() end
   function frame:SetMovable() end
   function frame:RegisterForDrag() end
@@ -548,6 +569,10 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
           { label = "Hint:", value = "Not a Mythic+ dungeon", warning = true, blink = true },
         },
       })
+
+      Assert.Equal(centerNotice.frame._isiLiveNoticeKind, "warning", "warning fields should classify the whole notice")
+      Assert.Equal(centerNotice.frame._isiLiveNoticeKindMarker:GetText(), "!", "warning notice should expose a marker")
+      Assert.True(centerNotice.frame._isiLiveNoticeTransition:IsPlaying(), "newly shown notice should animate in")
 
       local labelR, labelG, labelB, labelA = centerNotice.fieldRows[2].label:GetTextColor()
       local valueR, valueG, valueB, valueA = centerNotice.fieldRows[2].value:GetTextColor()

@@ -371,14 +371,18 @@ return function(test, ctx)
       },
       frFR = {
         SETTINGS_NAMEPLATE_POSITION = true,
+        SETTINGS_REDUCE_MOTION = true,
+        SETTINGS_REDUCE_MOTION_DESC = true,
       },
       esES = {
         SETTINGS_SECTION_GENERAL = true,
+        SETTINGS_REDUCE_MOTION = true,
+        SETTINGS_REDUCE_MOTION_DESC = true,
       },
-      ptBR = {},
-      itIT = {},
-      ruRU = {},
-      trTR = {},
+      ptBR = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
+      itIT = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
+      ruRU = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
+      trTR = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
     }
 
     for _, localeName in ipairs(checkedLocales) do

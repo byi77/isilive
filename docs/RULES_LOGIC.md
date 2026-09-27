@@ -1741,6 +1741,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture main-frame title bar applies a toolbar-safe text budget
   - Horizontal mini mode arranges management buttons and helper icons in slim rows
   - Architecture secure button mutation surface is explicitly audited for combat and key safety
+  - UICommon notice kind and reduced motion use semantic markers and brief transitions
+  - TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled
+  - Center notice rich warning field renders red and blinks
   - UI close button hides frame directly
 
 ### RULE-MPLUS-RUN-ZONE-UND-NOTICE-CARDS
@@ -1754,10 +1757,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Center notice close button hides center notice directly
   - CreateCdTrackerRow renders M+ grade badges and wide timer fields
   - CreateKillTrackRow uses readable section color for its run label
+  - TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled
   - RosterLayout M+ action portal timer and kill rows share one right edge
   - TeleportUI tooltip shows English dungeon name below the localized title
   - Portal navigator notice lays out the five portal positions in a crescent
   - Architecture secure button mutation surface is explicitly audited for combat and key safety
+  - UICommon notice kind and reduced motion use semantic markers and brief transitions
+  - Center notice rich warning field renders red and blinks
 
 ### RULE-SEKUNDAERE-UI-RUHIGE-HIERARCHIE
 - Regelnummer: 106

@@ -137,6 +137,7 @@ local SCHEMA = {
   -- resolves to nil at render time and falls back to the template font.
   uiFontFamily = { type = "string", default = "" },
   bgAlpha = { type = "number", default = 0.5, min = 0.0, max = 1.0 },
+  reduceMotion = { type = "boolean", default = false },
   lockMainFramePosition = { type = "boolean", default = true },
   statsBoxEnabled = { type = "boolean", default = false },
   statsBoxLocked = { type = "boolean", default = false },

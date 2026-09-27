@@ -70,7 +70,7 @@ local function CreateKillTrackRow(mainFrame)
   local barContainer = CreateFrame("Frame", nil, box)
   barContainer:SetPoint("LEFT", box, "LEFT", 94, 0)
   barContainer:SetPoint("RIGHT", box, "RIGHT", -122, 0)
-  barContainer:SetHeight(8)
+  barContainer:SetHeight(10)
 
   local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
   barBg:SetAllPoints(barContainer)
@@ -177,7 +177,7 @@ local function CreateKillTrackRow(mainFrame)
   pctText:SetWidth(58)
   pctText:SetJustifyH("RIGHT")
   pctText:SetText("--,--")
-  ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE)
+  ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE + 2)
 
   row.killTrackBarContainer = barContainer
   row.killTrackBarBg = barBg

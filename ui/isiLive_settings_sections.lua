@@ -242,10 +242,34 @@ local function CreateFontFamilySelector(canvas, yOffset, labels, config, onChang
   )
 end
 
+local function CreateReducedMotionCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_REDUCE_MOTION or "Reduce decorative animations",
+    function()
+      return config.getDB().reduceMotion == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.reduceMotion = checked == true
+      if type(config.onReduceMotionChange) == "function" then
+        config.onReduceMotionChange(db.reduceMotion)
+      end
+    end,
+    "SETTINGS_REDUCE_MOTION",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_REDUCE_MOTION_DESC
+        or "Disables decorative notice fades and portal target pulses; status and warning content remain visible."
+    )
+  )
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
   uiFontFamily = "",
+  reduceMotion = false,
   statsBoxEnabled = false,
   statsBoxLocked = false,
   statsBoxBgAlpha = 0.0,
@@ -269,6 +293,7 @@ local DISPLAY_CALLBACKS = {
   uiScale = "onUiScaleChange",
   bgAlpha = "onBgAlphaChange",
   uiFontFamily = "onUiFontFamilyChange",
+  reduceMotion = "onReduceMotionChange",
   statsBoxEnabled = "onStatsBoxToggle",
   statsBoxLocked = "onStatsBoxLockToggle",
   statsBoxBgAlpha = "onStatsBoxBgAlphaChange",
@@ -283,6 +308,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "uiScale",
   "bgAlpha",
   "uiFontFamily",
+  "reduceMotion",
   "statsBoxEnabled",
   "statsBoxLocked",
   "statsBoxBgAlpha",
@@ -659,6 +685,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.uiFontFamily, yOffset = CreateFontFamilySelector(canvas, yOffset, labels, config, function()
     controls.displayPreview.Refresh()
   end)
+
+  controls.reduceMotion, yOffset = CreateReducedMotionCheckbox(canvas, yOffset, labels, config)
 
   controls.statsBoxSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1093,6 +1121,15 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     if type(controls.uiFontFamily.UpdateOptions) == "function" then
       controls.uiFontFamily.UpdateOptions(BuildFontFamilySettingsOptions(labels))
     end
+  end
+  if controls.reduceMotion and controls.reduceMotion.label then
+    controls.reduceMotion.label:SetText(labels.SETTINGS_REDUCE_MOTION or "Reduce decorative animations")
+    SetControlDescription(
+      controls.reduceMotion,
+      labels.SETTINGS_REDUCE_MOTION_DESC
+        or "Disables decorative notice fades and portal target pulses; status and warning content remain visible."
+    )
+    controls.reduceMotion.check:SetChecked(db.reduceMotion == true)
   end
   if controls.statsBoxEnabled and controls.statsBoxEnabled.label then
     controls.statsBoxEnabled.label:SetText(GetStatsBoxSettingLabel(config, "enabled")) -- i18n-ok

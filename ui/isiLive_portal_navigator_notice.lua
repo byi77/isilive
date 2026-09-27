@@ -95,6 +95,9 @@ local function CreateFrameRoot(config, deps)
   if type(UICommon) == "table" and type(UICommon.CreateNoticeChrome) == "function" then
     frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
   end
+  if type(UICommon) == "table" and type(UICommon.ApplyNoticeKind) == "function" then
+    UICommon.ApplyNoticeKind(frame, "action")
+  end
   if type(frame.SetAlpha) == "function" then
     frame:SetAlpha(config.frameAlpha)
   end
@@ -304,6 +307,10 @@ local function BuildController(state)
       if not state.frame:IsShown() then
         ResetToConfiguredPosition()
         state.frame:Show()
+        local UICommon = addonTable and addonTable.UICommon
+        if type(UICommon) == "table" and type(UICommon.PlayNoticeTransition) == "function" then
+          UICommon.PlayNoticeTransition(state.frame)
+        end
       end
       return
     end
@@ -317,7 +324,12 @@ local function BuildController(state)
       SetVisible(false)
       return false
     end
+    local wasShown = state.frame:IsShown()
     SetVisible(true)
+    local UICommon = addonTable and addonTable.UICommon
+    if wasShown and type(UICommon) == "table" and type(UICommon.PlayNoticeTransition) == "function" then
+      UICommon.PlayNoticeTransition(state.frame)
+    end
     return true
   end
 

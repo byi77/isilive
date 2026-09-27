@@ -88,6 +88,7 @@ local function ResolveSettingsOptions(opts)
     onStatsBoxOptionsChange = opts.onStatsBoxOptionsChange,
     onUiScaleChange = opts.onUiScaleChange,
     onUiFontFamilyChange = opts.onUiFontFamilyChange,
+    onReduceMotionChange = opts.onReduceMotionChange,
     onSyncToggle = opts.onSyncToggle,
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,

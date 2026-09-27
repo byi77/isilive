@@ -731,6 +731,109 @@ function UICommon.CreateNoticeChrome(parent)
   return accent
 end
 
+function UICommon.ApplyNoticeKind(parent, kind)
+  if type(parent) ~= "table" or type(parent.CreateTexture) ~= "function" then
+    return false
+  end
+  local kinds = {
+    info = { marker = "i", color = UICommon.Colors.ACCENT_NOTICE_TOP },
+    warning = { marker = "!", color = UICommon.Colors.TEXT_ALERT_DANGER },
+    action = { marker = ">", color = UICommon.Colors.SUCCESS_GREEN_BAR },
+  }
+  local style = kinds[kind]
+  if not style then
+    return false
+  end
+  local rail = parent._isiLiveNoticeKindRail
+  if not rail then
+    rail = parent:CreateTexture(nil, "ARTWORK")
+    rail:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -5)
+    rail:SetPoint("TOPRIGHT", parent, "TOPLEFT", 4, -5)
+    rail:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 1, 5)
+    rail:SetPoint("BOTTOMRIGHT", parent, "BOTTOMLEFT", 4, 5)
+    parent._isiLiveNoticeKindRail = rail
+  end
+  ApplyColorTuple(rail, "SetColorTexture", style.color)
+  local marker = parent._isiLiveNoticeKindMarker
+  if not marker and type(parent.CreateFontString) == "function" then
+    marker = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    marker:SetPoint("TOPLEFT", parent, "TOPLEFT", 9, -8)
+    marker:SetJustifyH("LEFT")
+    parent._isiLiveNoticeKindMarker = marker
+  end
+  if marker then
+    marker:SetText(style.marker)
+    if marker.SetTextColor then
+      ApplyColorTuple(marker, "SetTextColor", style.color)
+    end
+  end
+  local changed = parent._isiLiveNoticeKind ~= nil and parent._isiLiveNoticeKind ~= kind
+  parent._isiLiveNoticeKind = kind
+  return true, changed
+end
+
+function UICommon.IsReducedMotionEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  return type(db) == "table" and db.reduceMotion == true
+end
+
+local noticeTransitionFrames = setmetatable({}, { __mode = "k" })
+
+function UICommon.SetReducedMotionEnabled(enabled)
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return false
+  end
+  db.reduceMotion = enabled == true
+  if not db.reduceMotion then
+    return true
+  end
+  for frame, group in pairs(noticeTransitionFrames) do
+    if group.IsPlaying and group:IsPlaying() and group.Stop then
+      group:Stop()
+    end
+    if type(frame.SetAlpha) == "function" and type(frame.GetAlpha) == "function" then
+      frame:SetAlpha(frame._isiLiveNoticeBaseAlpha or frame:GetAlpha())
+    end
+  end
+  return true
+end
+
+function UICommon.PlayNoticeTransition(parent)
+  if UICommon.IsReducedMotionEnabled() then
+    return false
+  end
+  if type(parent) ~= "table" or type(parent.CreateAnimationGroup) ~= "function" then
+    return false
+  end
+  local group = parent._isiLiveNoticeTransition
+  if not group then
+    group = parent:CreateAnimationGroup()
+    local alpha = group:CreateAnimation("Alpha")
+    alpha:SetFromAlpha(0.86)
+    alpha:SetToAlpha(1)
+    alpha:SetDuration(0.14)
+    alpha:SetSmoothing("OUT")
+    if type(group.SetScript) == "function" then
+      group:SetScript("OnFinished", function()
+        if type(parent.SetAlpha) == "function" then
+          parent:SetAlpha(parent._isiLiveNoticeBaseAlpha or 1)
+        end
+      end)
+    end
+    parent._isiLiveNoticeTransition = group
+    noticeTransitionFrames[parent] = group
+  end
+  if type(parent.GetAlpha) == "function" then
+    parent._isiLiveNoticeBaseAlpha = parent:GetAlpha()
+  end
+  if group.IsPlaying and group:IsPlaying() and group.Stop then
+    group:Stop()
+  end
+  group:Play()
+  return true
+end
+
 local TOOLTIP_HORIZONTAL_PADDING = 10
 local TOOLTIP_VERTICAL_PADDING = 10
 local TOOLTIP_LINE_SPACING = 3

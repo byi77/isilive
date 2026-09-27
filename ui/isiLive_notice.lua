@@ -24,6 +24,7 @@ local preparePrivateTooltip = assert(
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
+local SemanticUICommon = addonTable.UICommon
 local ClampMovableFrameToScreen = NoticeCommon.ClampMovableFrameToScreen
 local ApplyNoticeFrameLayer = NoticeCommon.ApplyFrameLayer
 local IncreaseFontSize = NoticeCommon.IncreaseFontSize
@@ -835,6 +836,7 @@ end
 
 local function ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   showOptions = showOptions or {}
+  local wasShown = state.frame:IsShown()
   state.isPersistent = showOptions.persistent == true
   state.isBlinking = showOptions.blink == true
   state.blinkTime = 0
@@ -848,6 +850,22 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
 
   local hasTeleportButton =
     ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, showOptions.teleportMapID)
+
+  local noticeKind = showOptions.noticeKind
+  if noticeKind ~= "info" and noticeKind ~= "warning" and noticeKind ~= "action" then
+    noticeKind = hasTeleportButton and "action" or "info"
+    for _, field in ipairs(type(showOptions.fields) == "table" and showOptions.fields or {}) do
+      if type(field) == "table" and field.warning == true then
+        noticeKind = "warning"
+        break
+      end
+    end
+  end
+  local kindChanged = false
+  if type(SemanticUICommon) == "table" and type(SemanticUICommon.ApplyNoticeKind) == "function" then
+    local _, changed = SemanticUICommon.ApplyNoticeKind(state.frame, noticeKind)
+    kindChanged = changed == true
+  end
 
   if hasRich then
     -- Rich mode replaces sublines and the body text. Hide them explicitly so
@@ -874,6 +892,13 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
 
   state.endsAt = state.isPersistent and math.huge or (CurrentTime() + (durationSeconds or 20))
   SetCenterNoticeVisible(state, true)
+  if
+    (not wasShown or kindChanged)
+    and type(SemanticUICommon) == "table"
+    and type(SemanticUICommon.PlayNoticeTransition) == "function"
+  then
+    SemanticUICommon.PlayNoticeTransition(state.frame)
+  end
 end
 
 local function AttachCenterNoticeTeleportButtonScripts(state)

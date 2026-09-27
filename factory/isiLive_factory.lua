@@ -237,6 +237,15 @@ local function FinalizeFactorySettings(ctx)
           ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
         end
       end,
+      onReduceMotionChange = function(enabled)
+        local common = ctx.addonTable and ctx.addonTable.UICommon
+        if type(common) == "table" and type(common.SetReducedMotionEnabled) == "function" then
+          common.SetReducedMotionEnabled(enabled)
+        end
+        if ctx.teleportUIController and type(ctx.teleportUIController.SetReducedMotionEnabled) == "function" then
+          ctx.teleportUIController.SetReducedMotionEnabled(enabled)
+        end
+      end,
       onSyncToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.syncEnabled directly; no additional action needed
       end,

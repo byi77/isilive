@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-27 - Version 0.9.404 (patch)
+
+- Added an opt-in display setting that stops decorative Center-Notice fades and portal-target pulses while keeping notice content and the static active-target border visible.
+- Strengthened compact M+ progress scanning by increasing the percentage label to 14 px and the progress bar to 10 px, without changing row geometry, data or colors.
+- Added deterministic checks for the saved preference, live transition control, teleport pulse and compact progress hierarchy.
+
+## 2026-09-27 - Version 0.9.403 (patch)
+
+- Differentiated Center-Notice cards with semantic information, warning and action markers while preserving the shared notice surface, cool border, top accent and warm-gold headings.
+- Added a short reusable fade transition when a Center-Notice appears or changes category and when the Portal Navigator appears or refreshes its status.
+- Added deterministic coverage for notice categories and transitions, and mapped it to the active UI rules.
+
 ## 2026-09-27 - Version 0.9.402 (patch)
 
 - Added a fixed two-row section navigation to the Settings panel. Its ten localized buttons jump within the existing scroll area, follow manual scrolling, and refresh after a language change.

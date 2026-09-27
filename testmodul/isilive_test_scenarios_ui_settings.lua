@@ -537,7 +537,14 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
 
   test("Settings display preview follows live values and reset restores display defaults only", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = { uiScale = 1.4, bgAlpha = 0.8, statsBoxEnabled = true, showMinimapButton = true, syncEnabled = false }
+    local db = {
+      uiScale = 1.4,
+      bgAlpha = 0.8,
+      statsBoxEnabled = true,
+      showMinimapButton = true,
+      reduceMotion = true,
+      syncEnabled = false,
+    }
     local changed = {}
     WithGlobals({
       UIParent = {},
@@ -564,6 +571,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         onBgAlphaChange = function(value)
           changed.alpha = value
         end,
+        onReduceMotionChange = function(value)
+          changed.reduceMotion = value
+        end,
         onStatsBoxToggle = function(value)
           changed.stats = value
         end,
@@ -585,9 +595,11 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(db.bgAlpha, 0.5, "reset must restore default opacity")
       Assert.Equal(db.statsBoxEnabled, false, "reset must restore display toggles")
       Assert.Equal(db.showMinimapButton, false, "reset must restore minimap display")
+      Assert.Equal(db.reduceMotion, false, "display reset must restore the decorative-motion default")
       Assert.Equal(db.syncEnabled, false, "reset must preserve unrelated behavior settings")
       Assert.Equal(changed.scale, 1, "reset must apply scale change live")
       Assert.Equal(changed.alpha, 0.5, "reset must apply opacity change live")
+      Assert.Equal(changed.reduceMotion, false, "reset must apply the motion preference live")
       Assert.Equal(changed.stats, false, "reset must apply stats box toggle live")
       Assert.Equal(preview._sample._scale, 1, "preview must refresh after reset")
       Assert.Equal(preview._sample._backdropColor[4], 0.5, "preview opacity must refresh after reset")
@@ -2872,10 +2884,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        49,
+        50,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
-          .. " incoming-summon loop, chat/text-announce, combat-fade, nameplate-subtoggle,"
+          .. " incoming-summon loop, chat/text-announce, combat-fade, reduced-motion, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows,"
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
@@ -2887,7 +2899,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        49,
+        50,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"

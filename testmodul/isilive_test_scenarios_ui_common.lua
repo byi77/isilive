@@ -140,6 +140,27 @@ local function MakeFrameStub()
     table.insert(self._textures, tex)
     return tex
   end
+  function frame:CreateAnimationGroup()
+    local group = { _playing = false }
+    function group:CreateAnimation()
+      return {
+        SetFromAlpha = function() end,
+        SetToAlpha = function() end,
+        SetDuration = function() end,
+        SetSmoothing = function() end,
+      }
+    end
+    function group:IsPlaying()
+      return self._playing
+    end
+    function group:Play()
+      self._playing = true
+    end
+    function group:Stop()
+      self._playing = false
+    end
+    return group
+  end
   return frame
 end
 
@@ -703,6 +724,31 @@ return function(test, ctx)
     Assert.NotNil(accent, "notice chrome should create the shared top accent")
     Assert.Equal(parent._isiLiveSurfaceRole, "notice", "notice chrome should expose the semantic surface role")
     Assert.Equal(accent._height, 2, "notice top accent should stay subtle")
+  end)
+
+  test("UICommon notice kind and reduced motion use semantic markers and brief transitions", function()
+    local UICommon = LoadUICommon()
+    local parent = MakeFrameStub()
+    UICommon.CreateNoticeChrome(parent)
+    local ok, changed = UICommon.ApplyNoticeKind(parent, "info")
+    Assert.True(ok, "info notice kind should apply")
+    Assert.False(changed, "initial notice kind is not a status switch")
+    Assert.Equal(parent._isiLiveNoticeKindMarker:GetText(), "i", "info uses a readable marker")
+    local _, switched = UICommon.ApplyNoticeKind(parent, "warning")
+    Assert.True(switched, "changing notice kind should report a status switch")
+    Assert.Equal(parent._isiLiveNoticeKindMarker:GetText(), "!", "warning uses an alert marker")
+    Assert.True(UICommon.PlayNoticeTransition(parent), "notice transition should start")
+    Assert.True(parent._isiLiveNoticeTransition:IsPlaying(), "transition group should be playing")
+    Assert.Equal(UICommon.ApplyNoticeKind(parent, "unknown"), false, "unknown notice kind should fail closed")
+    WithGlobals({ IsiLiveDB = { reduceMotion = true } }, function()
+      Assert.True(UICommon.IsReducedMotionEnabled(), "saved reduce-motion setting should be read live")
+      Assert.True(UICommon.SetReducedMotionEnabled(true), "motion setting should apply immediately")
+      Assert.False(
+        parent._isiLiveNoticeTransition:IsPlaying(),
+        "enabling reduced motion should stop an active notice fade"
+      )
+      Assert.False(UICommon.PlayNoticeTransition(parent), "reduced motion should skip decorative notice fades")
+    end)
   end)
 
   -- UICommon.Colors ------------------------------------------------------------

@@ -1,11 +1,15 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.402`
+Versionsbasis: `0.9.404`
 Zuletzt aktualisiert: `2026-09-27`
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 
 Stand 0.9.402: Ein Klick auf einen der zehn Settings-Abschnitte scrollt zum Abschnitt; manuelles Scrollen aktualisiert die aktive Navigation. Skalierung und Deckkraft aktualisieren die Anzeige-Vorschau direkt. Die Anzeige-Standardwert-Aktion setzt nur Anzeigeoptionen zurueck und wendet ihre Live-Callbacks an. Leader-Sperren und Share-Keys-Cooldown erhalten getrennte visuelle Zustaende.
+
+Stand 0.9.403: Center-Notices unterscheiden Information, Warnung und Portal-Aktion per Marker und Farbstreifen. Ein kurzer, wiederverwendeter Fade kennzeichnet ihr Einblenden und Statuswechsel; Center-Notice-Karten behalten ihre gemeinsame Flaechen- und Titelgestaltung.
+
+Stand 0.9.404: Die Display-Option `reduceMotion` schaltet aktuelle und kuenftige dekorative Notice-Fades und Portal-Zielpulse aus, ohne statische Inhalte oder die aktive Zielmarkierung auszublenden. Display-Reset setzt die Option auf `false`. Im kompakten M+-Layout sind Prozentwert (14 px) und Balken (10 px) innerhalb der bestehenden 20-px-Zeile besser lesbar; Daten, Farben und Verhalten bleiben unveraendert.
 
 ## Akteure
 
@@ -553,6 +557,19 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
    blau/slate Flaeche im Defaultzustand und ein zurueckhaltender roter
    Gefahrzustand nur bei Hover beziehungsweise Press. Die jeweiligen
    Schliessen-Klickpfade bleiben unveraendert.
+
+## UI-Vertrag fuer Notices ab 0.9.403
+
+1. Center-Notices zeigen die semantischen Typen Information (`i`), Warnung (`!`) und Aktion (`>`) durch Marker und schmalen Farbstreifen an. Vorhandene Warnfelder stufen die Notice als Warnung ein; ein verfuegbarer Teleport-Button kennzeichnet eine Aktion. Der Portal-Navigator ist eine Aktion.
+2. Die gemeinsamen Notice-Flaechen, kuehlen Raender, dezenten oberen Akzente, goldenen Center-Notice-Ueberschriften und Body-Typografie bleiben erhalten.
+3. Center-Notices verwenden beim Einblenden und bei einem Wechsel der Notice-Kategorie einen wiederverwendeten 0,14-Sekunden-Alpha-Uebergang. Der Portal-Navigator verwendet denselben Uebergang beim Einblenden und bei einem Status-Refresh. Die Animation aendert keine Click-Pfade, Secure-Attribute oder Notice-Daten.
+4. Deterministische Abdeckung: `UICommon notice kind uses a semantic marker and short reusable transition` und `Center notice rich warning field renders red and blinks`.
+
+## UI-Vertrag fuer reduzierte Bewegung und kompakte M+-Run-Zeile ab 0.9.404
+
+1. `reduceMotion` hat den Schema-Default `false`. Bei `true` werden laufende Center-Notice-Uebergaenge gestoppt und kuenftige Notice-Fades sowie Portal-Zielpulse unterdrueckt; Notice-Inhalt und statische aktive Portal-Zielmarkierung bleiben sichtbar. Der Anzeige-Standardwert-Reset setzt die Option auf `false` und wendet den Wert live an.
+2. Die kompakte M+-Run-Zeile verwendet fuer den Prozentwert 14 px und fuer den Fortschrittsbalken 10 px bei unveraenderter Zeilenhoehe, Datenquelle und Farbsemantik.
+3. Deterministische Abdeckung: `UICommon notice kind and reduced motion use semantic markers and brief transitions`, `TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled`, `Settings display preview follows live values and reset restores display defaults only`, `DBSchema.Sanitize fills all defaults on an empty db` und `CreateKillTrackRow uses readable section color for its run label`.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 

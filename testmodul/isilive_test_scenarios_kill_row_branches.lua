@@ -280,6 +280,12 @@ return function(test, ctx)
         addon.UICommon.Colors.TEXT_SECTION[1],
         "run label must use readable section contrast"
       )
+      Assert.Equal(
+        row.killTrackBarContainer._height,
+        10,
+        "run progress bar must remain easy to scan in the compact row"
+      )
+      Assert.Equal(row.killTrackPctText._font[2], 14, "run percentage must be the strongest compact-row data label")
     end)
   end)
 

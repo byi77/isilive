@@ -23,6 +23,7 @@ local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
 local registerBackgroundAlphaSurface = addonTable.UICommon and addonTable.UICommon.RegisterBackgroundAlphaSurface
+local UICommon = addonTable.UICommon or {}
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
@@ -665,6 +666,16 @@ function TeleportUI.CreateController(opts)
     return buttons
   end
 
+  function controller.SetReducedMotionEnabled(enabled)
+    for _, button in ipairs(buttons) do
+      if enabled then
+        button.animGroup:Stop()
+      elseif isVisible and button._isiLiveMotionEligible and not button.animGroup:IsPlaying() then
+        button.animGroup:Play()
+      end
+    end
+  end
+
   function controller.SetVisible(visible)
     isVisible = visible and true or false
     if deps.logRuntimeTraceDeep then
@@ -710,6 +721,7 @@ function TeleportUI.CreateController(opts)
       local icon = deps.getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
+      button._isiLiveMotionEligible = available and button.isActiveTarget
       button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
       if deps.logRuntimeTraceDeep and button.isActiveTarget then
         deps.logRuntimeTraceDeep(function()
@@ -745,7 +757,9 @@ function TeleportUI.CreateController(opts)
       if available then
         if button.isActiveTarget then
           button.overlay:SetColorTexture(unpack(Colors.STEEL_BLUE_OVERLAY or { 0.15, 0.35, 0.55, 0.25 }))
-          if not button.animGroup:IsPlaying() then
+          if UICommon.IsReducedMotionEnabled and UICommon.IsReducedMotionEnabled() then
+            button.animGroup:Stop()
+          elseif not button.animGroup:IsPlaying() then
             button.animGroup:Play()
           end
         else

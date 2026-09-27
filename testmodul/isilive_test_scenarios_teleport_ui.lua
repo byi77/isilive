@@ -871,12 +871,13 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
-  test("TeleportUI keeps active-target refreshes silent because summon sound owns Portal.ogg", function()
+  test("TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
     local soundCalls = 0
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      IsiLiveDB = { reduceMotion = true },
       PlaySoundFile = function()
         soundCalls = soundCalls + 1
       end,
@@ -956,6 +957,18 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
       controller.UpdateButtons(12345)
 
       Assert.Equal(soundCalls, 0, "active-target refreshes must not play the incoming-summon sound")
+      local button = controller.GetButtons()[1]
+      Assert.True(button.activeBorder._shown, "active target border remains visible without its decorative pulse")
+      Assert.False(button.animGroup:IsPlaying(), "reduced motion must leave the portal target pulse stopped")
+      IsiLiveDB.reduceMotion = false
+      controller.SetReducedMotionEnabled(false)
+      Assert.True(button.animGroup:IsPlaying(), "disabling reduced motion must restore the active target pulse")
+      IsiLiveDB.reduceMotion = true
+      controller.SetReducedMotionEnabled(true)
+      Assert.False(
+        button.animGroup:IsPlaying(),
+        "enabling reduced motion must stop the active target pulse immediately"
+      )
     end)
   end)
 end
