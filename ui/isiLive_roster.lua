@@ -23,6 +23,7 @@ local READY_CHECK_MARKUP = {
   notready = "|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:16:16:0:0|t ",
   waiting = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:16:16:0:0|t ",
 }
+local INACTIVE_ACCENT_COLOR = { 0.5, 0.5, 0.5 }
 local READY_CHECK_BACKGROUND_COLORS = {
   ready = { 0.08, 0.5, 0.16, 0.42 },
   notready = { 0.48, 0.12, 0.12, 0.34 },
@@ -139,15 +140,24 @@ function Roster.BuildDisplayData(info, opts)
   local isOffline = not info.isGhost and unit and not IsUnitConnectedSafe(unit)
 
   local colorHex
+  -- RGB of the row's left accent strip: the class color, grey for inactive
+  -- rows, nil when no class color is known (the strip then stays hidden).
+  local accentColor = nil
   if info.isGhost or isOffline then
     colorHex = "ff808080" -- Grey
+    accentColor = INACTIVE_ACCENT_COLOR
   else
     local classColors = rawget(_G, "RAID_CLASS_COLORS")
     if type(classColors) ~= "table" then
       classColors = nil
     end
-    local classColor = (classColors and classColors[info.class]) or { r = 1, g = 1, b = 1 }
+    local knownClassColor = classColors and classColors[info.class] or nil
+    local classColor = knownClassColor or { r = 1, g = 1, b = 1 }
     colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
+    local r, g, b = tonumber(classColor.r), tonumber(classColor.g), tonumber(classColor.b)
+    if knownClassColor and r and g and b then
+      accentColor = { r, g, b }
+    end
   end
 
   local readyCheckStatus = nil
@@ -155,6 +165,8 @@ function Roster.BuildDisplayData(info, opts)
   local readyCheckMarkup = ""
   local readyUntil = nil
   local declinedUntil = nil
+  -- End of the post-check hold window the row is currently showing, if any.
+  local readyCheckHoldUntil = nil
   if type(getReadyCheckReadyUntil) == "function" and unit then
     readyUntil = tonumber(getReadyCheckReadyUntil(unit))
   end
@@ -173,10 +185,12 @@ function Roster.BuildDisplayData(info, opts)
     readyCheckStatus = "ready"
     readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.ready
     readyCheckMarkup = READY_CHECK_MARKUP.ready
+    readyCheckHoldUntil = readyUntil
   elseif not isOffline and not info.isGhost and declinedUntil and now and declinedUntil > now then
     readyCheckStatus = "notready"
     readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.notready
     readyCheckMarkup = READY_CHECK_MARKUP.notready
+    readyCheckHoldUntil = declinedUntil
   end
 
   local displayName = info.name or ""
@@ -249,5 +263,8 @@ function Roster.BuildDisplayData(info, opts)
     -- Offline members and ghost rows (players who left the group) are no
     -- longer live data; the renderer fades the whole row for them.
     isInactive = info.isGhost == true or isOffline == true,
+    accentColor = accentColor,
+    readyCheckHoldUntil = readyCheckHoldUntil,
+    readyCheckHoldRemaining = readyCheckHoldUntil and now and (readyCheckHoldUntil - now) or nil,
   }
 end

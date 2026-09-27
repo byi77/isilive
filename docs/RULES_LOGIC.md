@@ -180,6 +180,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 135. Die ESC-Panel-Buttons zeigen Hover nur ueber den gemeinsamen Sekundaerbutton-Zustand, ohne zusaetzliche weisse Highlight-Ebene.
 
+136. Jede Roster-Zeile traegt links einen 2 Pixel breiten Streifen in Klassenfarbe (grau fuer inaktive Zeilen), und das Hover-Highlight blendet kurz ein.
+
+137. Die Ready-Check-Toenung einer Roster-Zeile blendet bei einem neuen Status ein, und waehrend des 20-Sekunden-Nachhaltefensters zeigt eine schmale Leiste die verbleibende Zeit bis zum Ende der Markierung.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2122,3 +2126,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Buttons aus `UIGameMenuPanel.CreateButton` erzeugen keine zusaetzliche `HIGHLIGHT`-Textur mehr; ihr Hover-, Druck- und Grundzustand kommt ausschliesslich aus `UICommon.ApplyActionButtonVisual` mit der Rolle `secondary`. Icons, Beschriftung, Klickregistrierung und Secure-Templates der Buttons bleiben unveraendert.
 - Erforderliche Tests:
   - UI game-menu panel buttons use one hover state without an extra highlight layer
+
+### RULE-ROSTER-KLASSENAKZENT-UND-HOVER
+- Regelnummer: 136
+- Status: aktiv
+- Zusammenfassung: `Roster.BuildDisplayData` liefert `accentColor`: fuer aktive Zeilen die RGB-Werte aus `RAID_CLASS_COLORS` der Klasse, fuer Offline- und Ghost-Zeilen Grau (0,5/0,5/0,5), und `nil`, wenn fuer die Klasse keine Farbe bekannt ist. Jede Roster-Zeile traegt am linken Rand ihrer Hover-Flaeche einen 2 Pixel breiten Streifen in dieser Farbe mit voller Deckkraft; ohne Farbe und in geleerten Zeilenplaetzen ist er verborgen, in kompakten Layouts verschwindet er mit der Hover-Flaeche. Beim Betreten der Zeile blendet das bestehende blaue Zeilen-Highlight ueber `UICommon.PlayAlphaTransition` von 0 auf 1 ueber die Dauer `fast` ein; bei reduzierten Animationen erscheint es sofort. Das Verlassen blendet sofort aus. Zeilengeometrie, Namensfarbe, Tooltips, Rechtsklick-Fluestern und der geschuetzte Rollen-Button bleiben unveraendert.
+- Erforderliche Tests:
+  - Roster render adds class accents, fades ready-check tints in and counts down the hold window
+  - Roster render fades offline and ghost rows and restores them when the member is back
+
+### RULE-ROSTER-READY-CHECK-EINBLENDUNG-UND-RESTZEIT
+- Regelnummer: 137
+- Status: aktiv
+- Zusammenfassung: Wechselt die Ready-Check-Toenung einer Roster-Zeile auf eine andere Statusfarbe oder erscheint sie neu, blendet sie ueber `UICommon.PlayAlphaTransition` von 0 auf 1 ueber die Dauer `normal` ein; erneutes Rendern derselben Statusfarbe blendet nicht erneut ein, und bei reduzierten Animationen erscheint sie sofort. `Roster.BuildDisplayData` liefert fuer eine Zeile im Nachhaltefenster aus Regel 34 `readyCheckHoldUntil` (Ende des Fensters) und `readyCheckHoldRemaining` (verbleibende Sekunden). Solange beides vorliegt und die Restzeit groesser 0 ist, zeigt eine 2 Pixel hohe Leiste am unteren Zeilenrand ueber dieselbe Breite wie die Toenung die Statusfarbe mit 90 % Deckkraft; sie schrumpft ueber eine `Scale`-Animation mit Ursprung links von voller Breite auf 0, genau bis zum Ende des Fensters, und verbirgt sich danach. Ein neues Fenster startet die Leiste neu, erneutes Rendern desselben Fensters laesst sie weiterlaufen, und ohne Fenster oder in geleerten Zeilenplaetzen wird sie gestoppt und verborgen. Die Leiste ist ein Countdown und bleibt deshalb auch bei reduzierten Animationen aktiv. Farben, Statussymbole, die 20-Sekunden-Dauer und der dedizierte Ready-Check-Refreshpfad aus Regel 34 bleiben unveraendert.
+- Erforderliche Tests:
+  - Roster render adds class accents, fades ready-check tints in and counts down the hold window
+  - Roster ready check stays green for 20 seconds after finish
+  - Roster declined ready check stays red for 20 seconds after finish
+  - Ready-check dedicated refresh clears declined row background after hold expiry

@@ -35,6 +35,9 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 - [x] Statsbox: dauerhaft unsichtbaren Werte-Prozent-Trennstrich entfernt; der 1-s-Refresh bleibt, weil Buff-Procs nicht zuverlaessig ein registriertes Event ausloesen.
 - [ ] Timer-Ziffern ruhiger machen (B10): rechtsbuendig wuerde mit den festen 48-px-Feldern in das naechste Stufenbadge ragen; erst nach Pruefung der Ziffernbreiten im Client oder einer Layout-Entscheidung.
 - Nicht umgesetzt (bewusste Entscheidung): Center-Notice-Position speichern (D2) - die Position ist laut Code absichtlich nicht persistent.
+- [x] Roster: 2-px-Klassenfarbstreifen links (grau fuer inaktive Zeilen) und kurz eingeblendetes Hover-Highlight (Regel 136).
+- [x] Roster: Ready-Check-Toenung blendet bei neuem Status ein; Restzeitleiste des 20-s-Nachhaltefensters per Scale-Animation (Regel 137). Die Restzeit des laufenden Ready-Checks selbst wird nicht angezeigt, weil `GetReadyCheckTimeLeft` nicht belegt ist.
+- [ ] Klassenstreifen, Hover und Ready-Check-Restzeitleiste im WoW-Client pruefen (Streifen neben rechtsbuendigen langen Spec-Namen, Leiste am Zeilenrand).
 - [x] M+-Run-Zone und kompakte Layouts auf schnelle Erfassbarkeit ueberarbeiten. Im kompakten M+-Layout sind der Prozentwert auf 14 px und der Fortschrittsbalken auf 10 px hervorgehoben; Breite, Zeilenhoehe, Daten und Farben bleiben erhalten.
 - [x] ESC-Panels und Teleport-Grid in Gruppierung und Zustaenden angleichen. Tooling, Travel, Mounts und Addons sind in benannten Panel-Flaechen gruppiert und verwenden denselben semantischen Sekundaerbutton-Stil; das Portal-Grid zeigt Abklingzeit, Verfuegbarkeit und aktives Ziel getrennt.
 

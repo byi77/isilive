@@ -114,6 +114,36 @@ end
 -- Keep the runtime behavior hard-forced until the controls are re-enabled.
 local FORCE_SHOW_DPS_COLUMN = true
 
+local CLASS_ACCENT_WIDTH = 2
+local READY_CHECK_HOLD_BAR_HEIGHT = 2
+local READY_CHECK_HOLD_BAR_ALPHA = 0.9
+
+local function CallIfPresent(target, methodName, ...)
+  local method = type(target) == "table" and target[methodName] or nil
+  if type(method) == "function" then
+    return method(target, ...)
+  end
+  return nil
+end
+
+-- Shrinks the hold bar from full width to nothing, anchored on the left, via a
+-- Scale animation: no OnUpdate runs while the countdown is visible. The bar is
+-- hidden when the animation ends.
+local function CreateHoldCountdownAnimation(bar)
+  if type(bar) ~= "table" or type(bar.CreateAnimationGroup) ~= "function" then
+    return nil
+  end
+  local group = bar:CreateAnimationGroup()
+  local shrink = group:CreateAnimation("Scale")
+  CallIfPresent(shrink, "SetOrigin", "LEFT", 0, 0)
+  CallIfPresent(shrink, "SetScaleFrom", 1, 1)
+  CallIfPresent(shrink, "SetScaleTo", 0, 1)
+  CallIfPresent(group, "SetScript", "OnFinished", function()
+    CallIfPresent(bar, "Hide")
+  end)
+  return { group = group, shrink = shrink }
+end
+
 local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
@@ -172,8 +202,27 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   )
   row.highlight:Hide()
 
+  -- Class-colored accent strip on the row's left edge.
+  row.classAccent = row.hoverFrame:CreateTexture(nil, "ARTWORK")
+  CallIfPresent(row.classAccent, "SetPoint", "TOPLEFT", row.hoverFrame, "TOPLEFT", 0, 0)
+  CallIfPresent(row.classAccent, "SetPoint", "BOTTOMLEFT", row.hoverFrame, "BOTTOMLEFT", 0, 0)
+  CallIfPresent(row.classAccent, "SetWidth", CLASS_ACCENT_WIDTH)
+  CallIfPresent(row.classAccent, "Hide")
+
+  -- Countdown of the ready-check hold window along the row's bottom edge,
+  -- spanning the same width as the ready-check tint.
+  row.readyCheckHoldBar = row.hoverFrame:CreateTexture(nil, "ARTWORK")
+  CallIfPresent(row.readyCheckHoldBar, "SetPoint", "BOTTOMLEFT", row.hoverFrame, "BOTTOMLEFT", 0, 0)
+  CallIfPresent(row.readyCheckHoldBar, "SetPoint", "RIGHT", mainFrame, "RIGHT", -ROW_RIGHT_INSET, 0)
+  CallIfPresent(row.readyCheckHoldBar, "SetHeight", READY_CHECK_HOLD_BAR_HEIGHT)
+  CallIfPresent(row.readyCheckHoldBar, "Hide")
+  row.readyCheckHoldAnimation = CreateHoldCountdownAnimation(row.readyCheckHoldBar)
+
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
+    if type(UICommon.PlayAlphaTransition) == "function" then
+      UICommon.PlayAlphaTransition(row.highlight, "rowHover", { fromAlpha = 0, toAlpha = 1, duration = "fast" })
+    end
     if
       not ShowRosterInfoTooltip(
         rosterTooltip,
@@ -408,6 +457,61 @@ local function ApplyRowActivityDisplay(row, displayData)
   SetRowFieldAlpha(row.name, inactive and INACTIVE_ROW_NAME_ALPHA or 1)
 end
 
+local function StopHoldCountdown(row)
+  local animation = row.readyCheckHoldAnimation
+  if animation then
+    CallIfPresent(animation.group, "Stop")
+  end
+  CallIfPresent(row.readyCheckHoldBar, "Hide")
+  row._readyCheckHoldUntil = nil
+end
+
+-- Countdown until the post-check tint clears. It starts full when a row first
+-- shows a given hold window and shrinks to nothing exactly when the window
+-- ends; later re-renders of the same window leave it running. This is a
+-- countdown, not decoration, so reduced motion does not switch it off.
+local function ApplyRowReadyCheckHoldBar(row, displayData)
+  local bar = row and row.readyCheckHoldBar or nil
+  if not bar then
+    return
+  end
+  local holdUntil = type(displayData) == "table" and tonumber(displayData.readyCheckHoldUntil) or nil
+  local remaining = type(displayData) == "table" and tonumber(displayData.readyCheckHoldRemaining) or nil
+  local color = type(displayData) == "table" and displayData.readyCheckBackgroundColor or nil
+  if not (holdUntil and remaining and remaining > 0 and type(color) == "table") then
+    if row._readyCheckHoldUntil ~= nil then
+      StopHoldCountdown(row)
+    end
+    return
+  end
+  if row._readyCheckHoldUntil == holdUntil then
+    return
+  end
+  row._readyCheckHoldUntil = holdUntil
+  CallIfPresent(bar, "SetColorTexture", color[1], color[2], color[3], READY_CHECK_HOLD_BAR_ALPHA)
+  CallIfPresent(bar, "Show")
+  local animation = row.readyCheckHoldAnimation
+  if animation then
+    CallIfPresent(animation.group, "Stop")
+    CallIfPresent(animation.shrink, "SetDuration", remaining)
+    CallIfPresent(animation.group, "Play")
+  end
+end
+
+local function ApplyRowAccentDisplay(row, displayData)
+  local accent = row and row.classAccent or nil
+  if not accent then
+    return
+  end
+  local color = type(displayData) == "table" and displayData.accentColor or nil
+  if type(color) == "table" then
+    CallIfPresent(accent, "SetColorTexture", color[1], color[2], color[3], 1)
+    CallIfPresent(accent, "Show")
+  else
+    CallIfPresent(accent, "Hide")
+  end
+end
+
 local function ApplyRowReadyCheckDisplay(row, displayData)
   local background = row and row.readyCheckBackground or nil
   local color = displayData and displayData.readyCheckBackgroundColor or nil
@@ -418,9 +522,18 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
   if type(color) == "table" and #color >= 4 then
     background:SetColorTexture(color[1], color[2], color[3], color[4])
     background:Show()
+    -- A new status (or a tint appearing) fades in; re-renders of the same
+    -- status stay still.
+    local statusKey = table.concat(color, ",")
+    if row._readyCheckStatusKey ~= statusKey and type(UICommon.PlayAlphaTransition) == "function" then
+      UICommon.PlayAlphaTransition(background, "readyCheckTint", { fromAlpha = 0, toAlpha = 1, duration = "normal" })
+    end
+    row._readyCheckStatusKey = statusKey
   else
     background:Hide()
+    row._readyCheckStatusKey = nil
   end
+  ApplyRowReadyCheckHoldBar(row, displayData)
 end
 
 local function HasReadyCheckHoldInRoster(state, roster)
@@ -541,6 +654,9 @@ local function RenderRosterImpl(state, roster)
       SetReadableText(row.kick, "")
     end
     ApplyRowActivityDisplay(row, nil)
+    ApplyRowAccentDisplay(row, nil)
+    StopHoldCountdown(row)
+    row._readyCheckStatusKey = nil
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
@@ -721,6 +837,7 @@ local function RenderRosterImpl(state, roster)
     ApplyRowNameDisplay(row, displayData)
     ApplyRowReadyCheckDisplay(row, displayData)
     ApplyRowActivityDisplay(row, displayData)
+    ApplyRowAccentDisplay(row, displayData)
     SetReadableText(row.realm, displayData.languageDisplay)
     if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
       SetReadableText(row.key, "|cffff4040" .. displayData.keyText .. "|r")
@@ -837,6 +954,7 @@ RefreshReadyCheckStateImpl = function(state, roster)
       ApplyRowSpecDisplay(row, displayData)
       ApplyRowNameDisplay(row, displayData)
       ApplyRowActivityDisplay(row, displayData)
+      ApplyRowAccentDisplay(row, displayData)
     end
 
     index = index + 1

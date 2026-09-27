@@ -961,6 +961,46 @@ local function NewRecordedTexture(createdTextures)
   function texture.IsShown(self)
     return self._shown
   end
+  function texture.GetAlpha(self)
+    return self.alpha or 1
+  end
+  function texture.SetAlpha(self, value)
+    self.alpha = value
+  end
+  -- Records animation groups; animation setters are stored as `_<Method>`.
+  function texture.CreateAnimationGroup(self)
+    local group = { plays = 0, _playing = false, animations = {} }
+    function group.CreateAnimation(owner, kind)
+      local animation = setmetatable({ kind = kind }, {
+        __index = function(_, key)
+          if type(key) == "string" and key:match("^%u") then
+            return function(target, ...)
+              target["_" .. key] = { ... }
+            end
+          end
+          return nil
+        end,
+      })
+      table.insert(owner.animations, animation)
+      return animation
+    end
+    function group.SetScript(owner, name, handler)
+      owner[name] = handler
+    end
+    function group.IsPlaying(owner)
+      return owner._playing
+    end
+    function group.Play(owner)
+      owner.plays = owner.plays + 1
+      owner._playing = true
+    end
+    function group.Stop(owner)
+      owner._playing = false
+    end
+    self.animGroups = self.animGroups or {}
+    table.insert(self.animGroups, group)
+    return group
+  end
 
   table.insert(createdTextures, texture)
   return texture
@@ -2156,6 +2196,162 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
       controller.RenderRoster(roster)
       Assert.Equal(FindFontStringByText("622").alpha, 1, "a reconnected member's data must return to full opacity")
       Assert.Equal(FindFontStringContaining("Offline").alpha, 1, "a reconnected member's name must return")
+    end)
+  end)
+
+  test("Roster render adds class accents, fades ready-check tints in and counts down the hold window", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local now = 100
+    local readyUntil = { player = 120 }
+
+    local function AllTextures()
+      local textures = {}
+      for _, frame in ipairs(createdFrames) do
+        for _, texture in ipairs(rawget(frame, "_textures") or {}) do
+          textures[#textures + 1] = texture
+        end
+      end
+      return textures
+    end
+    local function FindTexture(predicate)
+      for _, texture in ipairs(AllTextures()) do
+        if predicate(texture) then
+          return texture
+        end
+      end
+      return nil
+    end
+    local function HasColor(texture, r, g, b, a)
+      local c = texture.color
+      return type(c) == "table" and c[1] == r and c[2] == g and c[3] == b and (a == nil or c[4] == a)
+    end
+
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      UnitIsConnected = function()
+        return true
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+        MAGE = { r = 0.41, g = 0.8, b = 0.94 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua", "isiLive_roster.lua" })
+      local roster = {
+        player = { name = "Tank", class = "WARRIOR", role = "TANK" },
+        ["ghost:Leaver-Realm"] = { name = "Leaver", class = "MAGE", role = "DAMAGER", isGhost = true },
+      }
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        buildOrderedRoster = function(currentRoster)
+          local ordered = {}
+          for _, unit in ipairs({ "player", "ghost:Leaver-Realm" }) do
+            if currentRoster[unit] then
+              ordered[#ordered + 1] = { unit = unit, info = currentRoster[unit] }
+            end
+          end
+          return ordered
+        end,
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+        isReadyCheckActive = function()
+          return false
+        end,
+        getReadyCheckReadyUntil = function(unit)
+          return readyUntil[unit]
+        end,
+        getReadyCheckDeclinedUntil = function()
+          return nil
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+
+      controller.RenderRoster(roster)
+
+      local warriorAccent = FindTexture(function(t)
+        return t.width == 2 and HasColor(t, 0.78, 0.61, 0.43, 1)
+      end)
+      Assert.NotNil(warriorAccent, "an active row must get a class-colored accent strip")
+      Assert.True(warriorAccent._shown, "the class accent must be visible")
+      local ghostAccent = FindTexture(function(t)
+        return t.width == 2 and HasColor(t, 0.5, 0.5, 0.5, 1)
+      end)
+      Assert.NotNil(ghostAccent, "an inactive row must get a grey accent strip")
+
+      local readyTint = FindTexture(function(t)
+        return HasColor(t, 0.08, 0.5, 0.16, 0.42)
+      end)
+      Assert.NotNil(readyTint, "a held ready confirmation must tint the row")
+      Assert.Equal(readyTint.animGroups[1].plays, 1, "a new ready-check tint must fade in")
+
+      local holdBar = FindTexture(function(t)
+        return t.height == 2 and HasColor(t, 0.08, 0.5, 0.16, 0.9)
+      end)
+      Assert.NotNil(holdBar, "a held confirmation must show a hold countdown bar")
+      Assert.True(holdBar._shown, "the hold countdown bar must be visible")
+      local countdown = holdBar.animGroups[1]
+      Assert.Equal(countdown.plays, 1, "the hold countdown must start")
+      Assert.Equal(countdown.animations[1].kind, "Scale", "the countdown must shrink by scaling, not by OnUpdate")
+      Assert.Equal(countdown.animations[1]._SetOrigin[1], "LEFT", "the countdown must shrink toward the left edge")
+      Assert.Equal(countdown.animations[1]._SetDuration[1], 20, "the countdown must end with the hold window")
+
+      now = 105
+      controller.RenderRoster(roster)
+      Assert.Equal(countdown.plays, 1, "re-rendering the same hold window must not restart the countdown")
+      Assert.Equal(readyTint.animGroups[1].plays, 1, "re-rendering the same status must not fade the tint again")
+
+      readyUntil.player = 140
+      controller.RenderRoster(roster)
+      Assert.Equal(countdown.plays, 2, "a new hold window must restart the countdown")
+      Assert.Equal(countdown.animations[1]._SetDuration[1], 35, "a restarted countdown must use the new remaining time")
+
+      readyUntil.player = nil
+      controller.RenderRoster(roster)
+      Assert.False(holdBar._shown, "an ended hold window must hide the countdown bar")
+      Assert.False(countdown._playing, "an ended hold window must stop the countdown")
+
+      local hoverFrame = nil
+      for _, frame in ipairs(createdFrames) do
+        for _, texture in ipairs(rawget(frame, "_textures") or {}) do
+          if texture == warriorAccent then
+            hoverFrame = frame
+          end
+        end
+      end
+      hoverFrame = Assert.NotNil(hoverFrame, "the accent strip must live on the row's hover frame")
+      local highlight = FindTexture(function(t)
+        return HasColor(t, 0.3, 0.65, 1, 0.08)
+      end)
+      hoverFrame.OnEnter(hoverFrame)
+      Assert.True(highlight._shown, "hovering must show the row highlight")
+      Assert.Equal(highlight.animGroups[1].plays, 1, "hovering must fade the row highlight in")
     end)
   end)
 
