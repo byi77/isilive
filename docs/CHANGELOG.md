@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-27 - Version 0.9.406 (patch)
+
+- Added shared motion tokens (`fast` 0.14 s, `normal` 0.2 s, `slow` 0.35 s) and one reusable alpha transition in `UICommon`; turning on reduced motion now stops every registered transition at once, and only one alpha transition runs per frame.
+- The tank/healer death alert and the Power Infusion alert respect reduced motion: no scale punch and no fade-in, same on-screen time, closing fade kept.
+- The M+ timer box shows a 2 px timeline of the elapsed time with +3 and +2 cutoff ticks, filled in the color of the chest level still reachable. That level stays at full opacity, the others are dimmed, and a level change briefly fades the new level in. Row geometry is unchanged.
+- The M+ killtracker bar stays a calm blue until forces are complete and turns green at 100% (the yellow/red warning bands are gone), eases to new values over 0.2 s, flashes once on reaching 100%, and writes percentages with the decimal separator of the selected isiLive language (dot for English, comma for the other supported languages).
+- Center notices and the Portal Navigator fade in fully when they appear; a category change on a visible notice keeps the short refresh fade. Closing stays instant.
+- Offline members and rows of players who left the group are dimmed as a whole row (data 45%, name 75%) and return to full opacity on reconnect.
+- State markers use client icons instead of characters: lock, hourglass, warning and unavailable on action buttons; info, warning and action on notices; a skull-and-bones death icon in the M+ timer box instead of the raid-target skull; a lock symbol instead of the "L" and a plain gear in the title bar.
+- Battle res and Bloodlust icons show a cooldown swipe from the full recharge/Sated duration, and an empty battle res greys out; the `BR: --` / `BL: --` placeholders stay as defined.
+- World marker buttons get a cool hover highlight, and their tooltips use the marker names localized by the client.
+- Settings checkboxes and the main-window system options use a flat isiLive checkbox style.
+- The Center Notice teleport button shows the same cooldown swipe as the portal grid, with its status text kept readable above it.
+- ESC panel buttons show a single hover state instead of two stacked ones, and the Stats Box no longer creates its permanently hidden value/percent separator.
+- Added rules 125-135 with deterministic coverage for all of the above; in-client visual checks remain listed in the UI modernization checklist.
+
 ## 2026-09-27 - Version 0.9.405 (patch)
 
 - Increased Stats Box numeric and percentage values by 1 px over labels and expanded the baseline row interval to 18 px, scaling with the existing font-size option while preserving stat colors.
