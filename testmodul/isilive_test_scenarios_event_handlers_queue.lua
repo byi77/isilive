@@ -95,6 +95,13 @@ return function(test, ctx)
       getTime = function()
         return 100
       end,
+      isMainFrameShown = function()
+        return true
+      end,
+      playGroupInviteSound = function() end,
+      isGroupInviteSoundEnabled = function()
+        return true
+      end,
     }
     if overrides then
       for key, value in pairs(overrides) do

@@ -182,6 +182,10 @@ local function BuildContext(opts)
   ctx.isIncomingSummonSoundLoopEnabled = OptionalFunction(opts.isIncomingSummonSoundLoopEnabled, function()
     return true
   end)
+  ctx.playGroupInviteSound = OptionalFunction(opts.playGroupInviteSound, function() end)
+  ctx.isGroupInviteSoundEnabled = OptionalFunction(opts.isGroupInviteSoundEnabled, function()
+    return true
+  end)
   ctx.sendRefreshResponse = RequireFunction(opts.sendRefreshResponse, "sendRefreshResponse")
   ctx.sendRefreshRequest = OptionalFunction(opts.sendRefreshRequest, function(_force) end)
   ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")

@@ -73,6 +73,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundPortalAvailableEnabled",
     defaultEnabled = true,
   },
+  group_invite = {
+    labelKey = "SETTINGS_SOUND_GROUP_INVITE",
+    descKey = "SETTINGS_SOUND_GROUP_INVITE_DESC",
+    labelFallback = "Sound: Group invite",
+    descFallback = "Plays a voice alert on a group invite and repeats it every 5 seconds while it is pending.",
+    settingKey = "soundGroupInviteEnabled",
+    defaultEnabled = true,
+  },
   battle_res = {
     labelKey = "SETTINGS_SOUND_BATTLE_RES",
     descKey = "SETTINGS_SOUND_BATTLE_RES_DESC",

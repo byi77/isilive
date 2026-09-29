@@ -79,6 +79,7 @@ WHAT isiLive GIVES YOU
 ✅ Live enemy-forces tracking through a bottom bar, pull prediction, nameplates, and mob tooltips.
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ Voice alert the moment your pet gets stuck and reports no path to follow you.
+✅ Voice alert on incoming group invites, repeated every 5 seconds until you answer.
 ✅ A large red tank/healer death alert during active keys.
 ✅ Optional VIP helpers for a default-off Bloodlust button debuff warning for verified BL class and pet buttons plus a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder.
 ✅ Optional support tools: ESC-menu shortcuts, Hearthstone and verified Dalaran travel, player stats box with distinct colors and corrected compact German labels, nameplate controls, runtime logs, UI lock, and demo simulation tablet.

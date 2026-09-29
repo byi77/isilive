@@ -4,12 +4,14 @@ addonTable = addonTable or {}
 
 local QueueLifecycle = {}
 addonTable.EventHandlersQueueLifecycle = QueueLifecycle
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local NEGATIVE_STATUS_PENDING_GRACE_SECONDS = 20
 -- One entry per second is enough to see that the LFG browser is churning
 -- without letting it own the whole runtime log buffer.
 local NOISY_QUEUE_LOG_INTERVAL_SECONDS = 1
 local INVITE_ACCEPTED_STATUS_REFRESH_DELAY_SECONDS = 0.2
+local GROUP_INVITE_SOUND_LOOP_SECONDS = 5
 
 local function HasActiveListing(entryInfo)
   if type(entryInfo) ~= "table" then
@@ -74,6 +76,119 @@ local function IsInviteAcceptedStatus(...)
   return type(newStatus) == "string" and string.lower(newStatus) == "inviteaccepted"
 end
 
+local function IsInvitedStatus(status)
+  if IsSecretValue(status) or type(status) ~= "string" then
+    return false
+  end
+  return string.lower(status) == "invited"
+end
+
+--- Gate predicate: lets an LFG "invited" status through while the main frame
+-- is hidden or the player is in combat, so the group-invite voice alert still
+-- fires. Every other application status keeps the default gates.
+function QueueLifecycle.IsLfgInviteStatusEvent(event, _searchResultID, newStatus)
+  return event == "LFG_LIST_APPLICATION_STATUS_UPDATED" and IsInvitedStatus(newStatus)
+end
+
+local function IsInCombatLockdown()
+  local inCombatLockdown = rawget(_G, "InCombatLockdown")
+  return type(inCombatLockdown) == "function" and inCombatLockdown() == true
+end
+
+-- A direct invite is pending while Blizzard shows its invite dialog: the plain
+-- PARTY_INVITE popup, or LFGInvitePopup when the inviter asked for roles.
+-- Accept, decline and the dialog timeout all hide it.
+local function IsPartyInviteDialogShown()
+  local staticPopupVisible = rawget(_G, "StaticPopup_Visible")
+  if type(staticPopupVisible) == "function" then
+    local ok, visible = pcall(staticPopupVisible, "PARTY_INVITE")
+    if ok and visible then
+      return true
+    end
+  end
+  local rolePopup = rawget(_G, "LFGInvitePopup")
+  if type(rolePopup) == "table" and type(rolePopup.IsShown) == "function" then
+    local ok, shown = pcall(rolePopup.IsShown, rolePopup)
+    return ok and shown == true
+  end
+  return false
+end
+
+-- Same check Blizzard's LFGListInviteDialog uses to decide whether an
+-- application still waits for an answer: status "invited", no pending status.
+local function IsLfgInvitePending()
+  local lfgList = rawget(_G, "C_LFGList")
+  if
+    type(lfgList) ~= "table"
+    or type(lfgList.GetApplications) ~= "function"
+    or type(lfgList.GetApplicationInfo) ~= "function"
+  then
+    return false
+  end
+  local ok, applications = pcall(lfgList.GetApplications)
+  if not ok or type(applications) ~= "table" then
+    return false
+  end
+  for _, applicationID in ipairs(applications) do
+    if not IsSecretValue(applicationID) then
+      local infoOk, _, status, pendingStatus = pcall(lfgList.GetApplicationInfo, applicationID)
+      if infoOk and IsInvitedStatus(status) and not IsSecretValue(pendingStatus) and not pendingStatus then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function IsGroupInvitePending()
+  return IsPartyInviteDialogShown() or IsLfgInvitePending()
+end
+
+local function StopGroupInviteSoundLoop(ctx)
+  local ticker = ctx.groupInviteSoundLoopTicker
+  ctx.groupInviteSoundLoopTicker = nil
+  if ticker and type(ticker.Cancel) == "function" then
+    ticker:Cancel()
+  end
+end
+
+-- Starts without a pending check: PARTY_INVITE_REQUEST reaches isiLive and
+-- Blizzard's own handler in undefined order, so the invite dialog may not be
+-- shown yet. Every tick verifies the live state before it plays.
+local function StartGroupInviteSoundLoop(ctx)
+  if ctx.groupInviteSoundLoopTicker then
+    return
+  end
+  local timer = rawget(_G, "C_Timer")
+  local newTicker = type(timer) == "table" and timer.NewTicker or nil
+  if type(newTicker) ~= "function" then
+    return
+  end
+
+  ctx.groupInviteSoundLoopTicker = newTicker(GROUP_INVITE_SOUND_LOOP_SECONDS, function()
+    if IsRaidModeActive(ctx) or ctx.isGroupInviteSoundEnabled() ~= true or not IsGroupInvitePending() then
+      StopGroupInviteSoundLoop(ctx)
+      return
+    end
+    ctx.playGroupInviteSound()
+  end)
+end
+
+local function HandleGroupInviteReceived(ctx)
+  if IsRaidModeActive(ctx) or ctx.isGroupInviteSoundEnabled() ~= true then
+    return
+  end
+  ctx.playGroupInviteSound()
+  StartGroupInviteSoundLoop(ctx)
+end
+
+local function HandlePartyInviteCancel(ctx)
+  if IsLfgInvitePending() then
+    return
+  end
+  StopGroupInviteSoundLoop(ctx)
+end
+
 local function RefreshTargetStatusAfterInviteAccepted(ctx)
   if type(ctx.updateStatusLine) == "function" then
     ctx.updateStatusLine()
@@ -105,6 +220,14 @@ function QueueLifecycle.BuildHandlers(ctx)
           tostring(args[2]),
           tostring(ctx.isInChallengeMode())
         )
+      end
+      if IsInvitedStatus(select(2, ...)) then
+        HandleGroupInviteReceived(ctx)
+        -- Only the voice alert may use the gate exception for "invited"; the
+        -- queue pipeline below keeps the default hidden and combat gates.
+        if not ctx.isMainFrameShown() or IsInCombatLockdown() then
+          return
+        end
       end
       if ctx.isInChallengeMode() or IsRaidModeActive(ctx) then
         return
@@ -186,6 +309,12 @@ function QueueLifecycle.BuildHandlers(ctx)
       if hadActiveJoinedKey and not ctx.getActiveJoinedKeyMapID() then
         ctx.updateUI()
       end
+    end,
+    PARTY_INVITE_REQUEST = function(_self)
+      HandleGroupInviteReceived(ctx)
+    end,
+    PARTY_INVITE_CANCEL = function(_self)
+      HandlePartyInviteCancel(ctx)
     end,
   }
 end

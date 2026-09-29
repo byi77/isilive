@@ -38,6 +38,19 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
+    group_invite = {
+      file = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite.wav",
+      localizedFiles = {
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite_deDE.wav",
+      },
+      labelKey = "SETTINGS_SOUND_GROUP_INVITE",
+      descKey = "SETTINGS_SOUND_GROUP_INVITE_DESC",
+      labelFallback = "Sound: Group invite",
+      descFallback = "Plays a voice alert on a group invite and repeats it every 5 seconds while it is pending.",
+      settingKey = "soundGroupInviteEnabled",
+      defaultEnabled = true,
+      defaultChannel = "Master",
+    },
     battle_res = {
       file = "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
       fallbackFile = "Interface\\AddOns\\isiLive\\sounds\\RoosterChickenCalls.ogg",
@@ -137,6 +150,7 @@ local SoundRegistry = {
     "group_join",
     "ready_check_complete",
     "portal_available",
+    "group_invite",
     "battle_res",
     "battle_res_ready",
     "bloodlust",

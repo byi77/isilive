@@ -39,8 +39,8 @@ function Events.CreateGate(config)
   local isShown = type(config.isShown) == "function" and config.isShown or nil
   local allowInCombat = config.allowInCombat or {}
   -- shouldAllowInCombat: extension point for callers that want to allow
-  -- individual events even during combat. No current caller uses this;
-  -- the fallback always returns false.
+  -- individual events (or individual payloads) even during combat. The
+  -- fallback always returns false.
   local shouldAllowInCombat = config.shouldAllowInCombat
     or function(_frame, _event, ...) -- luacheck: ignore 212
       return false

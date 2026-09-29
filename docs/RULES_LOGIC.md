@@ -194,6 +194,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 142. Farben, die sich je Kanal um hoechstens 0,05 unterscheiden und dieselbe Bedeutung haben, sind ein einziges `UICommon.Colors`-Token; nur ausdruecklich gelistete Designstufen duerfen so nah beieinander liegen.
 
+143. Eine eingehende Gruppeneinladung (`PARTY_INVITE_REQUEST` oder LFG-Status `invited`) spielt ausserhalb des Raids sofort die statische Sprachansage `Gruppeneinladung aktiv` (`deDE`, sonst englisch) und wiederholt sie alle 5 Sekunden, solange die Einladung live offen ist; per Settings abschaltbar (Default an). Die Gate-Ausnahme fuer versteckte UI und Kampf gilt nur fuer diese Ansage, die Queue-Verarbeitung aus Regel 61 bleibt gesperrt.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2198,3 +2200,17 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UICommon.Colors entries are well-formed RGB or RGBA tuples with values in [0, 1]
   - Settings display section separates child groups with quiet and cool hierarchy lines
   - UpdateKillTrackRow shows pull overlay during combat with pullPercent > 0
+
+### RULE-GRUPPENEINLADUNG-SPRACHANSAGE
+- Regelnummer: 143
+- Status: aktiv
+- Zusammenfassung: Eine eingehende Gruppeneinladung ist leicht zu verpassen, wenn das Spiel im Hintergrund laeuft oder der Spieler gerade kaempft. isiLive registriert `PARTY_INVITE_REQUEST` und `PARTY_INVITE_CANCEL` statisch (kampf- und sichtbarkeitsunabhaengig) und reagiert zusaetzlich auf `LFG_LIST_APPLICATION_STATUS_UPDATED` mit dem Status `invited`. Bei einer Einladung spielt ausserhalb des Raids sofort `GroupInvite.wav` beziehungsweise auf `deDE` `GroupInvite_deDE.wav` (`Gruppeneinladung aktiv`) ueber die Sound-Registry (`group_invite`, Setting `soundGroupInviteEnabled`, Default an). Ein 5-Sekunden-Ticker wiederholt die Ansage, solange die Einladung live offen ist: Blizzards `PARTY_INVITE`-Dialog oder `LFGInvitePopup` ist sichtbar, oder eine Bewerbung aus `C_LFGList.GetApplications()` meldet per `C_LFGList.GetApplicationInfo` den Status `invited` ohne `pendingStatus` (dieselbe Pruefung wie Blizzards `LFGListInviteDialog`). Der Ticker startet ohne Vorabpruefung, weil isiLive und Blizzards eigener Handler dasselbe Event in unbestimmter Reihenfolge erhalten; jeder Tick prueft den Live-Zustand vor dem Abspielen und stoppt bei beantworteter oder abgelaufener Einladung, deaktiviertem Setting oder Raid. `PARTY_INVITE_CANCEL` stoppt den Ticker sofort, sofern keine LFG-Einladung offen ist. Secret-Value-Status und fehlende APIs gelten als nicht offen. Damit die LFG-Einladung auch bei versteckter Main-UI und im Kampf ankommt, laesst das Event-Gate ueber `shouldAllowWhenHidden` und `shouldAllowInCombat` ausschliesslich `LFG_LIST_APPLICATION_STATUS_UPDATED` mit Klartext-Status `invited` durch; alle anderen Status bleiben gesperrt, und die LFGDetect-/Queue-Verarbeitung laeuft fuer solche Events weiterhin nur bei sichtbarer Main-UI ausserhalb des Kampfs (Regel 61 bleibt unberuehrt).
+- Erforderliche Tests:
+  - Group invite plays the voice alert and repeats it every 5 seconds while the invite dialog is open
+  - Group invite loop stops immediately when the invite is declined
+  - Group invite from the group finder plays the voice alert while the main frame is hidden
+  - Group invite keeps the visible LFG queue pipeline unchanged
+  - Group invite alert stays silent when disabled or in raid mode
+  - Group invite loop fails closed on secret LFG application data
+  - ConfigBuilders hidden gate keeps LFG status blocked
+  - SoundUtils group invite WAV assets stay short and loud

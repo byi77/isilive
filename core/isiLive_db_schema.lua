@@ -226,6 +226,7 @@ local SCHEMA = {
   soundLeadEnabled = { type = "boolean", default = true },
   soundPortalAvailableEnabled = { type = "boolean", default = true },
   soundIncomingSummonLoopEnabled = { type = "boolean", default = true },
+  soundGroupInviteEnabled = { type = "boolean", default = true },
   soundReadyCheckCompleteEnabled = { type = "boolean", default = true },
   soundTankDiedEnabled = { type = "boolean", default = true },
   soundHealerDiedEnabled = { type = "boolean", default = true },

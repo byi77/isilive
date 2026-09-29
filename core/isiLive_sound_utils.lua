@@ -985,6 +985,10 @@ function SoundUtils.PlayIncomingSummon()
   return SoundUtils.PlayKey("portal_available")
 end
 
+function SoundUtils.PlayGroupInvite()
+  return SoundUtils.PlayKey("group_invite")
+end
+
 function SoundUtils.PlayBattleRes()
   return SoundUtils.PlayKey("battle_res")
 end

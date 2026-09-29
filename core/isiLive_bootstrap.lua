@@ -138,6 +138,10 @@ local EVENT_REGISTRY = {
   { "CHAT_MSG_ADDON", true, false, false },
   { "CONFIRM_SUMMON", true, true, false },
   { "INCOMING_SUMMON_CHANGED", true, true, false },
+  -- Group-invite voice alert: same gates as the summon cue, because an invite
+  -- can arrive mid-combat and the cue is independent of main-UI visibility.
+  { "PARTY_INVITE_REQUEST", true, true, false },
+  { "PARTY_INVITE_CANCEL", true, true, false },
   { "INSPECT_READY", false, false, true },
   { "CHALLENGE_MODE_START", true, true, false },
   { "CHALLENGE_MODE_COMPLETED", true, true, false },
@@ -228,6 +232,8 @@ function Bootstrap.CreateGatedOnEvent(opts)
     allowInCombat = allowInCombat,
     allowWhenHidden = allowWhenHidden,
     allowInTestMode = allowInTestMode,
+    shouldAllowInCombat = type(opts.shouldAllowInCombat) == "function" and opts.shouldAllowInCombat or nil,
+    shouldAllowWhenHidden = type(opts.shouldAllowWhenHidden) == "function" and opts.shouldAllowWhenHidden or nil,
   })
 end
 

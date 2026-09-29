@@ -1111,6 +1111,21 @@ local function RegisterStaticDeathWavTests(test, ctx)
     end
   end)
 
+  test("SoundUtils group invite WAV assets stay short and loud", function()
+    for label, info in pairs({
+      GroupInvite = ReadWavInfo("sounds/GroupInvite.wav"),
+      GroupInvite_deDE = ReadWavInfo("sounds/GroupInvite_deDE.wav"),
+    }) do
+      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
+      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
+      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
+      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
+      Assert.True(info.durationSeconds <= 1.5, label .. ".wav must fit one announcement into the 5-second loop")
+      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+    end
+  end)
+
   test("SoundUtils pet stuck WAV assets stay short and loud", function()
     for label, info in pairs({
       PetStuck = ReadWavInfo("sounds/PetStuck.wav"),

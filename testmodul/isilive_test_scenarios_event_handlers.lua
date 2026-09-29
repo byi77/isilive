@@ -281,6 +281,280 @@ local function RegisterChallengeRaidResumeTests(test, Assert, LoadAddonModules, 
   end)
 end
 
+-- Group-invite voice alert, end to end: real gate options, real bootstrap
+-- gate, real controller dispatch and real SoundUtils playback. Only the
+-- Blizzard APIs (invite dialogs, C_LFGList, timers, PlaySoundFile) are mocked.
+local function BuildGroupInviteEnv(overrides)
+  overrides = overrides or {}
+  local env = {
+    plays = {},
+    ticker = nil,
+    tickerInterval = nil,
+    tickerCancels = 0,
+    now = 0,
+    shown = overrides.shown == true,
+    inCombat = overrides.inCombat == true,
+    raid = false,
+    partyDialog = false,
+    applications = {},
+    db = {},
+    locale = overrides.locale or "enUS",
+  }
+  env.globals = {
+    IsiLiveDB = env.db,
+    GetLocale = function()
+      return env.locale
+    end,
+    GetTime = function()
+      return env.now
+    end,
+    PlaySoundFile = function(path, channel)
+      env.plays[#env.plays + 1] = { path = path, channel = channel }
+      return true
+    end,
+    InCombatLockdown = function()
+      return env.inCombat
+    end,
+    StaticPopup_Visible = function(which)
+      if which == "PARTY_INVITE" and env.partyDialog then
+        return "StaticPopup1"
+      end
+      return nil
+    end,
+    C_LFGList = {
+      GetApplications = function()
+        local ids = {}
+        for id in pairs(env.applications) do
+          ids[#ids + 1] = id
+        end
+        return ids
+      end,
+      GetApplicationInfo = function(id)
+        local app = env.applications[id]
+        if not app then
+          return nil
+        end
+        return id, app.status, app.pendingStatus
+      end,
+    },
+    C_Timer = {
+      NewTicker = function(interval, callback)
+        env.tickerInterval = interval
+        env.ticker = callback
+        return {
+          Cancel = function()
+            env.tickerCancels = env.tickerCancels + 1
+            env.ticker = nil
+          end,
+        }
+      end,
+      After = function(_delay, fn)
+        fn()
+      end,
+    },
+  }
+  return env
+end
+
+local function BuildGroupInviteGate(env, addon, Fixtures, counters)
+  local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+    isRaidGroup = function()
+      return env.raid
+    end,
+    isMainFrameShown = function()
+      return env.shown
+    end,
+    isNegativeApplicationStatusEvent = function()
+      return false
+    end,
+    playGroupInviteSound = addon.SoundUtils.PlayGroupInvite,
+    isGroupInviteSoundEnabled = function()
+      return env.db.soundGroupInviteEnabled ~= false
+    end,
+  })
+  local gateOpts = addon.ConfigBuilders.BuildGateOpts({
+    events = addon.Events,
+    onEvent = function(_frame, event, ...)
+      controller:Dispatch(event, ...)
+    end,
+    isStopped = function()
+      return false
+    end,
+    isPaused = function()
+      return false
+    end,
+    isTestMode = function()
+      return false
+    end,
+    isInCombat = function()
+      return env.inCombat
+    end,
+    isMainFrameShown = function()
+      return env.shown
+    end,
+  })
+  local gate = addon.Bootstrap.CreateGatedOnEvent(gateOpts)
+  local frame = {
+    IsShown = function()
+      return true
+    end,
+  }
+  return function(event, ...)
+    gate(frame, event, ...)
+  end
+end
+
+local function LoadGroupInviteModules(LoadAddonModules)
+  return LoadAddonModules({
+    "isiLive_events.lua",
+    "isiLive_bootstrap.lua",
+    "isiLive_config_builders.lua",
+    "isiLive_sound_utils.lua",
+    "isiLive_event_handlers.lua",
+  })
+end
+
+local function RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  test("Group invite plays the voice alert and repeats it every 5 seconds while the invite dialog is open", function()
+    local env = BuildGroupInviteEnv({ shown = false, inCombat = true })
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 1, "a direct invite must play immediately, even hidden and in combat")
+      Assert.True(env.plays[1].path:find("GroupInvite.wav", 1, true) ~= nil, "enUS must play the English WAV")
+      Assert.Equal(env.plays[1].channel, "Master", "the alert must use the configured sound channel")
+      Assert.Equal(env.tickerInterval, 5, "the repeat loop must use a 5-second ticker")
+
+      env.partyDialog = true
+      env.now = 5
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "the loop must repeat while the invite dialog is open")
+
+      env.partyDialog = false
+      env.now = 10
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "an answered or expired invite must not play again")
+      Assert.Equal(env.tickerCancels, 1, "the loop must stop once the invite dialog is gone")
+    end)
+  end)
+
+  test("Group invite loop stops immediately when the invite is declined", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.NotNil(env.ticker, "the invite must start the repeat loop")
+      dispatch("PARTY_INVITE_CANCEL")
+      Assert.Equal(env.tickerCancels, 1, "PARTY_INVITE_CANCEL must stop the loop without waiting for a tick")
+      Assert.Equal(#env.plays, 1, "declining must not play another alert")
+    end)
+  end)
+
+  test("Group invite from the group finder plays the voice alert while the main frame is hidden", function()
+    local env = BuildGroupInviteEnv({ shown = false, inCombat = true, locale = "deDE" })
+    local counters = { captures = 0 }
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, counters)
+
+      env.applications[7] = { status = "applied" }
+      dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "applied", "none", "Group")
+      Assert.Equal(#env.plays, 0, "a plain application must stay silent")
+      Assert.Equal(counters.captures, 0, "hidden non-invite statuses must stay blocked by the gate")
+
+      env.applications[7] = { status = "invited" }
+      dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "invited", "applied", "Group")
+      Assert.Equal(#env.plays, 1, "an LFG invite must play immediately, even hidden and in combat")
+      Assert.True(env.plays[1].path:find("GroupInvite_deDE.wav", 1, true) ~= nil, "deDE must play the German WAV")
+      Assert.Equal(counters.captures, 0, "the gate exception must not open the queue pipeline while hidden")
+
+      env.now = 5
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "the loop must repeat while the LFG invite is still open")
+
+      env.applications[7] = { status = "invited", pendingStatus = "inviteaccepted" }
+      env.now = 10
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "an invite with a pending answer must not play again")
+      Assert.Equal(env.tickerCancels, 1, "the loop must stop once the LFG invite is answered")
+    end)
+  end)
+
+  test("Group invite keeps the visible LFG queue pipeline unchanged", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    local counters = { captures = 0 }
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, counters)
+
+      env.applications[7] = { status = "invited" }
+      dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "invited", "applied", "Group")
+      Assert.Equal(#env.plays, 1, "a visible LFG invite must play the alert")
+      Assert.Equal(counters.captures, 1, "a visible LFG invite must still reach queue capture")
+    end)
+  end)
+
+  test("Group invite alert stays silent when disabled or in raid mode", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      env.db.soundGroupInviteEnabled = false
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 0, "a disabled setting must keep the alert silent")
+      Assert.Nil(env.ticker, "a disabled setting must not start the loop")
+
+      env.db.soundGroupInviteEnabled = nil
+      env.raid = true
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 0, "the alert must follow the raid hard-off")
+
+      env.raid = false
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 1, "default-on setting must play the alert")
+      env.partyDialog = true
+      env.db.soundGroupInviteEnabled = false
+      env.now = 5
+      env.ticker()
+      Assert.Equal(#env.plays, 1, "disabling the setting during a pending invite must stop the loop")
+      Assert.Equal(env.tickerCancels, 1, "disabling the setting must cancel the ticker")
+    end)
+  end)
+
+  test("Group invite loop fails closed on secret LFG application data", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    local secret = setmetatable({}, {
+      __eq = function()
+        error("secret value compared")
+      end,
+    })
+    env.globals.issecretvalue = function(value)
+      return rawequal(value, secret)
+    end
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      env.applications[7] = { status = "invited" }
+      dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, secret, "applied", "Group")
+      Assert.Equal(#env.plays, 0, "a secret status payload must never be compared")
+
+      dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "invited", "applied", "Group")
+      Assert.Equal(#env.plays, 1, "a plain invite must still play")
+      env.applications[7] = { status = secret }
+      env.now = 5
+      env.ticker()
+      Assert.Equal(#env.plays, 1, "a secret application status must end the loop instead of guessing")
+      Assert.Equal(env.tickerCancels, 1, "a secret application status must cancel the ticker")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -291,4 +565,5 @@ return function(test, ctx)
   RegisterTargetActiveEntryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterChallengeRaidResumeTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end

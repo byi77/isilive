@@ -5,6 +5,14 @@ addonTable = addonTable or {}
 local ConfigBuilders = {}
 addonTable.ConfigBuilders = ConfigBuilders
 
+-- Resolved per call: the queue lifecycle module loads after this file.
+local function LfgInviteStatusGateException(_frame, event, ...)
+  local queueLifecycle = addonTable.EventHandlersQueueLifecycle
+  return type(queueLifecycle) == "table"
+    and type(queueLifecycle.IsLfgInviteStatusEvent) == "function"
+    and queueLifecycle.IsLfgInviteStatusEvent(event, ...) == true
+end
+
 function ConfigBuilders.BuildRefreshControllerOpts(ctx)
   return {
     isStopped = ctx.isStopped,
@@ -428,5 +436,9 @@ function ConfigBuilders.BuildGateOpts(ctx)
       SPELL_UPDATE_CHARGES = true,
       UNIT_AURA = true,
     },
+    -- An LFG invite must reach the group-invite voice alert even while the
+    -- main frame is hidden or the player is in combat.
+    shouldAllowWhenHidden = LfgInviteStatusGateException,
+    shouldAllowInCombat = LfgInviteStatusGateException,
   }
 end
