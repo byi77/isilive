@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-29 - Version 0.9.411 (patch)
+
+- The group-invite voice alert gets its own repeat toggle, like the incoming
+  summon: "Repeat group-invite alert every 5 seconds"
+  (`soundGroupInviteLoopEnabled`, default on) sits directly below the
+  group-invite alert. Turned off, only the immediate alert plays; turning it
+  off while an invite is pending ends the repeat on the next tick.
+- Leader-only action buttons (ready check, countdowns) no longer show a lock
+  icon in front of their label; they stay dimmed and cannot be clicked.
+  Cooldown, combat and unavailable states keep their icons.
+
 ## 2026-09-29 - Version 0.9.410 (patch)
 
 Raid settings section and removed-from-group voice alert.
