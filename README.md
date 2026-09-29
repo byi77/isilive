@@ -119,7 +119,7 @@ When you join a group, isiLive gives you a colorful, compact overview of the thi
 - Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
 - Get clear red tank/healer death alerts during active keys, with separate sound toggles.
 - Hear a voice alert the moment the game reports that your pet has no path to follow you, so a stuck pet no longer costs you damage unnoticed.
-- Hear a voice alert on every incoming group invite, repeated every 5 seconds until you answer it, even while isiLive is hidden or you are in combat.
+- Hear a voice alert on every incoming group invite, repeated every 5 seconds until you answer it (the repeat has its own toggle, like the summon alert), even while isiLive is hidden or you are in combat.
 - Hear a voice alert the moment you are removed from the group, in parties and raids alike.
 - Keep selected alerts in raids: the new Raid settings section turns the incoming-summon, pet-stuck and lead-transfer alerts on for raid groups one by one, while isiLive otherwise stays off in raids.
 - Use optional VIP helpers: a default-off Bloodlust button debuff warning for verified BL class and pet buttons, including ingame-validated Mage Time Warp `80353` and Marksmanship Hunter Harrier's Cry `466904`, plus a separated DK block for Soul Reaper / Putrefy warnings, Riders horse sound mute, and a localized movable missing-ghoul reminder.

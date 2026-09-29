@@ -158,4 +158,72 @@ return function(test, ctx)
       )
     end)
   end)
+
+  test("Settings group-invite repeat sits directly below the group-invite alert and persists", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function() end,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {}
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local order = {}
+      local loopCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "CheckButton" and type(frame._settingKey) == "string" then
+          order[#order + 1] = frame._settingKey
+          if frame._settingKey == "SETTINGS_SOUND_GROUP_INVITE_LOOP" then
+            loopCheck = frame
+          end
+        end
+      end
+      loopCheck = Assert.NotNil(loopCheck, "the group-invite repeat checkbox must be rendered")
+      local parentIndex = nil
+      for index, key in ipairs(order) do
+        if key == "SETTINGS_SOUND_GROUP_INVITE" then
+          parentIndex = index
+        end
+      end
+      Assert.Equal(
+        order[(parentIndex or 0) + 1],
+        "SETTINGS_SOUND_GROUP_INVITE_LOOP",
+        "the repeat toggle must follow its group-invite alert"
+      )
+      Assert.True(loopCheck:GetChecked(), "the group-invite repeat must default to on")
+      Assert.Nil(db.soundGroupInviteLoopEnabled, "opening settings must not persist the repeat default")
+
+      loopCheck:SetChecked(false)
+      loopCheck._scripts.OnClick(loopCheck)
+      Assert.False(db.soundGroupInviteLoopEnabled, "disabling the repeat must persist false")
+
+      db.soundGroupInviteLoopEnabled = true
+      panel.Refresh()
+      Assert.True(loopCheck:GetChecked(), "refresh must mirror the stored repeat setting")
+    end)
+  end)
 end

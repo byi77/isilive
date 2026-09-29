@@ -173,6 +173,29 @@ local INCOMING_SUMMON_LOOP_SETTING = {
   defaultEnabled = true,
 }
 
+local GROUP_INVITE_LOOP_SETTING = {
+  labelKey = "SETTINGS_SOUND_GROUP_INVITE_LOOP",
+  descKey = "SETTINGS_SOUND_GROUP_INVITE_LOOP_DESC",
+  labelFallback = "Repeat group-invite alert every 5 seconds",
+  descFallback = "Repeats the group-invite alert every 5 seconds while the invite is still pending.",
+  settingKey = "soundGroupInviteLoopEnabled",
+  defaultEnabled = true,
+}
+
+-- Repeat toggles shown directly below their parent sound alert.
+local LOOP_SETTINGS_BY_SOUND_KEY = {
+  portal_available = {
+    setting = INCOMING_SUMMON_LOOP_SETTING,
+    controlKey = "incomingSummonLoopCheck",
+    soundKey = "incoming_summon_loop",
+  },
+  group_invite = {
+    setting = GROUP_INVITE_LOOP_SETTING,
+    controlKey = "groupInviteLoopCheck",
+    soundKey = "group_invite_loop",
+  },
+}
+
 local OWN_DEATH_SOUND_SETTINGS = {
   {
     controlKey = "ownTankDiedSoundCheck",
@@ -368,32 +391,33 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
   return button
 end
 
-local function CreateIncomingSummonLoopCheckbox(canvas, yOffset, labels, config, controls)
+local function CreateLoopCheckbox(canvas, yOffset, labels, config, controls, loop)
+  local setting = loop.setting
   local checkbox, nextY = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels[INCOMING_SUMMON_LOOP_SETTING.labelKey] or INCOMING_SUMMON_LOOP_SETTING.labelFallback,
+    labels[setting.labelKey] or setting.labelFallback,
     function()
       local db = config.getDB()
-      local stored = db[INCOMING_SUMMON_LOOP_SETTING.settingKey]
+      local stored = db[setting.settingKey]
       if stored ~= nil then
         return stored == true
       end
-      return INCOMING_SUMMON_LOOP_SETTING.defaultEnabled ~= false
+      return setting.defaultEnabled ~= false
     end,
     function(checked)
       local db = config.getDB()
-      db[INCOMING_SUMMON_LOOP_SETTING.settingKey] = checked == true
+      db[setting.settingKey] = checked == true
     end,
-    INCOMING_SUMMON_LOOP_SETTING.labelKey,
-    DescriptionOptions(labels[INCOMING_SUMMON_LOOP_SETTING.descKey] or INCOMING_SUMMON_LOOP_SETTING.descFallback)
+    setting.labelKey,
+    DescriptionOptions(labels[setting.descKey] or setting.descFallback)
   )
 
   if checkbox and checkbox.check then
     checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
-    checkbox.check._soundKey = "incoming_summon_loop"
+    checkbox.check._soundKey = loop.soundKey
   end
-  controls.incomingSummonLoopCheck = checkbox
+  controls[loop.controlKey] = checkbox
   return nextY
 end
 
@@ -571,8 +595,8 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
     SetPreviewTooltip(controls.soundPreviewButtons[entry.key], labels)
     yOffset = nextY
-    if entry.key == "portal_available" then
-      yOffset = CreateIncomingSummonLoopCheckbox(canvas, yOffset, labels, config, controls)
+    if LOOP_SETTINGS_BY_SOUND_KEY[entry.key] then
+      yOffset = CreateLoopCheckbox(canvas, yOffset, labels, config, controls, LOOP_SETTINGS_BY_SOUND_KEY[entry.key])
     end
     if entry.key == "bloodlust_ready" then
       yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
@@ -900,20 +924,19 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
   end
 
-  if controls.incomingSummonLoopCheck then
-    controls.incomingSummonLoopCheck.label:SetText(
-      labels[INCOMING_SUMMON_LOOP_SETTING.labelKey] or INCOMING_SUMMON_LOOP_SETTING.labelFallback
-    )
-    SetDescription(
-      controls.incomingSummonLoopCheck,
-      labels[INCOMING_SUMMON_LOOP_SETTING.descKey] or INCOMING_SUMMON_LOOP_SETTING.descFallback
-    )
-    local stored = db[INCOMING_SUMMON_LOOP_SETTING.settingKey]
-    local nextValue = INCOMING_SUMMON_LOOP_SETTING.defaultEnabled ~= false
-    if stored ~= nil then
-      nextValue = stored == true
+  for _, loop in pairs(LOOP_SETTINGS_BY_SOUND_KEY) do
+    local control = controls[loop.controlKey]
+    if control then
+      local setting = loop.setting
+      control.label:SetText(labels[setting.labelKey] or setting.labelFallback)
+      SetDescription(control, labels[setting.descKey] or setting.descFallback)
+      local stored = db[setting.settingKey]
+      local nextValue = setting.defaultEnabled ~= false
+      if stored ~= nil then
+        nextValue = stored == true
+      end
+      control.check:SetChecked(nextValue)
     end
-    controls.incomingSummonLoopCheck.check:SetChecked(nextValue)
   end
 
   for _, entry in ipairs(OWN_DEATH_SOUND_SETTINGS) do

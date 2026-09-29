@@ -673,10 +673,12 @@ function UICommon.ApplyStateIcon(texture, iconKey)
   return true
 end
 
+-- `false` marks a valid state without an icon: leader-only buttons are just
+-- dimmed and not clickable, a lock in front of the label adds nothing.
 local AVAILABILITY_ICON_KEYS = {
   cooldown = "cooldown",
   combat = "warning",
-  leader = "lock",
+  leader = false,
   unavailable = "unavailable",
 }
 
@@ -747,7 +749,7 @@ function UICommon.CreateActionButton(parent, opts)
 
   local role = ACTION_BUTTON_STYLE_BY_ROLE[opts.role] and opts.role or "secondary"
   function button:SetAvailabilityState(nextState)
-    self._isiLiveAvailability = AVAILABILITY_ICON_KEYS[nextState] and nextState or "available"
+    self._isiLiveAvailability = AVAILABILITY_ICON_KEYS[nextState] ~= nil and nextState or "available"
     UICommon.ApplyStateIcon(self._availabilityIcon, AVAILABILITY_ICON_KEYS[self._isiLiveAvailability])
     if type(self.SetAlpha) == "function" then
       self:SetAlpha(self._isiLiveAvailability == "available" and 1 or 0.72)

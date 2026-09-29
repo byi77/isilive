@@ -532,6 +532,11 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function()
       return true
     end
+  config.isGroupInviteSoundLoopEnabled = type(deps.isGroupInviteSoundLoopEnabled) == "function"
+      and deps.isGroupInviteSoundLoopEnabled
+    or function()
+      return true
+    end
   config.playReadyCheckCompleteSound = type(deps.playReadyCheckCompleteSound) == "function"
       and deps.playReadyCheckCompleteSound
     or function() end
@@ -853,6 +858,10 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isGroupInviteSoundEnabled = function()
       local db = rawget(_G, "IsiLiveDB")
       return type(db) ~= "table" or db.soundGroupInviteEnabled ~= false
+    end,
+    isGroupInviteSoundLoopEnabled = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) ~= "table" or db.soundGroupInviteLoopEnabled ~= false
     end,
     playGroupRemovedSound = function()
       local soundUtils = addonTable.SoundUtils

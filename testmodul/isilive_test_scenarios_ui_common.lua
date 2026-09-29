@@ -707,7 +707,7 @@ return function(test, ctx)
       local button = common.CreateActionButton(MakeFrameStub(), { role = "primary" })
       button:SetAvailabilityState("leader")
       Assert.Equal(button._isiLiveAvailability, "leader", "leader lock must be explicit")
-      Assert.Equal(button._availabilityIcon._isiLiveStateIcon, "lock", "leader lock must show the lock icon")
+      Assert.Nil(button._availabilityIcon._isiLiveStateIcon, "leader lock is dimmed only, without a lock icon")
       button._hookScripts.OnEnter(button)
       Assert.Equal(
         button._backdropColor[1],

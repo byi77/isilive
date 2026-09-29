@@ -227,6 +227,7 @@ local SCHEMA = {
   soundPortalAvailableEnabled = { type = "boolean", default = true },
   soundIncomingSummonLoopEnabled = { type = "boolean", default = true },
   soundGroupInviteEnabled = { type = "boolean", default = true },
+  soundGroupInviteLoopEnabled = { type = "boolean", default = true },
   soundGroupRemovedEnabled = { type = "boolean", default = true },
   raidIncomingSummonSoundEnabled = { type = "boolean", default = false },
   raidPetStuckSoundEnabled = { type = "boolean", default = false },

@@ -377,6 +377,9 @@ local function BuildGroupInviteGate(env, addon, Fixtures, counters, extraOverrid
     isGroupInviteSoundEnabled = function()
       return env.db.soundGroupInviteEnabled ~= false
     end,
+    isGroupInviteSoundLoopEnabled = function()
+      return env.db.soundGroupInviteLoopEnabled ~= false
+    end,
     playIncomingSummonSound = addon.SoundUtils.PlayIncomingSummon,
     playPetStuckSound = addon.SoundUtils.PlayPetStuck,
     playGroupRemovedSound = addon.SoundUtils.PlayGroupRemoved,
@@ -542,6 +545,33 @@ local function RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddo
       env.ticker()
       Assert.Equal(#env.plays, 1, "disabling the setting during a pending invite must stop the loop")
       Assert.Equal(env.tickerCancels, 1, "disabling the setting must cancel the ticker")
+    end)
+  end)
+
+  test("Group invite repeat follows its own setting like the summon repeat", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      env.db.soundGroupInviteLoopEnabled = false
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 1, "a disabled repeat must keep the immediate alert")
+      Assert.Nil(env.ticker, "a disabled repeat must not start the loop")
+      dispatch("PARTY_INVITE_CANCEL")
+
+      env.db.soundGroupInviteLoopEnabled = nil
+      env.now = 5
+      dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
+      Assert.Equal(#env.plays, 2, "the default-on repeat must play the alert immediately")
+      Assert.NotNil(env.ticker, "the default-on repeat must start the loop")
+
+      env.partyDialog = true
+      env.db.soundGroupInviteLoopEnabled = false
+      env.now = 10
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "turning the repeat off during a pending invite must not play again")
+      Assert.Equal(env.tickerCancels, 1, "turning the repeat off during a pending invite must cancel the ticker")
     end)
   end)
 

@@ -155,7 +155,15 @@ end
 -- Starts without a pending check: PARTY_INVITE_REQUEST reaches isiLive and
 -- Blizzard's own handler in undefined order, so the invite dialog may not be
 -- shown yet. Every tick verifies the live state before it plays.
+local function IsGroupInviteLoopEnabled(ctx)
+  return type(ctx.isGroupInviteSoundLoopEnabled) ~= "function" or ctx.isGroupInviteSoundLoopEnabled() == true
+end
+
 local function StartGroupInviteSoundLoop(ctx)
+  if not IsGroupInviteLoopEnabled(ctx) then
+    StopGroupInviteSoundLoop(ctx)
+    return
+  end
   if ctx.groupInviteSoundLoopTicker then
     return
   end
@@ -166,7 +174,12 @@ local function StartGroupInviteSoundLoop(ctx)
   end
 
   ctx.groupInviteSoundLoopTicker = newTicker(GROUP_INVITE_SOUND_LOOP_SECONDS, function()
-    if IsRaidModeActive(ctx) or ctx.isGroupInviteSoundEnabled() ~= true or not IsGroupInvitePending() then
+    if
+      IsRaidModeActive(ctx)
+      or ctx.isGroupInviteSoundEnabled() ~= true
+      or not IsGroupInviteLoopEnabled(ctx)
+      or not IsGroupInvitePending()
+    then
       StopGroupInviteSoundLoop(ctx)
       return
     end
