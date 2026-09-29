@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-29 - Version 0.9.410 (patch)
+
+Raid settings section and removed-from-group voice alert.
+
+- New Raid settings section with its own navigation tab after Sounds. isiLive
+  still stays off in raid groups by default; three default-off opt-ins turn
+  single alerts on for raids: the incoming-summon alert with its 5-second
+  repeat, the pet-stuck voice alert and the lead-transfer sound. Each alert's
+  own sound setting still applies.
+- The events behind these alerts (summon, pet error, leader change) stay
+  registered during the raid event suppression; they fire rarely and every
+  handler checks its setting first. A raid leader change reaches only the
+  lead-transfer sound, never the Mythic+ target detection.
+- The lead-transfer sound could reach raids through the roster-update path
+  without a raid check; that path now follows the raid opt-in as well.
+- Play a voice alert when you are removed from the group, in parties and
+  raids alike: `GroupRemoved.wav` ("You have been removed from the group!")
+  or, on German clients, `GroupRemoved_deDE.wav` ("Ihr wurdet aus der Gruppe
+  entfernt!"). The client's own localized removal message is matched
+  exactly; secret messages and other system messages stay silent. New
+  Sounds setting `soundGroupRemovedEnabled` (default on).
+- All new settings are translated into the eight UI languages. Rule 144 with
+  end-to-end coverage through the real event gate, dispatcher and leader watch.
+
 ## 2026-09-29 - Version 0.9.409 (patch)
 
 Group-invite voice alert.
