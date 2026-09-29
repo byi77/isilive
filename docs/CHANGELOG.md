@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-29 - Version 0.9.409 (patch)
+
+Group-invite voice alert.
+
+- Play a voice alert on every incoming group invite, both direct invites
+  (`PARTY_INVITE_REQUEST`) and group-finder invites (application status
+  `invited`). The alert plays `GroupInvite.wav` ("Group invite active") or,
+  on German clients, `GroupInvite_deDE.wav` ("Gruppeneinladung aktiv") on the
+  configured sound channel, even while isiLive is hidden or you are in combat,
+  and stays silent in raids.
+- The alert repeats every 5 seconds while the invite is still open: the
+  Blizzard invite dialog is shown, or the application still reports `invited`
+  without a pending answer. Accepting, declining, expiry, turning the setting
+  off or entering a raid ends the repeat; declining a direct invite stops it
+  at once. Secret values and missing APIs count as not open.
+- Only the `invited` status passes the hidden/combat event gate, and only for
+  the voice alert; the group-finder queue processing keeps its existing
+  hidden and combat gates.
+- New Sounds setting "Sound alert on group invite"
+  (`soundGroupInviteEnabled`, default on) with a preview button, translated
+  into all eight UI languages. Rule 143 with end-to-end coverage through the
+  real event gate and dispatcher.
+
 ## 2026-09-27 - Version 0.9.408 (patch)
 
 - The main window fades in when it opens outside combat (0.2 s), or appears at once with reduced motion.
