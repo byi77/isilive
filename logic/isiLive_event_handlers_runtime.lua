@@ -52,6 +52,15 @@ local function IsPlayerIncomingSummonPending(unitTarget)
   return pending ~= nil and status == pending
 end
 
+-- Raids keep the hard-off (rule 11) unless the player opted this alert into
+-- raid groups (rule 144). Outside raids nothing changes.
+local function IsRaidSoundBlocked(ctx, soundKey)
+  if not IsRaidModeActive(ctx) then
+    return false
+  end
+  return type(ctx.isRaidSoundOptInEnabled) ~= "function" or ctx.isRaidSoundOptInEnabled(soundKey) ~= true
+end
+
 local function StopIncomingSummonSoundLoop(ctx)
   local ticker = ctx.incomingSummonSoundLoopTicker
   ctx.incomingSummonSoundLoopTicker = nil
@@ -80,7 +89,7 @@ local function StartIncomingSummonSoundLoopIfPending(ctx)
 
   ctx.incomingSummonSoundLoopTicker = newTicker(INCOMING_SUMMON_SOUND_LOOP_SECONDS, function()
     if
-      IsRaidModeActive(ctx)
+      IsRaidSoundBlocked(ctx, "portal_available")
       or (type(ctx.isIncomingSummonSoundLoopEnabled) == "function" and ctx.isIncomingSummonSoundLoopEnabled() ~= true)
       or not IsPlayerIncomingSummonPending("player")
     then
@@ -92,7 +101,7 @@ local function StartIncomingSummonSoundLoopIfPending(ctx)
 end
 
 local function HandleConfirmSummonSound(ctx)
-  if IsRaidModeActive(ctx) then
+  if IsRaidSoundBlocked(ctx, "portal_available") then
     return
   end
   ctx.playIncomingSummonSound()
@@ -100,7 +109,7 @@ local function HandleConfirmSummonSound(ctx)
 end
 
 local function HandleIncomingSummonChangedSound(ctx, unitTarget)
-  if IsRaidModeActive(ctx) then
+  if IsRaidSoundBlocked(ctx, "portal_available") then
     StopIncomingSummonSoundLoop(ctx)
     return
   end
@@ -127,7 +136,7 @@ local function IsPetNoPathError(message)
 end
 
 local function HandlePetStuckErrorSound(ctx, message)
-  if IsRaidModeActive(ctx) or not IsPetNoPathError(message) then
+  if IsRaidSoundBlocked(ctx, "pet_stuck") or not IsPetNoPathError(message) then
     return
   end
   local getTime = rawget(_G, "GetTime")
@@ -138,6 +147,27 @@ local function HandlePetStuckErrorSound(ctx, message)
   end
   ctx.lastPetStuckSoundAt = now
   ctx.playPetStuckSound()
+end
+
+-- The client reports a removal from the group only as the localized system
+-- message ERR_UNINVITE_YOU; matching the client's own global covers every
+-- locale without a hard-coded text. Chat payloads can be Secret Values, so the
+-- check runs before any comparison.
+local function IsRemovedFromGroupMessage(message)
+  if IsSecretValue(message) or type(message) ~= "string" then
+    return false
+  end
+  local removedText = rawget(_G, "ERR_UNINVITE_YOU")
+  return type(removedText) == "string" and removedText ~= "" and message == removedText
+end
+
+-- Deliberately not raid-gated: being removed matters in a raid as much as in a
+-- party, and the message itself ends the raid context.
+local function HandleGroupRemovedSystemMessage(ctx, message)
+  if not IsRemovedFromGroupMessage(message) then
+    return
+  end
+  ctx.playGroupRemovedSound()
 end
 
 -- Which party difficulties open a tracked run is not decided here: the answer
@@ -879,7 +909,12 @@ end
 
 local function BuildPartyLeaderChangedForwarder(ctx)
   return function(_self, ...)
-    if not IsRaidModeActive(ctx) then
+    if IsRaidModeActive(ctx) then
+      -- Only the gate exception for the raid lead-transfer opt-in lets this
+      -- event through in a raid (rule 144). The leader watch gates its sound
+      -- itself; the M+ target pipeline in LFGDetect stays closed.
+      ctx.handleLeaderWatchEvent("PARTY_LEADER_CHANGED", ...)
+    else
       ctx.handleLeaderWatchEvent("PARTY_LEADER_CHANGED", ...)
       -- Forward to LFGDetect so the stale activeInviteLeader / -TitleLevel
       -- (captured when the previous leader's listing was accepted) is
@@ -1327,6 +1362,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end,
     UI_ERROR_MESSAGE = function(_self, _errorType, message)
       HandlePetStuckErrorSound(ctx, message)
+    end,
+    CHAT_MSG_SYSTEM = function(_self, message)
+      HandleGroupRemovedSystemMessage(ctx, message)
     end,
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,

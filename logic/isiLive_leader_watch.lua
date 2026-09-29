@@ -39,7 +39,27 @@ function LeaderWatch.CreateController(opts)
     end
   end
 
+  -- GROUP_ROSTER_UPDATE survives the raid hard-off and reaches this controller
+  -- too, so the raid gate has to sit on the sound itself: a raid plays the
+  -- lead-transfer sound only with the raid opt-in (rule 144).
+  local function IsLeadSoundBlockedByRaid()
+    local runtimeMode = addonTable.RuntimeMode
+    if type(runtimeMode) ~= "table" or type(runtimeMode.IsRaidContext) ~= "function" then
+      return false
+    end
+    if runtimeMode.IsRaidContext() ~= true then
+      return false
+    end
+    local soundUtils = addonTable.SoundUtils
+    return type(soundUtils) ~= "table"
+      or type(soundUtils.IsRaidOptInEnabled) ~= "function"
+      or soundUtils.IsRaidOptInEnabled("leader_transfer") ~= true
+  end
+
   local function PlayLeadTransferSound()
+    if IsLeadSoundBlockedByRaid() then
+      return
+    end
     local soundUtils = addonTable.SoundUtils
     if type(soundUtils) == "table" and type(soundUtils.PlayKey) == "function" then
       soundUtils.PlayKey("leader_transfer")

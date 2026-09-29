@@ -315,6 +315,12 @@ local function BuildGroupInviteEnv(overrides)
     InCombatLockdown = function()
       return env.inCombat
     end,
+    IsInRaid = function()
+      return env.raid
+    end,
+    IsInGroup = function()
+      return true
+    end,
     StaticPopup_Visible = function(which)
       if which == "PARTY_INVITE" and env.partyDialog then
         return "StaticPopup1"
@@ -356,8 +362,8 @@ local function BuildGroupInviteEnv(overrides)
   return env
 end
 
-local function BuildGroupInviteGate(env, addon, Fixtures, counters)
-  local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+local function BuildGroupInviteGate(env, addon, Fixtures, counters, extraOverrides)
+  local overrides = {
     isRaidGroup = function()
       return env.raid
     end,
@@ -371,7 +377,18 @@ local function BuildGroupInviteGate(env, addon, Fixtures, counters)
     isGroupInviteSoundEnabled = function()
       return env.db.soundGroupInviteEnabled ~= false
     end,
-  })
+    playIncomingSummonSound = addon.SoundUtils.PlayIncomingSummon,
+    playPetStuckSound = addon.SoundUtils.PlayPetStuck,
+    playGroupRemovedSound = addon.SoundUtils.PlayGroupRemoved,
+    isRaidSoundOptInEnabled = addon.SoundUtils.IsRaidOptInEnabled,
+    isIncomingSummonSoundLoopEnabled = function()
+      return env.db.soundIncomingSummonLoopEnabled ~= false
+    end,
+  }
+  for key, value in pairs(extraOverrides or {}) do
+    overrides[key] = value
+  end
+  local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, overrides)
   local gateOpts = addon.ConfigBuilders.BuildGateOpts({
     events = addon.Events,
     onEvent = function(_frame, event, ...)
@@ -410,6 +427,8 @@ local function LoadGroupInviteModules(LoadAddonModules)
     "isiLive_bootstrap.lua",
     "isiLive_config_builders.lua",
     "isiLive_sound_utils.lua",
+    "isiLive_runtime_mode.lua",
+    "isiLive_leader_watch.lua",
     "isiLive_event_handlers.lua",
   })
 end
@@ -555,6 +574,196 @@ local function RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddo
   end)
 end
 
+-- Removed-from-group alert and the raid sound opt-ins (rule 144), end to end
+-- through the same real gate, dispatcher and SoundUtils as the invite tests.
+local function RegisterRaidSoundOptInTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  local REMOVED_TEXT = "You have been removed from the group."
+  local NO_PATH_TEXT = "Your pet has no path to you."
+
+  test("Removed-from-group voice alert plays in parties and raids", function()
+    local env = BuildGroupInviteEnv({ shown = false, inCombat = true, locale = "deDE" })
+    env.globals.ERR_UNINVITE_YOU = REMOVED_TEXT
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      dispatch("CHAT_MSG_SYSTEM", "Somebody has joined the party.")
+      Assert.Equal(#env.plays, 0, "other system messages must stay silent")
+
+      dispatch("CHAT_MSG_SYSTEM", REMOVED_TEXT)
+      Assert.Equal(#env.plays, 1, "a removal must play, even hidden and in combat")
+      Assert.True(env.plays[1].path:find("GroupRemoved_deDE.wav", 1, true) ~= nil, "deDE must play the German WAV")
+
+      env.raid = true
+      env.now = 5
+      dispatch("CHAT_MSG_SYSTEM", REMOVED_TEXT)
+      Assert.Equal(#env.plays, 2, "a removal from a raid must play without any raid opt-in")
+
+      env.db.soundGroupRemovedEnabled = false
+      env.now = 10
+      dispatch("CHAT_MSG_SYSTEM", REMOVED_TEXT)
+      Assert.Equal(#env.plays, 2, "a disabled setting must keep the removal alert silent")
+    end)
+  end)
+
+  test("Removed-from-group alert fails closed on secret or missing message text", function()
+    local env = BuildGroupInviteEnv({ shown = true })
+    local secret = setmetatable({}, {
+      __eq = function()
+        error("secret value compared")
+      end,
+    })
+    env.globals.issecretvalue = function(value)
+      return rawequal(value, secret)
+    end
+    env.globals.ERR_UNINVITE_YOU = REMOVED_TEXT
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+      dispatch("CHAT_MSG_SYSTEM", secret)
+      Assert.Equal(#env.plays, 0, "a secret system message must never be compared")
+    end)
+
+    env = BuildGroupInviteEnv({ shown = true })
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+      dispatch("CHAT_MSG_SYSTEM", REMOVED_TEXT)
+      Assert.Equal(#env.plays, 0, "without the client global the alert must not guess the text")
+    end)
+  end)
+
+  test("Raid keeps the incoming-summon alert off unless it is opted in", function()
+    local env = BuildGroupInviteEnv({ shown = false })
+    env.raid = true
+    env.globals.Enum = { SummonStatus = { Pending = 1, Accepted = 2 } }
+    env.globals.C_IncomingSummon = {
+      IncomingSummonStatus = function()
+        return 1
+      end,
+    }
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      dispatch("CONFIRM_SUMMON")
+      dispatch("INCOMING_SUMMON_CHANGED", "player")
+      Assert.Equal(#env.plays, 0, "raids keep the summon alert off by default")
+      Assert.Nil(env.ticker, "raids must not start the summon loop by default")
+
+      env.db.raidIncomingSummonSoundEnabled = true
+      dispatch("INCOMING_SUMMON_CHANGED", "player")
+      Assert.Equal(#env.plays, 1, "the raid opt-in must play the summon alert")
+      Assert.True(env.plays[1].path:find("Portal.ogg", 1, true) ~= nil, "the summon alert keeps its sound")
+      env.now = 5
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "the raid opt-in must keep the 5-second repeat")
+
+      env.db.raidIncomingSummonSoundEnabled = false
+      env.now = 10
+      env.ticker()
+      Assert.Equal(#env.plays, 2, "turning the opt-in off must stop the repeat in the raid")
+      Assert.Equal(env.tickerCancels, 1, "turning the opt-in off must cancel the ticker")
+    end)
+  end)
+
+  test("Raid keeps the pet-stuck alert off unless it is opted in", function()
+    local env = BuildGroupInviteEnv({ shown = false, inCombat = true })
+    env.raid = true
+    env.globals.ERR_PET_SPELL_NOPATH = NO_PATH_TEXT
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {})
+
+      dispatch("UI_ERROR_MESSAGE", 1, NO_PATH_TEXT)
+      Assert.Equal(#env.plays, 0, "raids keep the pet-stuck alert off by default")
+
+      env.db.raidPetStuckSoundEnabled = true
+      env.now = 10
+      dispatch("UI_ERROR_MESSAGE", 1, NO_PATH_TEXT)
+      Assert.Equal(#env.plays, 1, "the raid opt-in must play the pet-stuck alert")
+
+      env.db.soundPetStuckEnabled = false
+      env.now = 20
+      dispatch("UI_ERROR_MESSAGE", 1, NO_PATH_TEXT)
+      Assert.Equal(#env.plays, 1, "the alert's own sound setting still applies in raids")
+    end)
+  end)
+
+  test("Raid lead-transfer alert reaches the leader watch through the hidden gate only when opted in", function()
+    local env = BuildGroupInviteEnv({ shown = false })
+    local isLeader = false
+    local wasLeader = nil
+    local lfgEvents = 0
+    env.raid = true
+    WithGlobals(env.globals, function()
+      local addon = LoadGroupInviteModules(LoadAddonModules)
+      local leaderWatch = addon.LeaderWatch
+        .CreateController({
+          isPlayerLeader = function()
+            return isLeader
+          end,
+          getWasGroupLeader = function()
+            return wasLeader
+          end,
+          setWasGroupLeader = function(value)
+            wasLeader = value
+          end,
+          isStopped = function()
+            return false
+          end,
+          isMainFrameShown = function()
+            return env.shown
+          end,
+          showCenterNotice = function() end,
+          printFn = function() end,
+          getL = function()
+            return {}
+          end,
+          updateLeaderButtons = function() end,
+        })
+        .Start()
+      local dispatch = BuildGroupInviteGate(env, addon, Fixtures, {}, {
+        handleLeaderWatchEvent = function(event, ...)
+          leaderWatch.HandleEvent(event, ...)
+        end,
+        handleLFGDetectEvent = function()
+          lfgEvents = lfgEvents + 1
+        end,
+      })
+
+      isLeader = true
+      dispatch("PARTY_LEADER_CHANGED")
+      dispatch("GROUP_ROSTER_UPDATE")
+      Assert.Equal(#env.plays, 0, "raids keep the lead-transfer sound off by default, also via the roster path")
+      Assert.True(wasLeader, "the leader state must still follow silently in the raid")
+
+      isLeader = false
+      dispatch("GROUP_ROSTER_UPDATE")
+      env.db.raidLeaderTransferSoundEnabled = true
+      isLeader = true
+      env.now = 5
+      local lfgBefore = lfgEvents
+      dispatch("PARTY_LEADER_CHANGED")
+      Assert.Equal(#env.plays, 1, "the raid opt-in must play the lead-transfer sound")
+      Assert.True(
+        env.plays[1].path:find("CartoonVoiceBaritone.ogg", 1, true) ~= nil,
+        "the lead-transfer alert keeps its sound"
+      )
+      Assert.Equal(lfgEvents, lfgBefore, "a raid leader change must not reach the M+ target pipeline")
+
+      env.raid = false
+      isLeader = false
+      dispatch("GROUP_ROSTER_UPDATE")
+      isLeader = true
+      env.now = 10
+      local before = #env.plays
+      dispatch("PARTY_LEADER_CHANGED")
+      Assert.Equal(#env.plays, before, "outside raids the hidden gate for PARTY_LEADER_CHANGED stays closed")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -566,4 +775,5 @@ return function(test, ctx)
   RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterChallengeRaidResumeTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterRaidSoundOptInTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end

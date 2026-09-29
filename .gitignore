@@ -36,6 +36,8 @@ sounds/*
 !sounds/PetStuck_deDE.wav
 !sounds/GroupInvite.wav
 !sounds/GroupInvite_deDE.wav
+!sounds/GroupRemoved.wav
+!sounds/GroupRemoved_deDE.wav
 !sounds/BttF_Tinkle.wav
 !sounds/TankDied.wav
 !sounds/TankDied_deDE.wav

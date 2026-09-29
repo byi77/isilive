@@ -107,6 +107,7 @@ local helpers = {
   { key = "power_infusion_received", fn = SoundUtils.PlayPowerInfusionReceived },
   { key = "pet_stuck", fn = SoundUtils.PlayPetStuck },
   { key = "group_invite", fn = SoundUtils.PlayGroupInvite },
+  { key = "group_removed", fn = SoundUtils.PlayGroupRemoved },
 }
 
 local fail = false

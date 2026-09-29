@@ -196,6 +196,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 143. Eine eingehende Gruppeneinladung (`PARTY_INVITE_REQUEST` oder LFG-Status `invited`) spielt ausserhalb des Raids sofort die statische Sprachansage `Gruppeneinladung aktiv` (`deDE`, sonst englisch) und wiederholt sie alle 5 Sekunden, solange die Einladung live offen ist; per Settings abschaltbar (Default an). Die Gate-Ausnahme fuer versteckte UI und Kampf gilt nur fuer diese Ansage, die Queue-Verarbeitung aus Regel 61 bleibt gesperrt.
 
+144. Der Raid-Hard-off aus Regel 11 bleibt Standard. Die Settings-Sektion `Raid` hebt ihn einzeln und standardmaessig aus fuer drei Klanghinweise auf: eingehende Beschwoerung samt 5-Sekunden-Wiederholung, Pet-Stuck-Sprachansage und Leiterwechsel-Ton; der jeweilige Sound-Schalter gilt weiter. Die Sprachansage `Ihr wurdet aus der Gruppe entfernt!` bei `ERR_UNINVITE_YOU` spielt in Gruppe und Raid ohne Raid-Opt-in (Default an).
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1468,7 +1470,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Simulation tablet category tabs keep the control surface compact
   - DeathAlert renders big red death text and restarts animation on repeated show
   - Settings panel exposes ready-check-complete sound toggle and preview
-  - Settings section navigation keeps ten fixed-width tabs and jumps within the existing scroll frame
+  - Settings section navigation keeps a fixed-width tab per section and jumps within the scroll frame
   - Settings display preview follows live values and reset restores display defaults only
 
 ### RULE-INCOMING-SUMMON-SOUND-LOOP
@@ -2214,3 +2216,17 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Group invite loop fails closed on secret LFG application data
   - ConfigBuilders hidden gate keeps LFG status blocked
   - SoundUtils group invite WAV assets stay short and loud
+
+### RULE-RAID-KLANGHINWEISE-UND-GRUPPENENTFERNUNG
+- Regelnummer: 144
+- Status: aktiv
+- Zusammenfassung: Der Raid-Hard-off aus Regel 11 und Regel 109 bleibt der Standard. Die Settings-Sektion `Raid` (eigener Navigations-Tab direkt nach `Sounds`) bietet drei standardmaessig ausgeschaltete Opt-ins, die den Hard-off jeweils fuer genau einen Klanghinweis aufheben: `raidIncomingSummonSoundEnabled` fuer den Beschwoerungs-Hinweis samt 5-Sekunden-Wiederholung, `raidPetStuckSoundEnabled` fuer die Pet-Stuck-Sprachansage und `raidLeaderTransferSoundEnabled` fuer den Leiterwechsel-Ton. Der eigene Sound-Schalter des Hinweises (`soundPortalAvailableEnabled`, `soundIncomingSummonLoopEnabled`, `soundPetStuckEnabled`, `soundLeadEnabled`) gilt im Raid weiter. Damit die Hinweise im Raid ankommen, bleiben `CONFIRM_SUMMON`, `INCOMING_SUMMON_CHANGED`, `UI_ERROR_MESSAGE`, `PARTY_LEADER_CHANGED` und `CHAT_MSG_SYSTEM` neben den Aufweck-Events `GROUP_ROSTER_UPDATE` und `PLAYER_ENTERING_WORLD` auch bei aktiver Raid-Event-Unterdrueckung registriert; sie feuern selten, und jeder Handler prueft seine Einstellung, bevor er etwas abspielt. `PARTY_LEADER_CHANGED` passiert das Event-Gate bei versteckter Main-UI und im Kampf nur im Raid mit aktivem Leiterwechsel-Opt-in und erreicht dort ausschliesslich den LeaderWatch, nie die M+-Zielpipeline in LFGDetect; ausserhalb des Raids bleiben die bisherigen Gates unveraendert. Der LeaderWatch sperrt den Ton im Raid ohne Opt-in auch auf dem `GROUP_ROSTER_UPDATE`-Pfad und fuehrt den Leiterstatus dabei still nach. Unabhaengig vom Raid meldet der Client die Entfernung aus der Gruppe nur als lokalisierte Systemnachricht `ERR_UNINVITE_YOU`; isiLive registriert dafuer `CHAT_MSG_SYSTEM` statisch (kampf- und sichtbarkeitsunabhaengig), vergleicht den Text ausschliesslich mit der Client-Konstante und spielt bei Treffer `GroupRemoved.wav` (`You have been removed from the group!`) beziehungsweise auf `deDE` `GroupRemoved_deDE.wav` (`Ihr wurdet aus der Gruppe entfernt!`) ueber die Sound-Registry (`group_removed`, Setting `soundGroupRemovedEnabled`, Default an), in Gruppe und Raid gleichermassen. Secret-Value-Nachrichten, eine fehlende Client-Konstante und andere Systemnachrichten bleiben stumm.
+- Erforderliche Tests:
+  - Removed-from-group voice alert plays in parties and raids
+  - Removed-from-group alert fails closed on secret or missing message text
+  - Raid keeps the incoming-summon alert off unless it is opted in
+  - Raid keeps the pet-stuck alert off unless it is opted in
+  - Raid lead-transfer alert reaches the leader watch through the hidden gate only when opted in
+  - Raid suppression keeps the raid sound events registered
+  - Settings raid section offers default-off sound opt-ins that persist
+  - SoundUtils group removed WAV assets stay short and loud

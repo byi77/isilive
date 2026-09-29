@@ -6,11 +6,32 @@ local ConfigBuilders = {}
 addonTable.ConfigBuilders = ConfigBuilders
 
 -- Resolved per call: the queue lifecycle module loads after this file.
-local function LfgInviteStatusGateException(_frame, event, ...)
+local function IsLfgInviteStatus(event, ...)
   local queueLifecycle = addonTable.EventHandlersQueueLifecycle
   return type(queueLifecycle) == "table"
     and type(queueLifecycle.IsLfgInviteStatusEvent) == "function"
     and queueLifecycle.IsLfgInviteStatusEvent(event, ...) == true
+end
+
+-- In a raid the main frame is always hidden, so PARTY_LEADER_CHANGED needs the
+-- gate exception to reach the opted-in lead-transfer sound (rule 144). Outside
+-- raids the event keeps its default hidden and combat gates.
+local function IsRaidLeaderSoundEvent(event)
+  if event ~= "PARTY_LEADER_CHANGED" then
+    return false
+  end
+  local runtimeMode = addonTable.RuntimeMode
+  local soundUtils = addonTable.SoundUtils
+  return type(runtimeMode) == "table"
+    and type(runtimeMode.IsRaidContext) == "function"
+    and runtimeMode.IsRaidContext() == true
+    and type(soundUtils) == "table"
+    and type(soundUtils.IsRaidOptInEnabled) == "function"
+    and soundUtils.IsRaidOptInEnabled("leader_transfer") == true
+end
+
+local function SoundAlertGateException(_frame, event, ...)
+  return IsLfgInviteStatus(event, ...) or IsRaidLeaderSoundEvent(event)
 end
 
 function ConfigBuilders.BuildRefreshControllerOpts(ctx)
@@ -436,9 +457,10 @@ function ConfigBuilders.BuildGateOpts(ctx)
       SPELL_UPDATE_CHARGES = true,
       UNIT_AURA = true,
     },
-    -- An LFG invite must reach the group-invite voice alert even while the
-    -- main frame is hidden or the player is in combat.
-    shouldAllowWhenHidden = LfgInviteStatusGateException,
-    shouldAllowInCombat = LfgInviteStatusGateException,
+    -- An LFG invite must reach the group-invite voice alert, and a raid leader
+    -- change the opted-in lead-transfer sound, even while the main frame is
+    -- hidden or the player is in combat.
+    shouldAllowWhenHidden = SoundAlertGateException,
+    shouldAllowInCombat = SoundAlertGateException,
   }
 end

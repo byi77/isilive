@@ -51,6 +51,19 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
+    group_removed = {
+      file = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved.wav",
+      localizedFiles = {
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved_deDE.wav",
+      },
+      labelKey = "SETTINGS_SOUND_GROUP_REMOVED",
+      descKey = "SETTINGS_SOUND_GROUP_REMOVED_DESC",
+      labelFallback = "Sound: Removed from group",
+      descFallback = "Plays a voice alert when you are removed from the group, in parties and raids.",
+      settingKey = "soundGroupRemovedEnabled",
+      defaultEnabled = true,
+      defaultChannel = "Master",
+    },
     battle_res = {
       file = "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
       fallbackFile = "Interface\\AddOns\\isiLive\\sounds\\RoosterChickenCalls.ogg",
@@ -151,6 +164,7 @@ local SoundRegistry = {
     "ready_check_complete",
     "portal_available",
     "group_invite",
+    "group_removed",
     "battle_res",
     "battle_res_ready",
     "bloodlust",

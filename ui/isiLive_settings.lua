@@ -14,19 +14,21 @@ local NAV_BUTTON_WIDTH = 126
 local NAV_BUTTON_HEIGHT = 22
 local NAV_BUTTON_GAP = 6
 local NAV_TOP = 8
-local NAV_HEIGHT = (NAV_BUTTON_HEIGHT * 2) + NAV_BUTTON_GAP + (NAV_TOP * 2)
 local NAV_SECTIONS = {
   { key = "general", labelKey = "SETTINGS_NAV_GENERAL", fallback = "General" },
   { key = "display", labelKey = "SETTINGS_NAV_DISPLAY", fallback = "Display" },
   { key = "behavior", labelKey = "SETTINGS_NAV_BEHAVIOR", fallback = "Behavior" },
   { key = "nameplates", labelKey = "SETTINGS_NAV_NAMEPLATES", fallback = "Nameplates" },
   { key = "sounds", labelKey = "SETTINGS_NAV_SOUNDS", fallback = "Sounds" },
+  { key = "raid", labelKey = "SETTINGS_NAV_RAID", fallback = "Raid" },
   { key = "chat", labelKey = "SETTINGS_NAV_CHAT", fallback = "Chat" },
   { key = "esc", labelKey = "SETTINGS_NAV_ESC", fallback = "ESC Menu" },
   { key = "admin", labelKey = "SETTINGS_NAV_ADMIN", fallback = "Admin" },
   { key = "reset", labelKey = "SETTINGS_NAV_RESET", fallback = "Reset" },
   { key = "vip", labelKey = "SETTINGS_NAV_VIP", fallback = "VIP" },
 }
+local NAV_ROWS = math.ceil(#NAV_SECTIONS / NAV_COLUMNS)
+local NAV_HEIGHT = (NAV_BUTTON_HEIGHT * NAV_ROWS) + (NAV_BUTTON_GAP * (NAV_ROWS - 1)) + (NAV_TOP * 2)
 local ISILIVE_BRAND_TITLE = "isi|cff1e90ffLive|r"
 local CreateSettingsIntro = addonTable.SettingsControls.CreateSettingsIntro
 local BuildGeneralSettingsSection = addonTable.SettingsSections.BuildGeneralSection
@@ -38,6 +40,8 @@ local RefreshDisplayControls = addonTable.SettingsSections.RefreshDisplayControl
 local BuildNameplatesSettingsSection = addonTable.SettingsNameplates.BuildSection
 local BuildBehaviorSettingsSection = addonTable.SettingsBehavior.BuildSection
 local RefreshBehaviorControls = addonTable.SettingsBehavior.RefreshControls
+local BuildRaidSettingsSection = addonTable.SettingsBehavior.BuildRaidSection
+local RefreshRaidControls = addonTable.SettingsBehavior.RefreshRaidControls
 local BuildSoundSettingsSection = addonTable.SettingsSound.BuildSoundSection
 local BuildVIPGuestSettingsSection = addonTable.SettingsSound.BuildVIPGuestSection
 local RefreshSoundControls = addonTable.SettingsSound.RefreshSoundControls
@@ -156,6 +160,7 @@ local function RefreshSettingsControls(controls, config)
   )
   RefreshBehaviorControls(controls, freshL, db)
   RefreshSoundControls(controls, freshL, db)
+  RefreshRaidControls(controls, freshL, db)
   RefreshVIPGuestControls(controls, freshL, db)
   RefreshSupportControls(controls, freshL, db, config)
   if controls.nameplateDisplayMode and type(controls.nameplateDisplayMode.UpdateHighlight) == "function" then
@@ -375,6 +380,9 @@ function SettingsPanel.Create(opts)
   y = y - SECTION_GAP
   nav.offsets.sounds = -y
   y = BuildSoundSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  nav.offsets.raid = -y
+  y = BuildRaidSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   nav.offsets.chat = -y
   y = BuildChatSettingsSection(content, y, L, config, controls)

@@ -242,6 +242,102 @@ local function SetLocalizedText(control, labels, key, fallback)
   end
 end
 
+-- Raid opt-ins (rule 144). isiLive stays hard off in raids (rule 11); each
+-- checkbox lifts that for exactly one sound alert. All are default-off, and
+-- the alert's own sound setting in the Sounds section still applies.
+local RAID_SOUND_OPT_INS = {
+  {
+    controlKey = "raidIncomingSummonSound",
+    labelKey = "SETTINGS_RAID_SUMMON_SOUND",
+    labelFallback = "Incoming summon alert in raids",
+    descKey = "SETTINGS_RAID_SUMMON_SOUND_DESC",
+    descFallback = "Also plays the incoming-summon alert and its 5-second repeat in raid groups.",
+    read = function(db)
+      return db.raidIncomingSummonSoundEnabled == true
+    end,
+    write = function(db, checked)
+      db.raidIncomingSummonSoundEnabled = checked
+    end,
+  },
+  {
+    controlKey = "raidPetStuckSound",
+    labelKey = "SETTINGS_RAID_PET_STUCK_SOUND",
+    labelFallback = "Pet-stuck voice alert in raids",
+    descKey = "SETTINGS_RAID_PET_STUCK_SOUND_DESC",
+    descFallback = "Also plays the pet-stuck voice alert in raid groups.",
+    read = function(db)
+      return db.raidPetStuckSoundEnabled == true
+    end,
+    write = function(db, checked)
+      db.raidPetStuckSoundEnabled = checked
+    end,
+  },
+  {
+    controlKey = "raidLeaderTransferSound",
+    labelKey = "SETTINGS_RAID_LEADER_SOUND",
+    labelFallback = "Lead-transfer alert in raids",
+    descKey = "SETTINGS_RAID_LEADER_SOUND_DESC",
+    descFallback = "Also plays the lead-transfer sound in raid groups when you become raid leader.",
+    read = function(db)
+      return db.raidLeaderTransferSoundEnabled == true
+    end,
+    write = function(db, checked)
+      db.raidLeaderTransferSoundEnabled = checked
+    end,
+  },
+}
+
+function SettingsBehavior.BuildRaidSection(canvas, yOffset, labels, config, controls)
+  controls.raidHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_RAID or "Raid")
+  controls.raidHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_RAID_HINT
+      or "isiLive stays off in raid groups. The alerts below can be turned on for raids individually."
+  )
+  if controls.raidHint then
+    controls.raidHint._sectionKey = "SETTINGS_SECTION_RAID"
+  end
+
+  for _, optIn in ipairs(RAID_SOUND_OPT_INS) do
+    controls[optIn.controlKey], yOffset = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels[optIn.labelKey] or optIn.labelFallback,
+      function()
+        return optIn.read(config.getDB())
+      end,
+      function(checked)
+        optIn.write(config.getDB(), checked)
+      end,
+      optIn.labelKey,
+      DescriptionOptions(labels[optIn.descKey] or optIn.descFallback)
+    )
+  end
+
+  return yOffset
+end
+
+function SettingsBehavior.RefreshRaidControls(controls, labels, db)
+  if controls.raidHeader then
+    controls.raidHeader:SetText(labels.SETTINGS_SECTION_RAID or "Raid")
+  end
+  SetLocalizedText(
+    controls.raidHint,
+    labels,
+    "SETTINGS_SECTION_RAID_HINT",
+    "isiLive stays off in raid groups. The alerts below can be turned on for raids individually."
+  )
+  for _, optIn in ipairs(RAID_SOUND_OPT_INS) do
+    local control = controls[optIn.controlKey]
+    if control then
+      control.label:SetText(labels[optIn.labelKey] or optIn.labelFallback)
+      SetDescription(control, labels[optIn.descKey] or optIn.descFallback)
+      control.check:SetChecked(optIn.read(db))
+    end
+  end
+end
+
 function SettingsBehavior.RefreshControls(controls, labels, db)
   if controls.behaviorHeader then
     controls.behaviorHeader:SetText(labels.SETTINGS_SECTION_BEHAVIOR or "Behavior")

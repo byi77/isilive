@@ -228,6 +228,27 @@ return function(test, ctx)
     end)
   end)
 
+  test("Raid suppression keeps the raid sound events registered", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
+      local frame = NewEventFrameStub()
+      addon.Bootstrap.RegisterDispatcherEvents(frame)
+      addon.Bootstrap.ApplyRaidEventSuppression(true)
+
+      for _, event in ipairs({
+        "CONFIRM_SUMMON",
+        "INCOMING_SUMMON_CHANGED",
+        "UI_ERROR_MESSAGE",
+        "PARTY_LEADER_CHANGED",
+        "CHAT_MSG_SYSTEM",
+      }) do
+        Assert.True(frame.registered[event], event .. " must stay registered for the raid sound alerts")
+      end
+      Assert.Nil(frame.registered.PARTY_INVITE_REQUEST, "events without a raid alert must still stop in a raid")
+      Assert.Nil(frame.registered.SPELL_UPDATE_COOLDOWN, "the hard-off must keep every other event unregistered")
+    end)
+  end)
+
   test("Raid suppression restores every event when the raid ends", function()
     local pendingCallbacks = {}
     WithGlobals({

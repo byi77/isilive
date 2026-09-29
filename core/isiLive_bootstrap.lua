@@ -142,6 +142,10 @@ local EVENT_REGISTRY = {
   -- can arrive mid-combat and the cue is independent of main-UI visibility.
   { "PARTY_INVITE_REQUEST", true, true, false },
   { "PARTY_INVITE_CANCEL", true, true, false },
+  -- Removed-from-group voice alert: the client reports the removal only as the
+  -- localized system message ERR_UNINVITE_YOU. Party and raid alike, in and
+  -- out of combat, independent of main-UI visibility.
+  { "CHAT_MSG_SYSTEM", true, true, false },
   { "INSPECT_READY", false, false, true },
   { "CHALLENGE_MODE_START", true, true, false },
   { "CHALLENGE_MODE_COMPLETED", true, true, false },
@@ -248,6 +252,22 @@ local RAID_WAKE_EVENTS = {
 }
 Bootstrap.RAID_WAKE_EVENTS = RAID_WAKE_EVENTS
 
+-- Events that feed the raid sound opt-ins and the removed-from-group alert
+-- (rule 144). They fire rarely, so they stay registered through the raid
+-- hard-off; each handler checks its own setting before it plays anything.
+local RAID_SOUND_EVENTS = {
+  CONFIRM_SUMMON = true,
+  INCOMING_SUMMON_CHANGED = true,
+  UI_ERROR_MESSAGE = true,
+  PARTY_LEADER_CHANGED = true,
+  CHAT_MSG_SYSTEM = true,
+}
+Bootstrap.RAID_SOUND_EVENTS = RAID_SOUND_EVENTS
+
+local function StaysRegisteredInRaid(event)
+  return RAID_WAKE_EVENTS[event] == true or RAID_SOUND_EVENTS[event] == true
+end
+
 local dispatcherEventFrame = nil
 local dispatcherEventsSuppressed = false
 
@@ -302,7 +322,7 @@ function Bootstrap.ApplyRaidEventSuppression(suppressed)
       return false
     end
     for _, entry in ipairs(EVENT_REGISTRY) do
-      if not RAID_WAKE_EVENTS[entry[1]] then
+      if not StaysRegisteredInRaid(entry[1]) then
         pcall(eventFrame.UnregisterEvent, eventFrame, entry[1])
       end
     end
@@ -319,7 +339,7 @@ function Bootstrap.ApplyRaidEventSuppression(suppressed)
       return
     end
     for _, entry in ipairs(EVENT_REGISTRY) do
-      if not RAID_WAKE_EVENTS[entry[1]] then
+      if not StaysRegisteredInRaid(entry[1]) then
         pcall(RegisterDispatcherEntry, eventFrame, entry)
       end
     end

@@ -812,6 +812,26 @@ function SoundUtils.IsEnabled(key)
   return entry.defaultEnabled ~= false
 end
 
+--- True when the player opted a sound alert into raid groups (rule 144).
+-- Raids keep the hard-off from rule 11; each opt-in lifts it for exactly one
+-- alert and is off by default. The alert's own sound setting still applies.
+-- @param key string sound registry key
+-- @return boolean
+function SoundUtils.IsRaidOptInEnabled(key)
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return false
+  end
+  if key == "portal_available" then
+    return db.raidIncomingSummonSoundEnabled == true
+  elseif key == "pet_stuck" then
+    return db.raidPetStuckSoundEnabled == true
+  elseif key == "leader_transfer" then
+    return db.raidLeaderTransferSoundEnabled == true
+  end
+  return false
+end
+
 -- Plays a sound file on the configured channel with one-second duplicate protection.
 function SoundUtils.Play(soundFile, channel, spamScope)
   if type(soundFile) ~= "string" or soundFile == "" then
@@ -987,6 +1007,10 @@ end
 
 function SoundUtils.PlayGroupInvite()
   return SoundUtils.PlayKey("group_invite")
+end
+
+function SoundUtils.PlayGroupRemoved()
+  return SoundUtils.PlayKey("group_removed")
 end
 
 function SoundUtils.PlayBattleRes()

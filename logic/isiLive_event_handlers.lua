@@ -183,6 +183,10 @@ local function BuildContext(opts)
     return true
   end)
   ctx.playGroupInviteSound = OptionalFunction(opts.playGroupInviteSound, function() end)
+  ctx.playGroupRemovedSound = OptionalFunction(opts.playGroupRemovedSound, function() end)
+  ctx.isRaidSoundOptInEnabled = OptionalFunction(opts.isRaidSoundOptInEnabled, function(_soundKey)
+    return false
+  end)
   ctx.isGroupInviteSoundEnabled = OptionalFunction(opts.isGroupInviteSoundEnabled, function()
     return true
   end)

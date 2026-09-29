@@ -81,6 +81,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundGroupInviteEnabled",
     defaultEnabled = true,
   },
+  group_removed = {
+    labelKey = "SETTINGS_SOUND_GROUP_REMOVED",
+    descKey = "SETTINGS_SOUND_GROUP_REMOVED_DESC",
+    labelFallback = "Sound: Removed from group",
+    descFallback = "Plays a voice alert when you are removed from the group, in parties and raids.",
+    settingKey = "soundGroupRemovedEnabled",
+    defaultEnabled = true,
+  },
   battle_res = {
     labelKey = "SETTINGS_SOUND_BATTLE_RES",
     descKey = "SETTINGS_SOUND_BATTLE_RES_DESC",

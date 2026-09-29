@@ -720,6 +720,7 @@ return function(test, ctx)
         power_infusion_received = "PowerInfusionReceived_deDE.wav",
         pet_stuck = "PetStuck_deDE.wav",
         group_invite = "GroupInvite_deDE.wav",
+        group_removed = "GroupRemoved_deDE.wav",
         portal_available = "Portal_deDE.wav",
         tank_died = "TankDied_deDE.wav",
         healer_died = "HealerDied_deDE.wav",
@@ -750,6 +751,7 @@ return function(test, ctx)
       addon.SoundUtils.PlayHealerDied()
       addon.SoundUtils.PlayPetStuck()
       addon.SoundUtils.PlayGroupInvite()
+      addon.SoundUtils.PlayGroupRemoved()
       Assert.True(calls[1].path:find("BattleRezReady.wav", 1, true) ~= nil, "frFR must use English BR-ready")
       Assert.True(calls[2].path:find("BloodlustReady.wav", 1, true) ~= nil, "frFR must use English BL-ready")
       Assert.True(calls[3].path:find("PowerInfusionReceived.wav", 1, true) ~= nil, "frFR must use English PI")
@@ -758,6 +760,7 @@ return function(test, ctx)
       Assert.True(calls[6].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
       Assert.True(calls[7].path:find("PetStuck.wav", 1, true) ~= nil, "frFR must use English pet stuck")
       Assert.True(calls[8].path:find("GroupInvite.wav", 1, true) ~= nil, "frFR must use English group invite")
+      Assert.True(calls[9].path:find("GroupRemoved.wav", 1, true) ~= nil, "frFR must use English group removed")
     end)
   end)
 

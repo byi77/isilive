@@ -811,6 +811,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "PetStuck_deDE.wav",
       "GroupInvite.wav",
       "GroupInvite_deDE.wav",
+      "GroupRemoved.wav",
+      "GroupRemoved_deDE.wav",
       "HealerDied.wav",
       "HealerDied_deDE.wav",
       "Portal.ogg",

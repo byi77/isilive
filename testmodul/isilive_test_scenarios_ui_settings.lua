@@ -2892,14 +2892,14 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        50,
+        53,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " incoming-summon loop, chat/text-announce, combat-fade, reduced-motion, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows,"
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
-          .. " and the two auto-close split checkboxes visible"
+          .. " the two auto-close split checkboxes and the three raid sound opt-ins visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
 
@@ -2907,19 +2907,19 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        50,
+        53,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
-          .. " and the two auto-close split checkboxes"
+          .. " the two auto-close split checkboxes and the three raid sound opt-ins"
       )
     end)
   end)
 
-  test("Settings section navigation keeps ten fixed-width tabs and jumps within the existing scroll frame", function()
+  test("Settings section navigation keeps a fixed-width tab per section and jumps within the scroll frame", function()
     local createFrameStub = BuildCreateFrameStub()
     local labels = { SETTINGS_NAV_GENERAL = "General", SETTINGS_NAV_VIP = "VIP" }
     WithGlobals({
@@ -2949,8 +2949,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.Equal(button:GetWidth(), 126, "navigation tabs must keep their width budget")
         Assert.Equal(button._parent, panel.canvas, "navigation must stay outside the scroll child")
       end
-      Assert.Equal(count, 10, "all settings sections need a navigation tab")
+      Assert.Equal(count, 11, "all settings sections need a navigation tab")
       Assert.True(nav.offsets.vip > nav.offsets.general, "section offsets must follow content order")
+      Assert.True(nav.offsets.raid > nav.offsets.sounds, "the raid section must follow the sounds section")
+      Assert.True(nav.offsets.chat > nav.offsets.raid, "the raid section must come before chat")
 
       local display = nav.buttons.display
       display._scripts.OnClick(display)

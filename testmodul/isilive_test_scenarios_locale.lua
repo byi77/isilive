@@ -373,6 +373,9 @@ return function(test, ctx)
         SETTINGS_NAMEPLATE_POSITION = true,
         SETTINGS_REDUCE_MOTION = true,
         SETTINGS_REDUCE_MOTION_DESC = true,
+        -- French uses "Raid" for raids, same as English.
+        SETTINGS_NAV_RAID = true,
+        SETTINGS_SECTION_RAID = true,
       },
       esES = {
         SETTINGS_SECTION_GENERAL = true,

@@ -521,6 +521,12 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.playGroupInviteSound = type(deps.playGroupInviteSound) == "function" and deps.playGroupInviteSound
     or function() end
+  config.playGroupRemovedSound = type(deps.playGroupRemovedSound) == "function" and deps.playGroupRemovedSound
+    or function() end
+  config.isRaidSoundOptInEnabled = type(deps.isRaidSoundOptInEnabled) == "function" and deps.isRaidSoundOptInEnabled
+    or function(_soundKey)
+      return false
+    end
   config.isGroupInviteSoundEnabled = type(deps.isGroupInviteSoundEnabled) == "function"
       and deps.isGroupInviteSoundEnabled
     or function()
@@ -847,6 +853,18 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isGroupInviteSoundEnabled = function()
       local db = rawget(_G, "IsiLiveDB")
       return type(db) ~= "table" or db.soundGroupInviteEnabled ~= false
+    end,
+    playGroupRemovedSound = function()
+      local soundUtils = addonTable.SoundUtils
+      if type(soundUtils) == "table" and type(soundUtils.PlayGroupRemoved) == "function" then
+        soundUtils.PlayGroupRemoved()
+      end
+    end,
+    isRaidSoundOptInEnabled = function(soundKey)
+      local soundUtils = addonTable.SoundUtils
+      return type(soundUtils) == "table"
+        and type(soundUtils.IsRaidOptInEnabled) == "function"
+        and soundUtils.IsRaidOptInEnabled(soundKey) == true
     end,
     playReadyCheckCompleteSound = function()
       local soundUtils = addonTable.SoundUtils

@@ -85,4 +85,77 @@ return function(test, ctx)
       ---@diagnostic enable: undefined-field
     end)
   end)
+
+  test("Settings raid section offers default-off sound opt-ins that persist", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function() end,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return { SETTINGS_SECTION_RAID = "Raid", SETTINGS_RAID_SUMMON_SOUND = "Incoming summon alert in raids" }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local checks = {}
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "CheckButton" and type(frame._settingKey) == "string" then
+          checks[frame._settingKey] = frame
+        end
+      end
+      local optIns = {
+        SETTINGS_RAID_SUMMON_SOUND = "raidIncomingSummonSoundEnabled",
+        SETTINGS_RAID_PET_STUCK_SOUND = "raidPetStuckSoundEnabled",
+        SETTINGS_RAID_LEADER_SOUND = "raidLeaderTransferSoundEnabled",
+      }
+      for settingKey, dbKey in pairs(optIns) do
+        local check = Assert.NotNil(checks[settingKey], settingKey .. " must be rendered in the raid section")
+        Assert.False(check:GetChecked(), settingKey .. " must default to off: raids stay hard off")
+        Assert.Nil(db[dbKey], "opening settings must not persist " .. dbKey)
+        check:SetChecked(true)
+        check._scripts.OnClick(check)
+        Assert.True(db[dbKey], settingKey .. " must persist true when enabled")
+        Assert.True(
+          addon.SoundUtils.IsRaidOptInEnabled(({
+            raidIncomingSummonSoundEnabled = "portal_available",
+            raidPetStuckSoundEnabled = "pet_stuck",
+            raidLeaderTransferSoundEnabled = "leader_transfer",
+          })[dbKey]),
+          dbKey .. " must lift the raid gate for its alert"
+        )
+      end
+      Assert.False(addon.SoundUtils.IsRaidOptInEnabled("tank_died"), "alerts without an opt-in stay raid-gated")
+
+      db.raidPetStuckSoundEnabled = false
+      panel.Refresh()
+      Assert.False(checks.SETTINGS_RAID_PET_STUCK_SOUND:GetChecked(), "refresh must mirror the stored opt-in")
+      Assert.Equal(
+        panel.navigation.buttons.raid._isiLiveSettingsSection,
+        "raid",
+        "the raid section needs its own navigation tab"
+      )
+    end)
+  end)
 end
