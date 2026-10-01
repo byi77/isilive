@@ -558,7 +558,8 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
         return "MyRealm"
       end,
       C_DamageMeter = {
-        GetCombatSessionFromType = function(_damageType, sessionType)
+        GetCombatSessionFromType = function(sessionType, damageType)
+          Assert.Equal(damageType, 0, "fallback lookup must keep reading damage-done data")
           table.insert(requestedSessionTypes, sessionType)
           if sessionType == 0 then
             return nil

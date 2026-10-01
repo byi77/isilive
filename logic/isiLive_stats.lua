@@ -115,9 +115,9 @@ local function GetCombatSessionFromTypeSafe(api, sessionType, damageMeterType)
     return nil
   end
 
-  -- Parameterreihenfolge: (damageMeterType, sessionType)
-  -- 0=Damage/0=Overall; 0=Damage/1=Current
-  local ok, session = pcall(api.GetCombatSessionFromType, damageMeterType, sessionType)
+  -- Blizzard signature (DamageMeterDocumentation, 12.1.0): (sessionType, type).
+  -- sessionType 0=Overall / 1=Current; type 0=DamageDone.
+  local ok, session = pcall(api.GetCombatSessionFromType, sessionType, damageMeterType)
   if not ok or type(session) ~= "table" then
     return nil
   end
