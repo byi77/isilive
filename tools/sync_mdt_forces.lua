@@ -85,6 +85,12 @@ local function buildSandbox()
     dungeonBossPulls = {},
   }
 
+  -- Newer MDT dungeon files register their zone mapping through
+  -- MDT:RegisterDungeonLocation (defined in MDT's Modules/MapView.lua, which
+  -- the sandbox does not load). A missing method skips every dungeon file, so
+  -- stub it; the zone mapping is irrelevant for the forces DB.
+  MDT.RegisterDungeonLocation = function() end
+
   return MDT
 end
 
