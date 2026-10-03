@@ -72,7 +72,20 @@ local function NotifyUpdate()
   end
 end
 
-local function FindEnemyForcesCriteria()
+-- Enemy-forces criteria ID of the current key. Some boss fights add their own
+-- weighted progress bar next to enemy forces; outside such a fight enemy
+-- forces is the only weighted criterion, so whenever exactly one weighted
+-- criterion is readable its ID is locked in and preferred afterwards.
+-- Cleared on CHALLENGE_MODE_START / RESET / COMPLETED.
+local lockedForcesCriteriaID = nil
+
+-- Reads every scenario criterion once. Returns a scan table and whether the
+-- step itself was readable:
+--   weighted = { { index, info }, ... } weighted-progress criteria
+--   bosses = { { index, completed }, ... } every non-weighted criterion
+--   bossesResolved = false when any boss field was secret / unreadable
+--   incomplete = true when any criterion could not be classified at all
+local function ReadScenarioCriteria()
   local scenarioInfo = rawget(_G, "C_ScenarioInfo")
   if
     type(scenarioInfo) ~= "table"
@@ -85,9 +98,10 @@ local function FindEnemyForcesCriteria()
   if not okStep or IsSecretValue(stepInfo) or type(stepInfo) ~= "table" then
     return nil, false
   end
+  local scan = { weighted = {}, bosses = {}, bossesResolved = true, incomplete = false }
   local numCriteria = stepInfo.numCriteria
   if numCriteria == nil then
-    return nil, true
+    return scan, true
   end
   if
     IsSecretValue(numCriteria)
@@ -101,50 +115,92 @@ local function FindEnemyForcesCriteria()
   end
   for i = 1, numCriteria do
     local okCrit, cInfo = pcall(scenarioInfo.GetCriteriaInfo, i)
-    if not okCrit or IsSecretValue(cInfo) or type(cInfo) ~= "table" then
-      return nil, false
-    end
-    local isWeightedProgress = cInfo.isWeightedProgress
-    if IsSecretValue(isWeightedProgress) then
-      return nil, false
-    end
-    if isWeightedProgress == true then
-      return cInfo, true
+    local readable = okCrit and not IsSecretValue(cInfo) and type(cInfo) == "table"
+    local isWeightedProgress = readable and cInfo.isWeightedProgress or nil
+    if not readable or IsSecretValue(isWeightedProgress) then
+      -- Unclassifiable: could be enemy forces or a boss. Neither the boss
+      -- list nor an unlocked forces choice can be trusted for this read.
+      scan.incomplete = true
+      scan.bossesResolved = false
+    elseif isWeightedProgress == true then
+      scan.weighted[#scan.weighted + 1] = { index = i, info = cInfo }
+    else
+      local completed = cInfo.completed
+      if IsSecretValue(completed) or (completed ~= nil and type(completed) ~= "boolean") then
+        -- A masked boss state must never become a kill.
+        scan.bossesResolved = false
+      else
+        scan.bosses[#scan.bosses + 1] = { index = i, completed = completed == true }
+      end
     end
   end
-  return nil, true
+  return scan, true
 end
 
-local function ReadLiveData()
-  local mapID = nil
-  local challengeMode = rawget(_G, "C_ChallengeMode")
-  if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
-    local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and not IsSecretValue(id) and type(id) == "number" and id > 0 then
-      mapID = id
+local function ReadCriteriaNumber(cInfo, field)
+  local value = cInfo[field]
+  if value == nil or IsSecretValue(value) then
+    return nil
+  end
+  return tonumber(value)
+end
+
+-- Picks the enemy-forces criterion out of the weighted ones. Returns the
+-- criterion info (or nil when there is none) and whether the choice is
+-- resolved. Order: a single weighted criterion in a fully readable step
+-- (locks its ID), then the locked ID, then -- only for a fully readable
+-- step -- the weighted criterion with the largest readable total (lowest
+-- index on ties).
+local function SelectEnemyForcesCriteria(scan)
+  local weighted = scan.weighted
+  if #weighted == 1 and not scan.incomplete then
+    local criteriaID = ReadCriteriaNumber(weighted[1].info, "criteriaID")
+    if criteriaID then
+      lockedForcesCriteriaID = criteriaID
+    end
+    return weighted[1].info, true
+  end
+  if lockedForcesCriteriaID ~= nil then
+    for i = 1, #weighted do
+      if ReadCriteriaNumber(weighted[i].info, "criteriaID") == lockedForcesCriteriaID then
+        return weighted[i].info, true
+      end
     end
   end
-  if not mapID then
-    state.active = false
-    state.percent = 0
-    state.rawCount = 0
-    state.total = 0
-    state.mapID = nil
-    return
+  if scan.incomplete then
+    return nil, false
   end
-
-  local cInfo, criteriaResolved = FindEnemyForcesCriteria()
-  if criteriaResolved ~= true then
-    return
+  if #weighted == 0 then
+    return nil, true
   end
+  local best, bestTotal = nil, nil
+  for i = 1, #weighted do
+    local total = ReadCriteriaNumber(weighted[i].info, "totalQuantity")
+    if total and total > 0 and (bestTotal == nil or total > bestTotal) then
+      best, bestTotal = weighted[i].info, total
+    end
+  end
+  if not best then
+    return nil, false
+  end
+  return best, true
+end
 
-  state.active = true
-  state.mapID = mapID
+local function ObservePace(snapshot)
+  local pace = addonTable.ForcesPace
+  if type(pace) == "table" and type(pace.Observe) == "function" then
+    pcall(pace.Observe, snapshot)
+  end
+end
+
+-- Applies the enemy-forces criterion to `state`. Returns true only when the
+-- resulting percentage comes from a verified read of this call.
+local function ApplyEnemyForces(cInfo, mapID)
   if not cInfo then
     state.percent = 0
     state.rawCount = 0
     state.total = 0
-    return
+    return false
   end
 
   -- Resolve API-total (live) and DB-total (deterministic, MDT-synced).
@@ -178,7 +234,7 @@ local function ReadLiveData()
     state.percent = 0
     state.rawCount = 0
     state.total = 0
-    return
+    return false
   end
   -- `total` is deliberately not written to state yet: the snapshot has to move
   -- as one piece. Committing the new total before the count is known can leave
@@ -213,16 +269,72 @@ local function ReadLiveData()
       rawCount = tonumber(qty)
     end
   end
+
+  -- Once enemy forces are complete the game stops updating the value, so a
+  -- completed criterion reads as 100% regardless of the last count.
+  local completed = cInfo.completed
+  if not IsSecretValue(completed) and completed == true then
+    state.total = total
+    if rawCount ~= nil then
+      state.rawCount = rawCount
+    end
+    state.percent = 100
+    return true
+  end
+
   if rawCount == nil then
     -- Neither source is readable: both were masked, or the string carried no
     -- digits. Zeroing here would replace a verified 40% with a synthetic 0%
     -- and, worse, look exactly like real progress. The complete previous
     -- snapshot -- total included -- stays until a readable update arrives.
-    return
+    return false
   end
   state.total = total
   state.rawCount = rawCount
   state.percent = (rawCount / total) * 100
+  return true
+end
+
+local function ReadLiveData()
+  local mapID = nil
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
+    local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
+    if ok and not IsSecretValue(id) and type(id) == "number" and id > 0 then
+      mapID = id
+    end
+  end
+  if not mapID then
+    state.active = false
+    state.percent = 0
+    state.rawCount = 0
+    state.total = 0
+    state.mapID = nil
+    return
+  end
+
+  local scan, scanResolved = ReadScenarioCriteria()
+  if scanResolved ~= true then
+    return
+  end
+  local snapshot = {
+    mapID = mapID,
+    bosses = scan.bosses,
+    bossesResolved = scan.bossesResolved,
+    percentResolved = false,
+  }
+
+  local cInfo, criteriaResolved = SelectEnemyForcesCriteria(scan)
+  if criteriaResolved ~= true then
+    ObservePace(snapshot)
+    return
+  end
+
+  state.active = true
+  state.mapID = mapID
+  snapshot.percentResolved = ApplyEnemyForces(cInfo, mapID)
+  snapshot.percent = state.percent
+  ObservePace(snapshot)
 end
 
 function KillTrack.SetDebugLogger(fn)
@@ -295,6 +407,29 @@ function StopRefreshTicker()
   refreshTicker = nil
 end
 
+-- Learned forces target for the next boss of the active run, or nil.
+local function ResolvePaceTarget()
+  if not state.active then
+    return nil
+  end
+  local pace = addonTable.ForcesPace
+  if type(pace) ~= "table" or type(pace.GetPaceTarget) ~= "function" then
+    return nil
+  end
+  local ok, target = pcall(pace.GetPaceTarget, state.mapID)
+  if ok and type(target) == "number" then
+    return target
+  end
+  return nil
+end
+
+local function CallPace(method)
+  local pace = addonTable.ForcesPace
+  if type(pace) == "table" and type(pace[method]) == "function" then
+    pcall(pace[method])
+  end
+end
+
 function KillTrack.GetData()
   if demoData then
     return demoData
@@ -308,6 +443,7 @@ function KillTrack.GetData()
     mapID = state.mapID,
     inCombat = displayPull,
     pullPercent = displayPull and pull.pullPercent or 0,
+    paceTarget = ResolvePaceTarget(),
   }
 end
 
@@ -339,6 +475,15 @@ end
 -- Exposed for tests: drive the event loop directly.
 function KillTrack._DispatchEvent(event)
   if event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
+    if event == "CHALLENGE_MODE_COMPLETED" then
+      -- Last chance to see the final boss kill before learning; the scenario
+      -- may already be torn down, in which case this read changes nothing.
+      ReadLiveData()
+      CallPace("CommitRun")
+    else
+      CallPace("DiscardRun")
+    end
+    lockedForcesCriteriaID = nil
     state.active = false
     state.percent = 0
     state.rawCount = 0
@@ -350,6 +495,8 @@ function KillTrack._DispatchEvent(event)
     StopRefreshTicker()
     NotifyUpdate()
   elseif event == "CHALLENGE_MODE_START" then
+    lockedForcesCriteriaID = nil
+    CallPace("BeginRun")
     ReadLiveData()
     if state.active then
       StartRefreshTicker()

@@ -629,6 +629,9 @@ local function SetDemoTimerData(ctx, runtimeState)
       mapID = DEMO_FEATURE_TARGET_MAP_ID,
       inCombat = true,
       pullPercent = 3.21,
+      -- Learned forces target for the next boss: shows the pace tick. The
+      -- live pull keeps the text slot, as it does in a real run.
+      paceTarget = 45.1,
     })
   end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then

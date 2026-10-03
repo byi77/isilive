@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Forces pace in the M+ killtracker: isiLive learns from your own completed
+  keys how much enemy forces you had banked when each boss died, per season,
+  dungeon and boss kill order. During a key a thin cool tick on the
+  killtracker bar marks the target for the next boss (the lowest learned
+  value among the routes that still match your kill order), and between
+  pulls the pull text slot shows how far ahead (`+1.5%`) or short (`-3.2%`)
+  the group is. The live pull text keeps priority. Only runs tracked from
+  the key start with every boss captured are learned; per route the leanest
+  run is kept. New Display setting "M+ Killtracker: Forces pace"
+  (`forcesPaceEnabled`, default on), translated into all eight UI languages.
+- The killtracker no longer locks onto a boss fight's own weighted progress
+  bar: it remembers the enemy-forces criterion and otherwise picks the
+  weighted criterion with the largest total. Completed enemy forces read as
+  100%.
+
 ## 2026-09-29 - Version 0.9.411 (patch)
 
 - The group-invite voice alert gets its own repeat toggle, like the incoming

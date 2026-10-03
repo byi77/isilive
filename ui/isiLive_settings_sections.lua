@@ -24,6 +24,9 @@ local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green hearts for relevant non-sta
   .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
   .. "Atrophic Poison."
 
+local FALLBACK_FORCES_PACE_DESC = "Learns from your own completed keys how much enemy forces you had at each boss kill"
+  .. " and shows on the killtracker bar whether the group is ahead of or short of that target for the next boss."
+
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
@@ -268,6 +271,27 @@ local function CreateReducedMotionCheckbox(canvas, yOffset, labels, config)
   )
 end
 
+local function CreateForcesPaceCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_FORCES_PACE or "M+ Killtracker: Forces pace",
+    function()
+      local db = config.getDB()
+      return db.forcesPaceEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.forcesPaceEnabled = checked
+      if type(config.onForcesPaceToggle) == "function" then
+        config.onForcesPaceToggle(checked)
+      end
+    end,
+    "SETTINGS_FORCES_PACE",
+    CheckboxDescriptionOptions(labels.SETTINGS_FORCES_PACE_DESC or FALLBACK_FORCES_PACE_DESC)
+  )
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -285,6 +309,7 @@ local DISPLAY_DEFAULTS = {
   statsBoxShowAvoidance = false,
   showMinimapButton = false,
   showPortalNavigator = true,
+  forcesPaceEnabled = true,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -303,6 +328,7 @@ local DISPLAY_CALLBACKS = {
   statsBoxFontSizeOffset = "onStatsBoxFontSizeOffsetChange",
   showMinimapButton = "onMinimapButtonToggle",
   showPortalNavigator = "onPortalNavigatorToggle",
+  forcesPaceEnabled = "onForcesPaceToggle",
   lfgFlagsEnabled = "onLfgFlagsToggle",
   lfgGroupBonusesEnabled = "onLfgGroupBonusesToggle",
   tooltipFlagsEnabled = "onTooltipFlagsToggle",
@@ -324,6 +350,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "statsBoxShowAvoidance",
   "showMinimapButton",
   "showPortalNavigator",
+  "forcesPaceEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -937,6 +964,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     )
   )
 
+  controls.forcesPace, yOffset = CreateForcesPaceCheckbox(canvas, yOffset, labels, config)
+
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
   controls.lfgFlags, yOffset = CreateSettingsCheckbox(
@@ -1209,6 +1238,11 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
         or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
     )
     controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
+  end
+  if controls.forcesPace then
+    controls.forcesPace.label:SetText(labels.SETTINGS_FORCES_PACE or "M+ Killtracker: Forces pace")
+    SetCheckboxDescription(controls.forcesPace, labels.SETTINGS_FORCES_PACE_DESC or FALLBACK_FORCES_PACE_DESC)
+    controls.forcesPace.check:SetChecked(db.forcesPaceEnabled ~= false)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

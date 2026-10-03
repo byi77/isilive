@@ -104,6 +104,7 @@ local function ResolveSettingsOptions(opts)
     onAutoOpenMainFrameOnKeyEndToggle = opts.onAutoOpenMainFrameOnKeyEndToggle,
     onRaidTransitionBehaviorChange = opts.onRaidTransitionBehaviorChange,
     onPortalNavigatorToggle = opts.onPortalNavigatorToggle,
+    onForcesPaceToggle = opts.onForcesPaceToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
     onRosterColumnGuidesToggle = opts.onRosterColumnGuidesToggle,

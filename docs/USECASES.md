@@ -478,6 +478,17 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 7. No-Guess-Regel: Namen, Zonentexte, LFG-Titel, gespeicherte Target-Dungeons oder heuristische Fallbacks duerfen keinen Non-Challenge-Utility-Kontext erzeugen.
 8. Erfolgskriterium: In verifizierten Non-Challenge-Party-Dungeons bleiben die ausdruecklich erlaubten Utility-Pfade aktiv, waehrend alle M+-spezifischen Systeme stumm oder leer bleiben.
 
+## UC-29 Forces-Tempo im M+-Killtracker
+
+Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe fuer den naechsten Boss genug Enemy Forces hat, gemessen an seinen eigenen abgeschlossenen Runs desselben Dungeons und derselben Boss-Killreihenfolge (Regel 145).
+
+1. Trigger: `CHALLENGE_MODE_START`, `SCENARIO_CRITERIA_UPDATE`, der aktive Killtracker-Refresh-Ticker, Kampfbeginn und -ende sowie `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET`, jeweils ueber `KillTrack`.
+2. Verarbeitung: `KillTrack` liest alle Szenario-Kriterien einmal je Refresh, waehlt Enemy Forces ueber die gesperrte `criteriaID` (sonst das einzige beziehungsweise groesste gewichtete Kriterium) und reicht Map, verifizierten Prozentwert und Bossliste an `ForcesPace` weiter. `ForcesPace` haengt neu tote Bosse in Kriterienindex-Reihenfolge mit dem Prozentwert auf eine Nachkommastelle an.
+3. Regel: Gelernt wird bei `CHALLENGE_MODE_COMPLETED` nur ein Run, der ab `CHALLENGE_MODE_START` verfolgt wurde, ohne vorab tote Bosse und mit allen Bossen erfasst; je Route bleibt der Run mit der kleinsten Summe der Kill-Prozente, `runs` zaehlt jeden gelernten Run. `CHALLENGE_MODE_RESET` verwirft den Run.
+4. Regel: Secret- oder unlesbare Boss-Kriterien erzeugen keinen Killeintrag, eine unaufgeloeste Season verhindert Lernen und Anzeige, beschaedigte gespeicherte Routen werden ignoriert.
+5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Boss und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang.
+6. Erfolgskriterium: Ohne gelernte passende Route, nach dem letzten Boss oder bei ausgeschaltetem Setting sieht die Killtracker-Zeile genau wie bisher aus.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -593,7 +604,7 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Versteckter Non-Challenge-PartyRun-Utility-Kontext | `isiLive_runtime_state.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_factory.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_factory_death_alert.lua` |
-| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_forces_pace.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | VIP-DK-Hilfen | `isiLive_vip_dk_assist.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | VIP-Bloodlust-Debuff-Button-Warnung | `isiLive_bloodlust_button_warning.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |

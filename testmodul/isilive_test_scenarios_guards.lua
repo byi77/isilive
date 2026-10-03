@@ -59,6 +59,7 @@ local REQUIRED_MODULES = {
   "isiLive_mob_tooltip.lua",
   "isiLive_mob_nameplate.lua",
   "isiLive_mplus_timer.lua",
+  "isiLive_forces_pace.lua",
   "isiLive_killtrack.lua",
   "isiLive_kick_tracker.lua",
   "isiLive_combat_events.lua",

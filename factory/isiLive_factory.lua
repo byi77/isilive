@@ -93,6 +93,15 @@ FI.ResolveAutoOpenMainFrameOnKeyEndEnabled = ResolveAutoOpenMainFrameOnKeyEndEna
 FI.ResolveMainFramePositionLockEnabled = ResolveMainFramePositionLockEnabled
 FI.ResolveRaidTransitionBehavior = ResolveRaidTransitionBehavior
 
+-- Live-applies display toggles that only change the M+ killtracker row.
+local function BuildKillTrackRowRefresh(ctx)
+  return function()
+    if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
+      ctx.rosterPanelController.RefreshKillTrackRow()
+    end
+  end
+end
+
 local function FinalizeFactorySettings(ctx)
   local modules = ctx.modules
 
@@ -157,6 +166,7 @@ local function FinalizeFactorySettings(ctx)
           ctx.statusController.MaybeShowPortalNavigatorNotice()
         end
       end,
+      onForcesPaceToggle = BuildKillTrackRowRefresh(ctx),
       onHearthstoneChoiceChange = function()
         if ctx.panelUI and type(ctx.panelUI.SyncVisibility) == "function" then
           ctx.panelUI.SyncVisibility()

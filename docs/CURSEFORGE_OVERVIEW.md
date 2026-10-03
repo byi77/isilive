@@ -59,6 +59,7 @@ See spec, role, language, key, item level, Raider.IO, last-run DPS, interrupt st
 
 🟨 LIVE FORCES: pull planning while the key is running
 Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database.
+Forces pace learns from your own completed keys how much forces you need before each boss and shows live whether you are ahead or short.
 MDT-dependent mob details are shown only when the bundled database exactly matches the active season; Blizzard's overall dungeon progress remains available independently.
 
 🟪 PORTAL GRID: current season travel in one place
@@ -76,7 +77,7 @@ WHAT isiLive GIVES YOU
 ✅ Automatic key, target, stats, DPS, location, and kick sync between isiLive users, routed through verified party or instance chat channels.
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A current-season portal grid with cooldowns and verified target highlighting.
-✅ Live enemy-forces tracking through a bottom bar, pull prediction, nameplates, and mob tooltips.
+✅ Live enemy-forces tracking through a bottom bar, pull prediction, learned per-boss forces pace, nameplates, and mob tooltips.
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ Voice alert the moment your pet gets stuck and reports no path to follow you.
 ✅ Voice alert on incoming group invites, repeated every 5 seconds until you answer.

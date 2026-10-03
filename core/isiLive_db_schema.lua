@@ -213,6 +213,9 @@ local SCHEMA = {
   mobNameplateXOffset = { type = "number", default = 0, min = -200, max = 200 },
   mobNameplateYOffset = { type = "number", default = 0, min = -200, max = 200 },
 
+  -- M+ killtracker forces pace (learned per-boss forces targets).
+  forcesPaceEnabled = { type = "boolean", default = true },
+
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },
@@ -298,6 +301,17 @@ local SCHEMA = {
       return {}
     end,
     maxMapEntries = 5000,
+  },
+  -- Learned forces-pace routes: forcesPace[seasonID][mapID].routes[routeKey].
+  -- Keyed by season first, so the cap bounds the number of seasons kept; the
+  -- per-dungeon route count is bounded by game/isiLive_forces_pace.lua, which
+  -- also validates every route on read.
+  forcesPace = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 20,
   },
   verifiedAccountTeleportSpells = {
     type = "table",

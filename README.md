@@ -211,11 +211,12 @@ The compactly stacked M+ layout keeps the full five-player roster clear of the l
 
 A bottom bar that shows your kill-count percentage:
 
-- **Green** < 80%, **Yellow** < 95%, **Red** ≥ 95%
+- Calm **blue** while forces are open, **green** once 100% is reached; changes glide smoothly to the new value
 - After a verified LFG invite target announce, the bar shows the target dungeon and key level right-aligned until the key starts
 - During an active key, the verified dungeon name stays visible on the progress bar as a left-aligned outlined label with the started key level read from the active Mythic+ timer snapshot
 - During a pull, a light-blue segment on the right shows **how much the current pull will add** (`+X.XX%`) — so you can see mid-pull whether it's enough
 - When combat ends, the tracker refreshes Blizzard's live scenario progress immediately, so the last pull is counted before the next pull or boss engagement
+- **Forces pace:** isiLive learns from your own completed keys how much enemy forces you had when each boss died (per season, dungeon, and boss kill order; the leanest run per route is kept). During the next key a thin tick on the bar marks the target for the next boss, and between pulls the pull text shows how far ahead (`+1.5%`) or short (`-3.2%`) you are. Can be turned off in **Display** settings
 
 ### Teleport Grid
 
@@ -364,7 +365,7 @@ section to jump directly to its settings. The active section follows manual scro
 - **Beta** — current beta notice plus GitHub issue and CurseForge comment links
 - **General** — language and default layout when opening isiLive
 - **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button
-- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, Group Finder language flags and class-bonus hints
+- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats

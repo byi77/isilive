@@ -2892,14 +2892,14 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        53,
+        54,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " incoming-summon loop, chat/text-announce, combat-fade, reduced-motion, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows,"
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
-          .. " the two auto-close split checkboxes and the three raid sound opt-ins visible"
+          .. " the two auto-close split checkboxes, the three raid sound opt-ins and the forces-pace toggle visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
 
@@ -2907,14 +2907,14 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        53,
+        54,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
-          .. " the two auto-close split checkboxes and the three raid sound opt-ins"
+          .. " the two auto-close split checkboxes, the three raid sound opt-ins and the forces-pace toggle"
       )
     end)
   end)

@@ -82,6 +82,7 @@ ui/isiLive_mob_tooltip.lua
 ui/isiLive_mob_nameplate.lua
 ui/isiLive_roster_layout.lua
 game/isiLive_mplus_timer.lua
+game/isiLive_forces_pace.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_combat_events.lua

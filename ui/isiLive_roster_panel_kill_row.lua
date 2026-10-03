@@ -42,6 +42,70 @@ local function FormatPercentText(value)
   return (text or "") .. "%"
 end
 
+local PACE_TICK_WIDTH = 2
+local PACE_TICK_HEIGHT = 10
+local PACE_ON_TARGET_EPSILON = 0.05
+
+-- Learned forces target for the next boss (see game/isiLive_forces_pace.lua).
+-- Shown only when the setting is on and the value is a plain percentage.
+-- Without the ForcesPace module the setting cannot be read: fail closed.
+local function ResolveDisplayedPaceTarget(data)
+  local target = type(data) == "table" and data.paceTarget or nil
+  if type(target) ~= "number" or target ~= target or target < 0 or target > 100 then
+    return nil
+  end
+  local pace = addonTable.ForcesPace
+  if type(pace) ~= "table" or type(pace.IsEnabled) ~= "function" or pace.IsEnabled() ~= true then
+    return nil
+  end
+  return target
+end
+
+-- Signed pace delta text with one decimal in the addon language. The delta is
+-- rounded before its sign is decided, so -0.04 reads as on pace ("0,0%"),
+-- never as "-0,0%". Returns the text and "ahead", "onpace" or "short".
+local function FormatPaceDelta(delta)
+  local rounded = tonumber(string.format("%.1f", delta)) or 0
+  local magnitude = math.abs(rounded)
+  if magnitude < PACE_ON_TARGET_EPSILON then
+    magnitude = 0
+  end
+  local format = type(UICommon.FormatDecimal) == "function" and UICommon.FormatDecimal or nil
+  local text = (format and format(magnitude, 1) or string.format("%.1f", magnitude)) .. "%"
+  if magnitude == 0 then
+    return text, "onpace"
+  end
+  if rounded > 0 then
+    return "+" .. text, "ahead"
+  end
+  return "-" .. text, "short"
+end
+
+local function HidePaceTick(row)
+  local tick = row and row.killTrackPaceTick
+  if tick and type(tick.Hide) == "function" then
+    tick:Hide()
+  end
+end
+
+local function ShowPaceTick(row, barWidth, target)
+  local tick = row.killTrackPaceTick
+  if not tick then
+    return
+  end
+  if barWidth <= 0 then
+    tick:Hide()
+    return
+  end
+  local x = math.floor(barWidth * target / 100 + 0.5)
+  x = math.max(1, math.min(x, barWidth - 1))
+  if type(tick.ClearAllPoints) == "function" then
+    tick:ClearAllPoints()
+  end
+  tick:SetPoint("CENTER", row.killTrackBarContainer, "LEFT", x, 0)
+  tick:Show()
+end
+
 local function BuildPercentPlaceholder()
   local separator = type(UICommon.GetDecimalSeparator) == "function" and UICommon.GetDecimalSeparator() or "."
   return "--" .. separator .. "--"
@@ -205,6 +269,25 @@ local function CreateKillTrackRow(mainFrame)
   end
   barPull:Hide()
 
+  -- Learned forces target for the next boss: a thin cool tick above the fill.
+  local paceTick = barContainer:CreateTexture(nil, "OVERLAY")
+  if type(paceTick.SetTexture) == "function" then
+    paceTick:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(paceTick.SetVertexColor) == "function" then
+    paceTick:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.MPLUS_TIMELINE_TICK) or { 0.9, 0.95, 1, 0.6 }))
+  end
+  if type(paceTick.SetWidth) == "function" then
+    paceTick:SetWidth(PACE_TICK_WIDTH)
+  end
+  if type(paceTick.SetHeight) == "function" then
+    paceTick:SetHeight(PACE_TICK_HEIGHT)
+  end
+  if type(paceTick.SetPoint) == "function" then
+    paceTick:SetPoint("CENTER", barContainer, "LEFT", 0, 0)
+  end
+  paceTick:Hide()
+
   local targetText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   targetText:SetPoint("LEFT", box, "LEFT", 94, 0)
   targetText:SetPoint("RIGHT", box, "RIGHT", -(PREKEY_LEVEL_WIDTH + 10), 0)
@@ -277,6 +360,7 @@ local function CreateKillTrackRow(mainFrame)
   row.killTrackBarBg = barBg
   row.killTrackBarFill = barFill
   row.killTrackBarPull = barPull
+  row.killTrackPaceTick = paceTick
   row.killTrackTargetText = targetText
   row.killTrackTargetLevelText = targetLevelText
   row.killTrackActiveDungeonOverlay = activeDungeonOverlay
@@ -480,6 +564,12 @@ local function UpdateKillTrackRow(row, deps)
         pctText:SetTextColor(textColor[1], textColor[2], textColor[3])
       end
     end
+    local paceTarget = ResolveDisplayedPaceTarget(data)
+    if paceTarget then
+      ShowPaceTick(row, w, paceTarget)
+    else
+      HidePaceTick(row)
+    end
     if pullText then
       if data.inCombat and pullPct > 0 then
         pullText:SetText("+" .. FormatPercentText(pullPct))
@@ -488,11 +578,22 @@ local function UpdateKillTrackRow(row, deps)
             unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
           )
         end
+      elseif paceTarget then
+        -- The live pull keeps priority; between pulls the slot shows how far
+        -- the run is ahead of (or short of) the next boss's learned target.
+        local deltaText, paceState = FormatPaceDelta(pct - paceTarget)
+        pullText:SetText(deltaText)
+        if type(pullText.SetTextColor) == "function" then
+          local paceColor = paceState == "short" and (colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 })
+            or (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
+          pullText:SetTextColor(paceColor[1], paceColor[2], paceColor[3])
+        end
       else
         pullText:SetText("")
       end
     end
   elseif targetInfo then
+    HidePaceTick(row)
     if barContainer and type(barContainer.Hide) == "function" then
       barContainer:Hide()
     end
@@ -537,6 +638,7 @@ local function UpdateKillTrackRow(row, deps)
       pullText:SetText("")
     end
   else
+    HidePaceTick(row)
     if barContainer and type(barContainer.Show) == "function" then
       barContainer:Show()
     end
