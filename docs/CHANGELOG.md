@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-10-03 - Version 0.9.412 (patch)
 
 - Forces pace in the M+ killtracker: isiLive learns from your own completed
   keys how much enemy forces you had banked when each boss died, per season,
@@ -16,6 +16,11 @@
   bar: it remembers the enemy-forces criterion and otherwise picks the
   weighted criterion with the largest total. Completed enemy forces read as
   100%.
+- Last-run DPS: the damage-meter lookup now passes its arguments in
+  Blizzard's documented order, so the current-session fallback reads the
+  current session's damage done instead of the overall session.
+- The bundled M+ forces database is refreshed from upstream 6.2.20; the sync
+  tool stubs a new dungeon-location hook so the refresh no longer stops early.
 
 ## 2026-09-29 - Version 0.9.411 (patch)
 
