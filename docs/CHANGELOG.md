@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-05 - Version 0.9.413 (patch)
+
+- Added ten M+ stress scenarios with up to 30,000-event bursts, five-minute
+  visible/hidden timer workloads, peer traffic, unavailable APIs, pending
+  callbacks at completion/reset, and raid/party/solo transitions.
+- The forces ticker now cancels on raid entry and resumes on party return
+  without discarding verified run data. A full-factory stress test exposed
+  the previously active scenario polling during raid suppression.
+- Closed Settings no longer rebuild all controls and previews on global item
+  cache events. Visible item-event bursts update only the Hearthstone selector
+  once on the next timer callback; opening Settings refreshes skipped changes.
+- A disabled Stats Box no longer collects or renders live stats. Other units'
+  stat events are ignored, and enabled stat refreshes reuse unchanged layouts.
+- The visible solo main window no longer runs the inspection frame loop.
+  Normal and verified automatic instance groups resume inspection on entry.
+- Regression coverage includes 10,000-event bursts and real factory group
+  transitions. These fixes remove verified idle work; the reported 945 ms
+  in-game spike still requires a new live measurement to establish its cause.
+
 ## 2026-10-03 - Version 0.9.412 (patch)
 
 - Forces pace in the M+ killtracker: isiLive learns from your own completed

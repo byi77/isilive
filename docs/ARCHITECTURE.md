@@ -1,7 +1,17 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.412`
-Zuletzt aktualisiert: `2026-10-03`
+Versionsbasis: `0.9.413`
+Zuletzt aktualisiert: `2026-10-05`
+
+Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
+sowie nach `GROUP_ROSTER_UPDATE` und `PLAYER_ENTERING_WORLD` anhand der
+verifizierten normalen oder automatischen Instanzgruppe. Ohne Gruppe wird der
+Main-Frame-`OnUpdate` entfernt und beide Inspect-Queues werden geleert.
+Der eigenstaendige Settings-Item-Eventframe prueft die effektive Sichtbarkeit,
+buendelt sichtbare Bursts und aktualisiert ausschliesslich die Ruhestein-Auswahl;
+ein Show-Hook zieht die vollstaendige Einstellungsansicht nach.
+Die Statsbox sammelt nur aktiviert Werte; ihre Stat-Events verwenden den
+bestehenden Refresh ohne erzwungenes Layout.
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 
@@ -322,7 +332,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.412                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.413                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -499,3 +509,10 @@ Aktuelle thematische Settings-Reihenfolge:
 8. Neue LFG-Zeilenmarker oder Settings-Erklaerungen fuer das Buff-Rating muessen dieselbe `media/heart_bonus_green.tga`-Textur nutzen, damit Darstellung, Dokumentation und deterministische Tests nicht auseinanderlaufen.
 
 Die bisherige deterministische Sync-Szenariodatei wurde in sechs fachliche Module aufgeteilt: Basiszustand, Runtime-Logging, Key-State, Empfang, Versand sowie Transport/Reset. Das Szenariomanifest fuehrt jedes Modul einzeln; die Testnamen bleiben stabil. Das Produktionsmodul `logic/isiLive_sync.lua` bleibt auf der Watchlist, bis State, Payload-Normalisierung und Versand entlang expliziter Ownership-Grenzen getrennt und durch passende Modulvertraege abgesichert sind.
+
+M+-Forces-Polling wird bei `GROUP_ROSTER_UPDATE` und `PLAYER_ENTERING_WORLD`
+ueber `KillTrack.SetPollingSuspended` an den verifizierten Raid-Zustand
+gebunden. Die Sperre bricht das Ticker-Handle ab, ohne den verifizierten
+Run-Snapshot zu loeschen; bei Rueckkehr startet ein aktiver Run den Ticker
+wieder. Inspect-Aktivierung prueft Gruppen- und Raid-Zustand unabhaengig von
+der aktuellen Frame-Sichtbarkeit.

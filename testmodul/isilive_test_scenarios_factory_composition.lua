@@ -853,6 +853,50 @@ return function(test, ctx)
   local LoadAddonModules = ctx.load_modules
   local WithGlobals = ctx.with_globals
 
+  test("factory composition root: solo inspection sleeps and group transitions wake it", function()
+    local globals = BuildGlobals()
+    local grouped, instanceGrouped = false, false
+    globals.IsInGroup = function(category)
+      if category == 2 then
+        return instanceGrouped
+      end
+      return grouped
+    end
+    globals.GetNumGroupMembers = function()
+      return (grouped or instanceGrouped) and 2 or 0
+    end
+    globals.UnitExists = function(unit)
+      return unit == "player" or (unit == "party1" and (grouped or instanceGrouped))
+    end
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local runtime = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      local dispatch = runtime.eventFrame:GetScript("OnEvent")
+      dispatch(runtime.eventFrame, "PLAYER_LOGIN")
+      Assert.True(runtime.mainFrame:IsShown(), "the solo main UI must retain startup visibility")
+      Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "visible solo UI must not run the inspect loop")
+      grouped = true
+      dispatch(runtime.eventFrame, "GROUP_ROSTER_UPDATE")
+      Assert.Equal(type(runtime.mainFrame:GetScript("OnUpdate")), "function", "group entry must wake inspection")
+      grouped = false
+      dispatch(runtime.eventFrame, "GROUP_ROSTER_UPDATE")
+      Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "group exit must remove inspection immediately")
+      Assert.Equal(#runtime.inspectController.inspectQueue, 0, "group exit must clear inspect work")
+      Assert.Equal(#runtime.inspectController.retryQueue, 0, "group exit must clear retries")
+      instanceGrouped = true
+      dispatch(runtime.eventFrame, "GROUP_ROSTER_UPDATE")
+      Assert.Equal(
+        type(runtime.mainFrame:GetScript("OnUpdate")),
+        "function",
+        "verified instance groups must wake inspection"
+      )
+      runtime.mainFrame:Hide()
+      Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "hidden groups must suspend inspection")
+      runtime.mainFrame:Show()
+      Assert.Equal(type(runtime.mainFrame:GetScript("OnUpdate")), "function", "showing a group must restore inspection")
+    end)
+  end)
+
   test("factory composition root: Factory.InitializeAddon runs end-to-end on happy path", function()
     local globals, db = BuildGlobals()
     local addon
@@ -1732,4 +1776,8 @@ return function(test, ctx)
     -- mark the previously dark branches as hit.
     Assert.NotNil(logEntries, "log capture buffer must exist (placeholder for future inspection)")
   end)
+  dofile("testmodul/isilive_test_scenarios_mplus_stress.lua")(test, ctx, {
+    buildGlobals = BuildGlobals,
+    moduleFiles = GetAllIsiLiveFiles,
+  })
 end

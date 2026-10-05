@@ -739,6 +739,12 @@ local function FinalizeFactoryRuntime(ctx)
   })
   ctx.OnEvent = function(self, event, ...)
     ctx.eventHandlersController.Dispatch(self, event, ...)
+    if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+      if modules.killTrack and type(modules.killTrack.SetPollingSuspended) == "function" then
+        modules.killTrack.SetPollingSuspended(ctx.IsRaidGroup())
+      end
+      ctx.SetProcessingActive(ctx.mainFrame:IsShown())
+    end
   end
   ctx.InspectLoop = function(_self, elapsed)
     ctx.inspectLoopTimer = ctx.inspectLoopTimer + (elapsed or 0)

@@ -1,7 +1,19 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.412`
-Zuletzt aktualisiert: `2026-10-03`
+Versionsbasis: `0.9.413`
+Zuletzt aktualisiert: `2026-10-05`
+
+Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe
+bleibt das Hauptfenster gemaess bestehender Sichtbarkeitsregeln bedienbar, aber
+die Inspect-Schleife ist entfernt und Inspect-/Retry-Queues sind leer. Der
+naechste verifizierte Gruppenbeitritt aktiviert Inspect bei sichtbarer Main-UI.
+Geschlossene Settings ignorieren `GET_ITEM_INFO_RECEIVED` und `TOYS_UPDATED`
+ohne Scans oder geplante Refresh-Callbacks. Bei sichtbaren Settings fuehrt ein
+Burst nur zu einer verzoegerten Aktualisierung der Ruhestein-Auswahl; ein
+zwischenzeitliches Schliessen verwirft diese Arbeit. Beim Oeffnen wird die
+gesamte Einstellungsansicht aktualisiert. Die deaktivierte Statsbox sammelt
+keine Werte, auch nicht bei Stat-Events; aktiviert ignoriert sie fremde
+`UNIT_STATS`-Tokens und erzwingt bei unveraenderter Zeilenstruktur kein Layout.
 
 Stand 0.9.389: Die M+-Mockup-Modernisierung ist vollstaendig zurueckgenommen. Die bisherige UI mit Sprachflaggen, vorheriger Typografie, Farben und Timer-Anordnung gilt wieder; die unabhaengigen VIP-DK-Aenderungen aus 0.9.388 bleiben erhalten.
 
@@ -617,3 +629,13 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | BR-/Lust-Combat-Announce, Power-Infusion-Announce und Addon-Message-Routing | `isiLive_combat_events.lua`, `isiLive_pi_tracker.lua`, `isiLive_sync.lua` (`SendCombatAnnounce`, `SendPowerInfusionAnnounce`, `ProcessAddonMessage.BRLUST`, `ProcessAddonMessage.PI`), `isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`), `isiLive_factory_combat_announces.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`, `BroadcastPowerInfusionAnnounce`, `ShowPowerInfusionAnnounce`), `isiLive_texts.lua` (`COMBAT_CHAT_BR_USED`, `COMBAT_CHAT_LUST_STARTED`, `POWER_INFUSION_*`, `SETTINGS_SECTION_CHAT`, `SETTINGS_CHAT_BR_ANNOUNCE`, `SETTINGS_CHAT_LUST_ANNOUNCE`, `SETTINGS_CHAT_POWER_INFUSION_TEXT`), `libs/ChatThrottleLib/ChatThrottleLib.lua` |
 | Mob-Tooltip-Forces-Anreicherung | `isiLive_mob_tooltip.lua`, `data/isiLive_mplus_forces.lua`, `tools/sync_mdt_forces.lua`, `tools/check_mplus_db_lifetime.lua`, `.github/workflows/sync-mplus-forces.yml` |
 | Gruppensuche-Buff-Rating und Sprachflaggen | `isiLive_lfg_flags.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_settings_sections.lua`, `isiLive_db_schema.lua` |
+
+## Deterministische M+-Belastungsabdeckung
+
+Die Factory-Szenarien in `testmodul/isilive_test_scenarios_mplus_stress.lua`
+pruefen den laufenden Key unter Event-Schueben, fuenf Minuten sichtbarem und
+verstecktem Timerbetrieb, doppelten und ungueltigen Peer-Paketen sowie
+unlesbaren Live-APIs. Completion, Reset und Raid-/Party-/Solo-Wechsel pruefen
+auch noch ausstehende CD-Callbacks. Lastumfang und Assertions stehen im
+Abschnitt M+-Belastungstests in `docs/WARTUNG.md`; lokale CPU-/Heap-Werte
+ersetzen keinen Ingame-Test.

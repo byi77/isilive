@@ -63,7 +63,8 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     if logf then
       logf("[UI] processing_active isActive=%s", tostring(isActive))
     end
-    if isActive then
+    local grouped = ctx.isInGroup() or ctx.isInInstanceGroup()
+    if isActive and grouped and not ctx.IsRaidGroup() then
       ctx.mainFrame:SetScript("OnUpdate", ctx.InspectLoop)
       return
     end

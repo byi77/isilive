@@ -1027,8 +1027,8 @@ function StatsBox.Create(opts)
       ApplyLineTextStyle(rowFrame.value, state.baseLayout.valueFontSize)
       ApplyLineTextStyle(rowFrame.percent, state.baseLayout.valueFontSize)
     end
-    Refresh(true)
     if ResolveEnabled() then
+      Refresh(true)
       frame:SetScript("OnUpdate", UpdateVisibleStats)
       frame:Show()
     else
@@ -1065,11 +1065,21 @@ function StatsBox.Create(opts)
       self:SetBackdropColor(0, 0, 0, ResolveBgAlpha())
     end
   end)
-  frame:SetScript("OnEvent", function(_, event)
+  frame:SetScript("OnEvent", function(_, event, unit)
     if event == "ADDON_LOADED" then
       ApplyStoredPosition(frame, parent)
+      ApplySettings()
+      return
     end
-    ApplySettings()
+    if not ResolveEnabled() or (event == "UNIT_STATS" and unit ~= "player") then
+      return
+    end
+    if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
+      ApplySettings()
+      return
+    end
+    -- Live stat changes do not change display settings or require a forced layout.
+    Refresh()
   end)
   for _, event in ipairs({
     "ADDON_LOADED",

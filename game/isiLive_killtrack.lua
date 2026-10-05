@@ -50,6 +50,7 @@ local POST_COMBAT_GRACE_SECONDS = 2.0
 local demoData = nil
 local updateCallbacks = {}
 local refreshTicker = nil
+local pollingSuspended = false
 local nowFn = nil
 
 local function Now()
@@ -378,7 +379,7 @@ end
 local StopRefreshTicker
 
 local function StartRefreshTicker()
-  if refreshTicker ~= nil then
+  if pollingSuspended or refreshTicker ~= nil then
     return
   end
   local timer = rawget(_G, "C_Timer")
@@ -405,6 +406,16 @@ function StopRefreshTicker()
     pcall(refreshTicker.Cancel, refreshTicker)
   end
   refreshTicker = nil
+end
+
+-- Raid suppression owns timer lifetime without discarding verified run data.
+function KillTrack.SetPollingSuspended(suspended)
+  pollingSuspended = suspended == true
+  if pollingSuspended then
+    StopRefreshTicker()
+  elseif state.active then
+    StartRefreshTicker()
+  end
 end
 
 -- Learned forces target for the next boss of the active run, or nil.

@@ -533,6 +533,7 @@ return function(test, ctx)
   test("StatsBox applies font size offset from settings", function()
     local createFrameStub = BuildCreateFrameStub()
     local db = {
+      statsBoxEnabled = true,
       statsBoxFontSizeOffset = 2,
     }
 
@@ -1224,6 +1225,42 @@ return function(test, ctx)
       addon.StatsBox.ClearDemoData()
       local liveRows = addon.StatsBox.CollectPlayerStats({})
       Assert.Equal(#liveRows, 0, "clearing demo data must restore live API collection")
+    end)
+  end)
+
+  test("StatsBox disabled event bursts collect no stats and player updates avoid forced layout", function()
+    local db, collections = { statsBoxEnabled = false }, 0
+    WithGlobals({ UIParent = {}, IsiLiveDB = db, CreateFrame = BuildCreateFrameStub() }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          collections = collections + 1
+          return { { key = "haste", label = "Haste", value = 100, percent = 1 } }
+        end,
+      })
+      Assert.Equal(collections, 0, "a disabled box must not collect during construction")
+      for _ = 1, 10000 do
+        box.frame:FireEvent("UNIT_STATS", "player")
+        box.frame:FireEvent("COMBAT_RATING_UPDATE")
+      end
+      Assert.Equal(collections, 0, "a disabled box must perform zero stat collections during a storm")
+      box.SetEnabled(true)
+      Assert.Equal(collections, 1, "enabling must hydrate live stats")
+      local layoutCalls = 0
+      local originalSetSize = box.frame.SetSize
+      box.frame.SetSize = function(self, ...)
+        layoutCalls = layoutCalls + 1
+        originalSetSize(self, ...)
+      end
+      box.frame:FireEvent("UNIT_STATS", "party1")
+      Assert.Equal(collections, 1, "other units must not trigger player stat reads")
+      box.frame:FireEvent("UNIT_STATS", "player")
+      Assert.Equal(collections, 2, "player stat events must remain active when enabled")
+      Assert.Equal(layoutCalls, 0, "unchanged row structure must not force layout on stat events")
+      box.SetEnabled(false)
+      box.frame:FireEvent("PLAYER_EQUIPMENT_CHANGED")
+      Assert.Equal(collections, 2, "disabling must stop stat collection immediately")
     end)
   end)
 

@@ -594,3 +594,124 @@ Nach strukturellen Aenderungen an Sync, Event-Gate oder Secure-UI ergaenzt diese
 6. **Zwei-Client-Sync:** In einer normalen Party eine Key-/Roster-Aenderung und eine manuelle Sync-Aktion ausloesen. Auf beiden Clients nur die tatsaechlich verifizierten Werte vergleichen; wiederholte identische Updates duerfen keine sichtbaren Folgeaenderungen erzeugen.
 
 Bei einem Fehler Version, Locale, Gruppenart (Party/Instance/Raid), UI-Sichtbarkeit, Kampfstatus, genaue Aktion und beobachtetes Ergebnis notieren. Keine unbekannten Blizzard- oder Peer-Werte aus Log-Ausgaben ableiten.
+
+## Solo-Performance-Audit (2026-10-05)
+
+Der Benutzer meldete fuer 0.9.412 zwei Stadt-Ruckler, eine Spitze von 945 ms,
+40 % des gesamten Frames und 28,6 MB Speicherbelegung in diesem Frame.
+Der Report nennt unter anderem 43 `CURRENT_SPELL_CAST_CHANGED`, 28
+`UNIT_SPELLCAST_SUCCEEDED`, 23 `QUEST_DATA_LOAD_RESULT`, neun
+`COMBAT_TEXT_UPDATE`, fuenf `UPDATE_UI_WIDGET` und 9689 weitere Events ohne
+Aufschluesselung. Das ist Benutzer-Telemetrie, kein Funktionsprofil und keine
+verifizierte Zuordnung der gesamten Spitze zu einem bestimmten Handler.
+
+Im Code nachgewiesen und korrigiert:
+
+- Der Settings-Item-Eventframe rief vorher bei jedem globalen
+  `GET_ITEM_INFO_RECEIVED`/`TOYS_UPDATED` den kompletten Settings-Refresh auf,
+  auch unsichtbar. Jetzt: hidden keine Scans/Callbacks; sichtbar ein gebuendelter
+  Refresh nur der Ruhestein-Auswahl. Show aktualisiert ausgelassene Aenderungen.
+- Die Statsbox sammelte und renderte zuvor bei `ApplySettings()` auch
+  deaktiviert Live-Werte; jedes Stat-Event erzwingte den Settings-/Layoutpfad.
+  Jetzt: deaktiviert keine Sammlung, fremde `UNIT_STATS` ignoriert,
+  eigene Stat-Events ohne erzwungenes Layout.
+- Die sichtbare Solo-Main-UI hielt zuvor dauerhaft den Inspect-`OnUpdate`
+  mit Viertelsekundentakt. Jetzt: nur sichtbare verifizierte Gruppen;
+  Gruppenwechsel ziehen Start/Stop und Queue-Leerung nach.
+
+Maschinenpruefbare Intentionen der neuen Testzuordnungen in Regeln 65 und 93:
+10.000 Item-Events hidden ergeben null Toy-Scans und null geplante Callbacks;
+10.000 sichtbare Item-Events ergeben einen Callback und einen Toy-Scan;
+Schliessen vor Callback verhindert den Scan. 10.000 Stat-Event-Paare bei
+deaktivierter Statsbox ergeben null Sammlungen; ein fremdes `UNIT_STATS`
+bleibt wirkungslos. Solo besitzt die sichtbare Main-UI keinen Inspect-`OnUpdate`;
+normale und verifizierte automatische Instanzgruppen aktivieren ihn wieder.
+
+Fuer die Ingame-Nachpruefung `/reload` ausfuehren und denselben Stadt-/Solo-Fall
+mit geschlossenen Settings und deaktivierter Statsbox wiederholen. UI sowohl
+sichtbar als auch ausgeblendet pruefen und neue Frame-Zeit-/Speicherwerte
+erheben. Bei erneuter Spitze vollstaendige Eventliste und, falls verfuegbar,
+Funktionsprofil sichern. Die vier anderen oben genannten Eventtypen sind
+im eigenen isiLive-Code nicht registriert; `UNIT_SPELLCAST_SUCCEEDED` wird
+auf `player`/`pet` gefiltert. Handler-Sperren im `IDLE`-Profil sind kein
+Beleg fuer komplett abgemeldete Events; Binding-/Systemoption-Watcher und
+die eigenstaendigen Tooltip-/LFG-/ESC-Hooks getrennt betrachten.
+Ohne neue Live-Messung bleibt die genaue Ursache der 945-ms-Spitze unresolved.
+
+Regressionsnachweis: Die drei neuen Szenarien wurden isoliert mit den vier
+unveraenderten Produktionsdateien aus `HEAD` geladen; alle drei schlagen dort
+an ihren jeweiligen Leerlauf-Assertions fehl. Der urspruengliche Settings-Pfad
+fuehrt bei 10.000 Item-Events plus einem Toy-Event 10.001 zusaetzliche Toy-Scans
+aus, obwohl das Canvas ausgeblendet ist. Mit dem Patch bestehen alle drei
+Szenarien; derselbe Hidden-Burst verursacht null Toy-Scans und null Callbacks.
+Dieser Vergleich veraendert keine Produktionsdateien im Checkout und misst
+keine Ingame-Millisekunden.
+
+## M+-Belastungstests (2026-10-05)
+
+`testmodul/isilive_test_scenarios_mplus_stress.lua` registriert zehn Szenarien
+ueber den Factory-Kompositionstest. Sie laden die Produktionsmodule, starten
+den Key ueber den echten geschuetzten Event-Dispatcher und treiben echte
+Produktionscallbacks mit einer deterministischen Uhr fuer `C_Timer`.
+Blizzard-API-Werte sind explizite Testfixtures; es wurde kein echter WoW-Key
+waehrend dieser Pruefung beobachtet.
+
+Gepruefte Lasten und maschinenpruefbare Intentionen:
+
+- 20.000 Cooldown-/Charges-Events: genau zwei nachlaufende Callbacks, kein
+  synchroner Aura-Scan und kein vollstaendiger Roster-Render.
+- 30.000 irrelevante Kampf-Aura-/Cast-/Health-Events: keine zusaetzlichen
+  CD-Aura-Scans, Sync-Ansagen oder vollstaendigen Roster-Render.
+- Je 300 Sekunden Key-Zeit sichtbar und hidden: aktualisierte Live-Forces
+  sichtbar, laufender Timer in beiden Zustaenden, keine Roster-Vollrenders;
+  hidden kein CD-Ticker und nur die sparsamen KICK-Heartbeats.
+- 10.000 identische KEY-Pakete aus dem echten Sender: exakt ein
+  Roster-Vollrender und die unveraenderten Map-/Level-Werte im Empfaenger.
+- 10.000 malformed KEY-Pakete: keine Key-Daten und keine Roster-Vollrenders.
+- 10.000 fehlerhafte Szenario-/Elapsed-Lesungen: der letzte verifizierte
+  Forces-Snapshot und Timerwert bleiben erhalten, ohne Dispatch-Fehler.
+- Je 10.000 Charges-Events vor Reset und Completion: spaete Callbacks
+  reaktivieren keine Timer oder BR-/BL-Werte; anschliessend solo keine
+  Kick-/Forces-/CD-Ticker und kein Inspect-OnUpdate.
+- 20.000 CD-Events vor Raid-Eintritt: keine weiteren Szenario-/CD-Reads oder
+  Sync-Sends, keine zugehoerigen Ticker oder Inspect-OnUpdate; Party-Rueckkehr
+  nimmt Forces-Lesungen wieder auf.
+
+Der Raid-Test deckte zwei reale Probleme auf: Der Killtracker hielt seinen
+0,5-Sekunden-Ticker nach dem Raid-Eintritt, und das erneute Aktivieren der
+Verarbeitung konnte Inspect-OnUpdate trotz Raid wieder installieren. Jetzt
+besitzt KillTrack eine explizite Polling-Sperre, die bei Gruppen-/Weltwechseln
+mit dem verifizierten Raid-Zustand gesetzt wird; verifizierte Run-Daten bleiben
+erhalten. Inspect-Aktivierung prueft zusaetzlich den Raid-Zustand.
+
+`[STRESS]` berichtet lokale Lua-CPU-Zeit, Heap-Zuwachs bei pausiertem GC und
+nach GC verbleibenden Speicher. CPU und Heap sind Diagnosewerte ohne feste
+Zeitbudgets und keine WoW-Frametimes. In einem Lauf benoetigten 10.000
+identische KEY-Pakete rund 699 ms und 31.826 KiB temporaeren Heap, bei nur
+0,7 KiB verbleibendem Zuwachs; malformed Pakete lagen aehnlich. Das weist auf
+Kosten im Empfangspfad hin, ohne einen Solo-Ruckler dadurch zu beweisen.
+`SyncReceive` wertet unter anderem `FormatBytes(sender)` fuer Deep-Logging
+bereits vor dem Logger-Aufruf aus. Die genaue Aufteilung der Gesamtkosten
+wurde nicht profiliert; aus diesen Messungen folgt keine Zuordnung der
+benutzerseitigen 945-ms-Spitze.
+
+Isolierter Regressionsnachweis: Mit ausschliesslich `game/isiLive_killtrack.lua`
+aus `HEAD` und den uebrigen aktuellen Dateien scheitert der neue Raid-Test:
+60 Sekunden Raid-Zeit verursachen 120 weitere Szenario-Lesungen. Mit dem
+gepatchten Modul entstehen null weitere Lesungen, und derselbe Test besteht.
+Die Vergleichsdateien liegen ausserhalb des Checkouts im Temp-Verzeichnis.
+
+Bei aktivem LuaCov bleibt die Garbage Collection eingeschaltet, und der
+Messhelfer unterdrueckt CPU-/Heap-Diagnosewerte; die deterministischen
+Lastschleifen und Assertions laufen unveraendert. So werden Kosten der
+Coverage-Instrumentierung nicht als Addon-Messwerte ausgegeben.
+
+Validierung: `lua tools/validate_usecases.lua` besteht mit 2526 Tests und null
+Fehlern. Der komplette `tools/check.ps1`-Preflight besteht einschliesslich
+Coverage (93,00 % gesamt, keine Produktionsdatei unter 80 %). `stylua --check .`,
+Lua-Metrics und Syntax-Parse aller 339 Lua-Dateien bestehen. Der spaeter
+angepasste Messhelfer wurde nochmals regulaer sowie isoliert unter echter
+LuaCov-Instrumentierung geprueft; dabei bleiben alle Last-Assertions aktiv,
+und die CPU-/Heap-Ausgabe wird im instrumentierten Lauf unterdrueckt.
+Die Regeltexte bleiben unveraendert; neue Testzuordnungen bilden die oben
+beschriebenen eindeutigen Assertions ab.

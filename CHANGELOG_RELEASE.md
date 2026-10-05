@@ -3,15 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.412`.
+Current version: `0.9.413`.
 
-Version 0.9.412: The killtracker learns how much forces you need before each boss and shows live whether you are ahead or short.
+Version 0.9.413: Less idle work and stronger M+ lifecycle regression coverage.
 
-<!-- highlights-reviewed-for: 0.9.412 -->
+<!-- highlights-reviewed-for: 0.9.413 -->
 
 Highlights:
-- **Know if you have enough forces before the next boss.** The killtracker learns from your own completed keys how much enemy forces you had when each boss died, per dungeon and boss order. In your next key a thin tick on the bar marks the target for the next boss, and between pulls you see how far ahead (`+1.5%`) or short (`-3.2%`) you are. You can turn it off under Display.
-- **Raid alerts you choose, and a heads-up when you are kicked.** A new Raid section in Settings lets you keep the incoming-summon alert, the stuck-pet voice alert and the lead-transfer sound in raids, one by one; everything else stays off in raids as before. And whether in a party or a raid, isiLive now says "You have been removed from the group!" (German clients: "Ihr wurdet aus der Gruppe entfernt!") the moment it happens.
-- **Never miss a group invite.** isiLive now says "Group invite active" (German clients: "Gruppeneinladung aktiv") the moment someone invites you or a group-finder group accepts your application, and repeats it every 5 seconds until you answer, even while isiLive is hidden or you are in combat. The alert and its repeat each have their own switch under Sounds.
-- **Small touches that show what changed.** The main window fades in when you open it, and a Stats Box value that changes (a proc, a buff, new gear) briefly lights up. Settings sliders show how far they are filled, and the font menu shows each font in its own typeface. Colors across isiLive were tidied into one consistent palette.
-- **A livelier roster.** Every row now starts with a thin stripe in the player's class color (grey for players who are offline or left), and hovering a row fades its highlight in. Ready-check colors fade in instead of snapping on, and after the check a slim bar under each row counts down the 20 seconds until the ready/not-ready marking clears.
+- **Less work while playing solo.** Closed Settings skip item-cache refreshes, a disabled Stats Box stops collecting live stats, and the solo main window suspends inspection. Visible Settings combine item-event bursts into one Hearthstone-selector update.
+- **Raid transitions stop background work.** Forces polling and inspection stop on raid entry; the forces ticker resumes on party return without discarding verified run data.
+- **Stress-tested M+ lifecycle.** Ten additional deterministic scenarios cover up to 30,000-event bursts, five minutes of visible/hidden key activity, duplicate and invalid sync packets, unavailable APIs, completion/reset and group transitions. Local Lua tests do not establish the cause of the reported in-game frame spike.

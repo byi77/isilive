@@ -345,15 +345,6 @@ function SettingsPanel.Create(opts)
     end)
   end
 
-  local itemDataRefreshFrame = CreateFrame("Frame")
-  itemDataRefreshFrame:SetScript("OnEvent", function()
-    if type(canvas.Refresh) == "function" then
-      canvas.Refresh()
-    end
-  end)
-  itemDataRefreshFrame:RegisterEvent("TOYS_UPDATED")
-  itemDataRefreshFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-
   local L = config.getL()
   local controls = {}
 
@@ -422,6 +413,39 @@ function SettingsPanel.Create(opts)
     nav.Refresh()
   end
   canvas.Refresh = Refresh
+
+  -- Item-cache events are global traffic, including while Settings is closed.
+  -- They only affect the toy selector, never the full settings/preview tree.
+  local pendingItemRefresh = false
+  local function IsCanvasVisible()
+    if type(canvas.IsVisible) == "function" then
+      return canvas:IsVisible() == true
+    end
+    return type(canvas.IsShown) == "function" and canvas:IsShown() == true
+  end
+  local function RefreshToyOptions()
+    pendingItemRefresh = false
+    if not IsCanvasVisible() or not controls.hearthstoneSelect then
+      return
+    end
+    controls.hearthstoneSelect.UpdateOptions(addonTable.SettingsHearthstone.BuildOptions(config, config.getL()))
+  end
+  local itemDataRefreshFrame = CreateFrame("Frame")
+  itemDataRefreshFrame:SetScript("OnEvent", function()
+    if pendingItemRefresh or not IsCanvasVisible() then
+      return
+    end
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      pendingItemRefresh = true
+      timer.After(0, RefreshToyOptions)
+    else
+      RefreshToyOptions()
+    end
+  end)
+  itemDataRefreshFrame:RegisterEvent("TOYS_UPDATED")
+  itemDataRefreshFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+  canvas:HookScript("OnShow", Refresh)
 
   return {
     category = category,

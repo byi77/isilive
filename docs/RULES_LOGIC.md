@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿# Regellogik
+﻿﻿﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -251,6 +251,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
 - Erforderliche Tests:
+  - Mplus stress: 10000 real sender key packets converge with one roster update
   - Sync SetPlayerKeyInfo deduplicates identical key updates
 
 ### RULE-QUEUE-CAPTURE-PENDING-DEDUP
@@ -310,6 +311,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft ausser den VIP-Einstellungen weder UI-, Output- noch Hintergrundverarbeitung weiter; sichtbare Hinweise, Chatframe-Ausgaben, Center-Animationen und nicht notwendige Eventverarbeitung muessen im Raid geschlossen bleiben. Wenn die Main-UI direkt vor der Raid-Unterdrueckung sichtbar war, muss sie beim Rueckweg aus dem Raid in Party- oder Solo-Zustand mit `reason = "raid-return"` wieder geoeffnet werden. War sie vor der Raid-Unterdrueckung geschlossen, muss sie beim Rueckweg aus dem Raid geschlossen bleiben. Beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
 - Erforderliche Tests:
+  - Mplus stress: queued cooldown bursts stop processing on raid entry
   - Group leave keeps frame state and ghosts former party members
   - Group leave auto-close hides frame when option is enabled
   - Old ghosts are cleared when joining a new group
@@ -381,6 +383,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 - Erforderliche Tests:
+  - Mplus stress: 10000 real sender key packets converge with one roster update
+  - Mplus stress: 10000 malformed peer packets leave key and roster unresolved
   - Event handlers process addon sync messages and refresh changed roster
   - Event handlers refresh target-dependent UI when addon sync updates exact target only
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
@@ -472,6 +476,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Eventgetriebene CD-Refreshes duerfen hidden fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise laufen, ohne den dauerhaften Hidden-CD-Ticker zu aktivieren. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht. Im Raid sind UI und Hintergrund-Sync komplett aus.
 - Erforderliche Tests:
+  - Mplus stress: five minutes hidden keep kick sync bounded and CD polling stopped
+  - Mplus stress: queued cooldown bursts stop processing on raid entry
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Bootstrap gate allows addon sync during combat for in-key BRLUST announces
   - factory composition root: natural in-key spellcast announces BR through runtime gate
@@ -995,6 +1001,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` muessen den M+-Timer-Snapshot sofort vollstaendig wegraeumen (`completed=false`, `timer=0`, `timeLimit=0`, `keyLevel=0`, `deaths=0`) und die CD-Tracker-Zeile neu rendern, damit die Timer-Box nach abgeschlossenem oder abgebrochenem Key nicht mit veralteten Werten stehen bleibt. Derselbe Lifecycle-Refresh muss die sichtbaren Battle-Res- und Bloodlust-CD-Timer aus dem CD-Tracker-Runtimezustand loeschen; solange kein M+-Timer laeuft oder keine aktive Gruppe vorhanden ist, duerfen sichtbare CD-Tracker-Rescans diese BR-/BL-Timer nicht aus Live-API-Daten wiederherstellen. `PLAYER_ENTERING_WORLD` waehrend eines aktiv laufenden Keys (`running=true`) darf den Timer nicht stoppen und keine Zeitstaende zuruecksetzen; ein spaeteres `PLAYER_ENTERING_WORLD` nach bereits geloeschtem Snapshot bleibt wirkungslos. Ein `PLAYER_ENTERING_WORLD`-Uebergang von ausserhalb in eine Party-Instanz ohne aktiven Challenge-Kontext muss stale Challenge-, Battle-Res- und Bloodlust-Timer mit unterdrueckten Ready-Klaengen wegraeumen; derselbe Uebergang mit aktivem Challenge-Kontext darf keinen Reset synthetisieren.
 - Erforderliche Tests:
+  - Mplus stress: pending cooldown burst stays cleared after key reset and group exit
+  - Mplus stress: pending cooldown burst stays cleared after key completion and group exit
   - mplus_timer: CHALLENGE_MODE_COMPLETED wipes timer, deaths, and time limits
   - mplus_timer: PLAYER_ENTERING_WORLD stays cleared after completed key reset
   - mplus_timer: PLAYER_ENTERING_WORLD is a no-op while the key is still running
@@ -1029,6 +1037,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Der M+-Killtracker muss nach `PLAYER_REGEN_ENABLED` die Live-Scenario-Daten erneut lesen, den sichtbaren Gesamtfortschritt sofort aktualisieren und die aktualisierte Rohmenge als Basis fuer den naechsten Pull verwenden. Solange der Key aktiv ist, muss auch der Killtracker-Refresh-Ticker Live-Scenario-Daten neu lesen, bevor er die UI benachrichtigt. Zugriffe auf `C_ScenarioInfo` muessen ueber den geschuetzten optionalen Globalzugriff und `pcall` laufen; fehlende, fehlerhafte, ungueltige oder geheime Step-/Criteria-Daten bleiben unresolved und duerfen den letzten verifizierten Killtracker-Snapshot weder loeschen noch durch synthetische Nullwerte ersetzen. Das gilt ausdruecklich auch, wenn `quantityString` und `quantity` gleichzeitig unlesbar sind: dann bleibt der vollstaendige vorherige Snapshot stehen, einschliesslich des bereits gelesenen Gesamtwerts: Rohmenge, Gesamtwert und Prozentwert werden nur gemeinsam fortgeschrieben, damit kein in sich widerspruechlicher Zwischenstand entsteht. Die verzoegerte Nachanzeige nach Kampfende darf ausschliesslich das Zeitfenster beenden, fuer das sie selbst geplant wurde; ein erneuter Pull innerhalb des Fensters uebernimmt die Anzeige, und der aeltere Callback muss wirkungslos bleiben.
 - Erforderliche Tests:
+  - Mplus stress: 10000 unavailable scenario reads preserve the verified key snapshot
+  - Mplus stress: visible five minute key refreshes forces without full roster renders
   - PLAYER_REGEN_ENABLED refreshes live forces before the next pull starts
   - refresh ticker callback reads live forces and notifies subscribers while state is active
   - KillTrack preserves verified live forces when scenario step reads fail
@@ -1093,6 +1103,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Die eigenstaendige Spieler-Stats-Box darf Attribute, Combat-Ratings und Prozentwerte ausserhalb des expliziten Ingame-Demomodus nur anzeigen, wenn der jeweilige Wert direkt aus einer erfolgreichen Blizzard-Live-API-Lesung stammt; fehlende API-Werte bleiben unsichtbar und werden nicht durch Default-, Cache- oder Guess-Werte ersetzt. Der Ingame-Demomodus darf ausdruecklich markierte Demo-Zeilen anzeigen, muss diese beim Verlassen wieder entfernen und danach zur Live-API-Sammlung zurueckkehren. Als Secret Value markierte API-Werte duerfen fuer die Anzeige nur direkt per `string.format` in Text gewandelt werden; Lua-Arithmetik, `tonumber` oder Vergleiche auf diesen Secret Values sind verboten. Bei Klassen mit eindeutigem Primärstat wird dieser ueber den live gelesenen Klassentoken bestimmt; bei Hybridklassen wird der Primärstat nur bei exakt gelesener Spezialisierungs-ID angezeigt. Sichtbare Stat-Labels bleiben feste Kurzlabels und werden ausschliesslich aus den gemeinsamen Locale-Tabellen (`STATS_LABEL_*` in `locale/isiLive_texts_<tag>.lua`) bezogen, nicht aus modul-lokalen Sprachtabellen; die aktive Locale wird dabei ueber die gemeinsame Aufloesungskette `UICommon.ResolveActiveLocale` bestimmt und pro Sammellauf genau einmal aufgeloest statt pro Zeile. Fehlen die Locale-Tabellen, faellt die Anzeige auf die festen englischen Kurzlabels zurueck statt auf den Rohschluessel. Bei explizitem Addon- oder Test-Locale `deDE` muessen Beweglichkeit `Beweg`, Krit `Krit`, Tempo `Tempo`, Meisterschaft `Meist`, Vielseitigkeit `Versa` und Haltbarkeit `Haltb` anzeigen, waehrend alle anderen Labels und Locales ihre bisherigen Kurzformen behalten. Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung sind einzeln per Settings abschaltbar; Leech und Speed sind standardmaessig aktiv, Haltbarkeit, Ausdauer und Vermeidung sind standardmaessig deaktiviert. Abgeschaltete optionale Zeilen duerfen keine zugehoerigen Live-APIs lesen und bleiben unsichtbar. Der Anzeige-Modus `both` zeigt Werte und Prozente, `value` zeigt nur Werte, und `percent` zeigt nur Prozente; im Prozent-Modus muessen Zeilen ohne direkt gelesenen Prozentwert unsichtbar bleiben, statt einen Prozentwert zu raten. Stat-Labels, Werte und Prozentwerte stehen rechtsbuendig, sichtbare Stats nutzen eine feste Blizzard-like Farbpalette, sichtbare Zeilen nutzen eine dezente Hintergrundtoenung aus derselben festen Palette, Primärstat-Zeilen nutzen dabei eine staerkere Toennung als Sekundaerzeilen, und die Werte-Prozent-Trennlinie muss unsichtbar bleiben. Entsperrte Stats-Boxen duerfen auf Hover ihre Hintergrunddeckkraft bis zu einer niedrigen Mindestdeckkraft anheben, die Box darf keine Titelzeile rendern, alle sichtbaren Texte nutzen einen kontrastreichen dunklen Schatten ohne Outline, und die Werte-Spalte darf bei drei-, vier- und fuenfstelligen direkt gelesenen Zahlen nicht unter ihre kompakte Mindestbreite schrumpfen; Ausdauer-Zeilen ohne Prozentwert muessen ihren vollstaendigen Wert in derselben Werte-Spalte zeigen, und die Prozent-Spalte darf dadurch fuer nachfolgende Prozentzeilen nicht zeilenweise verschoben werden. Die Prozent-Spalte darf nicht unter ihre kompakte Mindestbreite fuer `(999.99%)` schrumpfen, damit Prozentwerte ueber `100.00%` keinen Zeilenumbruch erzeugen. Die Box ist rahmenlos, standardmaessig aus, nur bei `statsBoxEnabled=true` sichtbar, ueber `statsBoxLocked` gegen Positions-Drag sperrbar, ihre Hintergrund-Deckkraft ist ueber `statsBoxBgAlpha` separat steuerbar, ihre Schriftgroesse und Box-Geometrie sind ueber `statsBoxFontSizeOffset` von `-3` bis `+3` relativ zum Default `0` gemeinsam steuerbar, ihr Hintergrund passt sich an die tatsaechlich gerenderten sichtbaren Textgrenzen an, als Secret Value maskierte FontString-Breitenmessungen duerfen nicht ausgewertet werden und nutzen stattdessen die letzte verifizierte Messung oder kompakte feste Spaltenbreiten, und ihre gespeicherte Position liegt in `statsBoxPosition` ohne die Main-UI-Position zu veraendern.
 - Ersetzte Festlegung (0.9.363, 2026-08-02): zuvor "Sichtbare Stat-Labels sind feste englische Kurzlabels ohne Locale-Varianten." Auf ausdruecklichen User-Wunsch zeigt `deDE` jetzt eigene Kurzformen; die Labels wurden dabei aus dem UI-Modul in die gemeinsamen Locale-Tabellen verschoben, damit Locale-Drift- und Dead-Key-Gate sie sehen und der dokumentierte Sprach-Workflow sie erfasst. Alle uebrigen Locales behalten die bisherigen Kurzformen.
 - Erforderliche Tests:
+  - StatsBox disabled event bursts collect no stats and player updates avoid forced layout
   - StatsBox renders class primary stat and directly observed secondary values
   - StatsBox resolves hybrid primary stat only from exact specialization
   - StatsBox uses requested German short labels and fixed fallback labels
@@ -1617,6 +1628,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Der Binding-Watchdog muss sein Ticker-Handle explizit abbrechen und danach sauber neu starten koennen. Kick-Polling darf nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe laufen, bleibt dort auch bei ausgeblendeter Main-UI fuer den Hidden-Sync aktiv und muss beim Solo- oder Raid-Uebergang abbrechen. CD-Polling darf nur fuer eine sichtbare Main-UI mit aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext laufen und muss bei ausgeblendeter UI oder inaktivem Kontext abbrechen. Sein sichtbarer Sekundentakt darf nur die betroffenen CD-, Ready- und M+-Zeilen aktualisieren und keinen vollstaendigen Roster- oder Layout-Render ausloesen; der vollstaendige M+-Pre-Render bleibt ausschliesslich fuer ausgeblendete, eventgetriebene Refreshes erlaubt. Der M+-Timer darf keinen eigenen Frame-`OnUpdate`-Poller betreiben; waehrend eines laufenden Keys muss jeder produktive `GetTimerData()`-Read Blizzards verifizierte World-Elapsed-Zeit geschuetzt neu einlesen, und fehlende oder fehlerhafte API-Daten muessen den letzten belastbaren Timerwert unveraendert lassen. Der periodische Killtracker-Refresh darf nur bereits entdeckte aktive Nameplate-Overlays aktualisieren und keinen erneuten Scan aller moeglichen Nameplate-Unit-Tokens ausloesen. Center-Notice, Teleport-Cooldowntext und Statsbox duerfen nur im sichtbaren beziehungsweise aktivierten Zustand einen `OnUpdate`-Handler besitzen und muessen ihn beim Ausblenden entfernen; die Statsbox darf bei unveraenderter Zeilenstruktur im Sekundentakt kein erneutes Layout anwenden. Der Systemoption-Watcher des Rosters darf keinen permanenten `OnUpdate`-Handler besitzen, sondern nur bei sichtbarer Main-UI einen eigenen Fuenf-Sekunden-Ticker halten und muss diesen beim Ausblenden abbrechen. Der Minimap-Button darf seinen `OnUpdate`-Handler nur waehrend eines aktiven Drags installieren und muss ihn bei Drag-Ende entfernen. Geschuetzter Event-Dispatch muss pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks nutzen; pro akzeptiertem Event duerfen weder eine Argumenttabelle noch Dispatch-Closures neu erzeugt werden.
 - Erforderliche Tests:
+  - Mplus stress: 20000 cooldown events coalesce without full roster renders
+  - Mplus stress: 30000 irrelevant combat events avoid CD scans and announces
+  - Mplus stress: five minutes hidden keep kick sync bounded and CD polling stopped
+  - Mplus stress: queued cooldown bursts stop processing on raid entry
+  - Mplus stress: visible five minute key refreshes forces without full roster renders
+  - Mplus stress: 10000 unavailable scenario reads preserve the verified key snapshot
+  - factory composition root: solo inspection sleeps and group transitions wake it
+  - Settings item event bursts skip hidden panels and coalesce visible toy updates
+  - StatsBox disabled event bursts collect no stats and player updates avoid forced layout
   - bindings: StopBindingWatchdog cancels ownership and allows a clean restart
   - Factory kick polling starts on group entry and cancels on solo transition
   - Factory CD polling starts only for visible utility context and cancels when hidden
