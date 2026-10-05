@@ -148,14 +148,15 @@ addonTable.SyncReceiveFactory = function(deps)
 
     local parts = SplitPayload(message)
     local bucket = parts[1]
-    SyncLogDeep(
-      "message_payload",
-      "sender=%s senderBytes=%s bucket=%s raw=%s",
-      tostring(sender),
-      FormatBytes(sender),
-      tostring(bucket or "unknown"),
-      tostring(message)
-    )
+    SyncLogDeep("message_payload", function()
+      return string.format(
+        "sender=%s senderBytes=%s bucket=%s raw=%s",
+        tostring(sender),
+        FormatBytes(sender),
+        tostring(bucket or "unknown"),
+        tostring(message)
+      )
+    end)
 
     if bucket == "KEY" and parts[2] and parts[3] then
       local mapID = ToFiniteNumber(parts[2])

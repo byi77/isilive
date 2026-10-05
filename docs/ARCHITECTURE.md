@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.413`
+Versionsbasis: `0.9.414`
 Zuletzt aktualisiert: `2026-10-05`
 
 Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
@@ -332,7 +332,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.413                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.414                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -516,3 +516,15 @@ gebunden. Die Sperre bricht das Ticker-Handle ab, ohne den verifizierten
 Run-Snapshot zu loeschen; bei Rueckkehr startet ein aktiver Run den Ticker
 wieder. Inspect-Aktivierung prueft Gruppen- und Raid-Zustand unabhaengig von
 der aktuellen Frame-Sichtbarkeit.
+
+Nach Gruppen-/Weltwechseln und bei Show/Hide bewertet die Factory zusaetzlich
+das CD-Polling neu. Der bestehende Polling-Controller besitzt Start, Stop und
+Idempotenz; die Factory startet keine zweiten Timer und rescannt dabei keine
+Auren. So laeuft nach sichtbarer Raid-Rueckkehr wieder genau ein CD-Ticker,
+waehrend Hide ihn sofort abbricht.
+
+Der interne Sync-Logger akzeptiert fuer vorbereitungsintensive Deep-Daten
+einen lazy Daten-Builder neben dem bisherigen Formatstring-Vertrag. Ein
+Trace-Logger erhaelt weiterhin einen kompletten lazy Zeilen-Builder; der
+direkte Logger materialisiert denselben Text unmittelbar. Der Sync-Empfaenger
+berechnet Sender-Byte-Dumps erst innerhalb des konsumierten Builders.

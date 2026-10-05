@@ -715,3 +715,28 @@ LuaCov-Instrumentierung geprueft; dabei bleiben alle Last-Assertions aktiv,
 und die CPU-/Heap-Ausgabe wird im instrumentierten Lauf unterdrueckt.
 Die Regeltexte bleiben unveraendert; neue Testzuordnungen bilden die oben
 beschriebenen eindeutigen Assertions ab.
+
+## Sechsfach-Audit und anschliessende Korrekturen (2026-10-05)
+
+`docs/SIX_LOOP_AUDIT_2026-10-05.md` dokumentiert sechs vollstaendige Testlaeufe
+auf 0.9.413 sowie zwei durch gezielte Zusatzproben nachgewiesene Luecken.
+Die anschliessend ergaenzten Regressionen scheitern am bisherigen Code mit
+100.000 Byte-Formatierungen bei ausgeschaltetem Logging beziehungsweise
+keinem CD-Ticker nach sichtbarer Raid-Rueckkehr. Mit dem Patch bestehen beide.
+
+Maschinenpruefbare Intention der neuen Regel-56-Zuordnung: jeweils 10.000
+Pakete bei Logging aus, normalem Trace und verworfenem Deep-Builder erzeugen
+null `%02X`-Formatierungen. Erst ein konsumierter Payload-Builder formatiert
+die zehn Bytes von `Peer-Realm`; direkter Legacy-Logger und Unicode-Bytes
+bleiben korrekt. Die Regel-93-Zuordnung verlangt nach jedem von 20 sichtbaren
+Raid-Rueckwegen genau einen CD-Ticker ohne manuellen Refresh. Im Raid und
+hidden bleiben es null; Show startet genau einen, Hide stoppt sofort.
+
+Die noch vergleichsweise hohen gesamten Sync-Allokationen sind damit nicht
+vollstaendig erklaert oder beseitigt. Die Lua-Proben belegen diese konkreten
+Korrekturen, keine Ursache oder Behebung der gemeldeten 945-ms-Ingame-Spitze.
+
+Validierung des anschliessenden Patches: 2528 Tests, null Fehler;
+vollstaendiger `tools/check.ps1`-Preflight gruen, Coverage 93,00 % gesamt,
+keine Produktionsdatei unter 80 %. Die Auditdatei samt Reproduktionsartefakten
+und Regressionslogs ist im verbindlichen privaten Workspace gespiegelt.

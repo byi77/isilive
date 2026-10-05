@@ -744,6 +744,9 @@ local function FinalizeFactoryRuntime(ctx)
         modules.killTrack.SetPollingSuspended(ctx.IsRaidGroup())
       end
       ctx.SetProcessingActive(ctx.mainFrame:IsShown())
+      if type(ctx.RefreshCdTrackerPolling) == "function" then
+        ctx.RefreshCdTrackerPolling()
+      end
     end
   end
   ctx.InspectLoop = function(_self, elapsed)
@@ -778,6 +781,9 @@ local function FinalizeFactoryRuntime(ctx)
   modules.bootstrap.BindMainFrameScripts(ctx.mainFrame, {
     onShow = function()
       ctx.SetProcessingActive(true)
+      if type(ctx.RefreshCdTrackerPolling) == "function" then
+        ctx.RefreshCdTrackerPolling()
+      end
       if ctx.rosterPanelController and ctx.rosterPanelController.RefreshSystemOptionToggles then
         ctx.rosterPanelController.RefreshSystemOptionToggles()
       end
@@ -787,6 +793,9 @@ local function FinalizeFactoryRuntime(ctx)
     end,
     onHide = function()
       ctx.SetProcessingActive(false)
+      if type(ctx.RefreshCdTrackerPolling) == "function" then
+        ctx.RefreshCdTrackerPolling()
+      end
     end,
   })
 

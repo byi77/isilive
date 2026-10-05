@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-05 - Version 0.9.414 (patch)
+
+- Sync payload byte dumps now format only when a deep trace builder is
+  consumed. Disabled logging and discarded deep traces no longer perform
+  sender-byte formatting; direct legacy logging retains its original output.
+- Visible active keys resume CD polling automatically after raid return or
+  reopening the main window. Hiding the window cancels its CD ticker
+  immediately; repeated transitions keep exactly one eligible ticker.
+- Regression tests cover 30,000 packets across logging modes and 20 raid/party
+  cycles, including hidden return and pending cooldown callbacks.
+
 ## 2026-10-05 - Version 0.9.413 (patch)
 
 - Added ten M+ stress scenarios with up to 30,000-event bursts, five-minute

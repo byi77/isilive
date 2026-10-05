@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿# Regellogik
+﻿﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -950,6 +950,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Runtime-Log-Eintraege werden nur bei aktivem Runtime-Logging geschrieben; jeder Eintrag traegt eine stabile Sequenznummer und einen praezisen Zeitstempel, `[TAG] action`-Nachrichten werden zu `[TAG] event=action` normalisiert, teure Formatierung und Trace-Builder duerfen bei ausgeschaltetem Log oder deaktivierter Deep-Stufe nicht laufen, und der Logspeicher muss seine Tail-Reihenfolge und den festen Cap von 800 Eintraegen auch bei grossen Log-, Sync- und Roster-Bursts behalten. Beim Start muessen uebergrosse persistierte oder mit einem alten Cap rotierte Ringe physisch auf die neuesten 800 Eintraege verdichtet werden. Gefilterte Tails muessen alle noch im Ring gespeicherten Eintraege durchsuchen und duerfen aeltere Treffer nicht durch ein kleineres internes Suchfenster unterschlagen.
 - Erforderliche Tests:
+  - Sync deep payload formatting waits for consumed trace builders
   - Runtime log controller appends entries only when enabled
   - Runtime log controller prefixes entries with sequence and timestamp
   - Runtime log controller normalizes tag action messages to event field
@@ -1628,6 +1629,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Der Binding-Watchdog muss sein Ticker-Handle explizit abbrechen und danach sauber neu starten koennen. Kick-Polling darf nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe laufen, bleibt dort auch bei ausgeblendeter Main-UI fuer den Hidden-Sync aktiv und muss beim Solo- oder Raid-Uebergang abbrechen. CD-Polling darf nur fuer eine sichtbare Main-UI mit aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext laufen und muss bei ausgeblendeter UI oder inaktivem Kontext abbrechen. Sein sichtbarer Sekundentakt darf nur die betroffenen CD-, Ready- und M+-Zeilen aktualisieren und keinen vollstaendigen Roster- oder Layout-Render ausloesen; der vollstaendige M+-Pre-Render bleibt ausschliesslich fuer ausgeblendete, eventgetriebene Refreshes erlaubt. Der M+-Timer darf keinen eigenen Frame-`OnUpdate`-Poller betreiben; waehrend eines laufenden Keys muss jeder produktive `GetTimerData()`-Read Blizzards verifizierte World-Elapsed-Zeit geschuetzt neu einlesen, und fehlende oder fehlerhafte API-Daten muessen den letzten belastbaren Timerwert unveraendert lassen. Der periodische Killtracker-Refresh darf nur bereits entdeckte aktive Nameplate-Overlays aktualisieren und keinen erneuten Scan aller moeglichen Nameplate-Unit-Tokens ausloesen. Center-Notice, Teleport-Cooldowntext und Statsbox duerfen nur im sichtbaren beziehungsweise aktivierten Zustand einen `OnUpdate`-Handler besitzen und muessen ihn beim Ausblenden entfernen; die Statsbox darf bei unveraenderter Zeilenstruktur im Sekundentakt kein erneutes Layout anwenden. Der Systemoption-Watcher des Rosters darf keinen permanenten `OnUpdate`-Handler besitzen, sondern nur bei sichtbarer Main-UI einen eigenen Fuenf-Sekunden-Ticker halten und muss diesen beim Ausblenden abbrechen. Der Minimap-Button darf seinen `OnUpdate`-Handler nur waehrend eines aktiven Drags installieren und muss ihn bei Drag-Ende entfernen. Geschuetzter Event-Dispatch muss pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks nutzen; pro akzeptiertem Event duerfen weder eine Argumenttabelle noch Dispatch-Closures neu erzeugt werden.
 - Erforderliche Tests:
+  - Mplus stress: twenty raid returns resume exactly one visible CD ticker
   - Mplus stress: 20000 cooldown events coalesce without full roster renders
   - Mplus stress: 30000 irrelevant combat events avoid CD scans and announces
   - Mplus stress: five minutes hidden keep kick sync bounded and CD polling stopped

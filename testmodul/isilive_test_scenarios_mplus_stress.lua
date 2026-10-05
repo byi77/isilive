@@ -170,6 +170,51 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: twenty raid returns resume exactly one visible CD ticker", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      for cycle = 1, 20 do
+        for _ = 1, 100 do
+          session.Dispatch("SPELL_UPDATE_COOLDOWN")
+          session.Dispatch("SPELL_UPDATE_CHARGES")
+        end
+        session.raid = true
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        local reads, messages = session.scenarioReads, #session.messages
+        session.Advance(1)
+        Assert.Equal(session.CountTickers(0.5), 0, "raid must cancel kick and forces tickers")
+        Assert.Equal(session.CountTickers(1), 0, "raid must cancel CD polling")
+        Assert.Equal(session.scenarioReads, reads, "raid must not read scenario data")
+        Assert.Equal(#session.messages, messages, "raid must not send background sync")
+        session.raid = false
+        session.forces = cycle
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        Assert.True(session.runtime.mainFrame:IsShown(), "raid return must restore the previously visible UI")
+        Assert.True(session.addon.MplusTimer.GetTimerData().running, "raid return must retain the active key")
+        Assert.Equal(session.CountTickers(1), 1, "visible active key must resume CD polling without an extra event")
+        session.Advance(1)
+        Assert.Equal(session.CountTickers(1), 1, "repeated returns must not accumulate CD tickers")
+        Assert.Equal(session.CountTickers(0.5), 2, "return must own exactly one forces and one kick ticker")
+        Assert.True(
+          math.abs(session.addon.KillTrack.GetData().percent - cycle) < 0.000001,
+          "forces ticker must apply the current verified fixture value"
+        )
+      end
+      session.runtime.mainFrame:Hide()
+      Assert.Equal(session.CountTickers(1), 0, "hiding must cancel CD polling immediately")
+      session.runtime.mainFrame:Show()
+      Assert.Equal(session.CountTickers(1), 1, "showing an active key must resume exactly one CD ticker")
+      session.runtime.mainFrame:Hide()
+      session.Advance(1)
+      Assert.Equal(session.CountTickers(1), 0, "hidden return must not retain CD polling")
+      session.raid = true
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.raid = false
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      Assert.False(session.runtime.mainFrame:IsShown(), "a previously hidden UI must stay hidden after raid")
+      Assert.Equal(session.CountTickers(1), 0, "hidden raid return must not start CD polling")
+    end)
+  end)
+
   local function AssertEndedKey(session, endEvent)
     for _ = 1, 10000 do
       session.Dispatch("SPELL_UPDATE_CHARGES")

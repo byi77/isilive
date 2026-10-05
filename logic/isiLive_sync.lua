@@ -128,7 +128,9 @@ local function SyncLogInternal(traceFn, event, formatText, ...)
     local args = { ... }
     traceFn(function()
       local data = formatText
-      if argCount > 0 then
+      if type(formatText) == "function" then
+        data = formatText()
+      elseif argCount > 0 then
         data = string.format(tostring(formatText or ""), Unpack(args))
       end
       return string.format("[SYNC] %s %s", event, data or "")
@@ -136,7 +138,9 @@ local function SyncLogInternal(traceFn, event, formatText, ...)
     return
   end
   local data = formatText
-  if argCount > 0 then
+  if type(formatText) == "function" then
+    data = formatText()
+  elseif argCount > 0 then
     data = string.format(tostring(formatText or ""), ...)
   end
   if syncDebugLog then

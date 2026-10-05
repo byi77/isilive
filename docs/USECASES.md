@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.413`
+Versionsbasis: `0.9.414`
 Zuletzt aktualisiert: `2026-10-05`
 
 Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe
@@ -639,3 +639,10 @@ unlesbaren Live-APIs. Completion, Reset und Raid-/Party-/Solo-Wechsel pruefen
 auch noch ausstehende CD-Callbacks. Lastumfang und Assertions stehen im
 Abschnitt M+-Belastungstests in `docs/WARTUNG.md`; lokale CPU-/Heap-Werte
 ersetzen keinen Ingame-Test.
+
+Zusaetzliche Regressionen pruefen lazy Sync-Byte-Dumps bei ausgeschaltetem,
+normalem, verworfenem Deep- und ausgefuehrtem Deep-Logging sowie den direkten
+Logger. Eine Factory-Regression prueft 20 Raid-/Party-Wechsel mit geplanten
+CD-Callbacks: sichtbarer aktiver Key startet ohne Zusatzevent genau einen
+CD-Ticker; hidden startet keiner. Show nimmt ihn wieder auf, Hide stoppt ihn
+sofort. Die vorhandenen Forces-/Kick-Ticker duerfen sich dabei nicht vermehren.

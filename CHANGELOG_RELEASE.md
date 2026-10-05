@@ -3,13 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.413`.
+Current version: `0.9.414`.
 
-Version 0.9.413: Less idle work and stronger M+ lifecycle regression coverage.
+Version 0.9.414: Lazy sync diagnostics and reliable CD polling after UI and raid transitions.
 
-<!-- highlights-reviewed-for: 0.9.413 -->
+<!-- highlights-reviewed-for: 0.9.414 -->
 
 Highlights:
-- **Less work while playing solo.** Closed Settings skip item-cache refreshes, a disabled Stats Box stops collecting live stats, and the solo main window suspends inspection. Visible Settings combine item-event bursts into one Hearthstone-selector update.
-- **Raid transitions stop background work.** Forces polling and inspection stop on raid entry; the forces ticker resumes on party return without discarding verified run data.
-- **Stress-tested M+ lifecycle.** Ten additional deterministic scenarios cover up to 30,000-event bursts, five minutes of visible/hidden key activity, duplicate and invalid sync packets, unavailable APIs, completion/reset and group transitions. Local Lua tests do not establish the cause of the reported in-game frame spike.
+- **No sender-byte formatting for unused logs.** Disabled logging and discarded deep traces skip sync byte dumps. Consumed deep traces and direct logging keep their original output.
+- **Cooldown polling resumes when needed.** Visible active keys restart CD polling after raid return or reopening the main window. Hiding cancels the ticker immediately; repeated transitions keep exactly one ticker.
+- **More regression coverage.** Logging-mode tests process 30,000 packets, and factory tests repeat 20 raid/party cycles with pending cooldown events and hidden returns. The original in-game frame spike still requires live profiling to establish its cause.

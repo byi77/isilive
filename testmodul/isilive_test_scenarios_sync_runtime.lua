@@ -194,10 +194,75 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
   end)
 end
 
+local function RegisterSyncLazyPayloadTests(test, ctx)
+  test("Sync deep payload formatting waits for consumed trace builders", function()
+    local formats = 0
+    local originalFormat = string.format
+    local proxy = setmetatable({
+      format = function(pattern, ...)
+        if pattern == "%02X" then
+          formats = formats + 1
+        end
+        return originalFormat(pattern, ...)
+      end,
+    }, { __index = string })
+    ctx.with_globals({
+      string = proxy,
+      GetTime = function()
+        return 100
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local sync = ctx.load_modules({ "isiLive_sync.lua" }).Sync
+      local function Burst()
+        for _ = 1, 10000 do
+          sync.ProcessAddonMessage("ISILIVE", "KEY:2662:12:100:audit", "Peer-Realm", "Me", "Realm", "PARTY")
+        end
+      end
+      Burst()
+      ctx.assert.Equal(formats, 0, "disabled logging must not prepare sender bytes")
+      sync.SetTraceLogger(function() end)
+      Burst()
+      ctx.assert.Equal(formats, 0, "normal trace must not prepare deep payload bytes")
+      local deferred
+      sync.SetDeepTraceLogger(function(builder)
+        deferred = deferred or builder
+      end)
+      Burst()
+      ctx.assert.Equal(formats, 0, "discarded deep builders must not prepare sender bytes")
+      ctx.assert.Equal(type(deferred), "function", "deep logging must retain the lazy builder contract")
+      local line = deferred()
+      ctx.assert.Equal(formats, 10, "consuming one payload builder must format exactly its sender bytes")
+      ctx.assert.True(
+        line:find("senderBytes=50-65-65-72-2D-52-65-61-6C-6D", 1, true) ~= nil,
+        "consumed builder must preserve the exact sender byte dump"
+      )
+      ctx.assert.Equal(sync.GetPlayerKeyInfo("Peer", "Realm").level, 12, "lazy logging must not change sync state")
+      sync.SetTraceLogger(nil)
+      sync.SetDeepTraceLogger(nil)
+      local legacyPayload
+      sync.SetLogger(function(message)
+        if message:find("message_payload", 1, true) then
+          legacyPayload = message
+        end
+      end)
+      sync.ProcessAddonMessage("ISILIVE", "KEY:2662:12:100:audit", "Peer-Realm", "Me", "Realm", "PARTY")
+      ctx.assert.Equal(formats, 20, "direct legacy logger must consume one additional payload dump")
+      ctx.assert.True(
+        legacyPayload:find("senderBytes=50-65-65-72-2D-52-65-61-6C-6D", 1, true) ~= nil,
+        "direct logger must retain its original payload text"
+      )
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
   RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSyncLazyPayloadTests(test, ctx)
 end
