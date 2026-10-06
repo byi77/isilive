@@ -161,6 +161,16 @@ function MplusTimer.GetTimerData()
   }
 end
 
+-- Public: true while a key timer runs. Cheap counterpart to GetTimerData()
+-- for callers that only need the running flag: no Blizzard API sample and no
+-- snapshot table, so it is safe on per-event paths.
+function MplusTimer.IsRunning()
+  if demoData then
+    return demoData.running == true
+  end
+  return state.running == true
+end
+
 function MplusTimer.HandleEvent(event)
   if event == "CHALLENGE_MODE_START" then
     StartTimer()

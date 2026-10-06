@@ -41,7 +41,13 @@ end
 
 function ContextHelpers.IsMplusTimerRunning()
   local mplusTimer = addonTable.MplusTimer
-  if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
+  if type(mplusTimer) ~= "table" then
+    return false
+  end
+  if type(mplusTimer.IsRunning) == "function" then
+    return mplusTimer.IsRunning() == true
+  end
+  if type(mplusTimer.GetTimerData) ~= "function" then
     return false
   end
   local data = mplusTimer.GetTimerData()

@@ -696,64 +696,94 @@ end
 -- Coalesce bursts into one trailing handler call ~100ms later so the
 -- kick-tracker cache and teleport-button refresh do not run 20+ times/sec
 -- for state that only changes at most once per cast. Each call to
--- BuildSpellCooldownCoalescer returns a fresh closure pair so per-controller
+-- BuildSpellCooldownCoalescer returns a fresh closure set so per-controller
 -- state stays isolated (one controller per session in production, one per
 -- test in the harness).
+--
+-- Sated-relevant player UNIT_AURA payloads share the CD-tracker bucket with
+-- SPELL_UPDATE_CHARGES: in combat nearly every player aura payload carries an
+-- updated or removed instance ID, so an uncoalesced pass ran the 40-slot
+-- HARMFUL scan, the row refresh and -- while the main UI is hidden in a key --
+-- a full roster pre-render for every proc and stack change. One trailing pass
+-- per window serves both triggers; the Bloodlust start sound flag and the
+-- Bloodlust button-warning refresh ride along whenever an aura event
+-- contributed to the window.
 local SPELL_COOLDOWN_COALESCE_SECONDS = 0.1
 local function BuildSpellCooldownCoalescer(ctx, isRaidActive)
   local pendingCooldown = false
-  local pendingCharges = false
+  local pendingCdPass = false
+  local pendingAuraScan = false
 
-  local function HandleCooldown(_self)
+  local function DispatchCooldown()
+    pendingCooldown = false
     if isRaidActive() then
       return
     end
-    if pendingCooldown then
+    ctx.handleKickTrackerEvent("SPELL_UPDATE_COOLDOWN")
+    ctx.updateMPlusTeleportButton()
+  end
+
+  local function DispatchCdPass()
+    pendingCdPass = false
+    local auraScan = pendingAuraScan
+    pendingAuraScan = false
+    if isRaidActive() then
       return
     end
-    local function dispatch()
-      pendingCooldown = false
-      if isRaidActive() then
-        return
-      end
-      ctx.handleKickTrackerEvent("SPELL_UPDATE_COOLDOWN")
-      ctx.updateMPlusTeleportButton()
+    if auraScan then
+      ctx.handleBloodlustButtonWarningEvent("UNIT_AURA", "player")
+      ctx.updateCdTracker({ playLustSoundOnStart = true })
+      return
     end
+    ctx.updateCdTracker()
+  end
+
+  local function Schedule(dispatch)
     local timer = rawget(_G, "C_Timer")
     local after = type(timer) == "table" and timer.After or nil
     if type(after) == "function" then
-      pendingCooldown = true
       after(SPELL_COOLDOWN_COALESCE_SECONDS, dispatch)
+      return true
+    end
+    return false
+  end
+
+  local function HandleCooldown(_self)
+    if isRaidActive() or pendingCooldown then
       return
     end
-    dispatch()
+    pendingCooldown = true
+    if not Schedule(DispatchCooldown) then
+      DispatchCooldown()
+    end
+  end
+
+  local function ScheduleCdPass()
+    if pendingCdPass then
+      return
+    end
+    pendingCdPass = true
+    if not Schedule(DispatchCdPass) then
+      DispatchCdPass()
+    end
   end
 
   local function HandleCharges(_self)
     if isRaidActive() then
       return
     end
-    if pendingCharges then
-      return
-    end
-    local function dispatch()
-      pendingCharges = false
-      if isRaidActive() then
-        return
-      end
-      ctx.updateCdTracker()
-    end
-    local timer = rawget(_G, "C_Timer")
-    local after = type(timer) == "table" and timer.After or nil
-    if type(after) == "function" then
-      pendingCharges = true
-      after(SPELL_COOLDOWN_COALESCE_SECONDS, dispatch)
-      return
-    end
-    dispatch()
+    ScheduleCdPass()
   end
 
-  return HandleCooldown, HandleCharges
+  local function HandlePlayerAuraCdScan()
+    if isRaidActive() then
+      return
+    end
+    pendingAuraScan = true
+    ScheduleCdPass()
+  end
+
+  return HandleCooldown, HandleCharges, HandlePlayerAuraCdScan
 end
 
 local function HandleShareKeysRequest(ctx, syncResult, sender)
@@ -1294,17 +1324,32 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.registerVerifiedSyncAliasForRoster(ctx.getRoster(), syncResult.sender)
     end
 
-    local changed = syncResult.targetUpdated == true or syncResult.kickUpdated == true
+    -- A running peer kick cooldown changes the roster on every packet (and on
+    -- every decay step a later packet observes). Kick state is neither part
+    -- of the reload mirror nor of the status line or teleport button, so a
+    -- change that touches only kick fields refreshes just the kick column.
+    -- Everything else -- target, isiLive marker, key, stats, DPS, location --
+    -- keeps the full refresh.
+    local fullRefresh = syncResult.targetUpdated == true
+    local kickChanged = syncResult.kickUpdated == true
     ctx.forEachRosterInfo(function(info)
       if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
         info.hasIsiLive = true
-        changed = true
+        fullRefresh = true
       end
-      if ctx.applyKnownKeyToRosterEntry(info) then
-        changed = true
+      local anyChanged, nonKickChanged = ctx.applyKnownKeyToRosterEntry(info)
+      if anyChanged then
+        if nonKickChanged == false then
+          kickChanged = true
+        else
+          fullRefresh = true
+        end
       end
     end)
-    if changed then
+    if not fullRefresh and kickChanged and ctx.refreshKickColumn() ~= true then
+      fullRefresh = true
+    end
+    if fullRefresh then
       ctx.updateStatusLine()
       ctx.updateMPlusTeleportButton()
       if type(ctx.saveReloadRosterMirror) == "function" then
@@ -1314,9 +1359,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
   end
 
-  local HandleSpellUpdateCooldownEvent, HandleSpellUpdateChargesEvent = BuildSpellCooldownCoalescer(ctx, function()
+  local function IsCoalescerRaidActive()
     return IsRaidModeActive(ctx)
-  end)
+  end
+  local HandleSpellUpdateCooldownEvent, HandleSpellUpdateChargesEvent, SchedulePlayerAuraCdScan =
+    BuildSpellCooldownCoalescer(ctx, IsCoalescerRaidActive)
 
   local function HandleUnitAuraEvent(_self, unit, unitAuraUpdateInfo)
     if IsRaidModeActive(ctx) then
@@ -1329,8 +1376,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if not UnitAuraUpdateRequiresCdScan(unitAuraUpdateInfo) then
       return
     end
-    ctx.handleBloodlustButtonWarningEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
-    ctx.updateCdTracker({ playLustSoundOnStart = true })
+    SchedulePlayerAuraCdScan()
   end
 
   return {

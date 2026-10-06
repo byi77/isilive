@@ -203,7 +203,13 @@ addonTable.SyncReceiveFactory = function(deps)
       end
     elseif bucket == "KICK" then
       local parsedKick = ParseKickPayload(message)
-      if parsedKick then
+      -- Skip self-echo: the local kick poll already stored the unrounded own
+      -- state. The echo carries ceil(remain), which always differed from it
+      -- and reported a kick change -- and a roster refresh -- every second
+      -- while the own kick was on cooldown.
+      if parsedKick and senderKey == selfKey then
+        payloadValid = true
+      elseif parsedKick then
         payloadValid = true
         kickUpdated = Sync.SetPlayerKickInfo(
           sender,

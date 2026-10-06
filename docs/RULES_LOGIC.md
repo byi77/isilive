@@ -200,6 +200,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 145. Der M+-Killtracker lernt aus eigenen, ab `CHALLENGE_MODE_START` verfolgten und vollstaendig abgeschlossenen Runs je Season, Dungeon und Boss-Killreihenfolge den Enemy-Forces-Stand bei jedem Bosskill und zeigt im aktiven Run als Ziel fuer den naechsten Boss das Minimum der passenden gelernten Werte als Strich im Balken sowie zwischen Pulls die gerundete Abweichung im Pull-Textfeld (Setting `forcesPaceEnabled`, Default an). Enemy Forces ist das gesperrte beziehungsweise einzige gewichtete Kriterium, nie ein Boss-Fortschrittsbalken; ein abgeschlossenes Forces-Kriterium gilt als 100 %. Secret- oder unlesbare Daten, eine unaufgeloeste Season und beschaedigte gespeicherte Routen fuehren fail-closed zu keinem Lernen und keiner Anzeige.
 
+146. Spieler-`UNIT_AURA`-Payloads, die einen Sated-Rescan verlangen, und `SPELL_UPDATE_CHARGES` loesen nie synchron einen CD-Tracker-Durchlauf aus, sondern teilen sich genau einen nachlaufenden Durchlauf pro 0,1-Sekunden-Fenster; ein CD-Tracker-Durchlauf loest das Laufzeitprofil hoechstens einmal auf.
+
+147. Eine Sync-Nachricht, die im Roster ausschliesslich Kick-Felder aendert, aktualisiert nur die Kicks-Spalte und loest weder einen vollstaendigen Roster-Render noch einen Reload-Mirror-Save, ein Statuszeilen- oder ein Teleport-Button-Update aus; das eigene KICK-Echo veraendert den lokalen Kick-Zustand nicht.
+
+148. Mob-Nameplate-Overlays werden ueber einen Pool wiederverwendet statt pro Nameplate-Zyklus neu erzeugt; ein Refresh-Durchlauf liest Challenge-Status, Forces-DB, aktive Map und Rest-Prozent hoechstens einmal und verankert ein Overlay nur neu, wenn sich Ankerziel oder Darstellung geaendert haben.
+
+149. `UNIT_AURA` und `UNIT_HEALTH` werden nur fuer `player` und `party1` bis `party4` zugestellt (Unit-gefilterte Registrierung ueber Dispatcher- und Hilfs-Frames); das Event-Gate prueft seine Erlaubnis-Tabellen vor Kampf- und Sichtbarkeitsabfrage, und DeathWatch ueberspringt die Unit-Abfragen fuer lebende Units, solange kein Tod gespeichert ist.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2281,3 +2289,53 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - CreateKillTrackRow creates a hidden cool pace tick inside the bar
   - Settings forces-pace toggle is default-on, persists and refreshes the kill row
   - Settings panel hides disabled legacy display and behavior controls
+
+### RULE-CD-TRACKER-AURA-BUENDELUNG
+- Regelnummer: 146
+- Status: aktiv
+- Zusammenfassung: Ein Spieler-`UNIT_AURA`, dessen Payload nach `UnitAuraUpdateRequiresCdScan` einen Sated-Rescan verlangt, und ein `SPELL_UPDATE_CHARGES` rufen `updateCdTracker` nicht synchron auf. Beide setzen denselben ausstehenden CD-Tracker-Durchlauf, der genau einmal per `C_Timer.After(0.1, ...)` geplant wird; weitere Ausloeser im selben Fenster planen keinen zweiten Timer. Hat mindestens ein Spieler-`UNIT_AURA` zum Fenster beigetragen, laeuft der Durchlauf mit `playLustSoundOnStart = true` und aktualisiert vorher die Bloodlust-Button-Warnung ueber `handleBloodlustButtonWarningEvent("UNIT_AURA", "player")`; sonst laeuft er ohne Optionen. Der Durchlauf prueft den Raid-Hard-off beim Ausfuehren erneut und bricht im Raid ohne CD-Tracker-Aufruf ab. Ohne `C_Timer.After` laeuft der Durchlauf sofort. Innerhalb eines `UpdateCdTracker`-Durchlaufs (einschliesslich reentranter Aufrufe aus dem dabei ausgeloesten Roster-Render) wird der Combat-Utility-Kontext und damit das Laufzeitprofil hoechstens einmal aufgeloest; das Ergebnis lebt nur, solange der Durchlauf laeuft, und wird nie ueber Events hinweg wiederverwendet. `MplusTimer.IsRunning()` liefert den Laufzustand des Key-Timers ohne `GetWorldElapsedTime`-Abfrage und ohne Snapshot-Tabelle und beruecksichtigt gesetzte Demo-Daten.
+- Erforderliche Tests:
+  - Mplus stress: 1000 hidden player aura updates coalesce into one CD pass
+  - Mplus stress: player aura updates outside a running key resolve the runtime profile once
+  - Mplus stress: 20000 cooldown events coalesce without full roster renders
+  - UNIT_AURA refreshes cd tracker only for player unit outside raid
+  - UNIT_AURA bails out in raid mode even for player unit
+  - mplus_timer: IsRunning follows the key lifecycle without sampling the elapsed time
+  - mplus_timer: IsRunning answers from demo data while a demo snapshot is set
+
+### RULE-KICK-SYNC-NUR-KICKSPALTE
+- Regelnummer: 147
+- Status: aktiv
+- Zusammenfassung: `ApplyKnownKeyToRosterEntry` liefert zwei Werte: ob irgendein Sync-Feld des Roster-Eintrags geaendert wurde und ob davon ein Nicht-Kick-Feld (Key, Stats, DPS, Location) betroffen ist. Der `CHAT_MSG_ADDON`-Handler fuehrt den vollstaendigen Refresh (`updateStatusLine`, `updateMPlusTeleportButton`, `saveReloadRosterMirror`, `updateUI`) genau dann aus, wenn die Nachricht ein Target aktualisiert, ein Roster-Eintrag neu als isiLive-Nutzer markiert wird, ein Nicht-Kick-Feld geaendert wurde oder der Nicht-Kick-Wert fehlt. Aendern sich ausschliesslich Kick-Felder (eingehendes `kickUpdated` oder Kick-Backfill), ruft der Handler nur `refreshKickColumn` auf; meldet dieser nicht `true`, faellt der Handler auf den vollstaendigen Refresh zurueck. Die Kicks-Spalte fuellt dabei nur Kick-Felder nach (`ApplyKnownKickToRosterEntry`). Ein KICK-Paket, dessen Absender dem lokalen Spieler entspricht, gilt als gueltig, schreibt aber keinen Kick-Zustand und meldet kein `kickUpdated`. Die Sendeseite aus Regel 50 (Kick-Sync spaetestens einmal pro Sekunde) bleibt unveraendert.
+- Erforderliche Tests:
+  - Mplus stress: peer kick cooldown packets refresh only the kick column
+  - Sync ProcessAddonMessage reports kick updates when remaining cooldown changes
+  - Event handlers process addon sync messages and refresh changed roster
+  - Event handlers pre-render UI for hidden addon sync updates
+  - Architecture kick tracker uses lightweight kick-column refresh hooks
+
+### RULE-MOB-NAMEPLATE-POOL-UND-SWEEP-MEMO
+- Regelnummer: 148
+- Status: aktiv
+- Zusammenfassung: `NAME_PLATE_UNIT_REMOVED` und `HideAll` entfernen das Overlay der Unit aus der aktiven Overlay-Tabelle, verstecken es und legen es in einen Pool; `CreateOrGetFrame` nimmt ein gepooltes Overlay, bevor es `CreateFrame` aufruft. Die aktive Overlay-Tabelle enthaelt nur aktive Units, und zwei aktive Units teilen nie ein Overlay. `RefreshAll` und `RefreshActive` loesen pro Durchlauf Challenge-Status, Forces-DB (`SeasonData.GetMatchingForcesData`), aktive Challenge-Map und KillTrack-Rest-Prozent hoechstens einmal auf; Einzel-Updates ueber `NAME_PLATE_UNIT_ADDED` lesen immer live und schliessen ein offenes Durchlauf-Memo. Die Forces-DB-Pruefung laeuft erst nach `IsEligibleUnit`. `ApplyPosition` setzt Parent, Strata, Level und Ankerpunkte nur, wenn sich das aufgeloeste Ankerziel oder die Darstellungsversion (erhoeht durch `SetAppearance`) gegenueber der letzten Verankerung geaendert hat, nach `NAME_PLATE_UNIT_ADDED` oder wenn die Settings-Vorschau es erzwingt.
+- Erforderliche Tests:
+  - MobNameplate reuses overlay frames across nameplate add/remove churn
+  - MobNameplate sweeps re-anchor only when the anchor or appearance changes
+  - MobNameplate resolves the season forces DB once per sweep, not per unit token
+  - MobNameplate NAME_PLATE_UNIT_REMOVED OnEvent hides frame and clears pool entry
+  - MobNameplate hides MDT and API mob percentages when the active season has no matching Forces DB
+  - MobNameplate ApplyPosition anchors to the Platynator display health widget when available
+  - MobNameplate ApplyPreview uses the runtime text, size and healthbar anchor path
+
+### RULE-PARTY-UNIT-EVENTS-GEFILTERT
+- Regelnummer: 149
+- Status: aktiv
+- Zusammenfassung: `UNIT_AURA` und `UNIT_HEALTH` tragen im Event-Registry die Unit-Liste `player`, `party1`, `party2`, `party3`, `party4`. Weil `RegisterUnitEvent` hoechstens zwei Units je Frame annimmt und ein erneuter Aufruf den Filter ersetzt, registriert der Dispatcher-Frame `player`/`party1`, ein erster Hilfs-Frame `party2`/`party3` und ein zweiter Hilfs-Frame `party4`; die Hilfs-Frames reichen jedes Event mit unveraenderten Argumenten an das `OnEvent`-Skript des Dispatcher-Frames weiter, sodass derselbe Gate- und Dispatch-Pfad gilt. Ist ein Hilfs-Frame nicht erzeugbar, wird das Event ungefiltert am Dispatcher-Frame registriert. Der Raid-Hard-off aus Regel 109 meldet diese Events auch an den Hilfs-Frames ab; die verzoegerte Wiederherstellung registriert sie wieder geteilt und verwendet dieselben Hilfs-Frames. Das Event-Gate liest `InCombatLockdown` nur fuer Events ohne Kampf-Freigabe und die Sichtbarkeit nur fuer Events ohne Hidden-Freigabe; das Ergebnis des Gates bleibt dabei unveraendert. `DeathWatch.HandleUnitHealth` kehrt fuer eine beobachtete Unit ohne Abfrage von Setting, Existenz, Verbindung und GUID zurueck, wenn kein Tod gespeichert ist und `UnitIsDeadOrGhost` lesbar `false` liefert; tote, unlesbare oder bereits gespeicherte Faelle laufen durch die volle Auswertung. Die PI-Erkennung vergleicht die bereits als Klartext gelesene Spell-ID direkt.
+- Erforderliche Tests:
+  - Party aura and health events are unit-filtered across the dispatcher and auxiliary frames
+  - Raid suppression unregisters dispatcher events but keeps the wake-up events
+  - Raid suppression restores every event when the raid ends
+  - Raid suppression survives a raid-party-raid cycle inside one frame
+  - DeathWatch health ticks of living units skip the unit reads while nobody is dead
+  - DeathWatch fires again after revive and renewed death
+  - Mplus stress: 30000 irrelevant combat events avoid CD scans and announces

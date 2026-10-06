@@ -112,7 +112,8 @@ local function GetForcesDB()
   return addonTable.MPlusForces
 end
 
-local function ResolveMobContributionFromDB(unit, activeMapID)
+-- forcesDB is optional: sweeps pass their memoized DB, diagnostics read live.
+local function ResolveMobContributionFromDB(unit, activeMapID, forcesDB)
   if type(activeMapID) ~= "number" or not addonTable.Validators.IsExistingUnit(unit) then
     return nil, nil
   end
@@ -128,7 +129,10 @@ local function ResolveMobContributionFromDB(unit, activeMapID)
   if not npcId then
     return nil, nil
   end
-  local db = GetForcesDB()
+  if forcesDB == nil then
+    forcesDB = GetForcesDB()
+  end
+  local db = forcesDB
   if type(db) ~= "table" or type(db.byNpcId) ~= "table" or type(db.dungeonTotal) ~= "table" then
     return nil, nil
   end
@@ -215,6 +219,85 @@ local function ResolveRemainingPercent(activeMapID)
   return string.format("%.2f", (remainingCount / total) * 100)
 end
 
+-- Per-sweep memo. A sweep visits up to 40 unit tokens; challenge state, the
+-- season forces DB (a date() read plus two date parses), the active map and
+-- the KillTrack remaining share are identical for every plate of one pass, so
+-- a sweep resolves each of them at most once. The memo only answers while a
+-- sweep runs; single-plate updates (NAME_PLATE_UNIT_ADDED, test hooks) always
+-- read live, and every sweep starts from a cleared memo.
+local sweepActive = false
+local sweepChallengeActive = nil
+local sweepForcesResolved = false
+local sweepForcesDB = nil
+local sweepMapResolved = false
+local sweepMapID = nil
+local sweepRemainingResolved = false
+local sweepRemainingMapID = nil
+local sweepRemaining = nil
+
+local function ClearSweepMemo()
+  sweepChallengeActive = nil
+  sweepForcesResolved = false
+  sweepForcesDB = nil
+  sweepMapResolved = false
+  sweepMapID = nil
+  sweepRemainingResolved = false
+  sweepRemainingMapID = nil
+  sweepRemaining = nil
+end
+
+local function SweepIsChallengeModeActive()
+  if not sweepActive then
+    return IsChallengeModeActive()
+  end
+  if sweepChallengeActive == nil then
+    sweepChallengeActive = IsChallengeModeActive()
+  end
+  return sweepChallengeActive
+end
+
+local function SweepGetForcesDB()
+  if not sweepActive then
+    return GetForcesDB()
+  end
+  if not sweepForcesResolved then
+    sweepForcesDB = GetForcesDB()
+    sweepForcesResolved = true
+  end
+  return sweepForcesDB
+end
+
+local function SweepGetActiveChallengeMapID()
+  if not sweepActive then
+    return GetActiveChallengeMapID() -- secret-value-ok: file-local helper is pcall-protected
+  end
+  if not sweepMapResolved then
+    sweepMapID = GetActiveChallengeMapID() -- secret-value-ok: file-local helper is pcall-protected
+    sweepMapResolved = true
+  end
+  return sweepMapID
+end
+
+local function SweepResolveRemainingPercent(activeMapID)
+  if not sweepActive then
+    return ResolveRemainingPercent(activeMapID)
+  end
+  if not sweepRemainingResolved or sweepRemainingMapID ~= activeMapID then
+    sweepRemaining = ResolveRemainingPercent(activeMapID)
+    sweepRemainingMapID = activeMapID
+    sweepRemainingResolved = true
+  end
+  return sweepRemaining
+end
+
+local function ConcatPercentText(percentString, remainingPercentString)
+  local text = percentString .. "%"
+  if type(remainingPercentString) == "string" then
+    text = text .. "/" .. remainingPercentString .. "%"
+  end
+  return text
+end
+
 local function BuildTextForFormat(fmt, percentString, remainingPercentString)
   fmt = type(fmt) == "table" and fmt or format
   if not fmt.showPercent or type(percentString) ~= "string" then
@@ -225,13 +308,7 @@ local function BuildTextForFormat(fmt, percentString, remainingPercentString)
   -- error. The concatenation below is wrapped in pcall: an empty Secret
   -- string concatenates to "%" (still rendered), and any genuine string
   -- runtime errors fall through to nil.
-  local ok, text = pcall(function()
-    local text = percentString .. "%"
-    if type(remainingPercentString) == "string" then
-      text = text .. "/" .. remainingPercentString .. "%"
-    end
-    return text
-  end)
+  local ok, text = pcall(ConcatPercentText, percentString, remainingPercentString)
   if not ok or type(text) ~= "string" then
     return nil
   end
@@ -272,6 +349,18 @@ local function ApplyFrameSizeForFont(frame, size, showRemainingOverride)
   end
 end
 
+local function IsLastTextEqual(fontString, text)
+  return fontString._lastText == text
+end
+
+local function IsSelfEqual(value)
+  return value == value
+end
+
+local function StoreLastText(fontString, text)
+  fontString._lastText = text
+end
+
 local function ApplyRenderedText(frame, text)
   if not (frame and frame.text and frame.text.SetText) then
     return
@@ -281,32 +370,24 @@ local function ApplyRenderedText(frame, text)
   -- Secret Value in 12.0 M+ tainted context. Plain compare and plain assign
   -- both poison the field and raise "tainted by 'isiLive'" on the next
   -- call, so both the read and the write are pcall-guarded.
-  local equal = false
-  pcall(function()
-    equal = frame.text._lastText == text
-  end)
-  if equal then
+  -- Named helpers instead of per-call closures: this runs for every plate of
+  -- every sweep.
+  local okEqual, equal = pcall(IsLastTextEqual, frame.text, text)
+  if okEqual and equal == true then
     return
   end
   frame.text:SetText(text)
-  local canCache = false
-  pcall(function()
-    canCache = text == text
-  end)
+  local okSelf, canCache = pcall(IsSelfEqual, text)
   -- The write is guarded too, not just the compare: a poisoned field can raise
   -- on assignment as well, and this runs after SetText -- letting it escape
   -- would abort the caller for a plate that is already painted correctly.
   -- Clearing the cache on any failure costs one redundant SetText next tick.
   local cached = false
-  if canCache then
-    cached = pcall(function()
-      frame.text._lastText = text
-    end)
+  if okSelf and canCache == true then
+    cached = pcall(StoreLastText, frame.text, text)
   end
   if not cached then
-    pcall(function()
-      frame.text._lastText = nil
-    end)
+    pcall(StoreLastText, frame.text, nil)
   end
 end
 
@@ -361,10 +442,35 @@ local function ApplyFont(fontString)
   fontString._lastFontSize = size
 end
 
+-- WoW never frees a frame, and Blizzard recycles nameplates: in a key the same
+-- unit tokens are added and removed hundreds of times. Released overlays wait
+-- here, hidden and unanchored, for the next unit instead of a fresh frame,
+-- texture and FontString per cycle. `frames` keeps holding active units only.
+local framePool = {}
+
+local function ReleaseFrame(unit)
+  local frame = frames[unit]
+  if not frame then
+    return
+  end
+  frames[unit] = nil
+  if type(frame.Hide) == "function" then
+    frame:Hide()
+  end
+  frame._isiLiveAnchorTarget = nil
+  framePool[#framePool + 1] = frame
+end
+
 local function CreateOrGetFrame(unit)
   local frame = frames[unit]
   if frame then
     return frame
+  end
+  local pooled = framePool[#framePool]
+  if pooled then
+    framePool[#framePool] = nil
+    frames[unit] = pooled
+    return pooled
   end
   local createFrame = rawget(_G, "CreateFrame")
   if type(createFrame) ~= "function" then
@@ -445,26 +551,11 @@ local function FrameIsShownOrUnknown(frame)
   return ok and shown ~= false
 end
 
-local function GetFrameChildren(frame)
-  if type(frame) ~= "table" or type(frame.GetChildren) ~= "function" then
-    return nil
-  end
-  local ok, children = pcall(function()
-    return { frame:GetChildren() }
-  end)
-  if ok and type(children) == "table" then
-    return children
-  end
-  return nil
-end
-
-local function ResolvePlatynatorHealthWidget(nameplate)
-  local children = GetFrameChildren(nameplate)
-  if type(children) ~= "table" then
-    return nil
-  end
-
-  for _, child in ipairs(children) do
+-- Walks the nameplate's children as varargs instead of packing them into a
+-- table: the anchor target is resolved on every plate update.
+local function FindPlatynatorHealthWidget(...)
+  for index = 1, select("#", ...) do
+    local child = select(index, ...)
     if type(child) == "table" and type(child.widgets) == "table" then
       for _, widget in ipairs(child.widgets) do
         local details = type(widget) == "table" and widget.details or nil
@@ -474,7 +565,48 @@ local function ResolvePlatynatorHealthWidget(nameplate)
       end
     end
   end
+  return nil
+end
 
+local function ScanNameplateChildren(nameplate)
+  return FindPlatynatorHealthWidget(nameplate:GetChildren())
+end
+
+local function ResolvePlatynatorHealthWidget(nameplate)
+  if type(nameplate) ~= "table" or type(nameplate.GetChildren) ~= "function" then
+    return nil
+  end
+  local ok, widget = pcall(ScanNameplateChildren, nameplate)
+  if ok then
+    return widget
+  end
+  return nil
+end
+
+-- Containers in lookup order, each with the healthbar field names it may
+-- carry and the precomputed anchor-source labels (no string building per
+-- update).
+local HEALTH_BAR_FIELDS = { "healthBar", "HealthBar", "healthbar" }
+local ANCHOR_CONTAINER_KEYS = { "UnitFrame", "unitFrame" }
+local ANCHOR_SOURCE_LABELS = {}
+for _, prefix in ipairs({ "UnitFrame", "unitFrame", "nameplate" }) do
+  ANCHOR_SOURCE_LABELS[prefix] = {}
+  for _, fieldName in ipairs(HEALTH_BAR_FIELDS) do
+    ANCHOR_SOURCE_LABELS[prefix][fieldName] = prefix .. "." .. fieldName
+  end
+end
+
+local function FindHealthBar(container, prefix)
+  if type(container) ~= "table" then
+    return nil
+  end
+  for index = 1, #HEALTH_BAR_FIELDS do
+    local fieldName = HEALTH_BAR_FIELDS[index]
+    local candidate = container[fieldName]
+    if type(candidate) == "table" then
+      return candidate, ANCHOR_SOURCE_LABELS[prefix][fieldName]
+    end
+  end
   return nil
 end
 
@@ -488,32 +620,28 @@ local function ResolveAnchorTarget(nameplate)
     return platynatorHealthWidget, "platynator-health-widget"
   end
 
-  local containers = {
-    { frame = nameplate.UnitFrame, source = "UnitFrame" },
-    { frame = nameplate.unitFrame, source = "unitFrame" },
-    { frame = nameplate, source = "nameplate" },
-  }
-  local names = {
-    "healthBar",
-    "HealthBar",
-    "healthbar",
-  }
-  for _, containerInfo in ipairs(containers) do
-    local container = containerInfo.frame
-    if type(container) == "table" then
-      for _, fieldName in ipairs(names) do
-        local candidate = container[fieldName]
-        if type(candidate) == "table" then
-          return candidate, containerInfo.source .. "." .. fieldName
-        end
-      end
+  for index = 1, #ANCHOR_CONTAINER_KEYS do
+    local key = ANCHOR_CONTAINER_KEYS[index]
+    local candidate, source = FindHealthBar(nameplate[key], key)
+    if candidate then
+      return candidate, source
     end
+  end
+  local candidate, source = FindHealthBar(nameplate, "nameplate")
+  if candidate then
+    return candidate, source
   end
 
   return nameplate, "nameplate-root"
 end
 
-local function ApplyPosition(frame, nameplate)
+-- Bumped whenever position or offsets change, so sweeps know an overlay that
+-- is still anchored to the same target must be re-anchored anyway.
+local appearanceVersion = 0
+
+-- force: re-anchor even if the overlay already sits on this target with the
+-- current appearance (settings preview, which swaps the appearance in place).
+local function ApplyPosition(frame, nameplate, force)
   if not frame or not nameplate then
     return
   end
@@ -521,6 +649,13 @@ local function ApplyPosition(frame, nameplate)
   if not anchorTarget then
     return
   end
+  -- Sweeps revisit every plate several times a second; strata, level and
+  -- anchor points only change with the target or the appearance.
+  if not force and frame._isiLiveAnchorTarget == anchorTarget and frame._isiLiveAnchorVersion == appearanceVersion then
+    return
+  end
+  frame._isiLiveAnchorTarget = anchorTarget
+  frame._isiLiveAnchorVersion = appearanceVersion
   frame._isiLiveAnchorSource = anchorSource
   if frame._isiLiveSettingsPreviewOverlay ~= true and type(frame.SetParent) == "function" then
     local uiParent = rawget(_G, "UIParent")
@@ -578,29 +713,33 @@ local function UpdateNameplate(unit)
     return
   end
 
-  if not testMode and not IsChallengeModeActive() then
+  if not testMode and not SweepIsChallengeModeActive() then
     if frame then
       frame:Hide()
     end
     return
   end
 
-  if not testMode then
-    local seasonData = addonTable.SeasonData
-    local hasSeasonForcesGate = type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function"
-    if hasSeasonForcesGate and not GetForcesDB() then
-      if frame then
-        frame:Hide()
-      end
-      return
-    end
-  end
-
+  -- Unit eligibility first: a full sweep probes all 40 tokens, most of them
+  -- empty, and the forces-DB gate below is the expensive check.
   if not IsEligibleUnit(unit) then
     if frame then
       frame:Hide()
     end
     return
+  end
+
+  local forcesDB = nil
+  if not testMode then
+    forcesDB = SweepGetForcesDB()
+    local seasonData = addonTable.SeasonData
+    local hasSeasonForcesGate = type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function"
+    if hasSeasonForcesGate and not forcesDB then
+      if frame then
+        frame:Hide()
+      end
+      return
+    end
   end
 
   local percentString
@@ -609,7 +748,7 @@ local function UpdateNameplate(unit)
     percentString = testPercent
     activeMapID = testActiveMapID
   else
-    activeMapID = GetActiveChallengeMapID() -- secret-value-ok: file-local helper is pcall-protected
+    activeMapID = SweepGetActiveChallengeMapID()
     -- Primary source: bundled MDT-synced forces DB, which is deterministic and
     -- guaranteed to be the per-mob contribution. Fallback to the Blizzard API
     -- when the NPC is missing from the DB (e.g. freshly added patch mob, OR
@@ -625,7 +764,7 @@ local function UpdateNameplate(unit)
     -- runtime state, synced, or used to decide anything. BuildText only
     -- concatenates it, and the remaining-percent half it is combined with comes
     -- from a separately guarded path.
-    percentString = ResolveMobContributionFromDB(unit, activeMapID)
+    percentString = ResolveMobContributionFromDB(unit, activeMapID, forcesDB)
     if not percentString and HasProgressAPI() then
       local api = rawget(_G, "C_ScenarioInfo")
       local _, _, apiPercent = SafeCall(api.GetUnitCriteriaProgressValues, unit)
@@ -635,7 +774,7 @@ local function UpdateNameplate(unit)
     end
   end
 
-  local text = BuildText(percentString, ResolveRemainingPercent(activeMapID))
+  local text = BuildText(percentString, SweepResolveRemainingPercent(activeMapID))
   if not text then
     if frame then
       frame:Hide()
@@ -664,11 +803,9 @@ local function UpdateNameplate(unit)
 end
 
 local function HideAll()
-  for unit, frame in pairs(frames) do
-    if frame and frame.Hide then
-      frame:Hide()
-    end
-    frames[unit] = nil
+  -- Clearing an existing field during pairs() is allowed in Lua.
+  for unit in pairs(frames) do
+    ReleaseFrame(unit)
   end
 end
 
@@ -683,18 +820,26 @@ for i = 1, 40 do
 end
 
 local function RefreshAll()
+  ClearSweepMemo()
+  sweepActive = true
   for i = 1, 40 do
     UpdateNameplate(NAMEPLATE_UNIT_TOKENS[i])
   end
+  sweepActive = false
+  ClearSweepMemo()
 end
 
 -- Periodic forces changes only affect overlays already discovered through
 -- NAME_PLATE_UNIT_ADDED or an explicit full scan. Avoid probing all 40
 -- possible unit tokens twice per second during an active key.
 local function RefreshActive()
+  ClearSweepMemo()
+  sweepActive = true
   for unit in pairs(frames) do
     UpdateNameplate(unit)
   end
+  sweepActive = false
+  ClearSweepMemo()
 end
 
 local function ScheduleRefreshAll(delay)
@@ -739,13 +884,16 @@ end
 
 local function OnEvent(_, event, arg1)
   if event == "NAME_PLATE_UNIT_ADDED" and type(arg1) == "string" then
-    UpdateNameplate(arg1)
-  elseif event == "NAME_PLATE_UNIT_REMOVED" and type(arg1) == "string" then
+    -- A single plate reads live; this also closes a sweep memo that a raised
+    -- sweep could have left open.
+    sweepActive = false
     local frame = frames[arg1]
     if frame then
-      frame:Hide()
-      frames[arg1] = nil
+      frame._isiLiveAnchorTarget = nil
     end
+    UpdateNameplate(arg1)
+  elseif event == "NAME_PLATE_UNIT_REMOVED" and type(arg1) == "string" then
+    ReleaseFrame(arg1)
   elseif event == "CHALLENGE_MODE_START" then
     RefreshAll()
     ScheduleRefreshAll(0.25)
@@ -855,6 +1003,7 @@ function MobNameplate.SetAppearance(opts)
   if type(opts.yOffset) == "number" then
     appearance.yOffset = opts.yOffset
   end
+  appearanceVersion = appearanceVersion + 1
   if enabled then
     RefreshAll()
   end
@@ -887,7 +1036,7 @@ function MobNameplate.ApplyPreview(frame, anchor, opts)
   appearance.xOffset = tonumber(opts.xOffset) or 0
   appearance.yOffset = tonumber(opts.yOffset) or 0
 
-  ApplyPosition(frame, anchor)
+  ApplyPosition(frame, anchor, true)
   ApplyFrameSizeForFont(frame, ResolveFontSize(), previewFormat.showRemaining)
   ApplyFont(frame.text)
   ApplyRenderedText(frame, text)

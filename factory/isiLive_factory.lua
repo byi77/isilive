@@ -850,6 +850,15 @@ local function FinalizeFactoryRuntime(ctx)
     resetInspectAll = ctx.ResetInspectAll,
     resetInspectQueues = ctx.ResetInspectQueues,
     updateUI = ctx.UpdateUI,
+    -- Late-bound: the roster panel controller exists only after wiring.
+    refreshKickColumn = function()
+      local panel = ctx.rosterPanelController
+      if type(panel) ~= "table" or type(panel.RefreshKickColumn) ~= "function" then
+        return false
+      end
+      panel.RefreshKickColumn()
+      return true
+    end,
     refreshReadyCheckUI = ctx.RefreshReadyCheckUI,
     updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
     getUnitNameAndRealm = ctx.GetUnitNameAndRealm,

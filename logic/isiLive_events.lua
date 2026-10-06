@@ -123,18 +123,24 @@ function Events.CreateGate(config)
       return
     end
 
-    if isInCombat() and not (allowInCombat[event] or shouldAllowInCombat(frame, event, ...)) then
+    -- Table lookups first: the high-frequency combat events (UNIT_HEALTH,
+    -- UNIT_AURA, SPELL_UPDATE_CHARGES, UNIT_SPELLCAST_SUCCEEDED) are allowed in
+    -- combat and while hidden, so for them the InCombatLockdown and visibility
+    -- reads could never change the outcome.
+    if not allowInCombat[event] and isInCombat() and not shouldAllowInCombat(frame, event, ...) then
       return
     end
 
-    local shown
-    if isShown then
-      shown = isShown() and true or false
-    else
-      shown = frame:IsShown()
-    end
-    if not shown and not (allowWhenHidden[event] or shouldAllowWhenHidden(frame, event, ...)) then
-      return
+    if not allowWhenHidden[event] then
+      local shown
+      if isShown then
+        shown = isShown() and true or false
+      else
+        shown = frame:IsShown()
+      end
+      if not shown and not shouldAllowWhenHidden(frame, event, ...) then
+        return
+      end
     end
 
     -- Midnight marks the fourth LFG application-status payload

@@ -1668,11 +1668,131 @@ local function RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonM
   )
 end
 
+local function FindEventFrame(frames)
+  for _, f in ipairs(frames) do
+    if f._scripts and type(f._scripts.OnEvent) == "function" then
+      return f
+    end
+  end
+  return nil
+end
+
+local function RegisterPerformanceTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- WoW never frees a frame. Blizzard recycles nameplates, so in a key the
+  -- same unit tokens are added and removed hundreds of times; every cycle must
+  -- reuse an overlay instead of creating a new frame, texture and FontString.
+  test("MobNameplate reuses overlay frames across nameplate add/remove churn", function()
+    local globals, _state, frames = BuildEnv({
+      units = {
+        nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 },
+        nameplate2 = { guid = "Creature-0-3889-161-12345-76133-0", reaction = 2 },
+      },
+      nameplates = { nameplate1 = MakeFrame(), nameplate2 = MakeFrame() },
+      progressValues = {
+        nameplate1 = { count = 5, total = 431, percent = "1.16" },
+        nameplate2 = { count = 9, total = 431, percent = "2.09" },
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      local eventFrame = Assert.NotNil(FindEventFrame(frames), "event frame with OnEvent script must exist")
+      local onEvent = eventFrame._scripts.OnEvent
+      onEvent(eventFrame, "NAME_PLATE_UNIT_ADDED", "nameplate1")
+      onEvent(eventFrame, "NAME_PLATE_UNIT_ADDED", "nameplate2")
+      local createdAfterWarmup = #frames
+      for _ = 1, 500 do
+        onEvent(eventFrame, "NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        onEvent(eventFrame, "NAME_PLATE_UNIT_REMOVED", "nameplate2")
+        onEvent(eventFrame, "NAME_PLATE_UNIT_ADDED", "nameplate2")
+        onEvent(eventFrame, "NAME_PLATE_UNIT_ADDED", "nameplate1")
+      end
+      Assert.Equal(#frames, createdAfterWarmup, "add/remove churn must reuse pooled overlays, never create frames")
+      local active = addon.MobNameplate._Test_GetFrames()
+      local first = Assert.NotNil(active.nameplate1, "a re-added unit must get an overlay")
+      local second = Assert.NotNil(active.nameplate2, "every re-added unit must get an overlay")
+      Assert.True(first ~= second, "two active units must never share one pooled overlay")
+      Assert.Equal(first.text._text, "1.16%", "a reused overlay must render the new unit's percent")
+      Assert.Equal(second.text._text, "2.09%", "a reused overlay must not keep the previous unit's text")
+      Assert.True(first._shown and second._shown, "reused overlays must be shown")
+      Assert.NotNil(first._points, "a reused overlay must be anchored to its new nameplate")
+
+      onEvent(eventFrame, "NAME_PLATE_UNIT_REMOVED", "nameplate1")
+      Assert.Nil(active.nameplate1, "a removed unit must leave the active overlay map")
+      Assert.False(first._shown, "a released overlay must be hidden")
+    end)
+  end)
+
+  test("MobNameplate sweeps re-anchor only when the anchor or appearance changes", function()
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames().nameplate1, "the overlay must exist")
+      local clears = 0
+      local originalClear = frame.ClearAllPoints
+      frame.ClearAllPoints = function(self)
+        clears = clears + 1
+        return originalClear(self)
+      end
+      for _ = 1, 100 do
+        addon.MobNameplate.RefreshAll()
+        addon.MobNameplate.RefreshActive()
+      end
+      Assert.Equal(clears, 0, "unchanged anchors must not be re-applied on every sweep")
+      addon.MobNameplate.SetAppearance({ position = "LEFT" })
+      Assert.Equal(clears, 1, "an appearance change must re-anchor the overlay once")
+      Assert.Equal(frame._points[1], "RIGHT", "the re-anchor must apply the new position")
+    end)
+  end)
+
+  test("MobNameplate resolves the season forces DB once per sweep, not per unit token", function()
+    local globals = BuildEnv({
+      units = {
+        nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 },
+        nameplate2 = { guid = "Creature-0-3889-161-12345-76133-0", reaction = 2 },
+      },
+      nameplates = { nameplate1 = MakeFrame(), nameplate2 = MakeFrame() },
+      progressValues = {
+        nameplate1 = { count = 5, total = 431, percent = "1.16" },
+        nameplate2 = { count = 9, total = 431, percent = "2.09" },
+      },
+    })
+    WithGlobals(globals, function()
+      local forcesReads = 0
+      local forcesDB = {
+        byNpcId = { [76132] = { mapID = 161, count = 5 } },
+        dungeonTotal = { [161] = { total = 431 } },
+      }
+      local addon = LoadModule(LoadAddonModules, {
+        SeasonData = {
+          GetMatchingForcesData = function()
+            forcesReads = forcesReads + 1
+            return forcesDB
+          end,
+        },
+      })
+      addon.MobNameplate.SetEnabled(true)
+      forcesReads = 0
+      addon.MobNameplate.RefreshAll()
+      Assert.Equal(forcesReads, 1, "one sweep over 40 unit tokens must read the forces DB exactly once")
+      local active = addon.MobNameplate._Test_GetFrames()
+      Assert.Equal(active.nameplate1.text._text, "1.16%", "the DB-backed unit must still render its share")
+      Assert.Equal(active.nameplate2.text._text, "2.09%", "the API-backed unit must still render its share")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
+  RegisterPerformanceTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterLifecycleTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRenderTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonModules)

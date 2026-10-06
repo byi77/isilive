@@ -740,3 +740,35 @@ Validierung des anschliessenden Patches: 2528 Tests, null Fehler;
 vollstaendiger `tools/check.ps1`-Preflight gruen, Coverage 93,00 % gesamt,
 keine Produktionsdatei unter 80 %. Die Auditdatei samt Reproduktionsartefakten
 und Regressionslogs ist im verbindlichen privaten Workspace gespiegelt.
+
+## Performance-Audit M+-Stress und On-Hold, Pakete 1-5 (2026-10-06)
+
+Ein Audit in zwei Runden (Runden 3-6 bewusst zurueckgestellt) hat die
+Laufzeitkosten im Key und im On-Hold-Zustand (OFF/IDLE) untersucht; Befunde,
+Paketplan und offene Punkte stehen in der privaten Workspace-`TODO.md`. 0.9.415
+setzt die P1-Pakete 1-5 um und haelt sie in den Regeln 146-149 fest.
+
+Messungen am Lua-Mock (vorher/nachher, durch neue Regressionen belegt):
+
+- CD-Tracker ausserhalb eines laufenden Keys: 4,00 -> 1,00 `GetInstanceInfo`-
+  Reads pro Spieler-Aura-Update.
+- 1000 Spieler-Aura-Updates im Key bei ausgeblendeter UI: 40.000 Aura-Slot-
+  Reads, 352 ms, 16,9 MB Heap -> ein Scan, 6 ms, 0,2 KB.
+- 15 Peer-Kick-Pakete im Sekundentakt: 15 volle Roster-Renders -> 0.
+- Nameplates: 500 Add/Remove-Zyklen 1000 -> 0 neue Frames; 200 unveraenderte
+  Durchlaeufe 200 -> 0 Neu-Verankerungen; Forces-DB-Reads je 40er-Durchlauf
+  42 -> 1.
+- DeathWatch: 2000 Health-Ticks lebender Units 6000 -> 0 Unit-Abfragen.
+
+Bewusste Abweichungen vom Paketplan: kein globaler, event-invalidierter
+Profil-Cache (Event-Reihenfolge zwischen Frames ist nicht garantiert; stattdessen
+Memo je CD-Durchlauf); kein Abbruch der Aura-Slot-Schleife beim ersten `nil`
+(nicht belegt, dass 12.x maskierte Auras nicht als Luecke liefert); das
+Hidden-Pre-Render der Regeln 28/93 bleibt, gedrosselt durch die Buendelung; die
+Kick-Sendeseite (Regel 50) bleibt unveraendert. `ui/isiLive_mob_nameplate.lua`
+steht deshalb jetzt auf der Grossmodul-Watchlist.
+
+Offen und nur ingame pruefbar: Zustellung von Death-Alert, PI-Meldung und
+Bloodlust-Warnung fuer party2-4 ueber die Hilfs-Frames sowie die tatsaechliche
+Entlastung durch den Client-seitigen Unit-Filter (`/etrace`,
+`C_AddOnProfiler`).

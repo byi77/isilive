@@ -37,13 +37,14 @@ local FULL_PROFILE_PARTY_DIFFICULTY_IDS = {
 
 local RAID_GROUP_SIZE_THRESHOLD = 5
 
+-- Validators.IsSecretValue already protects its own issecretvalue call, so no
+-- second pcall layer here: this runs several times per profile resolve.
 local function IsSecretValue(value)
   local validators = addonTable.Validators
   if type(validators) ~= "table" or type(validators.IsSecretValue) ~= "function" then
     return false
   end
-  local ok, isSecret = pcall(validators.IsSecretValue, value)
-  return ok and isSecret == true
+  return validators.IsSecretValue(value) == true
 end
 
 -- Calls a global by name under pcall and fails closed on Secret Values. Returns
@@ -99,14 +100,8 @@ function RuntimeMode.IsActiveChallenge()
   return ToPositiveInteger(mapID) ~= nil
 end
 
---- True in a mythic party dungeon: active keystone or M0 / pre-insert.
--- This is the gate for everything that used to be spelled as a local
--- DefaultIsInKey() copy (death alerts, BR/Lust announces, combat trackers).
--- @return boolean
-function RuntimeMode.IsFullProfileContext()
-  if RuntimeMode.IsRaidContext() then
-    return false
-  end
+-- Full-profile check without the raid gate, for callers that already ran it.
+local function IsFullProfileContextOutsideRaid()
   if RuntimeMode.IsActiveChallenge() then
     return true
   end
@@ -127,13 +122,24 @@ function RuntimeMode.IsFullProfileContext()
   return FULL_PROFILE_PARTY_DIFFICULTY_IDS[difficultyID] == true
 end
 
+--- True in a mythic party dungeon: active keystone or M0 / pre-insert.
+-- This is the gate for everything that used to be spelled as a local
+-- DefaultIsInKey() copy (death alerts, BR/Lust announces, combat trackers).
+-- @return boolean
+function RuntimeMode.IsFullProfileContext()
+  if RuntimeMode.IsRaidContext() then
+    return false
+  end
+  return IsFullProfileContextOutsideRaid()
+end
+
 --- Resolves the current runtime profile.
 -- @return string one of RuntimeMode.OFF, RuntimeMode.IDLE, RuntimeMode.KEY
 function RuntimeMode.Resolve()
   if RuntimeMode.IsRaidContext() then
     return RuntimeMode.OFF
   end
-  if RuntimeMode.IsFullProfileContext() then
+  if IsFullProfileContextOutsideRaid() then
     return RuntimeMode.KEY
   end
   return RuntimeMode.IDLE

@@ -51,6 +51,7 @@ local function CreateKeySyncController(ctx)
     sendOwnBackgroundSnapshot = controller.SendOwnBackgroundSnapshot,
     sendRefreshResponse = controller.SendRefreshResponse,
     applyKnownKeyToRosterEntry = controller.ApplyKnownKeyToRosterEntry,
+    applyKnownKickToRosterEntry = controller.ApplyKnownKickToRosterEntry,
     registerVerifiedSyncAliasForRoster = controller.RegisterVerifiedSyncAliasForRoster,
   }
 end
@@ -118,6 +119,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
     syncBadge = " |TInterface\\Buttons\\UI-RefreshButton:12:12|t",
     applyKnownKeyToRosterEntry = keySyncResult.applyKnownKeyToRosterEntry,
+    applyKnownKickToRosterEntry = keySyncResult.applyKnownKickToRosterEntry,
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,

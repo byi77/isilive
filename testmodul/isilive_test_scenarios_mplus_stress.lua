@@ -45,6 +45,73 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: 1000 hidden player aura updates coalesce into one CD pass", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      session.runtime.mainFrame:Hide()
+      session.Advance(1)
+      session.combat = true
+      session.Dispatch("PLAYER_REGEN_DISABLED")
+      local beforeHarmful, beforeRenders, beforeAfter = session.harmfulReads, session.fullRenders, session.afterCalls
+      -- Proc refreshes and stack changes: every payload carries an updated
+      -- instance ID, which is exactly the shape that must still trigger a
+      -- Sated rescan -- only no longer once per event.
+      local payload = { updatedAuraInstanceIDs = { 7 } }
+      Stress.Measure("key hidden player aura burst", 1000, function()
+        for _ = 1, 1000 do
+          session.Dispatch("UNIT_AURA", "player", payload)
+          session.Dispatch("SPELL_UPDATE_CHARGES")
+        end
+      end)
+      Assert.Equal(session.harmfulReads, beforeHarmful, "aura bursts must not scan Sated slots synchronously")
+      Assert.Equal(session.fullRenders, beforeRenders, "aura bursts must not pre-render synchronously")
+      Assert.Equal(
+        session.afterCalls - beforeAfter,
+        1,
+        "player auras and charge updates must share one trailing CD pass"
+      )
+      session.Advance(0.1)
+      Assert.True(session.harmfulReads > beforeHarmful, "the trailing pass must still rescan the Sated slots")
+      Assert.True(session.harmfulReads - beforeHarmful <= 40, "the burst must collapse into a single 40-slot scan")
+      Assert.True(
+        session.fullRenders - beforeRenders <= 1,
+        "the hidden key pre-render must run at most once per coalesced pass"
+      )
+      Assert.True(session.addon.MplusTimer.GetTimerData().running, "the running key must survive the burst")
+    end)
+  end)
+
+  test("Mplus stress: player aura updates outside a running key resolve the runtime profile once", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      -- Pre-insert / M0 shape: mythic party instance, no running key timer.
+      -- This is the context in which every CD-tracker pass has to fall back
+      -- to the live instance data instead of the key-timer short cut.
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      session.Advance(1)
+      Assert.False(session.addon.MplusTimer.GetTimerData().running, "the reset must stop the key timer")
+      local originalGetInstanceInfo = _G.GetInstanceInfo
+      local instanceReads = 0
+      _G.GetInstanceInfo = function(...)
+        instanceReads = instanceReads + 1
+        return originalGetInstanceInfo(...)
+      end
+      local payload = { updatedAuraInstanceIDs = { 7 } }
+      local events = 100
+      local ok, err = pcall(function()
+        for _ = 1, events do
+          session.Dispatch("UNIT_AURA", "player", payload)
+        end
+      end)
+      _G.GetInstanceInfo = originalGetInstanceInfo
+      assert(ok, err)
+      io.write(string.format("[STRESS] profile instance reads per player aura update=%.2f\n", instanceReads / events))
+      Assert.True(
+        instanceReads <= events,
+        "one CD-tracker pass must resolve the runtime profile at most once, not once per helper"
+      )
+    end)
+  end)
+
   test("Mplus stress: five minutes hidden keep kick sync bounded and CD polling stopped", function()
     Stress.WithKey(ctx, fixtures, function(session)
       session.runtime.mainFrame:Hide()
@@ -93,6 +160,57 @@ return function(test, ctx, fixtures)
       Assert.Equal(key.level, 12, "the receiver must converge to the sender's exact key level")
       Assert.Equal(session.runtime.GetRoster().party1.keyLevel, 12, "the real roster must apply the peer packet")
       Assert.Equal(session.fullRenders, 1, "duplicates must not repeat the first roster update")
+    end)
+  end)
+
+  test("Mplus stress: peer kick cooldown packets refresh only the kick column", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local panel = session.runtime.rosterPanelController
+      local originalRefreshKickColumn = panel.RefreshKickColumn
+      local kickRefreshes = 0
+      panel.RefreshKickColumn = function(...)
+        kickRefreshes = kickRefreshes + 1
+        return originalRefreshKickColumn(...)
+      end
+      local function DeliverKick(remain, senderName)
+        -- Production sender cadence: one packet per second while on cooldown,
+        -- each carrying ceil(remain), so every payload differs.
+        sender.Sync.SendKick({
+          hasKick = true,
+          onCooldown = remain > 0,
+          cooldownRemain = remain,
+          spellID = 2139,
+          force = true,
+        })
+        local wire = session.messages[#session.messages]
+        Assert.True(wire.payload:find("KICK:", 1, true) == 1, "wire bytes must come from the production kick sender")
+        session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, senderName)
+      end
+
+      -- The first packet may mark the peer as an isiLive user (full refresh).
+      DeliverKick(15, "Peer1-Realm")
+      session.Advance(1)
+      local rendersBefore, kickRefreshesBefore = session.fullRenders, kickRefreshes
+      for remain = 14, 0, -1 do
+        DeliverKick(remain, "Peer1-Realm")
+        session.Advance(1)
+      end
+      Assert.Equal(session.fullRenders, rendersBefore, "peer kick countdown packets must not rebuild the roster")
+      Assert.True(kickRefreshes - kickRefreshesBefore >= 15, "every peer kick change must refresh the kick column")
+      local peerRow = session.runtime.GetRoster().party1
+      Assert.True(peerRow.syncHasKick, "the real roster must apply the peer kick state")
+      Assert.False(peerRow.syncKickOnCooldown, "the final ready packet must converge the peer kick to usable")
+
+      -- Own echo: CHAT_MSG_ADDON on PARTY reflects the sender's own packet.
+      local ownBefore = session.addon.Sync.GetPlayerKickInfo("Tester", "Realm")
+      DeliverKick(9, "Tester-Realm")
+      Assert.Equal(
+        session.addon.Sync.GetPlayerKickInfo("Tester", "Realm"),
+        ownBefore,
+        "the own KICK echo must not overwrite the locally polled kick state"
+      )
+      Assert.Equal(session.fullRenders, rendersBefore, "the own KICK echo must not rebuild the roster")
     end)
   end)
 

@@ -198,6 +198,11 @@ local function BuildContext(opts)
   ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")
   ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
+  -- Returns true when the lightweight kick-column refresh ran; anything else
+  -- makes the caller fall back to the full roster refresh.
+  ctx.refreshKickColumn = OptionalFunction(opts.refreshKickColumn, function()
+    return false
+  end)
   ctx.registerVerifiedSyncAliasForRoster = OptionalFunction(opts.registerVerifiedSyncAliasForRoster, function()
     return false
   end)

@@ -202,6 +202,9 @@ local function RefreshLegacyAliases()
   SeasonData.MAP_SHORT_CODES = SeasonData.GetShortCodes("enUS")
 end
 
+-- Read-only: February's leap-year length is decided per call, never written.
+local DAYS_BY_MONTH = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
 local function ParseIsoDate(value)
   if type(value) ~= "string" then
     return nil
@@ -216,11 +219,11 @@ local function ParseIsoDate(value)
   if not year or not month or not day or month < 1 or month > 12 or day < 1 then
     return nil
   end
-  local daysByMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+  local maxDay = DAYS_BY_MONTH[month]
   if month == 2 and (year % 400 == 0 or (year % 4 == 0 and year % 100 ~= 0)) then
-    daysByMonth[2] = 29
+    maxDay = 29
   end
-  if day > daysByMonth[month] then
+  if day > maxDay then
     return nil
   end
   return year * 10000 + month * 100 + day

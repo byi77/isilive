@@ -803,6 +803,11 @@ function RosterPanel.CreateController(opts)
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
+  -- The kick column only needs the kick backfill; the full apply also walks
+  -- key, stats, DPS and location for every row on every kick tick.
+  local applyKnownKickToRosterEntry = type(opts.applyKnownKickToRosterEntry) == "function"
+      and opts.applyKnownKickToRosterEntry
+    or applyKnownKeyToRosterEntry
   local getTime = type(opts.getTime) == "function" and opts.getTime
     or function()
       if type(GetTime) == "function" then
@@ -1068,8 +1073,8 @@ function RosterPanel.CreateController(opts)
     for _, row in pairs(memberRows) do
       if row.kick and row.tooltipInfo then
         local info = row.tooltipInfo
-        if type(applyKnownKeyToRosterEntry) == "function" then
-          applyKnownKeyToRosterEntry(info)
+        if type(applyKnownKickToRosterEntry) == "function" then
+          applyKnownKickToRosterEntry(info)
         end
         SetKickCellText(row.kick, info, getL)
       end

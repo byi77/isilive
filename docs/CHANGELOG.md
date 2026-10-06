@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-06 - Version 0.9.415 (patch)
+
+- Player `UNIT_AURA` payloads that need a Sated rescan and `SPELL_UPDATE_CHARGES`
+  now share one trailing CD-tracker pass per 0.1-second window instead of
+  scanning synchronously per event. The Bloodlust start sound and the Bloodlust
+  button-warning refresh ride along when an aura event joined the window. A
+  1,000-event hidden-key burst drops from 40,000 aura-slot reads to one scan.
+- One CD-tracker pass resolves the runtime profile at most once (was four
+  `GetInstanceInfo` reads per pass outside a running key). New
+  `MplusTimer.IsRunning()` answers the running flag without sampling the timer;
+  `RuntimeMode.Resolve()` checks the raid context once and
+  `Validators.GetInstanceInfoSafe` no longer allocates a result-capture table.
+- Sync messages that change only kick fields refresh just the kick column; the
+  full roster render, reload-mirror save, status line and teleport button stay
+  reserved for target, key, stats, DPS and location changes. Kick countdown
+  decay no longer turns unrelated peer packets into full renders. The own
+  echoed KICK packet no longer overwrites the locally polled kick state. The
+  sender cadence from rule 50 is unchanged.
+- Mob nameplate overlays are pooled and reused across nameplate add/remove
+  cycles; previously every cycle created a new frame, texture and FontString.
+  A refresh sweep resolves challenge state, forces DB, active map and remaining
+  percent once, checks unit eligibility before the forces DB, and re-anchors an
+  overlay only when its anchor target or appearance changed.
+- `UNIT_AURA` and `UNIT_HEALTH` are registered for `player` and `party1`-`party4`
+  only, split across the dispatcher frame and two auxiliary frames that forward
+  into the same gated handler; the raid hard-off unregisters them there too.
+  The event gate consults its allow tables before reading combat lockdown and
+  visibility, death watch skips its unit reads for living units while no death
+  is latched, and Power Infusion detection compares spell IDs without a closure.
+- New rules 146-149 with stress and unit regressions. The party2-4 forwarding
+  path and the in-game effect still need a live check.
+
 ## 2026-10-05 - Version 0.9.414 (patch)
 
 - Sync payload byte dumps now format only when a deep trace builder is

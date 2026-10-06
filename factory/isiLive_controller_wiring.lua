@@ -580,6 +580,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     return modules.sync.IsUserKnown(name, realm)
   end
   config.applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
+  config.refreshKickColumn = type(callbacks.refreshKickColumn) == "function" and callbacks.refreshKickColumn
+    or function()
+      return false
+    end
   config.registerVerifiedSyncAliasForRoster = type(deps.registerVerifiedSyncAliasForRoster) == "function"
       and deps.registerVerifiedSyncAliasForRoster
     or function(_roster, _sender)
@@ -1000,6 +1004,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
           ctx.UpdateCdTracker(opts)
         end
       end,
+      refreshKickColumn = ctx.refreshKickColumn,
     },
   }
 end

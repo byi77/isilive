@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.414`
-Zuletzt aktualisiert: `2026-10-05`
+Versionsbasis: `0.9.415`
+Zuletzt aktualisiert: `2026-10-06`
 
 Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
 sowie nach `GROUP_ROSTER_UPDATE` und `PLAYER_ENTERING_WORLD` anhand der
@@ -332,7 +332,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.414                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.415                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -460,7 +460,11 @@ Nutzerauswahl, waehrend Farben, Backdrops, Textsetzer, die schwach
 referenzierte FontString-Verfolgung samt `RefreshTrackedFonts` und die
 Locale-Aufloesung im
 Common-Modul bleiben; die oeffentliche Oberflaeche bleibt `UICommon`, sodass
-kein Aufrufer sich aendert. Das
+kein Aufrufer sich aendert. `ui/isiLive_mob_nameplate.lua` steht seit dem
+Performance-Audit vom 2026-10-06 (Overlay-Pool, Sweep-Memo, Anker-Cache) mit
+gut 1300 Zeilen auf der Watchlist; die naheliegende Split-Grenze ist die
+Diagnose-Oberflaeche (`DumpFrames`, `DumpState`), die nur lesend auf den
+Overlay-Zustand zugreift. Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits
 erfolgen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit

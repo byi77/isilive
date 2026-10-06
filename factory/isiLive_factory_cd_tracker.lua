@@ -6,6 +6,51 @@ addonTable._FactoryInternal = FI
 
 local LUST_READY_REMINDER_SECONDS = 60
 
+-- One UpdateCdTracker pass asks for the combat-utility context up to five
+-- times (directly, through GetBResInfo / GetLustInfo of the row refresh, and
+-- through the polling check). Outside a running key every answer costs a full
+-- RuntimeMode resolve with a GetInstanceInfo read, so the pass memoizes it.
+-- The memo lives only while a pass is on the stack -- never across events, so
+-- a context change between two events cannot be answered from a stale value.
+-- Passes are re-entrant (a hidden-frame pass renders the roster, whose CD row
+-- calls back in); only the outermost one opens and closes the memo. The time
+-- stamp bounds a pass that raised before closing it to the frame it ran in.
+local function CreatePassMemo(resolve, getTime)
+  local depth = 0
+  local value = nil
+  local stamp = nil
+  local memo = {}
+
+  function memo.Get()
+    if depth <= 0 then
+      return resolve()
+    end
+    local now = getTime()
+    if value ~= nil and stamp == now then
+      return value
+    end
+    value = resolve()
+    stamp = now
+    return value
+  end
+
+  function memo.Run(fn, arg)
+    if depth <= 0 then
+      depth = 0
+      value = nil
+    end
+    depth = depth + 1
+    fn(arg)
+    depth = depth - 1
+    if depth <= 0 then
+      depth = 0
+      value = nil
+    end
+  end
+
+  return memo
+end
+
 local function InitializeFactorySecondaryCdTracker(
   ctx,
   modules,
@@ -40,6 +85,9 @@ local function InitializeFactorySecondaryCdTracker(
 
   local function IsMplusTimerRunning()
     local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+    if type(MplusTimer) == "table" and type(MplusTimer.IsRunning) == "function" then
+      return MplusTimer.IsRunning() == true
+    end
     if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
       local timerData = MplusTimer.GetTimerData()
       if timerData and timerData.running then
@@ -85,7 +133,7 @@ local function InitializeFactorySecondaryCdTracker(
     return ok and isFullProfile == true
   end
 
-  local function IsCombatUtilityContextActive()
+  local function ResolveCombatUtilityContextActive()
     -- A running key timer is itself proof of the full profile; no second
     -- opinion needed. The tracked-party-run branch does need one: it also
     -- covers normal, heroic and timewalking runs, which are tracked for the
@@ -98,6 +146,9 @@ local function InitializeFactorySecondaryCdTracker(
     end
     return IsTrackedPartyRunActive()
   end
+
+  local contextMemo = CreatePassMemo(ResolveCombatUtilityContextActive, getTime)
+  local IsCombatUtilityContextActive = contextMemo.Get
 
   local function IsActiveChallengeContext()
     if type(ctx.GetActiveChallengeMapID) ~= "function" then
@@ -188,7 +239,7 @@ local function InitializeFactorySecondaryCdTracker(
     return true
   end
 
-  ctx.UpdateCdTracker = function(opts)
+  local function UpdateCdTrackerPass(opts)
     local optsTable = type(opts) == "table" and opts or nil
     local suppressBattleResReadySound = optsTable and optsTable.suppressBattleResReadySound == true
     local suppressLustReadySound = optsTable and optsTable.suppressLustReadySound == true
@@ -322,6 +373,10 @@ local function InitializeFactorySecondaryCdTracker(
       end
     end
     RefreshCdTrackerPolling()
+  end
+
+  ctx.UpdateCdTracker = function(opts)
+    contextMemo.Run(UpdateCdTrackerPass, opts)
   end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
     local uiCdController = {

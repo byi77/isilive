@@ -932,7 +932,9 @@ return function(test, ctx)
     Assert.Equal(#bloodlustEvents, 1, "player UNIT_AURA must refresh Bloodlust button warning")
     Assert.Equal(bloodlustEvents[1].event, "UNIT_AURA", "Bloodlust warning must receive the original event")
     Assert.Equal(bloodlustEvents[1].unit, "player", "Bloodlust warning must receive the player unit")
-    Assert.Equal(bloodlustEvents[1].payload, playerPayload, "Bloodlust warning must receive the aura payload")
+    -- The refresh runs from the coalesced CD pass, which may stand for many
+    -- aura payloads; the warning re-reads the debuff itself and never used it.
+    Assert.Nil(bloodlustEvents[1].payload, "the coalesced Bloodlust warning refresh must not carry a single payload")
     Assert.Equal(#piEvents, 2, "player UNIT_AURA must also be forwarded to the PI tracker")
   end)
 

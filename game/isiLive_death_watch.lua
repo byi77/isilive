@@ -307,6 +307,17 @@ function DeathWatch.CreateController(opts)
   end
 
   function controller.HandleUnitHealth(unit)
+    -- UNIT_HEALTH fires on every damage and heal tick of five units during a
+    -- pull. A living unit while no dead flag is latched cannot change any state
+    -- (the full path would only clear an already-absent flag), so it skips the
+    -- setting, existence, connection and GUID reads. Dead, unreadable or
+    -- latched cases still run the full evaluation.
+    if type(unit) ~= "string" or not WATCHED_UNITS[unit] or not IsInKeyCached() then
+      return
+    end
+    if next(deadByGuid) == nil and unitIsDeadOrGhost(unit) == false then
+      return
+    end
     EvaluateUnit(unit, nil)
   end
 

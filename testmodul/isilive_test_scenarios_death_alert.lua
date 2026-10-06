@@ -146,6 +146,37 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(#env.alerts, 0, "disabled setting must suppress the alert")
   end)
 
+  test("DeathWatch health ticks of living units skip the unit reads while nobody is dead", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    local reads = 0
+    local function Counted(fn)
+      return function(...)
+        reads = reads + 1
+        return fn(...)
+      end
+    end
+    env.deps.unitExists = Counted(env.deps.unitExists)
+    env.deps.unitIsConnected = Counted(env.deps.unitIsConnected)
+    env.deps.unitGUID = Counted(env.deps.unitGUID)
+    local controller = addon.DeathWatch.CreateController(env.deps)
+
+    for _ = 1, 1000 do
+      controller.HandleUnitHealth("party1")
+      controller.HandleUnitHealth("player")
+    end
+    Assert.Equal(reads, 0, "living units without a latched death must not read existence, connection or GUID")
+
+    env.deadUnits.party1 = true
+    controller.HandleUnitHealth("party1")
+    Assert.Equal(#env.alerts, 1, "a real death must still take the full path and alert")
+    env.deadUnits.party1 = false
+    controller.HandleUnitHealth("party1")
+    env.deadUnits.party1 = true
+    controller.HandleUnitHealth("party1")
+    Assert.Equal(#env.alerts, 2, "the revive must still clear the latched flag and re-arm the edge")
+  end)
+
   test("DeathWatch fires again after revive and renewed death", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv()

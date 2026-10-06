@@ -571,27 +571,36 @@ local function BackfillKick(sync, info)
   return ApplyActiveKick(info, kickInfo)
 end
 
+-- Returns (anyChanged, nonKickChanged). The second value lets sync consumers
+-- tell a pure kick change -- a running peer cooldown moves on every call --
+-- apart from key / stats / DPS / location changes that need a full roster
+-- render, a mirror save and a status-line refresh.
 local function ApplyKnownKeyToRosterEntry(sync, info)
+  if type(info) ~= "table" or info.isDemoEntry then
+    return false, false
+  end
+  local nonKickChanged = false
+  if BackfillKey(sync, info) then
+    nonKickChanged = true
+  end
+  if BackfillStats(sync, info) then
+    nonKickChanged = true
+  end
+  if BackfillDps(sync, info) then
+    nonKickChanged = true
+  end
+  if BackfillLoc(sync, info) then
+    nonKickChanged = true
+  end
+  local kickChanged = BackfillKick(sync, info)
+  return nonKickChanged or kickChanged, nonKickChanged
+end
+
+local function ApplyKnownKickToRosterEntry(sync, info)
   if type(info) ~= "table" or info.isDemoEntry then
     return false
   end
-  local changed = false
-  if BackfillKey(sync, info) then
-    changed = true
-  end
-  if BackfillStats(sync, info) then
-    changed = true
-  end
-  if BackfillDps(sync, info) then
-    changed = true
-  end
-  if BackfillLoc(sync, info) then
-    changed = true
-  end
-  if BackfillKick(sync, info) then
-    changed = true
-  end
-  return changed
+  return BackfillKick(sync, info)
 end
 
 local function RealmKeyFromPlayerKey(playerKey)
@@ -911,9 +920,13 @@ function KeySync.CreateController(opts)
     )
   end
 
+  function controller.ApplyKnownKickToRosterEntry(info)
+    return ApplyKnownKickToRosterEntry(sync, info)
+  end
+
   function controller.ApplyKnownKeyToRosterEntry(info)
-    local changed = ApplyKnownKeyToRosterEntry(sync, info)
-    if changed and logRuntimeTracef then
+    local changed, nonKickChanged = ApplyKnownKeyToRosterEntry(sync, info)
+    if nonKickChanged and logRuntimeTracef then
       local keyInfo = type(info) == "table" and sync.GetPlayerKeyInfo(info.name, info.realm)
       logRuntimeTracef(
         "[KEYSYNC] applied unit=%s mapID=%s level=%s",
@@ -922,7 +935,7 @@ function KeySync.CreateController(opts)
         tostring(keyInfo and keyInfo.level or "nil")
       )
     end
-    return changed
+    return changed, nonKickChanged
   end
 
   function controller.RegisterVerifiedSyncAliasForRoster(roster, sender)

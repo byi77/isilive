@@ -170,14 +170,14 @@ local function ResolveFullUpdate(unitAuraUpdateInfo)
   return true
 end
 
+-- ReadSpellID goes through Validators.ReadPlainNumber, which already rejects a
+-- masked value, so a plain comparison is safe here. No closure and no second
+-- pcall: this runs for every added aura on player and party1-4.
 local function DefaultSpellIDMatches(spellID, expectedSpellID)
   if type(spellID) ~= "number" then
     return false
   end
-  local ok, matches = pcall(function()
-    return spellID == expectedSpellID
-  end)
-  return ok and matches == true
+  return spellID == expectedSpellID
 end
 
 function PiTracker.CreateController(opts)

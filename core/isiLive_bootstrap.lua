@@ -104,7 +104,13 @@ function Bootstrap.RegisterSlashCommands(opts)
   })
 end
 
--- Declarative event registry: { event, combat, hidden, test }
+-- Units whose auras and health the addon consumes: PiTracker, DeathWatch, the
+-- CD tracker and the Bloodlust button warning only ever read player and
+-- party1-4. Nameplate, target, focus and boss units are filtered out by the
+-- client before any Lua runs.
+local PARTY_UNITS = { "player", "party1", "party2", "party3", "party4" }
+
+-- Declarative event registry: { event, combat, hidden, test [, unitFilter] }
 -- hidden = true (always allowed), "cond" (via callback), false (blocked)
 local EVENT_REGISTRY = {
   { "ADDON_LOADED", true, true, true },
@@ -159,13 +165,15 @@ local EVENT_REGISTRY = {
   { "SPELL_UPDATE_COOLDOWN", false, false, false },
   { "SPELL_UPDATE_CHARGES", true, true, false },
   { "SPELLS_CHANGED", false, true, false },
-  { "UNIT_AURA", true, true, false },
-  -- Death watch (tank / healer death alert): needs player + party1-4, which
-  -- exceeds the two-unit RegisterUnitEvent limit, so it registers unfiltered
-  -- and DeathWatch drops non-party units on the first lookup. combat=true
-  -- because deaths happen mid-combat; hidden=true because the alert is an
-  -- event-driven cue independent of main-UI visibility (rule 80).
-  { "UNIT_HEALTH", true, true, false },
+  -- UNIT_AURA and UNIT_HEALTH fire for every nameplate on every tick of an AoE
+  -- pull. Five units exceed the two-unit RegisterUnitEvent limit, so the
+  -- registration is split across the dispatcher frame and auxiliary frames
+  -- (see RegisterSplitUnitEvent).
+  { "UNIT_AURA", true, true, false, PARTY_UNITS },
+  -- Death watch (tank / healer death alert): needs player + party1-4.
+  -- combat=true because deaths happen mid-combat; hidden=true because the
+  -- alert is an event-driven cue independent of main-UI visibility (rule 80).
+  { "UNIT_HEALTH", true, true, false, PARTY_UNITS },
   -- Guaranteed own-death edges. UNIT_HEALTH carries no reliable sample inside
   -- the local player's dead window (instant battle rez) or at the end of a
   -- ghost run, so these three keep the own death count in sync. Same gates as
@@ -271,9 +279,81 @@ end
 local dispatcherEventFrame = nil
 local dispatcherEventsSuppressed = false
 
+-- RegisterUnitEvent accepts at most two units, and calling it again on the
+-- same frame replaces the previous filter. A longer unit list therefore gets
+-- one frame per pair: the dispatcher frame takes the first pair, auxiliary
+-- frames take the rest and forward to the dispatcher's gated OnEvent handler.
+local UNITS_PER_UNIT_EVENT_FRAME = 2
+local auxiliaryEventFrames = {}
+
+local function ForwardToDispatcher(_auxFrame, event, ...)
+  local target = dispatcherEventFrame
+  if not target or type(target.GetScript) ~= "function" then
+    return
+  end
+  local handler = target:GetScript("OnEvent")
+  if type(handler) == "function" then
+    handler(target, event, ...)
+  end
+end
+
+local function GetAuxiliaryEventFrame(index)
+  local frame = auxiliaryEventFrames[index]
+  if frame then
+    return frame
+  end
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) ~= "function" then
+    return nil
+  end
+  local ok, created = pcall(createFrame, "Frame")
+  if
+    not ok
+    or type(created) ~= "table"
+    or type(created.RegisterUnitEvent) ~= "function"
+    or type(created.SetScript) ~= "function"
+  then
+    return nil
+  end
+  created:SetScript("OnEvent", ForwardToDispatcher)
+  auxiliaryEventFrames[index] = created
+  return created
+end
+
+-- Returns false when a frame for one of the unit pairs is unavailable; the
+-- caller then falls back to an unfiltered registration so no unit is lost.
+local function RegisterSplitUnitEvent(eventFrame, event, units)
+  if type(eventFrame.RegisterUnitEvent) ~= "function" then
+    return false
+  end
+  local frameCount = math.ceil(#units / UNITS_PER_UNIT_EVENT_FRAME)
+  for index = 1, frameCount - 1 do
+    if not GetAuxiliaryEventFrame(index) then
+      return false
+    end
+  end
+  for index = 1, frameCount do
+    local target = index == 1 and eventFrame or auxiliaryEventFrames[index - 1]
+    local first = units[(index - 1) * UNITS_PER_UNIT_EVENT_FRAME + 1]
+    local second = units[(index - 1) * UNITS_PER_UNIT_EVENT_FRAME + 2]
+    if second then
+      target:RegisterUnitEvent(event, first, second)
+    else
+      target:RegisterUnitEvent(event, first)
+    end
+  end
+  return true
+end
+
 local function RegisterDispatcherEntry(eventFrame, entry)
   local unitFilter = entry[5]
-  if unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
+  if type(unitFilter) == "table" and #unitFilter > UNITS_PER_UNIT_EVENT_FRAME then
+    if
+      not RegisterSplitUnitEvent(eventFrame, entry[1], unitFilter) and type(eventFrame.RegisterEvent) == "function"
+    then
+      eventFrame:RegisterEvent(entry[1])
+    end
+  elseif unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
     if type(unitFilter) == "table" then
       eventFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
     else
@@ -324,6 +404,11 @@ function Bootstrap.ApplyRaidEventSuppression(suppressed)
     for _, entry in ipairs(EVENT_REGISTRY) do
       if not StaysRegisteredInRaid(entry[1]) then
         pcall(eventFrame.UnregisterEvent, eventFrame, entry[1])
+        for _, auxFrame in pairs(auxiliaryEventFrames) do
+          if type(auxFrame.UnregisterEvent) == "function" then
+            pcall(auxFrame.UnregisterEvent, auxFrame, entry[1])
+          end
+        end
       end
     end
     return true

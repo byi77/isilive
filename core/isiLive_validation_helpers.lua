@@ -97,13 +97,58 @@ function Validators.ReadPlainString(source, key)
   return value
 end
 
-local function HasSecretInstanceInfoValue(...)
-  for index = 1, select("#", ...) do
-    if Validators.IsSecretValue(select(index, ...)) then
-      return true
-    end
+-- Takes the pcall results as parameters instead of a `{ pcall(...) }` table
+-- plus a vararg scan: the runtime-profile resolver reaches this on per-event
+-- paths.
+local function VerifyInstanceInfo(
+  ok,
+  instanceName,
+  instanceType,
+  difficultyID,
+  difficultyName,
+  maxPlayers,
+  dynamicDifficultyID,
+  isDynamic,
+  instanceMapID,
+  instanceID,
+  lfgDungeonID,
+  lfgDungeonMapID,
+  lfgDungeonName
+)
+  local isSecret = Validators.IsSecretValue
+  if
+    not ok
+    or isSecret(instanceName)
+    or isSecret(instanceType)
+    or isSecret(difficultyID)
+    or isSecret(difficultyName)
+    or isSecret(maxPlayers)
+    or isSecret(dynamicDifficultyID)
+    or isSecret(isDynamic)
+    or isSecret(instanceMapID)
+    or isSecret(instanceID)
+    or isSecret(lfgDungeonID)
+    or isSecret(lfgDungeonMapID)
+    or isSecret(lfgDungeonName)
+  then
+    return false
   end
-  return false
+
+  return true,
+    {
+      instanceName = instanceName,
+      instanceType = instanceType,
+      difficultyID = difficultyID,
+      difficultyName = difficultyName,
+      maxPlayers = maxPlayers,
+      dynamicDifficultyID = dynamicDifficultyID,
+      isDynamic = isDynamic,
+      instanceMapID = instanceMapID,
+      instanceID = instanceID,
+      lfgDungeonID = lfgDungeonID,
+      lfgDungeonMapID = lfgDungeonMapID,
+      lfgDungeonName = lfgDungeonName,
+    }
 end
 
 --- Reads the optional instance API and rejects every returned secret value.
@@ -113,43 +158,7 @@ function Validators.GetInstanceInfoSafe()
   if type(getInstanceInfo) ~= "function" then
     return false
   end
-
-  local results = { pcall(getInstanceInfo) }
-  if
-    not results[1]
-    or HasSecretInstanceInfoValue(
-      results[2],
-      results[3],
-      results[4],
-      results[5],
-      results[6],
-      results[7],
-      results[8],
-      results[9],
-      results[10],
-      results[11],
-      results[12],
-      results[13]
-    )
-  then
-    return false
-  end
-
-  return true,
-    {
-      instanceName = results[2],
-      instanceType = results[3],
-      difficultyID = results[4],
-      difficultyName = results[5],
-      maxPlayers = results[6],
-      dynamicDifficultyID = results[7],
-      isDynamic = results[8],
-      instanceMapID = results[9],
-      instanceID = results[10],
-      lfgDungeonID = results[11],
-      lfgDungeonMapID = results[12],
-      lfgDungeonName = results[13],
-    }
+  return VerifyInstanceInfo(pcall(getInstanceInfo))
 end
 
 --- Asserts that a value is a function and returns it.

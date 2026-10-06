@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.414`
-Zuletzt aktualisiert: `2026-10-05`
+Versionsbasis: `0.9.415`
+Zuletzt aktualisiert: `2026-10-06`
 
 Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe
 bleibt das Hauptfenster gemaess bestehender Sichtbarkeitsregeln bedienbar, aber

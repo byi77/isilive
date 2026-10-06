@@ -312,6 +312,74 @@ return function(test, ctx)
     end)
   end)
 
+  test("Party aura and health events are unit-filtered across the dispatcher and auxiliary frames", function()
+    local created = {}
+    local pendingCallbacks = {}
+    WithGlobals({
+      CreateFrame = function()
+        local frame = NewEventFrameStub()
+        function frame:SetScript(name, fn)
+          self.scripts = self.scripts or {}
+          self.scripts[name] = fn
+        end
+        created[#created + 1] = frame
+        return frame
+      end,
+      C_Timer = {
+        After = function(_seconds, callback)
+          table.insert(pendingCallbacks, callback)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
+      local dispatcher = NewEventFrameStub()
+      local dispatched = {}
+      function dispatcher:GetScript(name)
+        if name ~= "OnEvent" then
+          return nil
+        end
+        return function(frame, event, unit)
+          dispatched[#dispatched + 1] = { frame = frame, event = event, unit = unit }
+        end
+      end
+      addon.Bootstrap.RegisterDispatcherEvents(dispatcher)
+
+      for _, event in ipairs({ "UNIT_AURA", "UNIT_HEALTH" }) do
+        local primary = dispatcher.unitRegistered[event]
+        primary = Assert.NotNil(primary, event .. " must be unit-filtered on the dispatcher frame")
+        Assert.Equal(table.concat(primary, ","), "player,party1", event .. ": the dispatcher takes the first pair")
+        Assert.Equal(#created, 2, "two auxiliary frames must carry the remaining party units")
+        Assert.Equal(
+          table.concat(created[1].unitRegistered[event], ","),
+          "party2,party3",
+          event .. ": the first auxiliary frame takes the second pair"
+        )
+        Assert.Equal(
+          table.concat(created[2].unitRegistered[event], ","),
+          "party4",
+          event .. ": the second auxiliary frame takes the last unit"
+        )
+      end
+
+      created[2].scripts.OnEvent(created[2], "UNIT_HEALTH", "party4")
+      Assert.Equal(#dispatched, 1, "auxiliary frames must forward into the dispatcher's gated handler")
+      Assert.Equal(dispatched[1].frame, dispatcher, "forwarded events must dispatch on the dispatcher frame")
+      Assert.Equal(dispatched[1].unit, "party4", "forwarded events must keep their unit argument")
+
+      addon.Bootstrap.ApplyRaidEventSuppression(true)
+      Assert.Nil(created[1].registered.UNIT_AURA, "raid suppression must unregister auxiliary UNIT_AURA")
+      Assert.Nil(created[2].registered.UNIT_HEALTH, "raid suppression must unregister auxiliary UNIT_HEALTH")
+      addon.Bootstrap.ApplyRaidEventSuppression(false)
+      pendingCallbacks[1]()
+      Assert.Equal(
+        table.concat(created[2].unitRegistered.UNIT_HEALTH, ","),
+        "party4",
+        "the deferred restore must re-split the unit registration"
+      )
+      Assert.Equal(#created, 2, "restoring must reuse the auxiliary frames")
+    end)
+  end)
+
   test("Raid suppression is idempotent", function()
     WithGlobals({}, function()
       local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
