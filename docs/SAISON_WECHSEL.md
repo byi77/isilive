@@ -101,3 +101,18 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - Coverage: `________ %`
 - In-Game-Smoke-Test: `[ ] enUS  [ ] deDE`
 - Voller lokaler CI-Lauf: `[ ] gruen`
+
+### Nachweis Midnight Season 2
+
+Vorlage oben bleibt fuer den naechsten Wechsel leer. Werte am 2026-10-07 gegen
+den Stand 0.9.418 erhoben; Aktivierung aus der Git-Historie.
+
+- Season-ID: `midnight_s2`
+- Aktivierungsdatum: `2026-09-06` (Commit `f162c6b`, ausgeliefert mit `isiLive_release_0.9.383`)
+- Freigegeben durch: `byi77`
+- Intake: `[x] gruen` (`check_season_intake.lua`: valid, 8/8 verified)
+- Readiness: `[x] gruen` (`inspect_season_readiness.lua`: ready yes, 8 Dungeons, Forces-DB passt zur aktiven Season)
+- Usecases: `2573 passed, 0 failed`
+- Coverage: `93.08 %`
+- In-Game-Smoke-Test: `[ ] enUS  [ ] deDE` (offen: Portalbuttons, LFG-Erkennung je Dungeon, Navigator-Slots)
+- Voller lokaler CI-Lauf: `[x] gruen`

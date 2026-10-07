@@ -1023,24 +1023,35 @@ local function BuildSimulationTabletActions(ctx)
   }
 end
 
+-- The tablet frame is only reachable through `/isilive sim` and the demo
+-- preview, so the controller (frame, buttons, action palette) is created on
+-- the first Show/Toggle instead of during addon initialization.
 function FactoryDemo.InitializeSimulationTablet(ctx)
   local module = ctx.addonTable and ctx.addonTable.SimulationTablet
   if type(module) ~= "table" or type(module.CreateController) ~= "function" then
     return
   end
 
-  local controller = module.CreateController({
-    anchorFrame = ctx.mainFrame,
-    getL = ctx.GetL,
-    getActions = function()
-      if type(ctx._simulationTabletActions) ~= "table" then
-        ctx._simulationTabletActions = BuildSimulationTabletActions(ctx)
-      end
-      return ctx._simulationTabletActions
-    end,
-  })
-  ctx.simulationTabletController = controller
+  local controller = nil
+  local function EnsureController()
+    if controller == nil then
+      controller = module.CreateController({
+        anchorFrame = ctx.mainFrame,
+        getL = ctx.GetL,
+        getActions = function()
+          if type(ctx._simulationTabletActions) ~= "table" then
+            ctx._simulationTabletActions = BuildSimulationTabletActions(ctx)
+          end
+          return ctx._simulationTabletActions
+        end,
+      })
+      ctx.simulationTabletController = controller
+    end
+    return controller
+  end
 
+  -- Docking only matters for a tablet that exists; before the first open
+  -- there is nothing to anchor.
   ctx.RefreshSimulationTabletDock = function()
     if controller and type(controller.RefreshDock) == "function" then
       controller.RefreshDock()
@@ -1051,8 +1062,9 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
   end
 
   ctx.ShowSimulationTablet = function()
-    if controller and type(controller.Show) == "function" then
-      controller.Show()
+    local current = EnsureController()
+    if current and type(current.Show) == "function" then
+      current.Show()
     end
   end
   ctx.HideSimulationTablet = function()
@@ -1061,8 +1073,9 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
     end
   end
   ctx.ToggleSimulationTablet = function()
-    if controller and type(controller.Toggle) == "function" then
-      controller.Toggle()
+    local current = EnsureController()
+    if current and type(current.Toggle) == "function" then
+      current.Toggle()
       return true
     end
     return false

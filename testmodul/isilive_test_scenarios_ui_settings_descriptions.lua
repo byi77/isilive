@@ -343,4 +343,105 @@ return function(test, ctx)
       ---@diagnostic enable: undefined-field
     end)
   end)
+
+  -- The General and ESC-menu sections live in ui/isiLive_settings_general.lua
+  -- behind the SettingsSections facade; this drives both through the real
+  -- SettingsPanel build and its Refresh path.
+  test("Settings general and ESC-menu sections build and refresh through the settings panel", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = { showEscPanel = true }
+    local escToggles = {}
+    local labels = {
+      SETTINGS_SECTION_GENERAL = "General",
+      SETTINGS_SECTION_GENERAL_HINT = "General hint.",
+      SETTINGS_LANGUAGE = "Language",
+      SETTINGS_LANGUAGE_DESC = "Language description.",
+      SETTINGS_DEFAULT_OPEN_UI = "Default layout",
+      SETTINGS_DEFAULT_OPEN_UI_DESC = "Default layout description.",
+      SETTINGS_ESC_PANEL = "ESC Menu",
+      SETTINGS_ESC_PANEL_DESC = "ESC description.",
+      SETTINGS_HEARTHSTONE_SELECT = "Hearthstone",
+    }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      Assert.True(
+        addon.SettingsSections.BuildGeneralSection == addon.SettingsGeneral.BuildGeneralSection
+          and addon.SettingsSections.RefreshEscMenuControls == addon.SettingsGeneral.RefreshEscMenuControls,
+        "SettingsSections must re-export the General / ESC-menu sections"
+      )
+      local panel = Assert.NotNil(
+        addon.SettingsPanel.Create({
+          getL = function()
+            return labels
+          end,
+          getCurrentLocale = function()
+            return "enUS"
+          end,
+          setLanguage = function() end,
+          getDB = function()
+            return db
+          end,
+          onEscPanelToggle = function(checked)
+            escToggles[#escToggles + 1] = checked
+          end,
+          onMobNameplateChange = function() end,
+          onMplusForcesToggle = function() end,
+        }),
+        "settings panel must build"
+      )
+      ---@diagnostic disable: undefined-field
+      local escPanelCheck =
+        Assert.NotNil(FindFrame(createdFrames, "CheckButton", "SETTINGS_ESC_PANEL"), "ESC panel checkbox must be built")
+      Assert.NotNil(
+        FindFrame(createdFrames, "Button", "SETTINGS_HEARTHSTONE_SELECT"),
+        "hearthstone dropdown must be built"
+      )
+      Assert.NotNil(FindFontStringByText(panel, "General hint."), "general hint must be built")
+      Assert.NotNil(FindFontStringByText(panel, "Language description."), "language description must be built")
+      Assert.True(escPanelCheck:GetChecked(), "ESC panel checkbox must reflect the stored setting")
+
+      local onClick = Assert.NotNil(escPanelCheck._scripts and escPanelCheck._scripts.OnClick, "ESC OnClick")
+      escPanelCheck:SetChecked(false)
+      onClick(escPanelCheck, "LeftButton")
+      Assert.Equal(db.showEscPanel, false, "toggling the ESC checkbox must persist the setting")
+      Assert.Equal(escToggles[#escToggles], false, "toggling the ESC checkbox must notify its callback")
+
+      labels.SETTINGS_SECTION_GENERAL_HINT = "Updated general hint."
+      labels.SETTINGS_LANGUAGE_DESC = "Updated language description."
+      labels.SETTINGS_DEFAULT_OPEN_UI_DESC = "Updated default layout description."
+      labels.SETTINGS_ESC_PANEL = "Updated ESC Menu"
+      labels.SETTINGS_ESC_PANEL_DESC = "Updated ESC description."
+      db.showEscPanel = nil
+      escPanelCheck:SetChecked(false)
+      panel.Refresh()
+
+      Assert.NotNil(FindFontStringByText(panel, "Updated general hint."), "Refresh must update the general hint")
+      Assert.NotNil(
+        FindFontStringByText(panel, "Updated language description."),
+        "Refresh must update the language description"
+      )
+      Assert.NotNil(
+        FindFontStringByText(panel, "Updated default layout description."),
+        "Refresh must update the default-layout description"
+      )
+      Assert.Equal(escPanelCheck.label._text, "Updated ESC Menu", "Refresh must update the ESC checkbox label")
+      Assert.Equal(
+        escPanelCheck.description._text,
+        "Updated ESC description.",
+        "Refresh must update the ESC checkbox description"
+      )
+      Assert.True(escPanelCheck:GetChecked(), "Refresh must restore the default-on ESC checkbox state")
+      ---@diagnostic enable: undefined-field
+    end)
+  end)
 end

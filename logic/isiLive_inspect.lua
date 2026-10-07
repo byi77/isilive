@@ -92,6 +92,11 @@ local function EnqueueInspect(controller, unit, roster)
       )
     end
     table.insert(controller.inspectQueue, unit)
+    -- Wake the idle-free inspect loop: the factory detaches the OnUpdate while
+    -- the controller holds no work (rule 168, see HasPendingWork).
+    if controller.onWorkQueued then
+      controller.onWorkQueued()
+    end
   end
 end
 
@@ -370,6 +375,7 @@ function Inspect.CreateController(config)
   -- external overwrites.
   local sendOwnKeySnapshot = type(config and config.sendOwnKeySnapshot) == "function" and config.sendOwnKeySnapshot
     or nil
+  controller.onWorkQueued = type(config and config.onWorkQueued) == "function" and config.onWorkQueued or nil
 
   controller.inspectQueue = {}
   controller.retryQueue = {}
@@ -383,6 +389,12 @@ function Inspect.CreateController(config)
     controller.inspectQueue = {}
     controller.retryQueue = {}
     controller.isInspecting = nil
+  end
+
+  -- True while a unit is queued, waiting for a retry, or awaiting its
+  -- INSPECT_READY / timeout. Without any of these OnUpdate has nothing to do.
+  function controller.HasPendingWork()
+    return controller.isInspecting ~= nil or #controller.inspectQueue > 0 or #controller.retryQueue > 0
   end
 
   function controller.ResetAll()

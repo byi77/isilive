@@ -188,9 +188,249 @@ return function(test, ctx)
     )
   end)
 
+  test("Architecture notice rich layout owns the info-card layout behind Notice facade", function()
+    local toc = ReadFile("isiLive.toc")
+    local commonIndex = toc:find("ui/isiLive_notice_common.lua", 1, true)
+    local richIndex = toc:find("ui/isiLive_notice_rich_layout.lua", 1, true)
+    local noticeIndex = toc:find("ui/isiLive_notice.lua", 1, true)
+    Assert.True(richIndex ~= nil, "NoticeRichLayout must be listed in the TOC")
+    Assert.True(noticeIndex ~= nil, "Notice facade must be listed in the TOC")
+    Assert.True(
+      commonIndex < richIndex and richIndex < noticeIndex,
+      "NoticeRichLayout must load after NoticeCommon and before Notice"
+    )
+
+    local rich = ReadFile("ui/isiLive_notice_rich_layout.lua")
+    local notice = ReadFile("ui/isiLive_notice.lua")
+    Assert.True(
+      rich:find("function NoticeRichLayout.Create(deps)", 1, true) ~= nil
+        and rich:find("function NoticeRichLayout.CreateElements(frame, config)", 1, true) ~= nil,
+      "NoticeRichLayout must expose the element factory and a dependency-injected layout factory"
+    )
+    Assert.True(
+      rich:find("local function ApplyCenterNoticeRichLayout(deps, state, payload, hasTeleportButton)", 1, true) ~= nil
+        and rich:find("local function HideRichCenterNoticeElements(state)", 1, true) ~= nil,
+      "NoticeRichLayout must own the rich layout and hide paths"
+    )
+    Assert.True(
+      notice:find("local RichLayout = NoticeRichLayout.Create({", 1, true) ~= nil
+        and notice:find("setTeleportButtonSize = SetCenterNoticeTeleportButtonSize", 1, true) ~= nil
+        and notice:find("setTeleportButtonAnchor = SetCenterNoticeTeleportButtonAnchor", 1, true) ~= nil,
+      "Notice must inject its combat-deferred teleport button setters into the rich layout"
+    )
+    Assert.Nil(
+      notice:find("local function ApplyCenterNoticeRichLayout", 1, true),
+      "facade must not retain the rich layout"
+    )
+    Assert.Nil(notice:find("local FIELD_LABEL_WIDTH", 1, true), "facade must not duplicate rich layout constants")
+    Assert.Nil(
+      rich:find("InsecureActionButtonTemplate", 1, true),
+      "the secure teleport button must stay in the Notice facade"
+    )
+  end)
+
+  test("Architecture mob nameplate diagnostics own the dump surface behind MobNameplate facade", function()
+    local toc = ReadFile("isiLive.toc")
+    local diagnosticsIndex = toc:find("ui/isiLive_mob_nameplate_diagnostics.lua", 1, true)
+    local nameplateIndex = toc:find("ui/isiLive_mob_nameplate.lua", 1, true)
+    Assert.True(diagnosticsIndex ~= nil, "MobNameplateDiagnostics must be listed in the TOC")
+    Assert.True(nameplateIndex ~= nil, "MobNameplate facade must be listed in the TOC")
+    Assert.True(diagnosticsIndex < nameplateIndex, "MobNameplateDiagnostics must load before MobNameplate")
+
+    local diagnostics = ReadFile("ui/isiLive_mob_nameplate_diagnostics.lua")
+    local nameplate = ReadFile("ui/isiLive_mob_nameplate.lua")
+    Assert.True(
+      diagnostics:find("function MobNameplateDiagnostics.Create(deps)", 1, true) ~= nil,
+      "MobNameplateDiagnostics must expose a dependency-injected factory"
+    )
+    Assert.True(
+      diagnostics:find("local function DumpFrames()", 1, true) ~= nil
+        and diagnostics:find("local function DumpState(unit)", 1, true) ~= nil,
+      "MobNameplateDiagnostics must own the DumpFrames / DumpState implementation"
+    )
+    Assert.True(
+      nameplate:find("MobNameplate.DumpFrames = diagnostics.DumpFrames", 1, true) ~= nil
+        and nameplate:find("MobNameplate.DumpState = diagnostics.DumpState", 1, true) ~= nil,
+      "MobNameplate must preserve its public DumpFrames / DumpState facade"
+    )
+    Assert.Nil(nameplate:find("function MobNameplate.DumpFrames", 1, true), "facade must not retain DumpFrames")
+    Assert.Nil(nameplate:find("function MobNameplate.DumpState", 1, true), "facade must not retain DumpState")
+  end)
+
+  test("Architecture UI motion and private tooltip install behind the UICommon facade", function()
+    local toc = ReadFile("isiLive.toc")
+    local motionIndex = toc:find("ui/isiLive_ui_motion.lua", 1, true)
+    local tooltipIndex = toc:find("ui/isiLive_ui_private_tooltip.lua", 1, true)
+    local commonIndex = toc:find("ui/isiLive_ui_common.lua", 1, true)
+    local noticeIndex = toc:find("ui/isiLive_notice.lua", 1, true)
+    Assert.True(motionIndex ~= nil, "UIMotion must be listed in the TOC")
+    Assert.True(tooltipIndex ~= nil, "UIPrivateTooltip must be listed in the TOC")
+    Assert.True(commonIndex ~= nil and noticeIndex ~= nil, "UICommon and Notice must be listed in the TOC")
+    Assert.True(
+      motionIndex < commonIndex and tooltipIndex < commonIndex,
+      "UIMotion and UIPrivateTooltip must load before the UICommon facade that installs them"
+    )
+    Assert.True(commonIndex < noticeIndex, "UICommon must load before Notice, which asserts CreatePrivateTooltip")
+
+    local motion = ReadFile("ui/isiLive_ui_motion.lua")
+    local tooltip = ReadFile("ui/isiLive_ui_private_tooltip.lua")
+    local common = ReadFile("ui/isiLive_ui_common.lua")
+    Assert.True(
+      motion:find("function UIMotion.Install(target)", 1, true) ~= nil
+        and motion:find("local function PlayAlphaTransition(frame, key, opts)", 1, true) ~= nil
+        and motion:find("local motionTransitions = setmetatable", 1, true) ~= nil,
+      "UIMotion must own the transition registry and install the motion surface"
+    )
+    Assert.True(
+      tooltip:find("function UIPrivateTooltip.Install(target)", 1, true) ~= nil
+        and tooltip:find("local function EnsurePrivateTooltipAPI(tooltip)", 1, true) ~= nil
+        and tooltip:find("local function ResolveSpellName(spellID)", 1, true) ~= nil,
+      "UIPrivateTooltip must own the tooltip API shim and install the tooltip surface"
+    )
+    Assert.True(
+      common:find('assert(addonTable.UIMotion, "isiLive: UIMotion missing").Install(UICommon)', 1, true) ~= nil
+        and common:find(
+            'assert(addonTable.UIPrivateTooltip, "isiLive: UIPrivateTooltip missing").Install(UICommon)',
+            1,
+            true
+          )
+          ~= nil,
+      "UICommon must install both surfaces while it loads"
+    )
+    Assert.Nil(common:find("motionTransitions", 1, true), "facade must not retain the transition registry")
+    Assert.Nil(common:find("EnsurePrivateTooltipAPI", 1, true), "facade must not retain the tooltip API shim")
+    Assert.Nil(common:find("TOOLTIP_WIDTH", 1, true), "facade must not duplicate tooltip layout constants")
+  end)
+
+  test("Architecture party-run module owns the tracked M0 run behind the runtime lifecycle", function()
+    local toc = ReadFile("isiLive.toc")
+    local partyRunIndex = toc:find("logic/isiLive_event_handlers_party_run.lua", 1, true)
+    local runtimeIndex = toc:find("logic/isiLive_event_handlers_runtime.lua", 1, true)
+    Assert.True(partyRunIndex ~= nil, "EventHandlersPartyRun must be listed in the TOC")
+    Assert.True(runtimeIndex ~= nil, "runtime lifecycle must be listed in the TOC")
+    Assert.True(partyRunIndex < runtimeIndex, "EventHandlersPartyRun must load before the runtime lifecycle")
+
+    local partyRun = ReadFile("logic/isiLive_event_handlers_party_run.lua")
+    local runtime = ReadFile("logic/isiLive_event_handlers_runtime.lua")
+    Assert.True(
+      partyRun:find("addonTable.EventHandlersPartyRun = PartyRun", 1, true) ~= nil
+        and partyRun:find("local function IsTrackedPartyDifficulty(difficultyID)", 1, true) ~= nil
+        and partyRun:find("local function GetTrackedMythicZeroState(ctx)", 1, true) ~= nil
+        and partyRun:find("RetryTrackedMythicZeroRunCapture = function(ctx, runInfo, retriesRemaining)", 1, true)
+          ~= nil,
+      "EventHandlersPartyRun must own difficulty gating, state resolution and capture retries"
+    )
+    Assert.True(
+      partyRun:find("PartyRun.ClearTrackedPartyRunState = ClearTrackedPartyRunState", 1, true) ~= nil
+        and partyRun:find("PartyRun.UpdateTrackedMythicZeroRun = UpdateTrackedMythicZeroRun", 1, true) ~= nil
+        and partyRun:find("PartyRun.CaptureTrackedMythicZeroRosterSnapshotIfPending =", 1, true) ~= nil,
+      "EventHandlersPartyRun must export the three entry points the runtime lifecycle calls"
+    )
+    Assert.True(
+      runtime:find(
+        'local PartyRun = assert(addonTable.EventHandlersPartyRun, "isiLive: EventHandlersPartyRun missing")',
+        1,
+        true
+      ) ~= nil,
+      "runtime lifecycle must bind EventHandlersPartyRun at load"
+    )
+    Assert.Nil(runtime:find("local function UpdateTrackedMythicZeroRun", 1, true), "runtime must not retain M0 run")
+    Assert.Nil(runtime:find("NON_CHALLENGE_RUN_CAPTURE_RETRIES", 1, true), "runtime must not retain retry constants")
+    Assert.Nil(runtime:find("GetInstanceInfoSafe", 1, true), "runtime must not read instance info directly")
+    Assert.Nil(partyRun:find("RegisterEvent", 1, true), "party-run module must not register events")
+  end)
+
+  test("Architecture CD coalescer module owns the aura filter behind the runtime lifecycle", function()
+    local toc = ReadFile("isiLive.toc")
+    local coalescerIndex = toc:find("logic/isiLive_event_handlers_cd_coalescer.lua", 1, true)
+    local runtimeIndex = toc:find("logic/isiLive_event_handlers_runtime.lua", 1, true)
+    Assert.True(coalescerIndex ~= nil, "EventHandlersCdCoalescer must be listed in the TOC")
+    Assert.True(
+      runtimeIndex ~= nil and coalescerIndex < runtimeIndex,
+      "EventHandlersCdCoalescer must load before the runtime lifecycle"
+    )
+
+    local coalescer = ReadFile("logic/isiLive_event_handlers_cd_coalescer.lua")
+    local runtime = ReadFile("logic/isiLive_event_handlers_runtime.lua")
+    Assert.True(
+      coalescer:find("addonTable.EventHandlersCdCoalescer = CdCoalescer", 1, true) ~= nil
+        and coalescer:find("local LUST_SATED_AURA_IDS = {", 1, true) ~= nil
+        and coalescer:find("local function UnitAuraUpdateRequiresCdScan(updateInfo)", 1, true) ~= nil
+        and coalescer:find("local function BuildSpellCooldownCoalescer(ctx, isRaidActive)", 1, true) ~= nil
+        and coalescer:find("local SPELL_COOLDOWN_COALESCE_SECONDS = 0.1", 1, true) ~= nil,
+      "EventHandlersCdCoalescer must own the Sated filter and the shared 0.1s coalescer"
+    )
+    Assert.True(
+      coalescer:find("return HandleCooldown, HandleCharges, HandlePlayerAuraCdScan", 1, true) ~= nil,
+      "coalescer must keep returning the cooldown, charges and aura-scan handlers"
+    )
+    Assert.True(
+      runtime:find(
+        'local CdCoalescer = assert(addonTable.EventHandlersCdCoalescer, "isiLive: EventHandlersCdCoalescer missing")',
+        1,
+        true
+      )
+          ~= nil
+        and runtime:find("BuildSpellCooldownCoalescer(ctx, IsCoalescerRaidActive)", 1, true) ~= nil,
+      "runtime lifecycle must bind the coalescer at load and inject its raid check"
+    )
+    Assert.Nil(runtime:find("LUST_SATED_AURA_IDS", 1, true), "runtime must not duplicate the Sated ID list")
+    Assert.Nil(runtime:find("ReadPlainField", 1, true), "runtime must not read aura payload fields itself")
+    Assert.Nil(coalescer:find("IsRaidModeActive", 1, true), "coalescer must take the raid check as a callback")
+  end)
+
+  test("Architecture settings general module owns the General and ESC-menu sections", function()
+    local toc = ReadFile("isiLive.toc")
+    local generalIndex = toc:find("ui/isiLive_settings_general.lua", 1, true)
+    local sectionsIndex = toc:find("ui/isiLive_settings_sections.lua", 1, true)
+    local panelIndex = toc:find("ui/isiLive_settings.lua\n", 1, true)
+    Assert.True(generalIndex ~= nil, "SettingsGeneral must be listed in the TOC")
+    Assert.True(sectionsIndex ~= nil and panelIndex ~= nil, "SettingsSections and SettingsPanel must be in the TOC")
+    Assert.True(
+      generalIndex < sectionsIndex and sectionsIndex < panelIndex,
+      "SettingsGeneral must load before the SettingsSections facade, which loads before SettingsPanel"
+    )
+
+    local general = ReadFile("ui/isiLive_settings_general.lua")
+    local sections = ReadFile("ui/isiLive_settings_sections.lua")
+    Assert.True(
+      general:find("addonTable.SettingsGeneral = SettingsGeneral", 1, true) ~= nil
+        and general:find("function SettingsGeneral.BuildGeneralSection(", 1, true) ~= nil
+        and general:find("function SettingsGeneral.BuildEscMenuSection(", 1, true) ~= nil
+        and general:find("function SettingsGeneral.RefreshGeneralControls(", 1, true) ~= nil
+        and general:find("function SettingsGeneral.RefreshEscMenuControls(", 1, true) ~= nil
+        and general:find("local function NormalizeStoredLayoutMode(layoutMode)", 1, true) ~= nil,
+      "SettingsGeneral must own the General / ESC-menu builders, refreshers and layout-mode normalization"
+    )
+    Assert.True(
+      sections:find(
+        'local SettingsGeneral = assert(addonTable.SettingsGeneral, "isiLive: SettingsGeneral missing")',
+        1,
+        true
+      ) ~= nil,
+      "SettingsSections must bind SettingsGeneral at load"
+    )
+    for _, name in ipairs({
+      "BuildGeneralSection",
+      "BuildEscMenuSection",
+      "RefreshGeneralControls",
+      "RefreshEscMenuControls",
+    }) do
+      Assert.True(
+        sections:find("SettingsSections." .. name .. " = SettingsGeneral." .. name, 1, true) ~= nil,
+        "SettingsSections must keep the public name " .. name
+      )
+    end
+    Assert.Nil(sections:find("DEFAULT_LAYOUT_MODE_", 1, true), "facade must not retain the layout-mode constants")
+    Assert.Nil(sections:find("CreateLanguageSelector", 1, true), "facade must not build the language selector")
+    Assert.Nil(sections:find("BuildHearthstoneSettingsOptions", 1, true), "facade must not build hearthstone options")
+  end)
+
   test("Architecture production layers do not consume private roster UI registry", function()
     local consumers = {
       "logic/isiLive_event_handlers_runtime.lua",
+      "logic/isiLive_event_handlers_party_run.lua",
+      "logic/isiLive_event_handlers_cd_coalescer.lua",
       "factory/isiLive_controller_init.lua",
       "factory/isiLive_factory.lua",
       "factory/isiLive_factory_refresh.lua",
@@ -226,7 +466,7 @@ return function(test, ctx)
       ["ui/isiLive_status.lua"] = {
         "GetInstanceInfoSafe",
       },
-      ["logic/isiLive_event_handlers_runtime.lua"] = {
+      ["logic/isiLive_event_handlers_party_run.lua"] = {
         "GetInstanceInfoSafe",
       },
       ["core/isiLive_runtime_mode.lua"] = {

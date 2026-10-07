@@ -1148,6 +1148,71 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
+  test("Center notice rich layout caps field rows at NoticeRichLayout.MAX_FIELD_ROWS", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local richLayout = RequireValue(addon.NoticeRichLayout, "NoticeRichLayout must load with the Notice facade")
+      local centerNotice = RequireValue(addon.Notice, "Notice module should load").CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+      local maxRows = richLayout.MAX_FIELD_ROWS
+      Assert.Equal(#centerNotice.fieldRows, maxRows, "facade must pre-allocate exactly MAX_FIELD_ROWS rows")
+
+      local fields = {}
+      for i = 1, maxRows + 2 do
+        fields[i] = { label = "L" .. i .. ":", value = "V" .. i }
+      end
+      centerNotice.Show(nil, 12, nil, nil, { title = "Cap", fields = fields })
+      for i = 1, maxRows do
+        Assert.True(centerNotice.fieldRows[i].label._shown, "field row " .. i .. " must render")
+        Assert.Equal(centerNotice.fieldRows[i].value:GetText(), "V" .. i, "field row " .. i .. " value")
+      end
+      Assert.Nil(centerNotice.fieldRows[maxRows + 1], "surplus fields must not allocate extra rows")
+    end)
+  end)
+
+  test("Center notice rich warning blink uses the NoticeRichLayout warning color in the facade OnUpdate", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local warning = RequireValue(addon.NoticeRichLayout, "NoticeRichLayout must load").FIELD_WARNING_COLOR
+      local centerNotice = RequireValue(addon.Notice, "Notice module should load").CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+      centerNotice.Show(nil, 12, nil, nil, {
+        fields = { { label = "Hint:", value = "Blink", warning = true, blink = true } },
+      })
+      centerNotice.frame:GetScript("OnUpdate")(centerNotice.frame, 0.2)
+      local r, g, b, a = centerNotice.fieldRows[1].label:GetTextColor()
+      Assert.Equal(r, warning[1], "blink tick keeps the shared warning red channel")
+      Assert.Equal(g, warning[2], "blink tick keeps the shared warning green channel")
+      Assert.Equal(b, warning[3], "blink tick keeps the shared warning blue channel")
+      Assert.True(a < 1, "blink tick must pulse the warning alpha")
+
+      centerNotice.Show("plain", 12, nil, nil, {})
+      local _, _, _, resetAlpha = centerNotice.fieldRows[1].label:GetTextColor()
+      Assert.Equal(resetAlpha, 1, "a non-rich Show must reset the warning row back to full alpha")
+      Assert.False(centerNotice.fieldRows[1].label._shown, "a non-rich Show must hide the warning row")
+    end)
+  end)
+
   test("Center notice rich Show without title still renders fields (title/separator stay hidden)", function()
     WithGlobals({
       UIParent = CreateFrameStub(),

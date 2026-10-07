@@ -1506,6 +1506,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       end
 
       toyName = "Nachtfae-Ruhestein"
+      panel.canvas:Show()
       itemDataFrame:FireEvent("GET_ITEM_INFO_RECEIVED", 180290, true)
 
       local found = false

@@ -210,6 +210,20 @@ function DeathAlert.CreateController(opts)
     return ShowAlertKind("PI")
   end
 
+  -- Rule 168: builds the hidden alert frame ahead of time so the first alert
+  -- of a run does not create frame, font string and animations mid-combat.
+  -- ShowAlertKind keeps its lazy build as the fallback.
+  function controller.Prebuild()
+    if frame then
+      return false
+    end
+    if type(createFrame) ~= "function" then
+      return false
+    end
+    frame = BuildAlertFrame(createFrame)
+    return true
+  end
+
   -- Test-only hook: exposes the lazily created frame so deterministic tests
   -- can assert text and visibility without reaching into module locals.
   function controller._Test_GetFrame()
@@ -233,6 +247,13 @@ function DeathAlert.ShowRoleDeath(role)
     controllerInstance = DeathAlert.CreateController({})
   end
   return controllerInstance.ShowRoleDeath(role)
+end
+
+function DeathAlert.Prebuild()
+  if not controllerInstance then
+    controllerInstance = DeathAlert.CreateController({})
+  end
+  return controllerInstance.Prebuild()
 end
 
 function DeathAlert.ShowPowerInfusion()

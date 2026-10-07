@@ -244,6 +244,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 167. Der Post-Run-Refresh nach Key-Ende behaelt bekannte isiLive-Peers und ihre Sync-Daten; nur der manuelle Refresh und das Aufloesen der Gruppe setzen den Sync-Zustand vollstaendig zurueck.
 
+168. Leerlauf kostet keine Frame- oder Ticker-Arbeit: Die Inspect-Schleife laeuft nur bei offener Inspect-Arbeit, die Systemoption-Haken folgen `CVAR_UPDATE` statt eines Tickers, die Fenstergroesse wird nur bei Aenderung gesetzt, der Teleport-Puls pausiert verdeckt und der Todesalarm-Frame entsteht beim Key-Start statt beim ersten Tod.
+
+169. Settings-Inhalt und Simulations-Tablet entstehen erst beim ersten Oeffnen; die Settings-Kategorie wird weiterhin beim Laden registriert.
+170. Der Fehlerlog-Hook erzeugt fuer Fehler fremder Addons keine Closure pro Fehler; Capture-Rumpf und Stack-Probe laufen als feste Funktionen unter `pcall`.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2552,3 +2557,39 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Mplus stress: the post-run refresh keeps known peers and answers their hellos once
   - Event handlers enable RIO delta only after delayed post-run refresh
   - Event handlers retry post-run refresh when first delayed attempt is blocked
+
+### RULE-LEERLAUF-OHNE-FRAME-UND-TICKER-ARBEIT
+- Regelnummer: 168
+- Status: aktiv
+- Zusammenfassung: (1) `SetProcessingActive` haengt die Inspect-Schleife (`ctx.InspectLoop`) nur noch als `OnUpdate` des Hauptfensters ein, wenn die Verarbeitung erlaubt ist (sichtbar, Gruppe oder verifizierte Instanzgruppe, kein Raid) und der Inspect-Controller Arbeit haelt (`HasPendingWork`: Einheit in der Queue, laufendes Inspect oder Retry-Eintrag). Ist die Queue leer, haengt sich die Schleife beim naechsten gedrosselten Tick selbst ab; `EnqueueInspect` haengt sie ueber `onWorkQueued` wieder ein. Inspect-Timeout und Retry, die Kampfpause, das Stoppen samt Queue-Reset bei Solo, Raid oder ausgeblendetem Fenster und das Befuellen nach einem Reload mitten im Key bleiben unveraendert. (2) Die Systemoption-Haken (`advancedCombatLogging`, `damageMeterResetOnNewInstance`) lesen die CVars nicht mehr per Fuenf-Sekunden-Ticker, sondern reagieren auf `CVAR_UPDATE(cvarName, value)` (verifiziert in `ConsoleDocumentation.lua` von wow-ui-source; Blizzards `CVarCallbackRegistry` nutzt dasselbe Event). Das Event wird einmal bei der Panel-Erstellung im Main-Chunk registriert, nie aus Show/Hide; bei ausgeblendetem Fenster wird es ignoriert, das `OnShow` des Hauptfensters aktualisiert die Haken einmal. Der Fuenf-Sekunden-Ticker aus Regel 93 entfaellt damit. (3) `SetHeightSafe`/`SetWidthSafe` setzen Hoehe beziehungsweise Breite ausserhalb des Kampfes nur, wenn sie von der aktuellen Frame-Groesse (`GetHeight`/`GetWidth`, Toleranz 0.01) abweichen; verglichen wird mit der Live-Groesse statt mit einem gemerkten Lua-Wert, weil andere Pfade die Groesse direkt setzen. Im Kampf wird wie bisher nur vorgemerkt. (4) Der BOUNCE-Puls des aktiven Teleport-Ziels stoppt im `OnHide` seines Rahmens (auch beim Ausblenden eines Elternframes) und laeuft im `OnShow` nur wieder an, wenn der Button weiterhin verfuegbares aktives Ziel ist und reduzierte Bewegung aus ist. (5) Bei `CHALLENGE_MODE_START` mit eingeschalteten Todesalarmen (`deathAlertEnabled ~= false`) baut ein Timer eine Sekunde spaeter den Todesalarm-Frame vor, ausserhalb des geschuetzten Dispatchs und nur ausserhalb des Kampfes; der verzoegerte Aufbau beim ersten Alarm bleibt als Rueckfallweg erhalten.
+- Erforderliche Tests:
+  - Mplus stress: the inspect loop detaches once its queue drains and wakes on new work
+  - factory composition root: solo inspection sleeps and group transitions wake it
+  - Mplus stress: the system option toggles follow CVAR_UPDATE without a polling ticker
+  - RosterLayout system option watcher owns ticker only while main frame is visible
+  - Mplus stress: visible roster renders resize the main frame only when its size changes
+  - MainFrame.SetHeightSafe / SetWidthSafe defer when in combat
+  - TeleportUI pauses the active target pulse while hidden and resumes it on show
+  - TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled
+  - Mplus stress: the key start pre-builds the death alert so the first death creates no frame
+
+### RULE-SETTINGS-UND-TABLET-ERST-BEIM-OEFFNEN
+- Regelnummer: 169
+- Status: aktiv
+- Zusammenfassung: Die Composition Root ruft `SettingsPanel.Create` mit `deferBuild = true` auf. `Create` erzeugt nur Canvas, Scroll- und Content-Frame sowie den Item-Event-Frame, registriert die Settings-Kategorie sofort (damit Oeffnen per Befehl, Minimap und ESC-Menue unveraendert funktionieren) und laesst den Canvas versteckt starten. Navigation und alle Abschnitte werden genau einmal gebaut, wenn der Canvas angezeigt wird: ueber das `OnShow`, das Blizzards `SettingsPanelMixin:DisplayLayout` mit `frame:Show()` ausloest, oder ueber `OnRefresh`, das Blizzard danach aufruft, sofern der Canvas sichtbar ist. `Refresh` (Sprache, Schrift, Transparenz, Reset) tut vor dem ersten Bau nichts; der spaetere Bau liest die aktuellen Texte und DB-Werte selbst. Ohne `deferBuild` baut `Create` wie bisher sofort. Der Simulations-Tablet-Controller entsteht erst beim ersten `ShowSimulationTablet` oder `ToggleSimulationTablet`; Dock-Refresh und `HideSimulationTablet` tun vorher nichts. `TOYS_UPDATED` und `GET_ITEM_INFO_RECEIVED` bleiben dauerhaft registriert und enden bei verstecktem Canvas sofort, weil ein `RegisterEvent` aus dem von Blizzard ausgeloesten `OnShow` dem Verbot dynamischer Registrierung aus geschuetztem Code widerspraeche.
+- Erforderliche Tests:
+  - SettingsPanel deferBuild registers the category but builds no section before the first display
+  - SettingsPanel deferBuild builds every section once on the first display
+  - Factory demo simulation tablet is created on the first open, not at initialization
+  - factory composition root: settings content and simulation tablet build on first open
+  - Settings item event bursts skip hidden panels and coalesce visible toy updates
+
+### RULE-FEHLERLOG-OHNE-CLOSURE-PRO-FREMDFEHLER
+- Regelnummer: 170
+- Status: aktiv
+- Zusammenfassung: `ErrorLog.Install` haengt sich in die globale Fehlerkette und bekommt damit jeden Fehler jedes Addons. `ErrorLog.Capture` ruft seinen Rumpf als feste Chunk-Funktion `CaptureUnprotected` ueber `pcall(CaptureUnprotected, message, stack, source)` auf, und `StackMentionsIsiLive` ruft die Stack-Probe als feste Chunk-Funktion `ProbeStackForIsiLive` ueber `pcall(ProbeStackForIsiLive, getinfo)` auf. Beide waren vorher Inline-Closures, also zwei neue Funktionsobjekte pro Fehler, auch fuer jeden abgewiesenen Fremdfehler. Verhalten bleibt gleich: der vorherige Handler wird zuerst aufgerufen, Filter (Nachricht, sonst Stack-Probe ohne eigene Frames), Dedup, Ringpuffer und Fehlerbehandlung des Loggers sind unveraendert; die Probe-Ebenen beziehen sich weiter auf die Probe-Funktion selbst.
+- Erforderliche Tests:
+  - ErrorLog installed handler allocates no per-error closure for foreign errors
+  - ErrorLog.Capture rejects a foreign error raised from a non-isiLive frame (stack=nil)
+  - ErrorLog.Capture accepts a foreign message raised from an isiLive frame (stack=nil)
+  - ErrorLog.Capture does not treat its own module frames as an isiLive match

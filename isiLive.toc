@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.418
+## Version: 0.9.419
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -46,6 +46,8 @@ game/isiLive_season_debug.lua
 data/isiLive_mplus_forces.lua
 game/isiLive_lfg_entry_resolver.lua
 game/isiLive_lfg_detect.lua
+ui/isiLive_ui_motion.lua
+ui/isiLive_ui_private_tooltip.lua
 ui/isiLive_ui_common.lua
 ui/isiLive_ui_fonts.lua
 ui/isiLive_stats_box.lua
@@ -56,6 +58,7 @@ ui/isiLive_teleport_debug.lua
 ui/isiLive_trace_chat_frame.lua
 ui/isiLive_notice_common.lua
 ui/isiLive_portal_navigator_notice.lua
+ui/isiLive_notice_rich_layout.lua
 ui/isiLive_notice.lua
 ui/isiLive_status.lua
 game/isiLive_units.lua
@@ -79,6 +82,7 @@ ui/isiLive_lfg_bonus_model.lua
 ui/isiLive_lfg_view_hooks.lua
 ui/isiLive_lfg_flags.lua
 ui/isiLive_mob_tooltip.lua
+ui/isiLive_mob_nameplate_diagnostics.lua
 ui/isiLive_mob_nameplate.lua
 ui/isiLive_roster_layout.lua
 game/isiLive_mplus_timer.lua
@@ -100,6 +104,8 @@ ui/isiLive_roster_panel.lua
 logic/isiLive_events.lua
 logic/isiLive_event_handlers_queue.lua
 logic/isiLive_event_handlers_challenge.lua
+logic/isiLive_event_handlers_party_run.lua
+logic/isiLive_event_handlers_cd_coalescer.lua
 logic/isiLive_event_handlers_runtime.lua
 logic/isiLive_event_handlers.lua
 logic/isiLive_commands.lua
@@ -118,6 +124,7 @@ ui/isiLive_settings_nameplates.lua
 ui/isiLive_settings_behavior.lua
 ui/isiLive_settings_sound.lua
 ui/isiLive_settings_support.lua
+ui/isiLive_settings_general.lua
 ui/isiLive_settings_sections.lua
 ui/isiLive_settings.lua
 core/isiLive_guards.lua

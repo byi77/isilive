@@ -31,31 +31,33 @@ return function(test, ctx)
     Assert.True(found, "roster layout must own header band visibility")
   end)
 
+  -- COMPONENT-ONLY: pins the watcher's frame contract (no ticker, no
+  -- OnUpdate, one static CVAR_UPDATE registration). Rule 168 replaced the
+  -- former five-second ticker with the event, so the watcher owns no ticker in
+  -- any state; the end-to-end event path is covered by the Mplus stress test
+  -- "the system option toggles follow CVAR_UPDATE without a polling ticker".
   test("RosterLayout system option watcher owns ticker only while main frame is visible", function()
     local watcher
-    local ticker
+    local tickers = 0
     local mainShown = true
     WithGlobals({
       CreateFrame = function()
         watcher = {
           scripts = {},
+          events = {},
           SetScript = function(self, name, fn)
             self.scripts[name] = fn
+          end,
+          RegisterEvent = function(self, event)
+            self.events[event] = true
           end,
         }
         return watcher
       end,
       C_Timer = {
-        NewTicker = function(interval, callback)
-          Assert.Equal(interval, 5, "system option watcher must use a five-second ticker")
-          ticker = {
-            callback = callback,
-            cancelled = false,
-            Cancel = function(self)
-              self.cancelled = true
-            end,
-          }
-          return ticker
+        NewTicker = function()
+          tickers = tickers + 1
+          return { Cancel = function() end }
         end,
       },
     }, function()
@@ -68,13 +70,13 @@ return function(test, ctx)
       local ui = {}
 
       RI.AttachSystemOptionToggleWatcher(mainFrame, ui)
-      Assert.NotNil(ticker, "visible main frame must start the owned ticker")
+      Assert.Equal(tickers, 0, "a visible main frame must not start a CVar polling ticker")
       Assert.Nil(watcher.scripts.OnUpdate, "watcher must not poll once per render frame")
+      Assert.True(watcher.events.CVAR_UPDATE == true, "watcher must register CVAR_UPDATE once at creation")
 
       mainShown = false
-      watcher.scripts.OnHide()
-      Assert.True(ticker.cancelled, "hiding the main frame must cancel the owned ticker")
-      Assert.Nil(watcher._isiLiveTicker, "hidden watcher must release its ticker handle")
+      watcher.scripts.OnEvent(watcher, "CVAR_UPDATE", "advancedCombatLogging", "1")
+      Assert.Equal(tickers, 0, "a hidden main frame must not own a ticker either")
     end)
   end)
 

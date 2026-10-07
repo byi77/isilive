@@ -356,6 +356,23 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   alphaAnim:SetSmoothing("IN_OUT")
   alphaAnim:SetOrder(1)
 
+  -- Rule 168: the looping pulse only runs while the border is visible. OnHide
+  -- fires on the border for its own Hide and for every hidden ancestor (main
+  -- window, collapsed layout); OnShow resumes it when the button is still the
+  -- available active target and reduced motion is off.
+  button.activeBorder:SetScript("OnHide", function()
+    button.animGroup:Stop()
+  end)
+  button.activeBorder:SetScript("OnShow", function()
+    if not button._isiLiveMotionEligible or button.animGroup:IsPlaying() then
+      return
+    end
+    if UICommon.IsReducedMotionEnabled and UICommon.IsReducedMotionEnabled() then
+      return
+    end
+    button.animGroup:Play()
+  end)
+
   button:SetScript("OnEnter", function(self)
     local L = deps.getL()
     local tooltip = preparePrivateTooltip(deps.tooltip, self, "ANCHOR_CURSOR")

@@ -58,6 +58,27 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     end
   end)
 
+  -- Rule 168: the inspect OnUpdate is attached only while processing is wanted
+  -- (shown, grouped, no raid) AND the inspect controller holds work. An empty
+  -- queue costs no per-frame call; EnqueueInspect re-attaches it.
+  local inspectLoopWanted = false
+  local inspectLoopAttached = false
+  local function HasInspectWork()
+    local controller = ctx.inspectController
+    if type(controller) ~= "table" or type(controller.HasPendingWork) ~= "function" then
+      return true
+    end
+    return controller.HasPendingWork() == true
+  end
+  local function RefreshInspectLoop()
+    local attach = inspectLoopWanted and HasInspectWork()
+    if attach == inspectLoopAttached then
+      return
+    end
+    inspectLoopAttached = attach
+    ctx.mainFrame:SetScript("OnUpdate", attach and ctx.InspectLoop or nil)
+  end
+
   local function SetProcessingActive(isActive)
     local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
     if logf then
@@ -65,10 +86,13 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     end
     local grouped = ctx.isInGroup() or ctx.isInInstanceGroup()
     if isActive and grouped and not ctx.IsRaidGroup() then
-      ctx.mainFrame:SetScript("OnUpdate", ctx.InspectLoop)
+      inspectLoopWanted = true
+      RefreshInspectLoop()
       return
     end
 
+    inspectLoopWanted = false
+    inspectLoopAttached = false
     ctx.mainFrame:SetScript("OnUpdate", nil)
     ctx.inspectController.ResetQueues()
   end
@@ -176,6 +200,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
   InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
 
   ctx.SetProcessingActive = SetProcessingActive
+  ctx.RefreshInspectLoop = RefreshInspectLoop
 end
 
 FI.InitializeFactoryRefreshAndStatusControllers = InitializeFactoryRefreshAndStatusControllers

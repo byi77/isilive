@@ -528,4 +528,93 @@ return function(test, ctx)
     )
     Assert.Equal(addon.ErrorLog.GetCount(), 1, "message-based detection must work from any call site")
   end)
+
+  -- ----------------------------------------------------------------------
+  -- Allocation guard: the installed handler sees every addon's errors, so
+  -- the reject path must not build a fresh closure per foreign error. Every
+  -- function the hook runs protected goes through the global pcall; a spy
+  -- records the identity of each one. A function object first seen on the
+  -- second or a later error is a per-error allocation.
+  -- ----------------------------------------------------------------------
+
+  test("ErrorLog installed handler allocates no per-error closure for foreign errors", function()
+    ResetIsiLiveDB()
+    local installedHandler
+    local previousCalls = 0
+    local addon
+    WithGlobals({
+      geterrorhandler = function()
+        return function()
+          previousCalls = previousCalls + 1
+        end
+      end,
+      seterrorhandler = function(h)
+        installedHandler = h
+      end,
+    }, function()
+      addon = LoadAddonModules({ "isiLive_error_log.lua" })
+      addon.ErrorLog.Install()
+    end)
+    Assert.Equal(type(installedHandler), "function", "Install() must hand a handler to seterrorhandler")
+
+    -- The spy and the raising caller are compiled under neutral chunk names:
+    -- the probe matches "isilive" case-insensitively and this scenario file's
+    -- own name would otherwise turn every foreign error into an isiLive one.
+    local realPcall = pcall
+    local seenPerError = {}
+    local spyChunk = CompileChunk(
+      "local realPcall, sink = ... return function(fn, ...) sink(fn) return realPcall(fn, ...) end",
+      "=pcall-spy"
+    )
+    local raiseChunk =
+      CompileChunk("local handler, message = ... return function() handler(message) end", "=Plater/Plater.lua")
+    local currentSeen
+    -- Only functions defined in the error-log chunk count; a coverage hook
+    -- that happens to go through the global pcall must not skew the tally.
+    local function IsErrorLogFunction(fn)
+      if type(fn) ~= "function" then
+        return false
+      end
+      local info = debug.getinfo(fn, "S")
+      return type(info) == "table"
+        and type(info.short_src) == "string"
+        and info.short_src:find("isiLive_error_log", 1, true) ~= nil
+    end
+    local spy = spyChunk(realPcall, function(fn)
+      if IsErrorLogFunction(fn) then
+        currentSeen[#currentSeen + 1] = fn
+      end
+    end)
+
+    local function RaiseForeign(message)
+      currentSeen = {}
+      rawset(_G, "pcall", spy)
+      local ok, err = realPcall(coroutine.wrap(raiseChunk(installedHandler, message)))
+      rawset(_G, "pcall", realPcall)
+      Assert.True(ok, "installed handler must not raise: " .. tostring(err))
+      seenPerError[#seenPerError + 1] = currentSeen
+    end
+
+    RaiseForeign("Plater: nameplate update failed")
+    RaiseForeign("Plater: nameplate update failed")
+    RaiseForeign("WeakAuras: aura update failed")
+
+    Assert.Equal(previousCalls, 3, "every foreign error must still reach the previous handler")
+    Assert.Equal(addon.ErrorLog.GetCount(), 0, "foreign errors must still be rejected")
+
+    local knownAfterFirst = {}
+    for _, fn in ipairs(seenPerError[1]) do
+      knownAfterFirst[fn] = true
+    end
+    local freshLuaFunctions = 0
+    for errorIndex = 2, #seenPerError do
+      for _, fn in ipairs(seenPerError[errorIndex]) do
+        if not knownAfterFirst[fn] then
+          freshLuaFunctions = freshLuaFunctions + 1
+        end
+      end
+    end
+    Assert.True(#seenPerError[1] >= 2, "the hook must run its capture body and the stack probe protected")
+    Assert.Equal(freshLuaFunctions, 0, "foreign errors 2 and 3 must reuse the protected functions of error 1")
+  end)
 end

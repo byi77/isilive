@@ -971,6 +971,116 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
       )
     end)
   end)
+
+  -- COMPONENT-ONLY: OnShow/OnHide propagation from a hidden ancestor is done
+  -- by the WoW client, not by addon code; the stub frames do not model it, so
+  -- the test fires the border's scripts the way the client would.
+  test("TeleportUI pauses the active target pulse while hidden and resumes it on show", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local available = true
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      IsiLiveDB = {},
+      PlaySoundFile = function() end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+      local fontString = {}
+      setmetatable(fontString, {
+        __index = function()
+          return function() end
+        end,
+      })
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return fontString
+          end,
+        },
+        layoutMode = "compact_main_horizontal",
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 12345, mapID = 558, slotIndex = 1 },
+            { spellID = 23456, mapID = 559, slotIndex = 2 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return available
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonShortCode = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+      local function Fire(frame, script)
+        local handler = frame._scripts[script]
+        if handler then
+          handler(frame)
+        end
+      end
+
+      controller.BuildButtons()
+      controller.UpdateButtons(12345)
+      local active, other = controller.GetButtons()[1], controller.GetButtons()[2]
+      Assert.True(active.animGroup:IsPlaying(), "the visible active target must pulse")
+
+      -- The main window hides: the client fires OnHide on the visible border.
+      Fire(active.activeBorder, "OnHide")
+      Assert.False(active.animGroup:IsPlaying(), "a hidden active target must not keep its pulse running")
+
+      Fire(active.activeBorder, "OnShow")
+      Assert.True(active.animGroup:IsPlaying(), "showing the still active target must resume its pulse")
+
+      Fire(other.activeBorder, "OnShow")
+      Assert.False(other.animGroup:IsPlaying(), "a button that is not the active target must not start pulsing")
+
+      -- Unavailable portal: border stays as target marker, but without pulse.
+      available = false
+      controller.UpdateButtons(12345)
+      Fire(active.activeBorder, "OnHide")
+      Fire(active.activeBorder, "OnShow")
+      Assert.False(active.animGroup:IsPlaying(), "an unavailable target must not resume a pulse on show")
+
+      available = true
+      controller.UpdateButtons(12345)
+      IsiLiveDB.reduceMotion = true
+      Fire(active.activeBorder, "OnHide")
+      Fire(active.activeBorder, "OnShow")
+      Assert.False(active.animGroup:IsPlaying(), "reduced motion must keep the pulse stopped on show")
+    end)
+  end)
 end
 
 local function RegisterTeleportUIAudioAndDebugTests(test, Assert, WithGlobals, LoadAddonModules)

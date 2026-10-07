@@ -407,43 +407,43 @@ local function RefreshSystemOptionToggles(ui)
 end
 RI.RefreshSystemOptionToggles = RefreshSystemOptionToggles
 
+local function IsWatchedSystemOptionCVar(ui, cvarName)
+  if type(cvarName) ~= "string" or cvarName == "" then
+    return false
+  end
+  local wanted = string.lower(cvarName)
+  for _, key in ipairs({ "advancedCombatLoggingToggle", "damageMeterResetToggle" }) do
+    local button = ui[key]
+    if type(button) == "table" and type(button._cvarName) == "string" and string.lower(button._cvarName) == wanted then
+      return true
+    end
+  end
+  return false
+end
+
+-- Rule 168: the toggles follow CVar changes through CVAR_UPDATE(cvarName,
+-- value) (ConsoleDocumentation, SynchronousEvent; Blizzard's own
+-- CVarCallbackRegistry relies on it) instead of a 5 s GetCVar ticker. The
+-- event is registered once here, at panel creation in the main chunk -- never
+-- from show/hide, which can run inside a protected-dispatch handler. A hidden
+-- window ignores the event; the main frame's OnShow refreshes the toggles once.
 local function AttachSystemOptionToggleWatcher(mainFrame, ui)
   local watcher = CreateFrame("Frame", nil, mainFrame)
-  local ticker = nil
 
-  local function IsMainFrameShown()
-    return type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true
-  end
-
-  local function StopWatcher()
-    if ticker and type(ticker.Cancel) == "function" then
-      ticker:Cancel()
-    end
-    ticker = nil
-    watcher._isiLiveTicker = nil
-  end
-
-  local function StartWatcher()
-    if ticker or not IsMainFrameShown() then
+  watcher:SetScript("OnEvent", function(_self, event, cvarName)
+    if event ~= "CVAR_UPDATE" then
       return
     end
-    local timer = rawget(_G, "C_Timer")
-    if type(timer) ~= "table" or type(timer.NewTicker) ~= "function" then
+    if not (type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true) then
       return
     end
-    ticker = timer.NewTicker(5, function()
-      if not IsMainFrameShown() then
-        StopWatcher()
-        return
-      end
+    if IsWatchedSystemOptionCVar(ui, cvarName) then
       RefreshSystemOptionToggles(ui)
-    end)
-    watcher._isiLiveTicker = ticker
+    end
+  end)
+  if type(watcher.RegisterEvent) == "function" then
+    pcall(watcher.RegisterEvent, watcher, "CVAR_UPDATE")
   end
-
-  watcher:SetScript("OnShow", StartWatcher)
-  watcher:SetScript("OnHide", StopWatcher)
-  StartWatcher()
 
   ui.systemOptionWatcher = watcher
 end

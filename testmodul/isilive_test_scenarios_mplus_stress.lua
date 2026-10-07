@@ -731,6 +731,266 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: the inspect loop detaches once its queue drains and wakes on new work", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local frame = session.runtime.mainFrame
+      local inspector = session.runtime.inspectController
+      -- Reads the controller's own queue fields, so the scenario also runs
+      -- against a controller without HasPendingWork.
+      local function HasPendingWork()
+        return inspector.isInspecting ~= nil or #inspector.inspectQueue > 0 or #inspector.retryQueue > 0
+      end
+      local notified = {}
+      local answer = true
+      _G.UnitIsVisible = function()
+        return true
+      end
+      _G.CanInspect = function()
+        return true
+      end
+      _G.NotifyInspect = function(unit)
+        notified[#notified + 1] = unit
+      end
+      -- One rendered frame: 0.3 s passes the 0.25 s loop throttle. The WoW
+      -- client calls the frame's current OnUpdate script, nothing else.
+      local handlerCalls = 0
+      local function RunFrames(count)
+        for _ = 1, count do
+          session.Advance(0.3)
+          local onUpdate = frame:GetScript("OnUpdate")
+          if onUpdate then
+            handlerCalls = handlerCalls + 1
+            local before = #notified
+            onUpdate(frame, 0.3)
+            if answer and #notified > before then
+              session.Dispatch("INSPECT_READY", _G.UnitGUID(notified[#notified]))
+            end
+          end
+        end
+      end
+      local ok, err = pcall(function()
+        Assert.True(HasPendingWork(), "the key-start roster must queue its members for inspection")
+        Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "queued inspect work must attach the loop")
+
+        -- Combat pause: the loop keeps its work but dispatches nothing.
+        session.combat = true
+        RunFrames(20)
+        Assert.Equal(#notified, 0, "combat must pause inspect dispatch")
+        Assert.True(HasPendingWork(), "combat must keep the queued inspect work")
+        session.combat = false
+
+        RunFrames(200)
+        Assert.True(#notified >= 1, "out of combat the queued members must be inspected")
+        Assert.False(HasPendingWork(), "every answered inspect must drain the queue")
+
+        local idleBefore = handlerCalls
+        RunFrames(600)
+        io.write(
+          string.format("[STRESS] inspect loop: idle handler calls in 600 frames=%d\n", handlerCalls - idleBefore)
+        )
+        Assert.Equal(handlerCalls - idleBefore, 0, "an idle grouped window must not run the inspect loop per frame")
+        Assert.Nil(frame:GetScript("OnUpdate"), "a drained inspect queue must detach the per-frame loop")
+
+        -- New work wakes the loop through the real enqueue path (the roster
+        -- rebuild after the key); an unanswered inspect still times out and
+        -- is retried.
+        answer = false
+        local notifiedBefore = #notified
+        session.active = false
+        session.Dispatch("CHALLENGE_MODE_COMPLETED")
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        Assert.True(HasPendingWork(), "the roster update must queue fresh inspect work")
+        Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "new inspect work must re-attach the loop")
+        RunFrames(10)
+        Assert.True(#notified > notifiedBefore, "the woken loop must dispatch the new inspect")
+        RunFrames(40)
+        Assert.True(#notified >= notifiedBefore + 2, "an unanswered inspect must time out and be retried")
+        Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "pending retries must keep the loop attached")
+
+        -- Hiding stops processing as before.
+        frame:Hide()
+        Assert.Nil(frame:GetScript("OnUpdate"), "hiding must detach the loop")
+        Assert.False(HasPendingWork(), "hiding must clear the inspect work")
+      end)
+      _G.UnitIsVisible, _G.CanInspect, _G.NotifyInspect = nil, nil, nil
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: the system option toggles follow CVAR_UPDATE without a polling ticker", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local frame = session.runtime.mainFrame
+      local cvars = { advancedCombatLogging = "0", damageMeterResetOnNewInstance = "0" }
+      local reads = 0
+      local originalCVar = _G.C_CVar
+      _G.C_CVar = {
+        GetCVar = function(name)
+          reads = reads + 1
+          return cvars[name]
+        end,
+      }
+      local ok, err = pcall(function()
+        Assert.True(frame:IsShown(), "the key fixture keeps the main window visible")
+        session.FireChildrenOnShow(frame)
+        session.Advance(60)
+        io.write(string.format("[STRESS] system option toggles: visible idle minute CVar reads=%d\n", reads))
+        Assert.Equal(reads, 0, "an idle visible minute must not poll the CVars on a ticker")
+
+        cvars.advancedCombatLogging = "1"
+        local delivered = session.DispatchToFrames("CVAR_UPDATE", "advancedCombatLogging", "1")
+        Assert.True(delivered >= 1, "the toggle watcher must be registered for CVAR_UPDATE")
+        Assert.True(reads >= 1, "a watched CVar change must refresh the visible toggles")
+
+        local before = reads
+        session.DispatchToFrames("CVAR_UPDATE", "nameplateShowAll", "1")
+        Assert.Equal(reads, before, "an unrelated CVar change must not refresh the toggles")
+
+        frame:Hide()
+        before = reads
+        session.DispatchToFrames("CVAR_UPDATE", "damageMeterResetOnNewInstance", "1")
+        Assert.Equal(reads, before, "a hidden window must ignore CVar changes")
+        frame:Show()
+        Assert.True(reads > before, "showing the window must refresh the toggles once")
+      end)
+      _G.C_CVar = originalCVar
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: visible roster renders resize the main frame only when its size changes", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local frame = session.runtime.mainFrame
+      local heightWrites = 0
+      local originalSetHeight = frame.SetHeight
+      frame.SetHeight = function(self, height)
+        heightWrites = heightWrites + 1
+        return originalSetHeight(self, height)
+      end
+      local ok, err = pcall(function()
+        local rendersBefore = session.fullRenders
+        for level = 2, 101 do
+          sender.Sync.SendKey({
+            mapID = 2662,
+            level = level,
+            capturedAt = session.now + level,
+            source = "stress",
+            isVisible = true,
+            force = true,
+          })
+          local wire = session.messages[#session.messages]
+          session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer1-Realm")
+        end
+        local renders = session.fullRenders - rendersBefore
+        io.write(
+          string.format(
+            "[STRESS] main frame size: %d visible renders wrote the height %d times\n",
+            renders,
+            heightWrites
+          )
+        )
+        Assert.True(renders >= 100, "every changed peer key must render the visible roster")
+        Assert.Equal(heightWrites, 0, "renders with an unchanged roster height must not resize the frame")
+
+        -- Another path resizes the frame directly; the next render must
+        -- notice through the live frame size and restore the roster height.
+        local rosterHeight = frame:GetHeight()
+        originalSetHeight(frame, rosterHeight + 40)
+        sender.Sync.SendKey({
+          mapID = 2662,
+          level = 2,
+          capturedAt = session.now + 500,
+          source = "stress",
+          isVisible = true,
+          force = true,
+        })
+        local wire = session.messages[#session.messages]
+        session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer1-Realm")
+        Assert.Equal(heightWrites, 1, "a frame resized elsewhere must be restored by the next render")
+        Assert.Equal(frame:GetHeight(), rosterHeight, "the render must restore the roster-derived height")
+      end)
+      frame.SetHeight = nil
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: the key start pre-builds the death alert so the first death creates no frame", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      -- The fixture's CHALLENGE_MODE_START plus five seconds already ran the
+      -- real key start; the first tank death follows mid-combat.
+      local deathAlert = session.addon.DeathAlert
+      local originals = {
+        UnitGroupRolesAssigned = _G.UnitGroupRolesAssigned,
+        UnitIsConnected = _G.UnitIsConnected,
+        UnitIsDeadOrGhost = _G.UnitIsDeadOrGhost,
+        ShowRoleDeath = deathAlert.ShowRoleDeath,
+        Prebuild = deathAlert.Prebuild,
+      }
+      local dead = {}
+      _G.UnitGroupRolesAssigned = function(unit)
+        return unit == "party1" and "TANK" or "DAMAGER"
+      end
+      _G.UnitIsConnected = function()
+        return true
+      end
+      _G.UnitIsDeadOrGhost = function(unit)
+        return dead[unit] == true
+      end
+      local shown = {}
+      deathAlert.ShowRoleDeath = function(role)
+        local result = originals.ShowRoleDeath(role)
+        shown[#shown + 1] = { role = role, result = result }
+        return result
+      end
+      local ok, err = pcall(function()
+        session.combat = true
+        session.Dispatch("PLAYER_REGEN_DISABLED")
+        local framesBefore = #session.frames
+        dead.party1 = true
+        session.Dispatch("UNIT_HEALTH", "party1")
+        local created = #session.frames - framesBefore
+        io.write(string.format("[STRESS] death alert: frames created by the first death=%d\n", created))
+        Assert.Equal(#shown, 1, "the tank death must reach the real death alert")
+        Assert.True(shown[1].role == "TANK" and shown[1].result == true, "the death alert must show the tank text")
+        Assert.Equal(created, 0, "the first death of a key must not create the alert frame mid-combat")
+
+        -- The pre-build is gated by the setting and skipped in combat.
+        session.combat = false
+        session.Dispatch("PLAYER_REGEN_ENABLED")
+        local prebuilds = 0
+        deathAlert.Prebuild = function()
+          prebuilds = prebuilds + 1
+          return originals.Prebuild()
+        end
+        local function RestartKey()
+          session.active = false
+          session.Dispatch("CHALLENGE_MODE_RESET")
+          session.active = true
+          session.Dispatch("CHALLENGE_MODE_START")
+        end
+        _G.IsiLiveDB.deathAlertEnabled = false
+        RestartKey()
+        session.Advance(2)
+        Assert.Equal(prebuilds, 0, "disabled death alerts must not pre-build the frame")
+        _G.IsiLiveDB.deathAlertEnabled = nil
+        RestartKey()
+        session.combat = true
+        session.Advance(2)
+        Assert.Equal(prebuilds, 0, "a pull right after the key start must leave the lazy build in place")
+        session.combat = false
+        RestartKey()
+        session.Advance(2)
+        Assert.Equal(prebuilds, 1, "an enabled key start out of combat must pre-build the frame")
+      end)
+      _G.UnitGroupRolesAssigned = originals.UnitGroupRolesAssigned
+      _G.UnitIsConnected = originals.UnitIsConnected
+      _G.UnitIsDeadOrGhost = originals.UnitIsDeadOrGhost
+      deathAlert.ShowRoleDeath = originals.ShowRoleDeath
+      deathAlert.Prebuild = originals.Prebuild
+      assert(ok, err)
+    end)
+  end)
+
   test("Mplus stress: Bloodlust announce follows the instance after a zone change without a key event", function()
     Stress.WithKey(ctx, fixtures, function(session)
       session.active = false

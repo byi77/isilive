@@ -943,6 +943,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
 
     WithGlobals(BuildGlobalsEnv(state), function()
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      -- The tablet controller is created on first open (`/isilive sim`).
+      state.ctx.ToggleSimulationTablet()
       local actions = state.simulationTabletOpts.getActions()
 
       local vipAction = nil
@@ -979,11 +981,37 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Factory demo simulation tablet is created on the first open, not at initialization", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      Assert.Nil(state.simulationTabletOpts, "initialization must not create the tablet controller")
+      state.ctx.RefreshSimulationTabletDock()
+      state.ctx.HideSimulationTablet()
+      Assert.Nil(state.simulationTabletOpts, "dock refresh and hide before the first open create nothing")
+      Assert.Nil(state.simulationTabletDockRefreshes, "there is no tablet to dock before the first open")
+
+      Assert.True(state.ctx.ToggleSimulationTablet(), "the first toggle must open the tablet")
+      local firstOpts = state.simulationTabletOpts
+      Assert.NotNil(firstOpts, "the first open must create the tablet controller")
+      Assert.Equal(state.simulationTabletControllerToggles, 1, "the first open must toggle the new tablet")
+
+      state.ctx.ShowSimulationTablet()
+      state.ctx.ToggleSimulationTablet()
+      Assert.True(state.simulationTabletOpts == firstOpts, "later opens must reuse the same controller")
+      state.ctx.RefreshSimulationTabletDock()
+      Assert.Equal(state.simulationTabletDockRefreshes, 1, "an existing tablet is docked")
+    end)
+  end)
+
   test("Factory demo simulation tablet builds safe actions and runs preview hooks", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
 
     WithGlobals(BuildGlobalsEnv(state), function()
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      -- The tablet controller is created on first open (`/isilive sim`).
+      state.ctx.ToggleSimulationTablet()
       Assert.NotNil(state.simulationTabletOpts, "simulation tablet must be initialized through the demo factory")
       Assert.True(
         state.simulationTabletOpts.anchorFrame == state.ctx.mainFrame,

@@ -331,6 +331,18 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
   return SetVisible, ToggleVisibility, GetPendingVisible
 end
 
+-- Rule 168: every roster render asks for the frame height. The comparison
+-- reads the frame's live size instead of a cached Lua value, because other
+-- paths write the size directly (layout-mode width in roster_layout /
+-- roster_panel, the initial SetSize); a cache would miss those writes and
+-- skip a needed resize. Width/height are in the frame's own (unscaled) units,
+-- so SetScale does not disturb the comparison.
+local SIZE_EPSILON = 0.01
+
+local function IsCurrentSize(current, wanted)
+  return type(current) == "number" and type(wanted) == "number" and math.abs(current - wanted) < SIZE_EPSILON
+end
+
 local function CreateHeightController(frame, isInCombat)
   local pendingHeight = nil
   local function SetHeightSafe(height)
@@ -339,6 +351,9 @@ local function CreateHeightController(frame, isInCombat)
       return
     end
     pendingHeight = nil
+    if type(frame.GetHeight) == "function" and IsCurrentSize(frame:GetHeight(), height) then
+      return
+    end
     frame:SetHeight(height)
   end
   local function GetPendingHeight()
@@ -355,6 +370,9 @@ local function CreateWidthController(frame, isInCombat)
       return
     end
     pendingWidth = nil
+    if type(frame.GetWidth) == "function" and IsCurrentSize(frame:GetWidth(), width) then
+      return
+    end
     frame:SetWidth(width)
   end
   local function GetPendingWidth()

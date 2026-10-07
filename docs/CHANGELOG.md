@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-07 - Version 0.9.419 (patch)
+
+- Idle cost: the inspect loop detaches while no inspect work is pending, the
+  system option toggles follow `CVAR_UPDATE` instead of a 5-second ticker, the
+  main frame is resized only when its size changes, the teleport target pulse
+  pauses while hidden, and the death alert frame is pre-built at key start
+  instead of on the first death mid-combat (rule 168).
+- The Settings content and the simulation tablet are built on first open; the
+  Settings category is still registered at load (rule 169).
+- The error-log hook no longer allocates closures for errors raised by other
+  addons (rule 170).
+- Behavior-neutral module splits: mob nameplate diagnostics, notice rich
+  layout, UI motion and private tooltip, the M0 party-run tracker and the
+  cooldown coalescer, and the general/ESC settings sections now live in their
+  own files; every production module except sync and the LFG flags is below
+  1200 lines.
+- Midnight Season 2 handover record added to `docs/SAISON_WECHSEL.md`.
+
 ## 2026-10-07 - Version 0.9.418 (patch)
 
 - Key end: the delayed post-run refresh keeps known isiLive peers and their

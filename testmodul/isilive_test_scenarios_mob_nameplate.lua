@@ -1787,6 +1787,135 @@ local function RegisterPerformanceTests(test, Assert, WithGlobals, LoadAddonModu
   end)
 end
 
+local function RegisterDiagnosticsModuleTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- COMPONENT-ONLY: MobNameplateDiagnostics.Create is a pure read-only factory
+  -- with no event path; the facade-level DumpFrames / DumpState tests above
+  -- cover the end-to-end wiring. These pin the injection contract itself.
+  local function BuildDiagnosticsDeps(calls)
+    local state = { enabled = true, testMode = false, testActiveMapID = nil }
+    local deps = {
+      frames = {},
+      appearance = { fontSize = 14 },
+      getState = function()
+        return { enabled = state.enabled, testMode = state.testMode, testActiveMapID = state.testActiveMapID }
+      end,
+      hasNamePlateAPI = function()
+        return true
+      end,
+      hasProgressAPI = function()
+        return false
+      end,
+      challengeActive = function()
+        calls.challengeActive = calls.challengeActive + 1
+        return true
+      end,
+      activeMapID = function()
+        calls.activeMapID = calls.activeMapID + 1
+        return 557
+      end,
+      isEligibleUnit = function()
+        return false
+      end,
+      npcIdFromGuid = function()
+        return nil
+      end,
+      getForcesDB = function()
+        return nil
+      end,
+      resolveMobContributionFromDB = function(_unit, mapID)
+        calls.contributionMapID = mapID
+        return "2.50", 10
+      end,
+      resolveRemainingPercent = function(mapID)
+        calls.remainingMapID = mapID
+        return "40.00"
+      end,
+      buildText = function(percentString, remaining)
+        return tostring(percentString) .. "|" .. tostring(remaining)
+      end,
+      safeCall = function()
+        return nil
+      end,
+    }
+    return deps, state
+  end
+
+  test("MobNameplateDiagnostics reads injected frames, appearance and state live by reference", function()
+    local addon = LoadAddonModules({ "isiLive_mob_nameplate_diagnostics.lua" })
+    local calls = { challengeActive = 0, activeMapID = 0 }
+    local deps, state = BuildDiagnosticsDeps(calls)
+    local diagnostics = addon.MobNameplateDiagnostics.Create(deps)
+
+    local empty = diagnostics.DumpFrames()
+    Assert.Equal(empty.frameCount, 0, "no frames injected yet")
+
+    deps.frames.nameplate3 = MakeFrame()
+    deps.frames.nameplate3.text = MakeFontString()
+    deps.frames.nameplate3.text:SetText("7.00%")
+    deps.appearance.fontSize = 21
+    state.testMode = true
+    state.testActiveMapID = 558
+
+    local dump = diagnostics.DumpFrames()
+    Assert.Equal(dump.frameCount, 1, "frames added after Create must be visible to the dump")
+    Assert.Equal(dump.appearanceFontSize, 21, "appearance changes after Create must be visible to the dump")
+    Assert.True(dump.testMode == true, "scalar state must be read through getState on every dump")
+    Assert.Equal(dump.testActiveMapID, 558, "test map context must be read through getState")
+    Assert.Equal(dump.frames[1].fontStringText, "7.00%", "rendered text must be read from the frame")
+    Assert.Equal(deps.frames.nameplate3.text._text, "7.00%", "dumping must not mutate the rendered text")
+  end)
+
+  test("MobNameplateDiagnostics.DumpState uses the test map context and skips the live map lookup", function()
+    local addon = LoadAddonModules({ "isiLive_mob_nameplate_diagnostics.lua" })
+    local calls = { challengeActive = 0, activeMapID = 0 }
+    local deps, state = BuildDiagnosticsDeps(calls)
+    local diagnostics = addon.MobNameplateDiagnostics.Create(deps)
+
+    state.testMode = true
+    state.testActiveMapID = 558
+    local testDump = diagnostics.DumpState()
+    Assert.Equal(testDump.unit, "target", "unit must default to target")
+    Assert.Equal(testDump.activeMapID, 558, "test mode must report the explicit demo map")
+    Assert.Equal(calls.activeMapID, 0, "test mode must not query the live challenge map")
+    Assert.Equal(calls.challengeActive, 1, "challenge gate must still be probed once")
+    Assert.Equal(calls.contributionMapID, 558, "DB contribution must resolve against the reported map")
+    Assert.Equal(testDump.resolvedText, "2.50|40.00", "resolved text must come from the injected BuildText")
+    Assert.False(testDump.frameExists, "a unit without an overlay frame must report frameExists=false")
+
+    state.testMode = false
+    state.testActiveMapID = nil
+    local liveDump = diagnostics.DumpState("nameplate2")
+    Assert.Equal(liveDump.unit, "nameplate2", "explicit unit must be echoed")
+    Assert.Equal(liveDump.activeMapID, 557, "live mode must report the challenge map")
+    Assert.Equal(calls.activeMapID, 1, "live mode must query the challenge map exactly once")
+    Assert.Equal(calls.remainingMapID, 557, "remaining percent must resolve against the live map")
+  end)
+
+  test("MobNameplate.DumpFrames is backed by MobNameplateDiagnostics and leaves the overlay pool untouched", function()
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      Assert.Equal(type(addon.MobNameplateDiagnostics), "table", "diagnostics module must load with the facade")
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      local pool = addon.MobNameplate._Test_GetFrames()
+      local frameBefore = pool.nameplate1
+      local textBefore = frameBefore.text._text
+
+      addon.MobNameplate.DumpFrames()
+      addon.MobNameplate.DumpState("nameplate1")
+
+      Assert.True(addon.MobNameplate._Test_GetFrames() == pool, "dumps must not replace the frame pool")
+      Assert.True(pool.nameplate1 == frameBefore, "dumps must not swap the overlay frame")
+      Assert.Equal(pool.nameplate1.text._text, textBefore, "dumps must not change the rendered text")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -1799,4 +1928,5 @@ return function(test, ctx)
   RegisterFontSizeTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDebugSurfaceTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterDiagnosticsModuleTests(test, Assert, WithGlobals, LoadAddonModules)
 end

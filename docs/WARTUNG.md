@@ -103,6 +103,7 @@ Typische Ursache:
 Pruefen:
 - `isiLive_status.lua`
 - `isiLive_event_handlers_runtime.lua`
+- `isiLive_event_handlers_party_run.lua`
 
 Kritisch:
 - `GetInstanceInfo()`
@@ -208,7 +209,7 @@ Typische Ursachen fuer Brueche:
 Pruefen:
 - `core/isiLive_validation_helpers.lua` (`ReadPlainField`/`ReadPlainBoolean`/`ReadPlainNumber`/`ReadPlainString`, `IsSecretField`)
 - `game/isiLive_pi_tracker.lua` (`ResolveFullUpdate`)
-- `logic/isiLive_event_handlers_runtime.lua` (`UnitAuraUpdateRequiresCdScan`, `HandleUnitAuraEvent`)
+- `logic/isiLive_event_handlers_cd_coalescer.lua` (`UnitAuraUpdateRequiresCdScan`), `logic/isiLive_event_handlers_runtime.lua` (`HandleUnitAuraEvent`)
 - `game/isiLive_cd_tracker.lua` (`ScanLust`), `game/isiLive_bloodlust_button_warning.lua`
 - `tools/check_secret_value_guards.lua` (`WATCHED_PAYLOAD_FIELDS`), `tools/simulate_secret_value_pipeline.lua` (Szenario 5)
 
@@ -825,6 +826,24 @@ talentierter Kick-CD, Raid-Lead-Hinweis im laufenden Raid.
 
 Offen: Sprachflagge im Raid (User-Entscheidung, Regel 11), Binding-Watchdog
 (haengt an Ingame-Frage zu `UPDATE_BINDINGS`), N8-Messung, Lazy-Settings.
+
+## Leerlauf, Lazy-Settings und Modul-Splits (2026-10-07)
+
+0.9.419, Regeln 168-170. Messungen am Lua-Mock, jeweils gegen den alten Code
+gegengeprueft: InspectLoop 600 -> 0 OnUpdates in 600 Leerlauf-Frames,
+Systemoption-Haken 24 -> 0 CVar-Reads pro Minute, `SetHeight` 100 -> 0 bei
+unveraenderter Groesse, Fehlerlog 4 -> 0 Closures bei drei Fremdfehlern.
+Settings-Inhalt und Simulations-Tablet entstehen erst beim ersten Oeffnen
+(Blizzard `DisplayLayout`: `frame:Show()`, dann `OnRefresh`).
+`GET_ITEM_INFO_RECEIVED` bleibt registriert, weil ein `RegisterEvent` aus dem
+von Blizzard ausgeloesten `OnShow` nicht als zulaessig belegt ist.
+
+Watchlist-Splits ohne Verhaltensaenderung (Fassade bleibt `addonTable.X`, neues
+Modul laedt vorher, Harness-`IMPLICIT_DEPENDENCIES`): mob_nameplate_diagnostics,
+notice_rich_layout, ui_motion, ui_private_tooltip, event_handlers_party_run,
+event_handlers_cd_coalescer, settings_general. Gesperrt bleiben `sync` und
+`lfg_flags`. Ingame offen: `/reload` mit neuer TOC-Reihenfolge, Settings
+oeffnen, `/isilive sim`.
 
 ## Post-Run-Refresh und Forces-Refresh (2026-10-07)
 

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.418`
+Versionsbasis: `0.9.419`
 Zuletzt aktualisiert: `2026-10-07`
 
 Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe
@@ -614,8 +614,8 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | Teleport-Spell-Mapping und Cooldown-Verhalten | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
-| Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
-| Versteckter Non-Challenge-PartyRun-Utility-Kontext | `isiLive_runtime_state.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_factory.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_factory_death_alert.lua` |
+| Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_party_run.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
+| Versteckter Non-Challenge-PartyRun-Utility-Kontext | `isiLive_runtime_state.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_party_run.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_factory.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_factory_death_alert.lua` |
 | Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_forces_pace.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | VIP-DK-Hilfen | `isiLive_vip_dk_assist.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | VIP-Bloodlust-Debuff-Button-Warnung | `isiLive_bloodlust_button_warning.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |

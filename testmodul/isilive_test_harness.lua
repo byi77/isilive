@@ -61,6 +61,8 @@ local FILE_PATHS = {
   -- ui
   ["isiLive_death_alert.lua"] = "ui/isiLive_death_alert.lua",
   ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
+  ["isiLive_ui_motion.lua"] = "ui/isiLive_ui_motion.lua",
+  ["isiLive_ui_private_tooltip.lua"] = "ui/isiLive_ui_private_tooltip.lua",
   ["isiLive_ui_common.lua"] = "ui/isiLive_ui_common.lua",
   ["isiLive_ui_fonts.lua"] = "ui/isiLive_ui_fonts.lua",
   ["isiLive_stats_box.lua"] = "ui/isiLive_stats_box.lua",
@@ -69,11 +71,13 @@ local FILE_PATHS = {
   ["isiLive_trace_chat_frame.lua"] = "ui/isiLive_trace_chat_frame.lua",
   ["isiLive_notice_common.lua"] = "ui/isiLive_notice_common.lua",
   ["isiLive_portal_navigator_notice.lua"] = "ui/isiLive_portal_navigator_notice.lua",
+  ["isiLive_notice_rich_layout.lua"] = "ui/isiLive_notice_rich_layout.lua",
   ["isiLive_notice.lua"] = "ui/isiLive_notice.lua",
   ["isiLive_status.lua"] = "ui/isiLive_status.lua",
   ["isiLive_roster.lua"] = "ui/isiLive_roster.lua",
   ["isiLive_roster_tooltip.lua"] = "ui/isiLive_roster_tooltip.lua",
   ["isiLive_mob_tooltip.lua"] = "ui/isiLive_mob_tooltip.lua",
+  ["isiLive_mob_nameplate_diagnostics.lua"] = "ui/isiLive_mob_nameplate_diagnostics.lua",
   ["isiLive_mob_nameplate.lua"] = "ui/isiLive_mob_nameplate.lua",
   ["isiLive_roster_layout.lua"] = "ui/isiLive_roster_layout.lua",
   ["isiLive_roster_panel.lua"] = "ui/isiLive_roster_panel.lua",
@@ -97,6 +101,7 @@ local FILE_PATHS = {
   ["isiLive_settings_behavior.lua"] = "ui/isiLive_settings_behavior.lua",
   ["isiLive_settings_sound.lua"] = "ui/isiLive_settings_sound.lua",
   ["isiLive_settings_support.lua"] = "ui/isiLive_settings_support.lua",
+  ["isiLive_settings_general.lua"] = "ui/isiLive_settings_general.lua",
   ["isiLive_settings_sections.lua"] = "ui/isiLive_settings_sections.lua",
   ["isiLive_settings.lua"] = "ui/isiLive_settings.lua",
   ["isiLive_lfg_bonus_model.lua"] = "ui/isiLive_lfg_bonus_model.lua",
@@ -119,6 +124,8 @@ local FILE_PATHS = {
   ["isiLive_events.lua"] = "logic/isiLive_events.lua",
   ["isiLive_event_handlers_queue.lua"] = "logic/isiLive_event_handlers_queue.lua",
   ["isiLive_event_handlers_challenge.lua"] = "logic/isiLive_event_handlers_challenge.lua",
+  ["isiLive_event_handlers_party_run.lua"] = "logic/isiLive_event_handlers_party_run.lua",
+  ["isiLive_event_handlers_cd_coalescer.lua"] = "logic/isiLive_event_handlers_cd_coalescer.lua",
   ["isiLive_event_handlers_runtime.lua"] = "logic/isiLive_event_handlers_runtime.lua",
   ["isiLive_event_handlers.lua"] = "logic/isiLive_event_handlers.lua",
   ["isiLive_commands.lua"] = "logic/isiLive_commands.lua",
@@ -170,9 +177,23 @@ local IMPLICIT_DEPENDENCIES = {
   ["isiLive_notice.lua"] = {
     "isiLive_notice_common.lua",
     "isiLive_portal_navigator_notice.lua",
+    "isiLive_notice_rich_layout.lua",
   },
   ["isiLive_sound_utils.lua"] = {
     "isiLive_sound_registry.lua",
+  },
+  ["isiLive_mob_nameplate.lua"] = {
+    "isiLive_mob_nameplate_diagnostics.lua",
+  },
+  -- UICommon installs its motion and private-tooltip surfaces while loading.
+  ["isiLive_ui_common.lua"] = {
+    "isiLive_ui_motion.lua",
+    "isiLive_ui_private_tooltip.lua",
+  },
+  -- The runtime lifecycle binds its party-run and CD-coalescer modules at load.
+  ["isiLive_event_handlers_runtime.lua"] = {
+    "isiLive_event_handlers_party_run.lua",
+    "isiLive_event_handlers_cd_coalescer.lua",
   },
   ["isiLive_event_handlers.lua"] = {
     "isiLive_event_handlers_queue.lua",
@@ -277,7 +298,12 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_settings_behavior.lua",
     "isiLive_settings_sound.lua",
     "isiLive_settings_support.lua",
+    "isiLive_settings_general.lua",
     "isiLive_settings_sections.lua",
+  },
+  -- SettingsSections re-exports the General / ESC-menu sections at load.
+  ["isiLive_settings_sections.lua"] = {
+    "isiLive_settings_general.lua",
   },
   ["isiLive_ui.lua"] = {
     "isiLive_ui_main_frame.lua",

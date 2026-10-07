@@ -97,6 +97,27 @@ local function InitializeFactoryDeathAlertControllers(ctx)
     PlayRoleDeathSound(role, opts)
   end
 
+  -- Rule 168: on a key start (death alerts enabled) the alert frame is built
+  -- one second later from a timer callback -- outside the protected
+  -- CHALLENGE_MODE_START dispatch and only when not in combat. A pull inside
+  -- that second simply leaves the lazy build in ShowAlertKind as fallback.
+  local function ScheduleDeathAlertPrebuild()
+    if type(deathAlert) ~= "table" or type(deathAlert.Prebuild) ~= "function" then
+      return
+    end
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) ~= "table" or type(timer.After) ~= "function" then
+      return
+    end
+    timer.After(1, function()
+      local inCombat = rawget(_G, "InCombatLockdown")
+      if type(inCombat) == "function" and inCombat() then
+        return
+      end
+      deathAlert.Prebuild()
+    end)
+  end
+
   local deathWatch = addonTable.DeathWatch
   if type(deathWatch) == "table" and type(deathWatch.SetDependencies) == "function" then
     deathWatch.SetDependencies({
@@ -116,6 +137,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
       getUnitRole = type(ctx.getUnitRole) == "function" and ctx.getUnitRole or nil,
       getUnitNameAndRealm = type(ctx.GetUnitNameAndRealm) == "function" and ctx.GetUnitNameAndRealm or nil,
       onRoleDeath = ctx.ShowRoleDeathAlert,
+      onChallengeStart = ScheduleDeathAlertPrebuild,
     })
   end
 end

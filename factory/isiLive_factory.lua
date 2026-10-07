@@ -107,6 +107,8 @@ local function FinalizeFactorySettings(ctx)
 
   if modules.settingsPanel and type(modules.settingsPanel.Create) == "function" then
     ctx.settingsPanel = modules.settingsPanel.Create({
+      -- The category registers now; sections build on the first display.
+      deferBuild = true,
       getL = ctx.GetL,
       setLanguage = ctx.SetLanguage,
       getCurrentLocale = function()
@@ -736,6 +738,12 @@ local function FinalizeFactoryRuntime(ctx)
     logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
     logRuntimeTracefDeep = ctx.runtimeLogController and ctx.runtimeLogController.LogfDeep or nil,
+    -- Rule 168: new inspect work re-attaches the idle-detached inspect loop.
+    onWorkQueued = function()
+      if type(ctx.RefreshInspectLoop) == "function" then
+        ctx.RefreshInspectLoop()
+      end
+    end,
   })
   -- Raid state of the previous GROUP_ROSTER_UPDATE: inside a running raid the
   -- polling and processing switches below are already off, so repeated
@@ -765,6 +773,12 @@ local function FinalizeFactoryRuntime(ctx)
     ctx.inspectLoopTimer = ctx.inspectLoopTimer + (elapsed or 0)
     if ctx.inspectLoopTimer >= 0.25 then
       ctx.inspectLoopTimer = 0
+      -- Rule 168: with nothing queued, in flight or awaiting a retry the loop
+      -- detaches itself; EnqueueInspect attaches it again.
+      if not ctx.inspectController.HasPendingWork() then
+        ctx.RefreshInspectLoop()
+        return
+      end
       -- Inspects are rate-limited to one per second internally; the only real
       -- cost is the NotifyInspect call. Pause during combat to avoid frame
       -- impact on pulls, but keep dispatching during dungeon downtime so a
@@ -775,6 +789,7 @@ local function FinalizeFactoryRuntime(ctx)
         return
       end
       ctx.inspectController.OnUpdate()
+      ctx.RefreshInspectLoop()
     end
   end
 

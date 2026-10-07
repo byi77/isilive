@@ -143,30 +143,35 @@ end
 --
 -- Also strictly more accurate than scanning a traceback string: Lua elides
 -- middle frames in deep tracebacks, where an isiLive frame could hide.
+--
+-- The probe is a chunk-level function handed to pcall with its argument, not
+-- an inline closure: Capture() runs for every foreign error, so an inline
+-- closure would be one fresh allocation per error raised by any addon.
+local function ProbeStackForIsiLive(getinfo)
+  -- Levels are relative to this function, which itself lives in this chunk
+  -- and is skipped by the OWN_SOURCE check like every other own frame.
+  for level = 1, MAX_STACK_PROBE_LEVELS do
+    local info = getinfo(level, "S")
+    if type(info) ~= "table" then
+      return false
+    end
+    local source = info.source
+    local shortSrc = info.short_src
+    local isOwnFrame = (OWN_SOURCE ~= nil and source == OWN_SOURCE)
+      or (OWN_SHORT_SOURCE ~= nil and shortSrc == OWN_SHORT_SOURCE)
+    if not isOwnFrame and (MentionsIsiLive(source) or MentionsIsiLive(shortSrc)) then
+      return true
+    end
+  end
+  return false
+end
+
 local function StackMentionsIsiLive()
   local debugLib = rawget(_G, "debug")
   if type(debugLib) ~= "table" or type(debugLib.getinfo) ~= "function" then
     return false
   end
-  local getinfo = debugLib.getinfo
-  local ok, found = pcall(function()
-    -- Levels are relative to this closure, which itself lives in this chunk
-    -- and is skipped by the OWN_SOURCE check like every other own frame.
-    for level = 1, MAX_STACK_PROBE_LEVELS do
-      local info = getinfo(level, "S")
-      if type(info) ~= "table" then
-        return false
-      end
-      local source = info.source
-      local shortSrc = info.short_src
-      local isOwnFrame = (OWN_SOURCE ~= nil and source == OWN_SOURCE)
-        or (OWN_SHORT_SOURCE ~= nil and shortSrc == OWN_SHORT_SOURCE)
-      if not isOwnFrame and (MentionsIsiLive(source) or MentionsIsiLive(shortSrc)) then
-        return true
-      end
-    end
-    return false
-  end)
+  local ok, found = pcall(ProbeStackForIsiLive, debugLib.getinfo)
   return ok and found == true
 end
 
@@ -233,48 +238,53 @@ local function TrimToCap(storage)
   end
 end
 
+-- Unprotected capture body. ErrorLog.Capture runs it through pcall with its
+-- arguments instead of wrapping it in an inline closure, which would be one
+-- fresh allocation for every foreign error the Install() hook rejects.
+local function CaptureUnprotected(message, stack, source)
+  -- Filter first: Install() delivers every addon's errors here, and the
+  -- traceback below is the expensive part. Nothing before this point may
+  -- allocate per-error.
+  if not IsIsiLiveError(message, stack) then
+    return
+  end
+
+  local storage = EnsureStorage()
+  if not storage then
+    return
+  end
+
+  local fullText = type(stack) == "string" and stack or CaptureStack(message)
+  local existing = FindExistingEntry(storage, fullText)
+  local now = NowTimestamp()
+  if existing then
+    existing.count = (tonumber(existing.count) or 1) + 1
+    existing.lastSeen = now
+    existing.lastSeenDisplay = NowDisplayTimestamp()
+    return
+  end
+
+  local entry = {
+    message = tostring(message or ""),
+    fullText = fullText,
+    source = type(source) == "string" and source or nil,
+    count = 1,
+    firstSeen = now,
+    lastSeen = now,
+    firstSeenDisplay = NowDisplayTimestamp(),
+    lastSeenDisplay = NowDisplayTimestamp(),
+  }
+  storage[#storage + 1] = entry
+  TrimToCap(storage)
+end
+
 --- Captures an error into the ring buffer. Public so manually-detected
 --- internal errors (e.g. validator violations) can also feed in.
 -- @param message string Raw error message.
 -- @param stack string|nil Optional traceback (auto-generated if absent).
 -- @param source string|nil Optional source label (e.g. "controller_wiring").
 function ErrorLog.Capture(message, stack, source)
-  local ok, err = pcall(function()
-    -- Filter first: Install() delivers every addon's errors here, and the
-    -- traceback below is the expensive part. Nothing before this point may
-    -- allocate per-error.
-    if not IsIsiLiveError(message, stack) then
-      return
-    end
-
-    local storage = EnsureStorage()
-    if not storage then
-      return
-    end
-
-    local fullText = type(stack) == "string" and stack or CaptureStack(message)
-    local existing = FindExistingEntry(storage, fullText)
-    local now = NowTimestamp()
-    if existing then
-      existing.count = (tonumber(existing.count) or 1) + 1
-      existing.lastSeen = now
-      existing.lastSeenDisplay = NowDisplayTimestamp()
-      return
-    end
-
-    local entry = {
-      message = tostring(message or ""),
-      fullText = fullText,
-      source = type(source) == "string" and source or nil,
-      count = 1,
-      firstSeen = now,
-      lastSeen = now,
-      firstSeenDisplay = NowDisplayTimestamp(),
-      lastSeenDisplay = NowDisplayTimestamp(),
-    }
-    storage[#storage + 1] = entry
-    TrimToCap(storage)
-  end)
+  local ok, err = pcall(CaptureUnprotected, message, stack, source)
   -- If the error logger itself errors, fall through silently; the original
   -- error has already been forwarded to the upstream handler by Install().
   if not ok then

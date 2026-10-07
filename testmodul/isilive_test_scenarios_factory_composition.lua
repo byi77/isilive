@@ -885,14 +885,20 @@ return function(test, ctx)
       Assert.Equal(#runtime.inspectController.retryQueue, 0, "group exit must clear retries")
       instanceGrouped = true
       dispatch(runtime.eventFrame, "GROUP_ROSTER_UPDATE")
+      -- Rule 168: an instance group without queued inspect work keeps the
+      -- loop detached; the production enqueue entry wakes it.
+      Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "an empty inspect queue must not run the loop per frame")
+      runtime.EnqueueInspect("player")
       Assert.Equal(
         type(runtime.mainFrame:GetScript("OnUpdate")),
         "function",
-        "verified instance groups must wake inspection"
+        "verified instance groups must wake inspection for queued work"
       )
       runtime.mainFrame:Hide()
       Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "hidden groups must suspend inspection")
       runtime.mainFrame:Show()
+      Assert.Nil(runtime.mainFrame:GetScript("OnUpdate"), "showing a group without inspect work must stay idle")
+      runtime.EnqueueInspect("player")
       Assert.Equal(type(runtime.mainFrame:GetScript("OnUpdate")), "function", "showing a group must restore inspection")
     end)
   end)
@@ -1085,6 +1091,92 @@ return function(test, ctx)
         "dpsdump must not fall back to its unavailable-controller message"
       )
     end
+  end)
+
+  test("factory composition root: settings content and simulation tablet build on first open", function()
+    -- Rule 169/170: addon init registers the Settings category but builds no
+    -- section, and creates no simulation tablet. Both appear on first open
+    -- through the real paths (Blizzard canvas display, `/isilive sim`).
+    local globals = BuildGlobals()
+    local baseCreateFrame = globals.CreateFrame
+    local frameCount = 0
+    local namedFrames = {}
+    globals.CreateFrame = function(frameType, name, ...)
+      frameCount = frameCount + 1
+      if name ~= nil then
+        namedFrames[name] = (namedFrames[name] or 0) + 1
+      end
+      return baseCreateFrame(frameType, name, ...)
+    end
+
+    local files = GetAllIsiLiveFiles()
+    -- The shared list omits the tablet module; load it before the factory so
+    -- the real controller is wired.
+    table.insert(files, 1, "isiLive_simulation_tablet.lua")
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(files)
+    end)
+    Assert.NotNil(addon.SimulationTablet, "the real simulation tablet module must be loaded")
+
+    local panel
+    local createFrames, createLabelReads = 0, 0
+    local labelReads = 0
+    local originalCreate = addon.SettingsPanel.Create
+    addon.SettingsPanel.Create = function(opts)
+      local getL = opts.getL
+      opts.getL = function()
+        labelReads = labelReads + 1
+        return getL()
+      end
+      local framesBefore, labelsBefore = frameCount, labelReads
+      panel = originalCreate(opts)
+      createFrames, createLabelReads = frameCount - framesBefore, labelReads - labelsBefore
+      return panel
+    end
+
+    WithGlobals(globals, function()
+      local ok, err = xpcall(function()
+        addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must run without raising: " .. tostring(err))
+
+      Assert.NotNil(panel, "the composition root must create the settings panel")
+      Assert.NotNil(panel.category, "the Settings category must be registered during init")
+      Assert.False(panel.IsBuilt(), "addon init must not build the settings sections")
+      Assert.Nil(panel.navigation, "addon init must not build the section navigation")
+      Assert.True(createFrames <= 4, "settings init may only create canvas, scroll, content and item-event frames")
+      Assert.Equal(createLabelReads, 0, "settings init must not read localized labels")
+      Assert.False(panel.canvas:IsShown(), "an unopened settings canvas must not report itself as shown")
+      Assert.Nil(namedFrames.isiLiveSimulationTablet, "addon init must not create the simulation tablet")
+
+      -- Paths that touch the panel before its first display stay no-ops.
+      panel.Refresh()
+      Assert.False(panel.IsBuilt(), "a refresh before the first display must not build the panel")
+
+      -- Blizzard_SettingsPanel.lua DisplayLayout: frame:Show(), then
+      -- frame:OnRefresh(), before the settings canvas is shown.
+      local framesBeforeOpen = frameCount
+      panel.canvas:Show()
+      panel.canvas:OnRefresh()
+      Assert.True(panel.IsBuilt(), "displaying the category must build the settings sections")
+      Assert.NotNil(panel.navigation, "displaying the category must build the section navigation")
+      local openFrames = frameCount - framesBeforeOpen
+      Assert.True(openFrames > 50, "the first display must build the full settings tree")
+
+      -- Re-displaying the category never builds again.
+      local framesBeforeReopen = frameCount
+      panel.canvas:Hide()
+      panel.canvas:Show()
+      panel.canvas:OnRefresh()
+      Assert.Equal(frameCount, framesBeforeReopen, "re-opening settings must not rebuild the sections")
+
+      globals.SlashCmdList.ISILIVE("sim")
+      Assert.Equal(namedFrames.isiLiveSimulationTablet, 1, "/isilive sim must create the tablet on first use")
+      globals.SlashCmdList.ISILIVE("sim")
+      globals.SlashCmdList.ISILIVE("sim")
+      Assert.Equal(namedFrames.isiLiveSimulationTablet, 1, "toggling the tablet again must reuse its frame")
+    end)
   end)
 
   test("factory composition root: legacy nameplate remaining default migrates to opt-in", function()

@@ -296,34 +296,9 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
   return nav
 end
 
-function SettingsPanel.Create(opts)
-  local config = ResolveSettingsOptions(opts)
-
-  local blizzardSettings = rawget(_G, "Settings")
-  if type(blizzardSettings) ~= "table" or type(blizzardSettings.RegisterCanvasLayoutCategory) ~= "function" then
-    return nil
-  end
-
-  local canvas = CreateFrame("Frame", nil, rawget(_G, "UIParent"), "BackdropTemplate")
-  ApplySettingsBackdrop(canvas)
-  local scrollFrame = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
-  scrollFrame:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -NAV_HEIGHT)
-  scrollFrame:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -PADDING_X, PADDING_TOP)
-  if type(scrollFrame.EnableMouseWheel) == "function" then
-    scrollFrame:EnableMouseWheel(true)
-  end
-
-  local content = CreateFrame("Frame", nil, scrollFrame)
-  content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 0)
-  if type(content.SetWidth) == "function" then
-    content:SetWidth(SETTINGS_CONTENT_WIDTH)
-  elseif type(content.SetSize) == "function" then
-    content:SetSize(SETTINGS_CONTENT_WIDTH, 1)
-  end
-  if type(scrollFrame.SetScrollChild) == "function" then
-    scrollFrame:SetScrollChild(content)
-  end
-
+-- Builds the section navigation and every settings section into `content`.
+-- Returns the navigation; the controls table is filled in place.
+local function BuildSettingsContent(canvas, scrollFrame, content, config, controls)
   local nav = CreateSectionNavigation(canvas, scrollFrame, config.getL)
   if type(scrollFrame.SetScript) == "function" then
     scrollFrame:SetScript("OnVerticalScroll", function()
@@ -346,7 +321,6 @@ function SettingsPanel.Create(opts)
   end
 
   local L = config.getL()
-  local controls = {}
 
   CreateSettingsTitle(content)
 
@@ -403,16 +377,95 @@ function SettingsPanel.Create(opts)
     scrollFrame:UpdateScrollChildRect()
   end
 
+  return nav
+end
+
+-- opts.deferBuild = true (production composition root): Create only makes
+-- the canvas, scroll frame, content frame and item-event frame and registers
+-- the category; navigation and all sections are built on the first display
+-- of the canvas (or an explicit EnsureBuilt()). Without it Create builds the
+-- content eagerly.
+function SettingsPanel.Create(opts)
+  local config = ResolveSettingsOptions(opts)
+  local deferBuild = type(opts) == "table" and opts.deferBuild == true
+
+  local blizzardSettings = rawget(_G, "Settings")
+  if type(blizzardSettings) ~= "table" or type(blizzardSettings.RegisterCanvasLayoutCategory) ~= "function" then
+    return nil
+  end
+
+  local canvas = CreateFrame("Frame", nil, rawget(_G, "UIParent"), "BackdropTemplate")
+  ApplySettingsBackdrop(canvas)
+  -- Blizzard's SettingsPanelMixin:DisplayLayout calls Show() on the canvas
+  -- whenever its category is selected and ClearCurrentCategoryCanvas calls
+  -- Hide() when another one is. A canvas left shown under UIParent would
+  -- report itself visible before the first open, so it starts hidden.
+  if type(canvas.Hide) == "function" then
+    canvas:Hide()
+  end
+  local scrollFrame = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
+  scrollFrame:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -NAV_HEIGHT)
+  scrollFrame:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -PADDING_X, PADDING_TOP)
+  if type(scrollFrame.EnableMouseWheel) == "function" then
+    scrollFrame:EnableMouseWheel(true)
+  end
+
+  local content = CreateFrame("Frame", nil, scrollFrame)
+  content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 0)
+  if type(content.SetWidth) == "function" then
+    content:SetWidth(SETTINGS_CONTENT_WIDTH)
+  elseif type(content.SetSize) == "function" then
+    content:SetSize(SETTINGS_CONTENT_WIDTH, 1)
+  end
+  if type(scrollFrame.SetScrollChild) == "function" then
+    scrollFrame:SetScrollChild(content)
+  end
+
+  local controls = {}
+  local panel = {
+    canvas = canvas,
+    scrollFrame = scrollFrame,
+    content = content,
+  }
+  local built = false
+
+  -- Idempotent: builds navigation + sections exactly once. Returns true only
+  -- on the call that built the content.
+  local function EnsureBuilt()
+    if built then
+      return false
+    end
+    built = true
+    panel.navigation = BuildSettingsContent(canvas, scrollFrame, content, config, controls)
+    return true
+  end
+  panel.EnsureBuilt = EnsureBuilt
+  function panel.IsBuilt()
+    return built
+  end
+
+  if not deferBuild then
+    EnsureBuilt()
+  end
+
   local category = blizzardSettings.RegisterCanvasLayoutCategory(canvas, ISILIVE_BRAND_TITLE)
   if type(blizzardSettings.RegisterAddOnCategory) == "function" then
     blizzardSettings.RegisterAddOnCategory(category)
   end
+  panel.category = category
 
+  -- Language, font, alpha and reset paths call Refresh at any time. Before
+  -- the first display there is nothing to repaint; the later build reads the
+  -- current labels and DB values itself.
   local function Refresh()
+    if not built then
+      return
+    end
     RefreshSettingsControls(controls, config)
-    nav.Refresh()
+    panel.navigation.Refresh()
   end
   canvas.Refresh = Refresh
+  panel.Refresh = Refresh
 
   -- Item-cache events are global traffic, including while Settings is closed.
   -- They only affect the toy selector, never the full settings/preview tree.
@@ -445,14 +498,23 @@ function SettingsPanel.Create(opts)
   end)
   itemDataRefreshFrame:RegisterEvent("TOYS_UPDATED")
   itemDataRefreshFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-  canvas:HookScript("OnShow", Refresh)
 
-  return {
-    category = category,
-    canvas = canvas,
-    scrollFrame = scrollFrame,
-    navigation = nav,
-    content = content,
-    Refresh = Refresh,
-  }
+  -- Canvas-layout contract (Blizzard_SettingsPanel.lua, DisplayLayout):
+  -- selecting the category calls frame:Show() and then frame:OnRefresh()
+  -- before the settings canvas is shown, on every display including the
+  -- first. CallRefreshOnCanvases also calls OnRefresh on every registered
+  -- canvas whenever Settings opens; the IsShown check limits the build to
+  -- the displayed canvas (deselected canvases are hidden by Blizzard).
+  canvas.OnRefresh = function(self)
+    local frame = type(self) == "table" and self or canvas
+    if type(frame.IsShown) == "function" and frame:IsShown() == true then
+      EnsureBuilt()
+    end
+  end
+  canvas:HookScript("OnShow", function()
+    EnsureBuilt()
+    Refresh()
+  end)
+
+  return panel
 end

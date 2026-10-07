@@ -5,6 +5,14 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 local SettingsSections = {}
 addonTable.SettingsSections = SettingsSections
 
+-- The General and ESC-menu sections live in ui/isiLive_settings_general.lua;
+-- this facade keeps their public names so callers bind them unchanged.
+local SettingsGeneral = assert(addonTable.SettingsGeneral, "isiLive: SettingsGeneral missing")
+SettingsSections.BuildGeneralSection = SettingsGeneral.BuildGeneralSection
+SettingsSections.BuildEscMenuSection = SettingsGeneral.BuildEscMenuSection
+SettingsSections.RefreshGeneralControls = SettingsGeneral.RefreshGeneralControls
+SettingsSections.RefreshEscMenuControls = SettingsGeneral.RefreshEscMenuControls
+
 local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
 local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green hearts for relevant non-stacking class buffs:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -35,18 +43,11 @@ local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local CreateSettingsSlider = addonTable.SettingsControls.CreateSettingsSlider
 local CreateSettingsActionButton = addonTable.SettingsControls.CreateSettingsActionButton
-local CreateLanguageSelector = addonTable.SettingsControls.CreateLanguageSelector
 local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 local CreateSettingsDropdownSelector = addonTable.SettingsControls.CreateSettingsDropdownSelector
 
 local SHOW_NAME_MAX_CHARS_SETTING = false
 local SHOW_TELEPORT_COLUMNS_SETTING = false
-local DEFAULT_LAYOUT_MODE_EXPANDED = "expanded"
-local DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
-local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
-local DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
-local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
-local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
 local DISPLAY_CHECKBOX_LABEL_WIDTH = 640
 local DISPLAY_CHECKBOX_DESCRIPTION_WIDTH = 620
 
@@ -159,23 +160,6 @@ local STATS_BOX_OPTIONAL_ROWS = {
     default = false,
   },
 }
-
-local BuildHearthstoneSettingsOptions = addonTable.SettingsHearthstone
-    and type(addonTable.SettingsHearthstone.BuildOptions) == "function"
-    and addonTable.SettingsHearthstone.BuildOptions
-  or function(_config, labels)
-    labels = type(labels) == "table" and labels or {}
-    return {
-      {
-        value = "random",
-        fallback = labels.SETTINGS_HEARTHSTONE_RANDOM or "Random owned Hearthstone",
-      },
-      {
-        value = "item:6948",
-        fallback = labels.SETTINGS_HEARTHSTONE_DEFAULT or "Default Hearthstone (6948)",
-      },
-    }
-  end
 
 -- Display names for the font keys. These are typeface names, not prose, so
 -- they stay identical in every language.
@@ -444,29 +428,6 @@ local function CreateDisplayPreview(canvas, yOffset, config)
     yOffset - 86
 end
 
-local function NormalizeStoredLayoutMode(layoutMode)
-  if layoutMode == nil or layoutMode == false or layoutMode == "" then
-    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  end
-  if layoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
-    return DEFAULT_LAYOUT_MODE_LAST_USED
-  end
-  if layoutMode == DEFAULT_LAYOUT_MODE_EXPANDED then
-    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  end
-  if layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY then
-    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  end
-  if
-    layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL
-    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL
-    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  then
-    return layoutMode
-  end
-  return nil
-end
-
 local function ResolveSettingsLocale(config)
   local db = type(config.getDB) == "function" and config.getDB() or nil
   if type(db) == "table" and STATS_BOX_SETTING_LABELS[db.locale] then
@@ -503,152 +464,6 @@ local function SetLocalizedText(control, labels, key, fallback)
   if control and type(control.SetText) == "function" then
     control:SetText(labels[key] or fallback)
   end
-end
-
-function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, controls)
-  controls.generalHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_GENERAL or "General")
-  controls.generalHint, yOffset = CreateSectionNote(
-    canvas,
-    yOffset,
-    labels.SETTINGS_SECTION_GENERAL_HINT or "Language, startup behavior, and utility links."
-  )
-  if controls.generalHint then
-    controls.generalHint._sectionKey = "SETTINGS_SECTION_GENERAL"
-  end
-
-  controls.lang, yOffset = CreateLanguageSelector(
-    canvas,
-    yOffset,
-    labels.SETTINGS_LANGUAGE or "Language",
-    config.getCurrentLocale,
-    config.setLanguage,
-    SettingDescriptionOptions(labels.SETTINGS_LANGUAGE_DESC or "Changes the isiLive addon language.")
-  )
-
-  controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
-    canvas,
-    yOffset,
-    "SETTINGS_DEFAULT_OPEN_UI",
-    labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
-    {
-      {
-        value = DEFAULT_LAYOUT_MODE_LAST_USED,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
-        width = 78,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_V",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_V or "V",
-        width = 34,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_H",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_H or "H",
-        width = 34,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M2",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M2 or "M+",
-        width = 40,
-      },
-    },
-    config.getL,
-    function()
-      local db = config.getDB()
-      return NormalizeStoredLayoutMode(db.rosterDefaultLayoutMode)
-    end,
-    function(mode)
-      local db = config.getDB()
-      db.rosterDefaultLayoutMode = NormalizeStoredLayoutMode(mode)
-      if type(config.onDefaultLayoutModeChange) == "function" then
-        local callbackMode = db.rosterDefaultLayoutMode
-        if callbackMode == DEFAULT_LAYOUT_MODE_LAST_USED then
-          callbackMode = nil
-        end
-        config.onDefaultLayoutModeChange(callbackMode)
-      end
-    end,
-    NormalizeStoredLayoutMode,
-    true,
-    SettingDescriptionOptions(
-      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown.",
-      { descriptionKey = "SETTINGS_DEFAULT_OPEN_UI_DESC" }
-    )
-  )
-
-  return yOffset
-end
-
-function SettingsSections.BuildEscMenuSection(canvas, yOffset, labels, config, controls)
-  controls.escMenuHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_ESC_PANEL or "ESC Menu")
-  if controls.escMenuHeader then
-    controls.escMenuHeader._sectionKey = "SETTINGS_ESC_PANEL"
-  end
-
-  controls.escMenuHint, yOffset = CreateSectionNote(
-    canvas,
-    yOffset,
-    labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
-  )
-  if controls.escMenuHint then
-    controls.escMenuHint._sectionKey = "SETTINGS_ESC_PANEL"
-  end
-
-  controls.escPanel, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts",
-    function()
-      local db = config.getDB()
-      return db.showEscPanel ~= false
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.showEscPanel = checked
-      if type(config.onEscPanelToggle) == "function" then
-        config.onEscPanelToggle(checked)
-      end
-    end,
-    "SETTINGS_ESC_PANEL",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
-    )
-  )
-
-  controls.hearthstoneSelect, yOffset = CreateSettingsDropdownSelector(
-    canvas,
-    yOffset,
-    "SETTINGS_HEARTHSTONE_SELECT",
-    labels.SETTINGS_HEARTHSTONE_SELECT or "Hearthstone",
-    BuildHearthstoneSettingsOptions(config, labels),
-    config.getL,
-    function()
-      local db = config.getDB()
-      return db.hearthstoneChoice or "random"
-    end,
-    function(val)
-      local db = config.getDB()
-      db.hearthstoneChoice = val
-      if type(config.onHearthstoneChoiceChange) == "function" then
-        config.onHearthstoneChoiceChange()
-      end
-    end,
-    nil,
-    false,
-    {
-      descriptionKey = "SETTINGS_HEARTHSTONE_SELECT_DESC",
-      descriptionText = labels.SETTINGS_HEARTHSTONE_SELECT_DESC
-        or "Choose which Hearthstone the ESC menu shortcut should use.",
-      descriptionWidth = DISPLAY_CHECKBOX_DESCRIPTION_WIDTH,
-      descriptionWordWrap = true,
-    }
-  )
-
-  return yOffset
 end
 
 function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, controls)
@@ -1065,53 +880,6 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.displayReset, yOffset = CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
 
   return yOffset
-end
-
-function SettingsSections.RefreshGeneralControls(controls, labels)
-  if controls.generalHeader then
-    controls.generalHeader:SetText(labels.SETTINGS_SECTION_GENERAL or "General")
-  end
-  SetLocalizedText(
-    controls.generalHint,
-    labels,
-    "SETTINGS_SECTION_GENERAL_HINT",
-    "Language, startup behavior, and utility links."
-  )
-  if controls.lang then
-    controls.lang.label:SetText(labels.SETTINGS_LANGUAGE or "Language")
-    SetControlDescription(controls.lang, labels.SETTINGS_LANGUAGE_DESC or "Changes the isiLive addon language.")
-    controls.lang.UpdateHighlight()
-  end
-  if controls.defaultLayout then
-    SetControlDescription(
-      controls.defaultLayout,
-      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
-    )
-    controls.defaultLayout.UpdateHighlight()
-  end
-end
-
-function SettingsSections.RefreshEscMenuControls(controls, labels, db, config)
-  if controls.escMenuHeader then
-    controls.escMenuHeader:SetText(labels.SETTINGS_ESC_PANEL or "ESC Menu")
-  end
-  SetLocalizedText(
-    controls.escMenuHint,
-    labels,
-    "SETTINGS_ESC_PANEL_DESC",
-    "Adds isiLive's shortcut panel to the ESC menu for quick access."
-  )
-  if controls.escPanel then
-    controls.escPanel.label:SetText(labels.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts")
-    SetCheckboxDescription(
-      controls.escPanel,
-      labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
-    )
-    controls.escPanel.check:SetChecked(db.showEscPanel ~= false)
-  end
-  if controls.hearthstoneSelect then
-    controls.hearthstoneSelect.UpdateOptions(BuildHearthstoneSettingsOptions(config, labels))
-  end
 end
 
 function SettingsSections.RefreshDisplayControls(controls, labels, db, config)

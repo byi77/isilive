@@ -158,6 +158,7 @@ function DeathWatch.CreateController(opts)
       return rawget(_G, "IsiLiveDB") or {}
     end
   local onRoleDeath = type(opts.onRoleDeath) == "function" and opts.onRoleDeath or function(_role, _unit, _opts) end
+  local onChallengeStart = type(opts.onChallengeStart) == "function" and opts.onChallengeStart or nil
 
   local controller = {}
   -- Edge-triggered dead flags keyed by GUID, not by unit token: party tokens
@@ -436,6 +437,15 @@ function DeathWatch.CreateController(opts)
     guidByPlayerKey = {}
   end
 
+  -- Rule 168: a key start is the calm moment to let the alert frame be built
+  -- ahead of the first death, which otherwise builds it mid-combat.
+  function controller.HandleChallengeStart()
+    controller.Reset()
+    if onChallengeStart and IsEnabled() then
+      onChallengeStart()
+    end
+  end
+
   return controller
 end
 
@@ -480,7 +490,7 @@ function DeathWatch.HandleEvent(event, ...)
     return
   end
   if event == "CHALLENGE_MODE_START" then
-    controllerInstance.Reset()
+    controllerInstance.HandleChallengeStart()
     return
   end
   if event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
