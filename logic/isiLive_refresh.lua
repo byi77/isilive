@@ -62,6 +62,10 @@ function Refresh.CreateController(opts)
   local controller = {}
 
   -- refreshOpts.keepKnownPeers: see KeySync ForceRefreshSyncState (post-run refresh).
+  -- refreshOpts.ignoreDebounce: the post-run refresh skips the click debounce
+  -- (rule 19 guards the button, not this scheduled caller). A Re-Sync click
+  -- shortly after the key ended would otherwise block every post-run attempt,
+  -- and rule 4 then keeps the RIO delta off for the whole session.
   function controller.RunFullRefresh(refreshOpts)
     if isStopped() or isPaused() then
       if logRuntimeTracef then
@@ -81,7 +85,14 @@ function Refresh.CreateController(opts)
     end
 
     local now = tonumber(getTime())
-    if now and refreshDebounceSeconds > 0 and lastRefreshAt and (now - lastRefreshAt) < refreshDebounceSeconds then
+    local ignoreDebounce = type(refreshOpts) == "table" and refreshOpts.ignoreDebounce == true
+    if
+      now
+      and not ignoreDebounce
+      and refreshDebounceSeconds > 0
+      and lastRefreshAt
+      and (now - lastRefreshAt) < refreshDebounceSeconds
+    then
       if logRuntimeTracef then
         logRuntimeTracef(
           "[REFRESH] run_full_refresh blocked reason=debounce remain=%.1f",

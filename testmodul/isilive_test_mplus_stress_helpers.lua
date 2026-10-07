@@ -135,6 +135,9 @@ function Helpers.BuildGlobals(buildGlobals)
     return session.raid
   end
   globals.GetNumGroupMembers = function()
+    if session.members then
+      return session.members
+    end
     return session.raid and 20 or (session.grouped and 5 or 0)
   end
   globals.InCombatLockdown = function()
@@ -227,8 +230,12 @@ function Helpers.BuildGlobals(buildGlobals)
   return globals, session
 end
 
-function Helpers.WithKey(ctx, fixtures, callback)
+-- The optional prepare(globals, session) adjusts client API stubs before load.
+function Helpers.WithKey(ctx, fixtures, callback, prepare)
   local globals, session = Helpers.BuildGlobals(fixtures.buildGlobals)
+  if type(prepare) == "function" then
+    prepare(globals, session)
+  end
   ctx.with_globals(globals, function()
     local addon = ctx.load_modules(fixtures.moduleFiles())
     local runtime = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
@@ -249,6 +256,31 @@ function Helpers.WithKey(ctx, fixtures, callback)
     end
     ctx.assert.True(addon.MplusTimer.GetTimerData().running, "stress fixture must start through the real dispatcher")
     ctx.assert.Equal(addon.KillTrack.GetData().percent, 10, "forces fixture must hydrate through the real key start")
+    callback(session)
+    ctx.assert.Equal(#session.errors, 0, "protected dispatch must report zero errors throughout the workload")
+  end)
+end
+
+-- Same production wiring as WithKey, but the session stays in an ordinary
+-- party outside any key: login and the first roster update run through the
+-- real dispatcher, which opens the main frame for the fresh group. The
+-- optional prepare(globals, session) adjusts client API stubs before load.
+function Helpers.WithParty(ctx, fixtures, callback, prepare)
+  local globals, session = Helpers.BuildGlobals(fixtures.buildGlobals)
+  if type(prepare) == "function" then
+    prepare(globals, session)
+  end
+  ctx.with_globals(globals, function()
+    local addon = ctx.load_modules(fixtures.moduleFiles())
+    local runtime = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+    session.addon, session.runtime, session.globals = addon, runtime, globals
+    local gated = runtime.eventFrame:GetScript("OnEvent")
+    function session.Dispatch(event, ...)
+      gated(runtime.eventFrame, event, ...)
+    end
+    session.Dispatch("PLAYER_LOGIN")
+    session.Dispatch("GROUP_ROSTER_UPDATE")
+    session.Advance(5)
     callback(session)
     ctx.assert.Equal(#session.errors, 0, "protected dispatch must report zero errors throughout the workload")
   end)

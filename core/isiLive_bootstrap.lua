@@ -378,9 +378,11 @@ function Bootstrap.RegisterDispatcherEvents(eventFrame)
 end
 
 --- Applies or lifts the raid hard-off at the event-registration level.
--- Handler-side early-outs still pay a full dispatch per event, and the two
--- unfiltered high-frequency entries (UNIT_HEALTH, UNIT_AURA) fire for every
--- raid member on every tick. Unregistering removes that traffic outright.
+-- Handler-side early-outs still pay a full dispatch per event. The two
+-- high-frequency entries (UNIT_HEALTH, UNIT_AURA) are unit-filtered to player
+-- and party1-4 (rule 149), but in a raid those tokens name the own subgroup,
+-- so they still tick through every pull. Unregistering removes that traffic
+-- outright.
 --
 -- Re-registration is deferred through C_Timer.After(0) so RegisterEvent never
 -- runs inside the dispatch stack that requested it: patch 12.0 raises

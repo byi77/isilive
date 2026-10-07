@@ -16,7 +16,7 @@ local function emptyfn() end
 local function BuildDeps(opts)
   opts = opts or {}
 
-  return {
+  local deps = {
     printFn = opts.printFn or print,
     getL = opts.getL or function()
       return {}
@@ -29,6 +29,7 @@ local function BuildDeps(opts)
     getActiveChallengeMapID = opts.getActiveChallengeMapID or function()
       return nil
     end,
+    isRaidGroup = opts.isRaidGroup,
     getWasInGroup = opts.getWasInGroup or falsefn,
     setWasInGroup = opts.setWasInGroup or emptyfn,
     getWasRaidGroup = opts.getWasRaidGroup or falsefn,
@@ -107,6 +108,14 @@ local function BuildDeps(opts)
     logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or emptyfn,
     restoreMainFrameAfterRaid = false,
   }
+  if type(deps.isRaidGroup) ~= "function" then
+    -- Hosts without the shared raid bridge (stand-alone controllers in tests)
+    -- keep the member-count check; production wires ctx.IsRaidGroup.
+    deps.isRaidGroup = function()
+      return deps.isInGroup() == true and (tonumber(deps.getNumGroupMembers()) or 0) > 5
+    end
+  end
+  return deps
 end
 
 local GHOST_KEY_PREFIX = "ghost:"
@@ -731,8 +740,11 @@ local function HandleGroupRosterUpdate(deps)
     return
   end
 
-  local numMembers = deps.getNumGroupMembers()
-  if numMembers > 5 then
+  -- Same raid definition as the main-frame lock and the runtime profile
+  -- (IsInRaid() or more than five members). A raid that shrinks to five or
+  -- fewer is still a raid: treating it as a party here consumed the post-raid
+  -- restore against the frame lock and ran the full party path (rule 171).
+  if deps.isRaidGroup() == true then
     if not wasRaidGroupBefore then
       -- Startup may have armed the restore already, when it found a raid in
       -- progress and therefore never showed the frame. Its answer wins: asking

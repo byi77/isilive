@@ -353,6 +353,119 @@ local function RunMouseInputScenarios(RI, addon)
 end
 
 -- ----------------------------------------------------------------------
+-- Scenario 12: a macro left stale by a combat render is rewritten when the
+-- window, closed in combat, is reopened without its show callbacks.
+--
+-- The roster shifts in combat while the window is open: the render runs but
+-- cannot write the secure macro. The window is closed in combat, the hide
+-- lands after combat (no render: the window is no longer shown), and a queue
+-- highlight later reopens it with skipShowCallbacks. Only the OnShow flush
+-- (FlushHiddenRender) runs then, so the combat render itself must have left
+-- the roster marked stale.
+--
+-- COMPONENT-ONLY: drives the real RosterPanel controller (RenderRoster and
+-- FlushHiddenRender, which the main frame's OnShow calls) with the shared
+-- roster-panel frame mocks. The full dispatcher path (PLAYER_REGEN_ENABLED,
+-- SetMainFrameVisible with skipShowCallbacks) is pinned end to end by the
+-- usecase test "Mplus stress: a role macro left stale in combat is rewritten
+-- when a closed window reopens"; there a post-combat kill-track repaint also
+-- marks the hidden roster stale, which this scenario keeps out of the way.
+-- ----------------------------------------------------------------------
+local function RunStaleCombatRenderScenario()
+  print("\n========== Scenario 12: combat-stale macro is rewritten on a callback-free reopen ==========")
+  local helperChunk = assert(loadfile("testmodul/isilive_test_scenarios_roster_panel.lua"))
+  local helperAddon = {}
+  helperChunk("isiLive", helperAddon)
+  local H = helperAddon._RosterPanelTests
+  local createdFrames, createdFontStrings = {}, {}
+  local shownState = { value = true }
+  local roster = {
+    player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+    party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+  }
+  local function CountRoleButtonsTargeting(name)
+    local wanted = "\n/target " .. name .. "\n"
+    local count = 0
+    for _, frame in ipairs(createdFrames) do
+      local macro = frame.attributes and frame.attributes.macrotext1
+      if type(macro) == "string" and macro:find(wanted, 1, true) then
+        count = count + 1
+      end
+    end
+    return count
+  end
+  Harness.WithGlobals({
+    CreateFrame = function()
+      return H.NewRecordedFrame(createdFrames, createdFontStrings)
+    end,
+    InCombatLockdown = function()
+      return inCombat
+    end,
+    GetRealmName = function()
+      return "Stormrage"
+    end,
+    GameTooltip = { SetOwner = NoOp, SetText = NoOp, AddLine = NoOp, Show = NoOp, Hide = NoOp },
+  }, function()
+    local addon = Harness.LoadAddonModules({
+      "isiLive_roster.lua",
+      "isiLive_roster_layout.lua",
+      "isiLive_roster_panel_render.lua",
+      "isiLive_roster_panel.lua",
+    })
+    local controller = H.BuildHiddenSettingTestController(addon, createdFontStrings, {
+      mainFrameShownState = shownState,
+      getRoster = function()
+        return roster
+      end,
+      buildOrderedRoster = function(currentRoster, rolePriority, unitPriority)
+        return addon.Roster.BuildOrderedRoster(currentRoster, rolePriority, unitPriority)
+      end,
+      buildDisplayData = function(info)
+        return {
+          colorHex = "ffffffff",
+          displayName = info.name,
+          languageDisplay = "",
+          specText = "-",
+          ilvlText = "-",
+          rioText = "-",
+          keyText = "-",
+          addonMarker = "",
+          atDungeonMarker = "",
+          readyCheckMarkup = "",
+          roleIconMarkup = "",
+        }
+      end,
+      rolePriority = { TANK = 1, HEALER = 2, DAMAGER = 3, NONE = 4 },
+      unitPriority = { player = 1, party1 = 2, party2 = 3, party3 = 4, party4 = 5 },
+    })
+
+    SetCombat(false)
+    controller.RenderRoster(roster)
+    Check(CountRoleButtonsTargeting("Anna") == 1, "pre-combat baseline: the healer row targets Anna")
+
+    -- Combat: Anna leaves, Zara takes the healer slot; the window is still open.
+    SetCombat(true)
+    roster = {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
+    }
+    controller.RenderRoster(roster)
+    Check(CountRoleButtonsTargeting("Zara") == 0, "in combat: the macro is not rewritten")
+
+    -- Closed in combat, hidden after combat: no render runs on the hidden window.
+    SetCombat(false)
+    shownState.value = false
+
+    -- Reopened with skipShowCallbacks: OnShow runs only the hidden-render flush.
+    shownState.value = true
+    controller.FlushHiddenRender()
+    Check(CountRoleButtonsTargeting("Anna") == 0, "after reopen: no role button still targets the departed Anna")
+    Check(CountRoleButtonsTargeting("Zara") == 1, "after reopen: the healer row targets its current occupant Zara")
+  end)
+  SetCombat(false)
+end
+
+-- ----------------------------------------------------------------------
 -- Run.
 -- ----------------------------------------------------------------------
 Harness.WithGlobals({
@@ -805,6 +918,8 @@ Harness.WithGlobals({
 
   RunMouseInputScenarios(RI, addon)
 end)
+
+RunStaleCombatRenderScenario()
 
 if failures > 0 then
   print(string.format("\nRole-marker macro simulator failed: %d check(s) failed", failures))

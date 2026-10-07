@@ -458,6 +458,12 @@ local function ReleaseFrame(unit)
   if type(frame.Hide) == "function" then
     frame:Hide()
   end
+  -- Drop the anchor to the released nameplate, which Blizzard recycles for
+  -- another unit. The cleared anchor target makes the next ApplyPosition
+  -- re-anchor the reused frame unconditionally.
+  if type(frame.ClearAllPoints) == "function" then
+    frame:ClearAllPoints()
+  end
   frame._isiLiveAnchorTarget = nil
   framePool[#framePool + 1] = frame
 end

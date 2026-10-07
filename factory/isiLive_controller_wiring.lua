@@ -64,6 +64,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     isInGroup = RequireFunction(deps.isInGroup, "isInGroup"),
     getNumGroupMembers = RequireFunction(deps.getNumGroupMembers, "getNumGroupMembers"),
     getActiveChallengeMapID = RequireFunction(deps.getActiveChallengeMapID, "getActiveChallengeMapID"),
+    isRaidGroup = type(deps.isRaidGroup) == "function" and deps.isRaidGroup or nil,
     getWasInGroup = RequireFunction(state.getWasInGroup, "state.getWasInGroup"),
     setWasInGroup = RequireFunction(state.setWasInGroup, "state.setWasInGroup"),
     getWasRaidGroup = RequireFunction(state.getWasRaidGroup, "state.getWasRaidGroup"),
@@ -167,6 +168,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
     isInGroup = ctx.isInGroup,
     getNumGroupMembers = ctx.getNumGroupMembers,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,
+    isRaidGroup = ctx.isRaidGroup,
     state = {
       getWasInGroup = ctx.getWasInGroup,
       setWasInGroup = ctx.setWasInGroup,

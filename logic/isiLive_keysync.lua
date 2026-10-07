@@ -76,7 +76,10 @@ end
 -- call: each loot (BAG_UPDATE_DELAYED, twice), each roster render and each
 -- snapshot send. Its answer, including "no key", is kept until the bags may
 -- have changed: RefreshLocalPlayerKey, which BAG_UPDATE_DELAYED and the
--- other owned-key triggers drive, drops it before it reads.
+-- other owned-key triggers drive, drops it before it reads. RefreshOwnKeyEntry
+-- (manual refresh button, post-run refresh) drops it as well: the gate
+-- discards BAG_UPDATE_DELAYED in combat and the raid hard-off ignores it, so
+-- a key swapped there would otherwise survive an explicit refresh.
 local bagScanResolved = false
 local bagScanMapID = nil
 local bagScanLevel = nil
@@ -693,6 +696,7 @@ local function RefreshLocalPlayerKey(sync, roster)
 end
 
 local function RefreshOwnKeyEntry(sync, roster, playerName, playerRealm)
+  InvalidateBagScan()
   local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
   if roster.player and type(roster.player) == "table" then
     roster.player.keyMapID = ownKeyMapID

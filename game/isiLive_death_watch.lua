@@ -5,9 +5,10 @@ local DeathWatch = {}
 addonTable.DeathWatch = DeathWatch
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
--- Units watched for death transitions. UNIT_HEALTH cannot be registered via
--- RegisterUnitEvent for five tokens (two-unit API limit), so the dispatcher
--- registers it unfiltered and this lookup drops everything but the party.
+-- Units watched for death transitions. UNIT_HEALTH is unit-filtered to these
+-- five tokens across the dispatcher and auxiliary frames (two-unit
+-- RegisterUnitEvent limit, rule 149); this lookup stays as the guard for any
+-- other unit that reaches the handler.
 local WATCHED_UNITS = {
   player = true,
   party1 = true,

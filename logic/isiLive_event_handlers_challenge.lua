@@ -395,8 +395,10 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
   end
 
   -- Known peers survive the run; their HELLOs then fall under the known-peer
-  -- fan-out window instead of drawing one full fan-out per peer.
-  local refreshed = ctx.runFullRefresh({ keepKnownPeers = true }) ~= false
+  -- fan-out window instead of drawing one full fan-out per peer. The click
+  -- debounce does not apply: a Re-Sync press right after the key ended must
+  -- not block the one refresh rule 4 waits for.
+  local refreshed = ctx.runFullRefresh({ keepKnownPeers = true, ignoreDebounce = true }) ~= false
 
   if not refreshed and retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()

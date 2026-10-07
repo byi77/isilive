@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-07 - Version 0.9.420 (patch)
+
+- Raid: a raid that shrinks to five or fewer members still counts as a raid.
+  The group logic now uses the same raid definition as the main-frame lock and
+  the runtime profile (`IsInRaid()` or more than five members); before, it
+  consumed the post-raid restore against the frame lock, so the window stayed
+  closed after leaving the raid, and ran the full party path inside the raid
+  (rule 171).
+- The manual refresh drops the cached keystone bag scan before it reads the
+  own key, so a key swapped in combat or in a raid shows up after Refresh
+  (rule 172).
+- Key end: the delayed post-run refresh is no longer blocked by the click
+  debounce; a Re-Sync press within five seconds of the key ending used to keep
+  the RIO delta off for that run (rule 173).
+- Role markers: a roster render in combat lockdown keeps the roster marked
+  stale, so the next out-of-combat render or the next window open rewrites the
+  secure role-button macros on every open path (rule 174).
+- Rule 175 states which features stay active in the IDLE profile (Power
+  Infusion, Bloodlust button warning, portal navigator); released mob nameplate
+  overlays drop their anchor; stale comments corrected.
+
 ## 2026-10-07 - Version 0.9.419 (patch)
 
 - Idle cost: the inspect loop detaches while no inspect work is pending, the

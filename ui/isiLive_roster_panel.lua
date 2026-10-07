@@ -1066,6 +1066,14 @@ function RosterPanel.CreateController(opts)
       getTargetDungeonInfo = getTargetDungeonInfo,
       isInChallengeMode = isInChallengeMode,
     })
+    -- A render in combat lockdown leaves the secure role-button macros as they
+    -- were (SetAttribute is blocked). Keep the roster marked stale so the next
+    -- out-of-combat render, or the next OnShow through FlushHiddenRender,
+    -- rewrites them -- also when the window is closed in combat and reopened
+    -- later without its show callbacks.
+    if IsInCombatLockdown() then
+      hiddenRenderPending = true
+    end
   end
 
   -- Runs the render deferred while the window was hidden. Called from the

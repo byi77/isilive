@@ -416,6 +416,97 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: a raid shrinking to five members stays a raid until it really ends", function()
+    Stress.WithParty(ctx, fixtures, function(session)
+      local runtime = session.runtime
+      Assert.True(runtime.mainFrame:IsShown(), "the fresh party must open the main frame through the real dispatcher")
+
+      session.raid, session.members = true, 6
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(0.1)
+      Assert.False(runtime.mainFrame:IsShown(), "raid entry must hide the main frame")
+      Assert.True(runtime.GetWasRaidGroup() == true, "raid entry must record the raid state")
+
+      -- One member leaves: the client still reports a raid, now with five members.
+      local mark = #session.messages
+      session.members = 5
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(1)
+      Assert.False(runtime.mainFrame:IsShown(), "a raid with five members must keep the main frame closed")
+      Assert.True(runtime.GetWasRaidGroup() == true, "a raid with five members must still count as a raid")
+      Assert.Equal(next(runtime.GetRoster()), nil, "a raid with five members must not rebuild the party roster")
+      Assert.Equal(#session.messages, mark, "a raid with five members must send no hello and no snapshot")
+
+      -- The raid is converted back to a party: the restore armed at raid entry fires now.
+      session.raid = false
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(1)
+      Assert.True(runtime.mainFrame:IsShown(), "leaving the raid must reopen the frame that was open before it")
+      Assert.False(runtime.GetWasRaidGroup() == true, "leaving the raid must clear the raid state")
+    end)
+  end)
+
+  test("Mplus stress: the manual refresh rescans the bags for a key swapped in combat", function()
+    -- The client API reports no owned key, so the bag link is the only source.
+    local bagKey = { mapID = 2649, level = 14 }
+    Stress.WithParty(ctx, fixtures, function(session)
+      local runtime = session.runtime
+      session.Dispatch("BAG_UPDATE_DELAYED")
+      Assert.Equal(runtime.GetRoster().player.keyLevel, 14, "the bag event must read key A from the bags")
+
+      -- Key B replaces key A in combat; the gate discards the bag event there.
+      session.combat = true
+      session.Dispatch("PLAYER_REGEN_DISABLED")
+      bagKey = { mapID = 2660, level = 9 }
+      session.Dispatch("BAG_UPDATE_DELAYED")
+      session.combat = false
+      session.Dispatch("PLAYER_REGEN_ENABLED")
+      session.Advance(1)
+      Assert.Equal(runtime.GetRoster().player.keyLevel, 14, "without a bag event key A is still cached")
+
+      local mark = #session.messages
+      runtime.refreshButton:GetScript("OnClick")(runtime.refreshButton)
+      Assert.Equal(runtime.GetRoster().player.keyMapID, 2660, "the manual refresh must rescan the bags for key B")
+      Assert.Equal(runtime.GetRoster().player.keyLevel, 9, "the manual refresh must report key B's level")
+      local sentKeyB = false
+      for i = mark + 1, #session.messages do
+        local payload = session.messages[i].payload
+        if payload:find("^KEY:2660:9") then
+          sentKeyB = true
+        end
+      end
+      Assert.True(sentKeyB, "the refresh snapshot must publish key B")
+    end, function(globals)
+      globals.C_MythicPlus.GetOwnedKeystoneLevel = function()
+        return nil
+      end
+      globals.C_MythicPlus.GetOwnedKeystoneChallengeMapID = function()
+        return nil
+      end
+      globals.C_Container = {
+        GetContainerNumSlots = function(bagID)
+          return bagID == 0 and 4 or 0
+        end,
+        GetContainerItemID = function(bagID, slotID)
+          return (bagID == 0 and slotID == 2) and 180653 or nil
+        end,
+        GetContainerItemLink = function(bagID, slotID)
+          if bagID == 0 and slotID == 2 then
+            return string.format(
+              "|cffa335ee|Hkeystone:180653:%d:%d:10:0:0:0|h[Keystone]|h|r",
+              bagKey.mapID,
+              bagKey.level
+            )
+          end
+          return nil
+        end,
+        GetContainerItemInfo = function()
+          return nil
+        end,
+      }
+    end)
+  end)
+
   test("Mplus stress: peer state fan-outs answer new peers but not every repeated hello", function()
     Stress.WithKey(ctx, fixtures, function(session)
       local sender = ctx.load_modules({ "isiLive_sync.lua" })
@@ -522,6 +613,96 @@ return function(test, ctx, fixtures)
       Assert.True(session.runtime.refreshController.RunFullRefresh(), "the manual refresh must run")
       Assert.False(sync.IsUserKnown("Peer1-Realm"), "a manual refresh still forgets known peers")
       Assert.False(roster.party1.hasIsiLive == true, "a manual refresh still clears the isiLive markers")
+    end)
+  end)
+
+  test("Mplus stress: a re-sync click right after the key ends does not block the post-run refresh", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local runtime = session.runtime
+      local state = runtime.runtimeState
+      Assert.True(state.HasRioBaselineSnapshot(), "the key start must capture a RIO baseline")
+
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      -- The player presses Re-Sync before the delayed post-run refresh is due.
+      session.Advance(2)
+      runtime.refreshButton:GetScript("OnClick")(runtime.refreshButton)
+      Assert.False(state.IsRioDeltaDisplayEnabled(), "the early manual refresh alone must not enable the delta")
+
+      -- The post-run refresh and its retries all fall inside the manual
+      -- refresh's debounce window; it must still run and enable the delta.
+      session.Advance(15)
+      Assert.True(state.IsRioDeltaDisplayEnabled(), "the delayed post-run refresh must enable the RIO delta")
+    end, function(globals)
+      globals.C_PlayerInfo = {
+        GetPlayerMythicPlusRatingSummary = function()
+          return { currentSeasonScore = 2500 }
+        end,
+      }
+    end)
+  end)
+
+  -- Also run by tools/simulate_role_marker_macro.lua (scenario 12); keep the name in sync.
+  test("Mplus stress: a role macro left stale in combat is rewritten when a closed window reopens", function()
+    local partyNames = { player = "Tester", party1 = "Anna", party2 = "Peer2", party3 = "Peer3", party4 = "Peer4" }
+    local function FindRoleButtons(session, name)
+      local wanted = "\n/target " .. name .. "\n"
+      local found = {}
+      for _, frame in ipairs(session.frames) do
+        local macro = type(frame.GetAttribute) == "function" and frame:GetAttribute("macrotext1") or nil
+        if type(macro) == "string" and macro:find(wanted, 1, true) then
+          found[#found + 1] = frame
+        end
+      end
+      return found
+    end
+    Stress.WithParty(ctx, fixtures, function(session)
+      local runtime = session.runtime
+      Assert.True(runtime.mainFrame:IsShown(), "the fresh party must open the main frame")
+      Assert.Equal(#FindRoleButtons(session, "Anna"), 1, "the healer row must carry Anna's marker macro")
+
+      -- Combat: Anna leaves and Zara takes the healer slot while the window is
+      -- open. The render runs, but the secure macro cannot be rewritten.
+      session.combat = true
+      session.Dispatch("PLAYER_REGEN_DISABLED")
+      partyNames.party1 = "Zara"
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(1)
+      Assert.Equal(#FindRoleButtons(session, "Zara"), 0, "no secure attribute is written in combat")
+      -- The stale mark is set by the combat render itself. Today the post-combat
+      -- kill-track repaint also marks the hidden roster stale, which alone would
+      -- hide this bug; the guarantee must not hang on that side effect.
+      Assert.True(
+        runtime.rosterPanelController.IsHiddenRenderPending(),
+        "a render in combat lockdown must leave the roster marked stale"
+      )
+
+      -- The player closes the window in combat; the hide lands after combat.
+      runtime.SetMainFrameVisible(false)
+      session.combat = false
+      session.Dispatch("PLAYER_REGEN_ENABLED")
+      session.Advance(1)
+      Assert.False(runtime.mainFrame:IsShown(), "the deferred hide must apply after combat")
+
+      -- A queue highlight reopens the window without its show callbacks.
+      runtime.SetMainFrameVisible(true, { reason = "lfg-highlight", skipShowCallbacks = true })
+      Assert.True(runtime.mainFrame:IsShown(), "the highlight must reopen the window")
+      Assert.Equal(#FindRoleButtons(session, "Anna"), 0, "no role button may still target the departed Anna")
+      Assert.Equal(#FindRoleButtons(session, "Zara"), 1, "the healer row must target its current occupant Zara")
+    end, function(globals)
+      globals.UnitName = function(unit)
+        return partyNames[unit], "Realm"
+      end
+      globals.UnitFullName = globals.UnitName
+      globals.GetUnitName = function(unit)
+        return partyNames[unit] and (partyNames[unit] .. "-Realm") or nil
+      end
+      globals.UnitGUID = function(unit)
+        return partyNames[unit] and ("Player-1-" .. partyNames[unit]) or nil
+      end
+      globals.UnitGroupRolesAssigned = function(unit)
+        return unit == "party1" and "HEALER" or "DAMAGER"
+      end
     end)
   end)
 

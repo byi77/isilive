@@ -12,7 +12,12 @@ addonTable.RuntimeMode = RuntimeMode
 --   OFF  -- raid or any group larger than 5. Hard off, see RULE 11.
 --   IDLE -- five or fewer players outside a mythic dungeon: open world, normal,
 --           heroic, timewalking, delves, torghast, follower dungeons. Group
---           display and group sync only.
+--           display and group sync stay on, and so does every feature without
+--           a profile gate -- among them Power Infusion (rule 89), the VIP
+--           Bloodlust button warning (rule 91) and the portal navigator. What
+--           IDLE closes are the IsFullProfileContext consumers: kick tracker
+--           and kick sync, CD tracker, BR/Lust announces, death alerts (rule
+--           175).
 --   KEY  -- mythic party dungeon (active keystone or M0). Everything runs.
 RuntimeMode.OFF = "OFF"
 RuntimeMode.IDLE = "IDLE"
@@ -151,7 +156,7 @@ function RuntimeMode.IsOff()
   return RuntimeMode.Resolve() == RuntimeMode.OFF
 end
 
---- True in the reduced profile: group display and group sync only.
+--- True in the reduced profile: the full-profile features are closed (rule 175).
 -- @return boolean
 function RuntimeMode.IsIdle()
   return RuntimeMode.Resolve() == RuntimeMode.IDLE

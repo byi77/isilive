@@ -1719,7 +1719,7 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     resolveActiveKeyOwnerUnit = function()
       return nil
     end,
-    getRoster = function()
+    getRoster = opts.getRoster or function()
       return {}
     end,
     isInGroup = function()

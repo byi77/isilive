@@ -529,6 +529,7 @@ local function BuildRuntimeSetupGroupContext(ctx, runtimeState)
     isInGroup = IsInGroup,
     getNumGroupMembers = GetNumGroupMembers,
     getActiveChallengeMapID = ctx.GetActiveChallengeMapID,
+    isRaidGroup = ctx.IsRaidGroup,
     getWasInGroup = ctx.GetWasInGroup,
     setWasInGroup = ctx.SetWasInGroup,
     getWasRaidGroup = ctx.GetWasRaidGroup,

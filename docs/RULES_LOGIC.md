@@ -248,6 +248,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 169. Settings-Inhalt und Simulations-Tablet entstehen erst beim ersten Oeffnen; die Settings-Kategorie wird weiterhin beim Laden registriert.
 170. Der Fehlerlog-Hook erzeugt fuer Fehler fremder Addons keine Closure pro Fehler; Capture-Rumpf und Stack-Probe laufen als feste Funktionen unter `pcall`.
+171. Die Gruppenlogik erkennt einen Raid mit derselben Definition wie Fenster-Sperre und Laufzeitprofil (`IsInRaid()` oder mehr als fuenf Mitglieder); ein auf fuenf oder weniger geschrumpfter Raid bleibt Raid, und die Wiederoeffnung nach Regel 11 greift erst beim echten Verlassen.
+172. Manueller Refresh und Post-Run-Refresh verwerfen den zwischengespeicherten Keystone-Taschenscan vor dem Lesen des eigenen Keys.
+173. Der verzoegerte Post-Run-Refresh unterliegt nicht der Klick-Entprellung des Refreshs; ein Re-Sync-Klick kurz nach Key-Ende blockiert ihn nicht mehr.
+174. Ein Roster-Render unter Kampfsperre hinterlaesst eine Veraltet-Markierung, damit die dabei ausgelassenen Secure-Makros der Rollen-Buttons beim naechsten Render ausserhalb des Kampfes oder beim naechsten Einblenden neu geschrieben werden.
+175. Das `IDLE`-Profil schliesst genau die an das volle Profil gebundenen Funktionen; Funktionen ohne Profil-Gate wie Power Infusion, die Bloodlust-Button-Warnung und der Portal-Navigator laufen auch in `IDLE`.
 
 ## Regelbloecke
 
@@ -2593,3 +2598,51 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - ErrorLog.Capture rejects a foreign error raised from a non-isiLive frame (stack=nil)
   - ErrorLog.Capture accepts a foreign message raised from an isiLive frame (stack=nil)
   - ErrorLog.Capture does not treat its own module frames as an isiLive match
+
+### RULE-RAID-DEFINITION-GRUPPENLOGIK
+- Regelnummer: 171
+- Status: aktiv
+- Zusammenfassung: `Group.HandleRosterUpdate` erkennt einen Raid ueber die `isRaidGroup`-Abhaengigkeit, die die Factory mit `ctx.IsRaidGroup` belegt (`IsInRaid()` oder Gruppe mit mehr als fuenf Mitgliedern) und die damit derselben Definition folgt wie die Fenster-Sperre in `SetMainFrameVisible`, der Steady-Raid-Pfad aus Regel 158 und `RuntimeMode.IsRaidContext` (Regel 109). Vorher pruefte die Gruppenlogik nur die Mitgliederzahl: ein Raid, der auf fuenf oder weniger Mitglieder schrumpfte, lief den Party-Zweig, loeschte den Raid-Merker und die bekannten isiLive-Nutzer und verbrauchte die Wiederoeffnung aus Regel 11 gegen die Fenster-Sperre, sodass die Main-UI beim spaeteren echten Verlassen geschlossen blieb. Jetzt bleibt ein solcher Raid im Raid-Zweig (Main-UI zu, kein Roster-Neuaufbau, kein HELLO, kein Snapshot), und erst die Umwandlung in eine Party oder das Verlassen oeffnet die Main-UI wieder, wenn sie vor dem Raid sichtbar war. Ohne `isRaidGroup` (eigenstaendige Controller in Tests) bleibt die Pruefung auf mehr als fuenf Mitglieder.
+- Erforderliche Tests:
+  - Mplus stress: a raid shrinking to five members stays a raid until it really ends
+  - Raid return reopens the UI only when it was visible before raid suppression
+  - Raid disband restores the UI when it was visible before raid suppression
+
+### RULE-REFRESH-VERWIRFT-TASCHENSCAN
+- Regelnummer: 172
+- Status: aktiv
+- Zusammenfassung: `RefreshOwnKeyEntry` (eigener Key im manuellen Refresh ueber den Refresh-Button und im Post-Run-Refresh nach Regel 167) verwirft den zwischengespeicherten Taschenscan aus Regel 157 vor dem Lesen, genau wie `RefreshLocalPlayerKey`. Weil das Gate `BAG_UPDATE_DELAYED` im Kampf verwirft und der Owned-Key-Handler im Raid sofort endet, blieb ein dort getauschter Keystein im Cache stehen und ueberlebte auch einen ausdruecklichen Refresh, sobald `C_MythicPlus` keinen eigenen Key lieferte. Die uebrigen Lesepfade (Status-Snapshots, LibKeystone-Antwort, Roster-Abfragen) nutzen den Cache unveraendert.
+- Ersetzte Festlegung (Audit, 2026-10-07): Regel 157 "wird das Ergebnis des Taschenscans (einschliesslich "kein Schluessel") zwischengespeichert, bis `RefreshLocalPlayerKey` es verwirft". Zusaetzlich verwirft jetzt `RefreshOwnKeyEntry` den Cache; der Detailblock von Regel 157 bleibt append-only unveraendert und wird durch diese Regel ergaenzt.
+- Erforderliche Tests:
+  - Mplus stress: the manual refresh rescans the bags for a key swapped in combat
+  - KeySync keeps the bag-scan answer until the owned-key refresh drops it
+
+### RULE-POSTRUN-REFRESH-OHNE-KLICK-ENTPRELLUNG
+- Regelnummer: 173
+- Status: aktiv
+- Zusammenfassung: `RunDelayedPostChallengeRefresh` ruft `RunFullRefresh` mit `ignoreDebounce = true` (neben `keepKnownPeers` aus Regel 167); `RunFullRefresh` ueberspringt dann nur die 10-s-Entprellung ueber `lastRefreshAt`, nicht die Sperren fuer Stop, Pause und aktiven Keystone aus Regel 13, und setzt `lastRefreshAt` weiterhin. Vorher teilten Re-Sync-Button und Post-Run-Refresh dieselbe Entprellung: ein Klick 0 bis 5 s nach Key-Ende lag vor dem ersten verzoegerten Versuch (5 s) und sperrte ihn samt allen fuenf Retries (je 1 s) mit `reason=debounce`, sodass Regel 4 das RIO-Delta fuer die ganze Sitzung aus liess. Der fruehe manuelle Refresh zaehlt bewusst nicht als Post-Run-Refresh: Regel 4 bindet das Delta an den verzoegerten Refresh, und der Klick kann vor der Verfuegbarkeit der Post-Run-Wertung liegen. Die Klick-Entprellung aus Regel 19 bleibt fuer Button-Klicks unveraendert.
+- Erforderliche Tests:
+  - Mplus stress: a re-sync click right after the key ends does not block the post-run refresh
+  - Refresh RunFullRefresh debounces rapid clicks
+  - Event handlers enable RIO delta only after delayed post-run refresh
+
+### RULE-ROSTER-KAMPF-RENDER-VERALTET
+- Regelnummer: 174
+- Status: aktiv
+- Zusammenfassung: `RenderRoster` des Roster-Panels setzt nach einem Render unter Kampfsperre (`InCombatLockdown()`) dieselbe Veraltet-Markierung wie ein Render bei ausgeblendeter Main-UI (Regel 152). Im Kampf schreibt der Render die Secure-Attribute der Rollen-Buttons nicht (CLAUDE.md, Rollenmarker); verschiebt sich das Roster im Kampf und wird das Fenster im Kampf geschlossen, blendet `PLAYER_REGEN_ENABLED` es nur aus und rendert nicht. Ein spaeteres Einblenden mit `skipShowCallbacks` (LFG-Highlight, Queue, Raid-Rueckkehr) fuehrt dann ueber `FlushHiddenRender` im `OnShow` einen Render ausserhalb des Kampfes aus und schreibt das Makro des aktuellen Zeileninhabers; bisher verhinderte das nur zufaellig der Killtracker-Repaint bei Kampfende. Bleibt das Fenster offen, loescht der Post-Combat-Render (Regel 154) die Markierung. Im Kampf wird weiterhin kein `SetAttribute`, `Show` oder `Hide` auf Secure-Frames ausgefuehrt.
+- Erforderliche Tests:
+  - Mplus stress: a role macro left stale in combat is rewritten when a closed window reopens
+  - Mplus stress: hidden roster renders are deferred until the window is shown
+
+### RULE-IDLE-PROFIL-UMFANG
+- Regelnummer: 175
+- Status: aktiv
+- Zusammenfassung: Das `IDLE`-Profil ist keine abschliessende Positivliste. Es schliesst genau die Funktionen, die ueber `RuntimeMode.IsFullProfileContext` (bzw. einen laufenden Keystone) gegatet sind: Kick-Tracker und Kick-Sync (`factory/isiLive_factory_kick_tracker.lua` `IsKickProfileActive`), CD-Tracker (`factory/isiLive_factory_cd_tracker.lua`), BR-/Lust-Ansagen (`game/isiLive_combat_events.lua` `DefaultIsInKey`) und Todeshinweise (`game/isiLive_death_watch.lua` `DefaultIsInKey`); M+-Timer, M+-Forces und Killtracker-Prozente bleiben nach Regel 109 an einen laufenden Keystone gebunden. Funktionen ohne Profil-Gate laufen auch in `IDLE` weiter, insbesondere die Power-Infusion-Erkennung (Regel 89, nur raid-gesperrt in `HandleUnitAuraEvent`), die VIP-Bloodlust-Button-Warnung (Regel 91, `BloodlustButtonWarning.HandleEvent` ohne Profil-Pruefung) und der Portal-Navigator (zonenbasiert in `ui/isiLive_status.lua` `MaybeShowPortalNavigatorNotice`).
+- Ersetzte Festlegung (Audit, 2026-10-07): Regel 109 "im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv". Die Formulierung widersprach den Regeln 89 und 91 und dem Portal-Navigator, die auch in `IDLE` laufen; sie wird auf die tatsaechlich profilgebundenen Funktionen eingegrenzt. Der Detailblock von Regel 109 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - RuntimeMode resolves IDLE outside instances and in non-party instances
+  - kick tracker: reduced profile keeps polling and sync closed
+  - DeathWatch stays silent outside an active M+ key
+  - PiTracker announces verified Power Infusion on player from UNIT_AURA addedAuras
+  - BloodlustButtonWarning shows a cross on a Bloodlust button while debuffed when enabled
+  - Portal navigator shows the five portal positions only in the Timeways room
