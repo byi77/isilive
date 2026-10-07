@@ -801,3 +801,27 @@ wirkungslos.
 Offen und nur ingame pruefbar: Oeffnen der UI nach Key-Ende, Raid-Rueckkehr und
 Queue-Beitritt (aufgeschobener Render), party2-4-Hinweise ueber die Hilfs-Frames,
 talentierter Kick-CD, Raid-Lead-Hinweis im laufenden Raid.
+
+## Korrektheit und P3-Pakete (2026-10-07)
+
+0.9.417, Regeln 161-166. Jeder Fix mit Test, der ohne Fix rot ist:
+
+- M0-Wiring (Regel 161): `ControllerWiring` reichte `setTrackedPartyRunInfo`,
+  `clearTrackedPartyRunInfo` und `isTrackedPartyRunActive` seit 0.9.340 nicht an
+  die Event-Handler durch. Der `trackedPartyRun` entstand nie; CD-Tracker,
+  DeathWatch und BR/BL-Ansagen blieben in M0 entgegen Regel 92 aus. Lehre: ein
+  neues Feld im Factory-Kontext braucht auch einen Eintrag in
+  `BuildEventHandlersDepsFromContext`, sonst greift still der No-op-Default.
+- `CombatEvents`-Cache verfaellt bei `INSTANCE_CONTEXT_CHANGED` (Regel 161).
+- HELLO-ACK ueber `Sync.SendAck` mit Sync-Pruefung und ChatThrottleLib (Regel 165).
+- Flat-Button-Basisgroesse ohne Ratsche (Regel 163); Registry = Hidden-Allowlist
+  (Regel 162).
+- Leerlauf (Regeln 164/166): Notice-Farbe 600 Frames 600 -> 0, Teleport-Text
+  100 Ticks 100 -> 1, Timeline 60 s 120 -> 2 Re-Anker, hidden Teleport-Buttons
+  50 Sync-Pakete 50 -> 0 Neuaufbauten.
+- Post-Run-Follow-ups entfernt (Regel 154, ersetzte Festlegung).
+- Kein Bug: `GetActionInfo` ist in 12.1 weiter global; `C_ActionBar.GetActionInfo`
+  existiert nicht (APIDoc 12.1.0.69933).
+
+Offen: Sprachflagge im Raid (User-Entscheidung, Regel 11), Binding-Watchdog
+(haengt an Ingame-Frage zu `UPDATE_BINDINGS`), N8-Messung, Lazy-Settings.

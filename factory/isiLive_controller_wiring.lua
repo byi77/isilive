@@ -295,6 +295,12 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       state.setPendingPostChallengeRefresh,
       "state.setPendingPostChallengeRefresh"
     ),
+    -- Optional: EventHandlers falls back to no-ops. Without them the M0 run
+    -- never reaches RuntimeState, and every consumer of IsTrackedPartyRunActive
+    -- (CD tracker, DeathWatch, BR/Lust announces) stays closed in M0.
+    setTrackedPartyRunInfo = state.setTrackedPartyRunInfo,
+    clearTrackedPartyRunInfo = state.clearTrackedPartyRunInfo,
+    isTrackedPartyRunActive = state.isTrackedPartyRunActive,
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     updateMPlusTeleportButton = RequireFunction(
       callbacks.updateMPlusTeleportButton,
@@ -556,14 +562,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       and deps.playReadyCheckCompleteSound
     or function() end
   config.sendAck = function(sender)
-    if type(sender) ~= "string" or sender == "" then
-      return
+    if type(modules.sync.SendAck) == "function" then
+      modules.sync.SendAck(sender, deps.getAddonVersionRaw())
     end
-    local chatInfo = rawget(_G, "C_ChatInfo")
-    if type(chatInfo) ~= "table" or type(chatInfo.SendAddonMessage) ~= "function" then
-      return
-    end
-    pcall(chatInfo.SendAddonMessage, modules.sync.GetPrefix(), "ACK:" .. deps.getAddonVersionRaw(), "WHISPER", sender)
   end
   config.sendRefreshResponse = RequireFunction(deps.sendRefreshResponse, "sendRefreshResponse")
   config.sendOwnKeystoneToChat = type(deps.sendOwnKeystoneToChat) == "function" and deps.sendOwnKeystoneToChat
@@ -961,6 +962,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
       getPendingPostChallengeRefresh = ctx.getPendingPostChallengeRefresh,
       setPendingPostChallengeRefresh = ctx.setPendingPostChallengeRefresh,
+      setTrackedPartyRunInfo = ctx.setTrackedPartyRunInfo,
+      clearTrackedPartyRunInfo = ctx.clearTrackedPartyRunInfo,
+      isTrackedPartyRunActive = ctx.isTrackedPartyRunActive,
       getActiveJoinedKeyMapID = ctx.getActiveJoinedKeyMapID,
       setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
       getPendingBindingApply = ctx.getPendingBindingApply,

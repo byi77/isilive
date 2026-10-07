@@ -797,6 +797,9 @@ local function FinalizeFactoryRuntime(ctx)
       if ctx.rosterPanelController and type(ctx.rosterPanelController.FlushHiddenRender) == "function" then
         ctx.rosterPanelController.FlushHiddenRender()
       end
+      if ctx.teleportUpdatePending == true and type(ctx.UpdateMPlusTeleportButton) == "function" then
+        ctx.UpdateMPlusTeleportButton()
+      end
       ctx.SetProcessingActive(true)
       if type(ctx.RefreshCdTrackerPolling) == "function" then
         ctx.RefreshCdTrackerPolling()

@@ -162,6 +162,25 @@ return function(test, ctx)
     Assert.True(result.allowWhenHidden.ROLE_CHANGED_INFORM == true, "must allow ROLE_CHANGED_INFORM when hidden")
   end)
 
+  test("ConfigBuilders hidden allowlist agrees with the bootstrap event registry", function()
+    local addon = LoadAddonModules({ "isiLive_bootstrap.lua", "isiLive_config_builders.lua" })
+    local registry = addon.Bootstrap.EVENT_REGISTRY
+    Assert.True(type(registry) == "table" and #registry > 0, "the bootstrap must export its event registry")
+    local hiddenByEvent = {}
+    for _, entry in ipairs(registry) do
+      hiddenByEvent[entry[1]] = entry[3]
+    end
+    local opts = addon.ConfigBuilders.BuildGateOpts({ events = "ev", onEvent = "disp" })
+    for event in pairs(opts.allowWhenHidden) do
+      Assert.True(hiddenByEvent[event] ~= nil, event .. " in the hidden allowlist must be a registered event")
+      Assert.Equal(
+        hiddenByEvent[event],
+        true,
+        event .. " is always allowed while hidden, so the registry must not mark it blocked or conditional"
+      )
+    end
+  end)
+
   test("ConfigBuilders hidden gate keeps LFG status blocked", function()
     local builders = LoadBuilders()
     local opts = builders.BuildGateOpts({

@@ -1085,13 +1085,20 @@ function StatsBox.Create(opts)
     "ADDON_LOADED",
     "PLAYER_LOGIN",
     "PLAYER_ENTERING_WORLD",
-    "UNIT_STATS",
     "COMBAT_RATING_UPDATE",
     "PLAYER_EQUIPMENT_CHANGED",
     "ACTIVE_TALENT_GROUP_CHANGED",
     "PLAYER_SPECIALIZATION_CHANGED",
   }) do
     frame:RegisterEvent(event)
+  end
+  -- Only the player's stats are shown. The unit filter keeps raid members'
+  -- UNIT_STATS out of Lua entirely; the handler still checks the unit for
+  -- clients without RegisterUnitEvent.
+  if type(frame.RegisterUnitEvent) == "function" then
+    frame:RegisterUnitEvent("UNIT_STATS", "player")
+  else
+    frame:RegisterEvent("UNIT_STATS")
   end
 
   function state.SetEnabled(enabled)

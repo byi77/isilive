@@ -276,6 +276,7 @@ return function(test, ctx)
     local button = { _flatLabel = label }
     local currentText = ""
     local currentSize = baseSize or 12
+    local currentPath = "Fonts\\FRIZQT__.TTF"
     local fontCalls = {}
 
     function button:GetWidth()
@@ -303,10 +304,11 @@ return function(test, ctx)
     end
 
     function label:GetFont()
-      return "Fonts\\FRIZQT__.TTF", currentSize, "OUTLINE"
+      return currentPath, currentSize, "OUTLINE"
     end
 
     function label:SetFont(path, size, flags)
+      currentPath = path
       currentSize = size
       fontCalls[#fontCalls + 1] = { path = path, size = size, flags = flags }
     end
@@ -364,6 +366,27 @@ return function(test, ctx)
 
       Assert.True(#fontCalls > 0, "font fitting must call SetFont")
       Assert.Equal(fontCalls[1].path, "Fonts\\ARIALN.TTF", "first fit pass must use the ruRU override font")
+    end)
+  end)
+
+  test("RosterLayout SetFlatButtonText restores the base size after a long label under a locale font", function()
+    WithGlobals({
+      IsiLiveDB = { locale = "ruRU" },
+    }, function()
+      local RI = loadRIWithUICommon()
+      local button, _, fontCalls, getSize = NewFlatButtonFitStub(100, 12)
+
+      RI.SetFlatButtonText(button, "Поделиться ключами")
+      Assert.Equal(getSize(), 8, "setup should shrink the long label")
+
+      RI.SetFlatButtonText(button, "OK")
+      Assert.Equal(getSize(), 12, "a short label must return to the base size, not the last shrunken size")
+      Assert.Equal(fontCalls[#fontCalls].path, "Fonts\\ARIALN.TTF", "the locale font must stay applied")
+
+      RI.SetFlatButtonText(button, "Поделиться ключами")
+      RI.SetFlatButtonText(button, "Поделиться ключами")
+      RI.SetFlatButtonText(button, "OK")
+      Assert.Equal(getSize(), 12, "repeated long labels must not ratchet the base size down")
     end)
   end)
 

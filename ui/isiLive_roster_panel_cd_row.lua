@@ -141,9 +141,13 @@ local function ResolveTimelineColor(key)
   return type(color) == "table" and color or FALLBACK_TIMELINE_COLORS[key]
 end
 
+-- The timeline repaints on every 1 Hz timer tick, but its colors only change
+-- with the reachable grade. Keyed by the resolved color table, so a palette
+-- that is swapped out at runtime is still picked up.
 local function PaintTimelineTexture(texture, colorKey)
   local color = ResolveTimelineColor(colorKey)
-  if type(color) == "table" then
+  if type(color) == "table" and type(texture) == "table" and texture._isiLivePaintedColor ~= color then
+    texture._isiLivePaintedColor = color
     CallIfPresent(texture, "SetColorTexture", color[1], color[2], color[3], color[4] or 1)
   end
 end
@@ -251,8 +255,12 @@ local function UpdateMplusTimeline(timeline, box, data, activeGrade)
 
   for index, tick in ipairs(timeline.ticks) do
     local x = math.floor((innerWidth * TIMELINE_TICK_FRACTIONS[index]) + 0.5)
-    CallIfPresent(tick, "ClearAllPoints")
-    CallIfPresent(tick, "SetPoint", "BOTTOMLEFT", timeline.track, "BOTTOMLEFT", x, 0)
+    -- The cutoffs only move when the box width changes.
+    if tick._isiLiveAnchorX ~= x then
+      tick._isiLiveAnchorX = x
+      CallIfPresent(tick, "ClearAllPoints")
+      CallIfPresent(tick, "SetPoint", "BOTTOMLEFT", timeline.track, "BOTTOMLEFT", x, 0)
+    end
     PaintTimelineTexture(tick, "MPLUS_TIMELINE_TICK")
     CallIfPresent(tick, "Show")
   end

@@ -64,6 +64,21 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), targetMapID, preferredOwnerName)
   end
   ctx.UpdateMPlusTeleportButton = function(soundContext)
+    -- The teleport buttons live in the main window. A routine refresh (sync
+    -- data, key start, cooldown tick) while it is hidden only marks them
+    -- stale; the main frame's OnShow catches up. Queue and invite highlights
+    -- carry a sound context and always run: they are what opens the window.
+    local mainFrame = ctx.mainFrame
+    if
+      soundContext == nil
+      and type(mainFrame) == "table"
+      and type(mainFrame.IsShown) == "function"
+      and mainFrame:IsShown() ~= true
+    then
+      ctx.teleportUpdatePending = true
+      return
+    end
+    ctx.teleportUpdatePending = false
     local runtimeLog = ctx.runtimeLogController
     local logf = runtimeLog and runtimeLog.Logf or nil
     -- One level check per call instead of four trace closures and a deep

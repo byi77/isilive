@@ -547,7 +547,14 @@ local function SetFlatButtonText(btn, text)
       label:SetNonSpaceWrap(false)
     end
     if type(UICommon.ApplyLocaleFont) == "function" and UICommon.ApplyLocaleFont(label) then
-      label._isiLiveFlatButtonBaseFont = nil
+      -- Follow a language or font switch, but keep the captured base size:
+      -- GetFont() now reports the size the previous fit shrank to, and
+      -- re-capturing it would ratchet every later label down to that size.
+      local baseFont = label._isiLiveFlatButtonBaseFont
+      local fontPath = type(label.GetFont) == "function" and label:GetFont() or nil
+      if type(baseFont) == "table" and type(fontPath) == "string" and fontPath ~= "" then
+        baseFont.path = fontPath
+      end
     end
     FitFlatButtonLabel(btn, label)
   end

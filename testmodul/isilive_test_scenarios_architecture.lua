@@ -382,7 +382,9 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture C_ChatInfo senders route through rawget(_G) cache", function()
-    local senders = { "isiLive_controller_wiring.lua", "isiLive_sync.lua" }
+    -- The ACK whisper moved from ControllerWiring into Sync.SendAck; the
+    -- wiring no longer touches C_ChatInfo at all.
+    local senders = { "isiLive_sync.lua" }
     for _, file in ipairs(senders) do
       local content = ReadFile(file)
       AssertContains(

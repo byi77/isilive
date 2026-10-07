@@ -1471,15 +1471,15 @@ end
 -- raw C_ChatInfo.SendAddonMessage if the lib is unavailable. Returns true
 -- if the message was accepted for dispatch (either enqueued by CTL or
 -- handed to Blizzard), false if it was rejected outright.
-local function DispatchAddonMessage(prefix, payload, channel, priority)
+local function DispatchAddonMessage(prefix, payload, channel, priority, target)
   local ctl = rawget(_G, "ChatThrottleLib")
   if ctl and type(ctl.SendAddonMessage) == "function" then
-    local ok = pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel)
+    local ok = pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel, target)
     return ok
   end
   local chatInfo = rawget(_G, "C_ChatInfo")
   if type(chatInfo) == "table" and type(chatInfo.SendAddonMessage) == "function" then
-    local ok, result = pcall(chatInfo.SendAddonMessage, prefix, payload, channel)
+    local ok, result = pcall(chatInfo.SendAddonMessage, prefix, payload, channel, target)
     return ok and result ~= false
   end
   return false
@@ -1508,6 +1508,29 @@ local function IsBlockedBySendGate(opts, lastPayload, lastAt, dedupePayload, coo
     return true, now
   end
   return false, now
+end
+
+--- Whispers the HELLO acknowledgement to one peer.
+-- Honors the sync setting like every other sender and shares the throttled
+-- dispatch path, so a burst of HELLOs cannot bypass ChatThrottleLib.
+-- @param target string Sender of the HELLO ("Name-Realm").
+-- @param versionRaw string Local addon version.
+-- @return boolean true if the message was accepted for dispatch.
+function Sync.SendAck(target, versionRaw)
+  if type(target) ~= "string" or target == "" then
+    return false
+  end
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  if type(chatInfo) ~= "table" or type(chatInfo.SendAddonMessage) ~= "function" then
+    return false
+  end
+  if not IsSyncEnabled() then
+    return false
+  end
+  local sent =
+    DispatchAddonMessage(ISILIVE_SYNC_PREFIX, "ACK:" .. tostring(versionRaw or ""), "WHISPER", "NORMAL", target)
+  SyncLog("send_ack", "target=%s sent=%s", target, tostring(sent))
+  return sent == true
 end
 
 --- Broadcasts a HELLO announcement to the group.

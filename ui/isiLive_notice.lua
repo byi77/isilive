@@ -610,7 +610,8 @@ local function ApplyCenterNoticeTextColor(state, showOptions)
   else
     state.baseTextR, state.baseTextG, state.baseTextB = 1, 0.92, 0.7
   end
-  state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB)
+  -- Explicit full alpha: this is also what ends a previous notice's blink.
+  state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
 end
 
 local SUBLINE_GAP = 4
@@ -1013,6 +1014,16 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
     end
   end
 
+  -- The 0.1 s tick mostly lands on an unchanged label ("Portal", or the same
+  -- displayed second); SetText would re-layout the FontString every time.
+  local function ShowCooldownText(button, text)
+    if button._cooldownTextValue ~= text then
+      button._cooldownTextValue = text
+      button.cooldownText:SetText(text)
+    end
+    button.cooldownText:Show()
+  end
+
   local function UpdateTeleportCooldownText(self, elapsed)
     self._cooldownTextAccum = (self._cooldownTextAccum or 0) + (elapsed or 0)
     if self._cooldownTextAccum < 0.1 then
@@ -1029,13 +1040,11 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
     local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
     SyncTeleportSwipe(self, remaining)
     if remaining > 0 then
-      self.cooldownText:SetText(state.config.formatCooldownSeconds(remaining))
-      self.cooldownText:Show()
+      ShowCooldownText(self, state.config.formatCooldownSeconds(remaining))
       return
     end
     local L = state.config.getL() or {}
-    self.cooldownText:SetText(L.CENTER_NOTICE_PORTAL_READY_LABEL or "Portal")
-    self.cooldownText:Show()
+    ShowCooldownText(self, L.CENTER_NOTICE_PORTAL_READY_LABEL or "Portal")
   end
   state.teleportButtonOnUpdate = UpdateTeleportCooldownText
   state.teleportButton:SetScript("OnShow", function(self)
@@ -1096,9 +1105,9 @@ local function AttachCenterNoticeFrameScripts(state)
       local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
       local alpha = 0.65 + (wave * 0.35)
       state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
-    else
-      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
     end
+    -- No steady-state repaint: isBlinking only changes in ShowCenterNotice,
+    -- which re-applies the base color at full alpha itself.
     if type(state.warningFieldRows) == "table" then
       state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
       local wave = (math.sin(state.warningBlinkTime * 6) + 1) * 0.5

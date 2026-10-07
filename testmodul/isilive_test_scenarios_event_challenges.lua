@@ -290,7 +290,7 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     Assert.Equal(enableCalls, 0, "delta display must stay disabled when no refresh ran")
   end)
 
-  test("Event handlers schedule follow-up refreshes after successful delayed refresh", function()
+  test("Event handlers schedule no post-run follow-up after a successful delayed refresh", function()
     local refreshCalls = 0
     local scheduled = {}
 
@@ -314,17 +314,7 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
 
     scheduled[1].callback()
     Assert.Equal(refreshCalls, 1, "initial delayed callback should run one refresh attempt")
-    Assert.Equal(#scheduled, 2, "successful refresh should schedule first follow-up callback")
-    Assert.Equal(scheduled[2].seconds, 6, "follow-up refresh should use short fixed delay")
-
-    scheduled[2].callback()
-    Assert.Equal(refreshCalls, 2, "first follow-up callback should run second refresh attempt")
-    Assert.Equal(#scheduled, 3, "second follow-up callback should be scheduled")
-    Assert.Equal(scheduled[3].seconds, 6, "second follow-up should keep same delay")
-
-    scheduled[3].callback()
-    Assert.Equal(refreshCalls, 3, "second follow-up callback should run third refresh attempt")
-    Assert.Equal(#scheduled, 3, "no further follow-up callback should be scheduled after configured attempts")
+    Assert.Equal(#scheduled, 1, "a successful refresh must not schedule a follow-up refresh")
   end)
 
   test("Event handlers retry completed-run capture when damage meter snapshot is delayed", function()
@@ -639,34 +629,6 @@ local function RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules,
 end
 
 local function RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
-  test("Event handlers skip the roster chain of a follow-up the refresh debounce refused", function()
-    local scheduled = {}
-    local refreshResults = { true, false, false }
-    local refreshCalls = 0
-    local uiUpdates = 0
-    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
-      timerAfter = function(seconds, callback)
-        table.insert(scheduled, { seconds = seconds, callback = callback })
-      end,
-      runFullRefresh = function()
-        refreshCalls = refreshCalls + 1
-        return refreshResults[refreshCalls]
-      end,
-      updateUI = function()
-        uiUpdates = uiUpdates + 1
-      end,
-    })
-    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
-    scheduled[1].callback()
-    local uiAfterFirstRefresh = uiUpdates
-    Assert.True(uiAfterFirstRefresh > 0, "the successful post-run refresh must refresh the roster")
-    scheduled[2].callback()
-    Assert.Equal(refreshCalls, 2, "the follow-up must still attempt its refresh")
-    Assert.Equal(uiUpdates, uiAfterFirstRefresh, "a refused follow-up must not re-run the roster chain")
-    Assert.Equal(#scheduled, 2, "a refused follow-up must not schedule further follow-ups")
-  end)
-
   test("Event handlers refresh the roster once when the key end auto-opens the window", function()
     local function CountRosterRefreshes(showResult)
       local uiUpdates = 0

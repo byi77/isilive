@@ -132,7 +132,9 @@ local EVENT_REGISTRY = {
   -- fresh GROUP_ROSTER_UPDATE. HandleGroupRosterUpdate touches only Lua
   -- state plus the FontString-driven main frame, no secure / taint-
   -- sensitive code, so it is safe to run during combat.
-  { "GROUP_ROSTER_UPDATE", true, "cond", false },
+  -- hidden=true: the roster must stay current while the window is closed;
+  -- ConfigBuilders.BuildGateOpts lists it in allowWhenHidden as well.
+  { "GROUP_ROSTER_UPDATE", true, true, false },
   { "PARTY_LEADER_CHANGED", false, "cond", false },
   { "PLAYER_ROLES_ASSIGNED", false, true, false },
   { "ROLE_CHANGED_INFORM", false, true, false },
@@ -140,8 +142,9 @@ local EVENT_REGISTRY = {
   { "LFG_LIST_APPLICATION_STATUS_UPDATED", false, false, false },
   { "LFG_LIST_ACTIVE_ENTRY_UPDATE", false, false, false },
   -- Addon sync payloads include in-key BR/Lust combat announces and must not
-  -- be dropped while the receiver is in combat.
-  { "CHAT_MSG_ADDON", true, false, false },
+  -- be dropped while the receiver is in combat. hidden=true: sync runs while
+  -- the window is closed (hidden roster renders are deferred, not the sync).
+  { "CHAT_MSG_ADDON", true, true, false },
   { "CONFIRM_SUMMON", true, true, false },
   { "INCOMING_SUMMON_CHANGED", true, true, false },
   -- Group-invite voice alert: same gates as the summon cue, because an invite

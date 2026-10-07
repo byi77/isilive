@@ -310,6 +310,53 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: hidden teleport button updates are deferred until the window is shown", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local teleportUI = session.runtime.teleportUIController
+      local updates = 0
+      local originalUpdateButtons = teleportUI.UpdateButtons
+      teleportUI.UpdateButtons = function(...)
+        updates = updates + 1
+        return originalUpdateButtons(...)
+      end
+      session.runtime.mainFrame:Hide()
+      session.Advance(1)
+      local ok, err = pcall(function()
+        updates = 0
+        for level = 2, 51 do
+          sender.Sync.SendKey({
+            mapID = 2662,
+            level = level,
+            capturedAt = session.now + level,
+            source = "stress",
+            isVisible = true,
+            force = true,
+          })
+          local wire = session.messages[#session.messages]
+          session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer1-Realm")
+        end
+        Assert.Equal(updates, 0, "a hidden window must not rebuild teleport buttons for incoming sync data")
+
+        session.runtime.mainFrame:Show()
+        Assert.True(updates >= 1, "opening the window must bring the deferred teleport buttons up to date")
+        local afterShow = updates
+        session.runtime.mainFrame:Hide()
+        session.runtime.mainFrame:Show()
+        Assert.Equal(updates, afterShow, "a show without a pending update must not rebuild the buttons again")
+
+        -- A queue or invite highlight carries a sound context and must still
+        -- run while hidden: it is what opens the window in the first place.
+        session.runtime.mainFrame:Hide()
+        updates = 0
+        session.runtime.UpdateMPlusTeleportButton("queue")
+        Assert.True(updates >= 1, "a queue highlight must not be deferred")
+      end)
+      teleportUI.UpdateButtons = originalUpdateButtons
+      assert(ok, err)
+    end)
+  end)
+
   test("Mplus stress: 10000 foreign addon messages are dropped before any sync work", function()
     Stress.WithKey(ctx, fixtures, function(session)
       local raidChecks, nameReads = 0, 0
@@ -423,6 +470,36 @@ return function(test, ctx, fixtures)
         end
       end
       Assert.True(libReplies <= 1, "five LibKeystone requests inside two seconds must draw at most one reply")
+    end)
+  end)
+
+  test("Mplus stress: the hello acknowledgement honors the sync setting", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      sender.Sync.SendHello({ force = true, isVisible = true, version = "0.9.1", source = "group" })
+      local wire = session.messages[#session.messages]
+      Assert.True(wire.payload:find("HELLO:", 1, true) == 1, "wire bytes must come from the production HELLO sender")
+      local function AcksSince(index)
+        local count = 0
+        for n = index + 1, #session.messages do
+          local message = session.messages[n]
+          if message.payload:find("^ACK:") and message.channel == "WHISPER" then
+            count = count + 1
+          end
+        end
+        return count
+      end
+
+      _G.IsiLiveDB.syncEnabled = false
+      local mark = #session.messages
+      session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer2-Realm")
+      Assert.Equal(AcksSince(mark), 0, "with sync switched off no acknowledgement may be whispered")
+      Assert.Equal(#session.messages, mark, "with sync switched off nothing at all may be sent")
+
+      _G.IsiLiveDB.syncEnabled = true
+      mark = #session.messages
+      session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer3-Realm")
+      Assert.Equal(AcksSince(mark), 1, "with sync on a new peer's hello is acknowledged once")
     end)
   end)
 
@@ -575,6 +652,65 @@ return function(test, ctx, fixtures)
   test("Mplus stress: pending cooldown burst stays cleared after key completion and group exit", function()
     Stress.WithKey(ctx, fixtures, function(session)
       AssertEndedKey(session, "CHALLENGE_MODE_COMPLETED")
+    end)
+  end)
+
+  test("Mplus stress: an M0 dungeon entry opens the tracked party run through the real wiring", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      -- The factory's own runtime state is the store every M0 consumer reads
+      -- (CD tracker, DeathWatch, BR/Lust announces); it has no event surface.
+      local runtimeState = session.runtime.runtimeState
+      local originalGetInstanceInfo = _G.GetInstanceInfo
+      local function EnterZone(instanceType, difficultyID)
+        _G.GetInstanceInfo = function()
+          return "Test zone", instanceType, difficultyID, "", 5, false, false, 2662
+        end
+        session.Dispatch("ZONE_CHANGED_NEW_AREA")
+        return runtimeState.IsTrackedPartyRunActive()
+      end
+      local ok, err = pcall(function()
+        Assert.True(EnterZone("party", 23), "entering an M0 dungeon must open the tracked party run")
+        Assert.False(EnterZone("none", 0), "leaving the dungeon must close the tracked party run")
+      end)
+      _G.GetInstanceInfo = originalGetInstanceInfo
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: Bloodlust announce follows the instance after a zone change without a key event", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      local originalGetInstanceInfo = _G.GetInstanceInfo
+      local function CountLustAnnounces()
+        local count = 0
+        for _, message in ipairs(session.messages) do
+          if tostring(message.payload):find("^BRLUST:LUST:") then
+            count = count + 1
+          end
+        end
+        return count
+      end
+      local function CastInZone(instanceType, difficultyID)
+        _G.GetInstanceInfo = function()
+          return "Test zone", instanceType, difficultyID, "", 5, false, false, 2662
+        end
+        session.Dispatch("ZONE_CHANGED_NEW_AREA")
+        -- Past the 3 s per-caster dedup window, so only the context decides.
+        session.Advance(5)
+        local before = CountLustAnnounces()
+        session.Dispatch("UNIT_SPELLCAST_SUCCEEDED", "player", "lust-cast", 2825)
+        return CountLustAnnounces() - before
+      end
+      local ok, err = pcall(function()
+        Assert.Equal(CastInZone("none", 0), 0, "the open world must not announce Bloodlust")
+        Assert.Equal(CastInZone("party", 23), 1, "a mythic dungeon entered later must announce Bloodlust")
+        Assert.Equal(CastInZone("none", 0), 0, "leaving the dungeon must stop the Bloodlust announce")
+      end)
+      _G.GetInstanceInfo = originalGetInstanceInfo
+      assert(ok, err)
     end)
   end)
 end

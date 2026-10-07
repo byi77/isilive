@@ -11,8 +11,6 @@ local IsSecretValue = addonTable.Validators.IsSecretValue
 local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
 local POST_RUN_REFRESH_RETRIES = 5
 local POST_RUN_REFRESH_RETRY_DELAY_SECONDS = 1
-local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
-local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
 local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local READY_CHECK_DECLINED_HOLD_SECONDS = 20
@@ -374,13 +372,14 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx)
   return TryRecordCompletedRun(ctx, identity, POST_RUN_CAPTURE_RETRIES)
 end
 
-local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining, isFollowUp)
+-- One delayed refresh with retries. The former follow-up refreshes (6 s after a
+-- successful refresh) always hit the 10 s refresh debounce and never refreshed
+-- anything; they were removed in 0.9.417.
+local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
   if IsRaidModeActive(ctx) then
     SetPendingPostChallengeRefresh(ctx, {
       frame = frame,
       retriesRemaining = retriesRemaining,
-      followUpRefreshesRemaining = followUpRefreshesRemaining,
-      isFollowUp = isFollowUp == true,
     })
     return
   end
@@ -397,17 +396,9 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
 
   local refreshed = ctx.runFullRefresh() ~= false
 
-  -- A follow-up whose refresh was refused (the refresh debounce outlasts the
-  -- follow-up delay) changed nothing: the delta stays as the successful first
-  -- refresh left it, so re-running the whole roster chain would only repeat
-  -- the previous render.
-  if isFollowUp and not refreshed then
-    return
-  end
-
   if not refreshed and retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
-      RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1, followUpRefreshesRemaining)
+      RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1)
     end)
     return
   end
@@ -420,12 +411,6 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
     ctx.enableRioDeltaDisplay()
   end
   RefreshRosterAfterRunStateChange(ctx, frame)
-
-  if refreshed and followUpRefreshesRemaining > 0 and ctx.timerAfter then
-    ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
-      RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1, true)
-    end)
-  end
 end
 
 local function RefreshReadyCheckUI(ctx)
@@ -648,13 +633,7 @@ function ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
   end
 
   SetPendingPostChallengeRefresh(ctx, nil)
-  RunDelayedPostChallengeRefresh(
-    ctx,
-    pending.frame or frame,
-    pending.retriesRemaining or POST_RUN_REFRESH_RETRIES,
-    pending.followUpRefreshesRemaining or POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS,
-    pending.isFollowUp == true
-  )
+  RunDelayedPostChallengeRefresh(ctx, pending.frame or frame, pending.retriesRemaining or POST_RUN_REFRESH_RETRIES)
   return true
 end
 
@@ -772,12 +751,12 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.notifyPostChallengeSync()
     if ctx.timerAfter then
       ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
-        RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)
+        RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES)
       end)
       return
     end
 
-    RunDelayedPostChallengeRefresh(ctx, frame, 0, 0)
+    RunDelayedPostChallengeRefresh(ctx, frame, 0)
   end
 
   return {

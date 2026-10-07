@@ -654,6 +654,43 @@ return function(test, ctx)
     Assert.Equal(row.mp2Icon._alpha, 1, "every badge must return to full opacity without a key")
   end)
 
+  test("UpdateCdTrackerRow re-anchors and repaints the timeline only when it changes", function()
+    local harness = BuildTimelineHarness()
+    local timeline = harness.row.mpTimeline
+    local anchorWrites, colorWrites = 0, 0
+    local function Count(texture)
+      local originalSetPoint, originalPaint = texture.SetPoint, texture.SetColorTexture
+      texture.SetPoint = function(...)
+        anchorWrites = anchorWrites + 1
+        return originalSetPoint(...)
+      end
+      texture.SetColorTexture = function(...)
+        colorWrites = colorWrites + 1
+        return originalPaint(...)
+      end
+    end
+    Count(timeline.track)
+    for _, tick in ipairs(timeline.ticks) do
+      Count(tick)
+    end
+
+    for second = 540, 599 do
+      harness.Render(BuildTimerSnapshot(second))
+    end
+    Assert.Equal(anchorWrites, #timeline.ticks, "a minute of timer ticks anchors each cutoff tick once")
+    Assert.Equal(colorWrites, 1 + #timeline.ticks, "track and ticks are painted once, not every second")
+    Assert.True(timeline.ticks[1]._shown and timeline.track._shown, "the timeline stays visible")
+
+    harness.row.mplusBox._layoutWidth = 304
+    harness.Render(BuildTimerSnapshot(600))
+    Assert.Equal(anchorWrites, #timeline.ticks * 2, "a wider box re-anchors every cutoff tick")
+    Assert.Equal(timeline.ticks[1]._points[#timeline.ticks[1]._points][4], 180, "+3 tick follows the new width")
+
+    harness.Render(nil)
+    harness.Render(BuildTimerSnapshot(601))
+    Assert.True(timeline.ticks[1]._shown and timeline.track._shown, "a timeline hidden in between shows again")
+  end)
+
   test("UpdateCdTrackerRow hides the timeline for snapshots without a usable limit", function()
     local harness = BuildTimelineHarness()
     local snapshot = BuildTimerSnapshot(300)

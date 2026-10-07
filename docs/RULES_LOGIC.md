@@ -216,7 +216,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 153. Der eigene Kick-Tracker loest Basis-Cooldown und Talent-Reduktion einmal pro Spell- oder Talentwechsel auf und behaelt die talentierte Abklingzeit fuer jeden weiteren Kick; ein Spec ohne Interrupt wird nicht bei jedem Cast neu aufgeloest, und der Kick-Poll schreibt den eigenen Zustand nur bei Aenderung, nach Entfernung oder spaetestens alle zehn Sekunden.
 
-154. Key-Ende und Kampfende loesen keine doppelten Roster-Refreshes aus: ein vom Debounce abgewiesener Post-Run-Follow-up endet ohne Roster-Kette, ein Auto-Open beim Key-Ende ersetzt die zweite Roster-Kette, ein nach dem Kampf nachgeholtes Einblenden ersetzt das Post-Combat-`updateUI`, und `PLAYER_REGEN_ENABLED` holt die Season-Auswertung nur nach, solange sie aussteht.
+154. Key-Ende und Kampfende loesen keine doppelten Roster-Refreshes aus: nach dem Key-Ende laeuft nur ein verzoegerter Refresh mit Retries und kein Follow-up-Refresh, ein Auto-Open beim Key-Ende ersetzt die zweite Roster-Kette, ein nach dem Kampf nachgeholtes Einblenden ersetzt das Post-Combat-`updateUI`, und `PLAYER_REGEN_ENABLED` holt die Season-Auswertung nur nach, solange sie aussteht.
 
 155. Addon-Nachrichten mit fremdem Praefix werden vor Raid-Pruefung und Spielernamen-Aufloesung verworfen; Sync-Spielerschluessel werden je aufgeloestem Name-Realm-Paar zwischengespeichert, und Sync-, Roster- und Teleport-Traces bauen weder Argumente noch Closures, solange ihre Log-Stufe aus ist.
 
@@ -229,6 +229,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 159. Der Peer-State-Fan-out antwortet auf jedes HELLO eines bisher unbekannten Peers, aber hoechstens einmal je zehn Sekunden auf HELLOs bekannter Peers und nicht auf ein REQSYNC innerhalb von drei Sekunden nach dem letzten Fan-out; LibKeystone-Anfragen werden hoechstens einmal je zwei Sekunden beantwortet.
 
 160. Das ESC-Mount-Panel liest das Mount-Journal je Aktualisierung in einem einzigen Durchlauf ohne Zwischentabellen, und `LFG_LIST_SEARCH_RESULT_UPDATED` mit numerischer Result-ID endet ohne Capture, Log und Challenge-Pruefung.
+
+161. Der M0-Run aus Regel 92 erreicht den Runtime-State ueber das echte Event-Handler-Wiring, und die BR-/Bloodlust-Ansage loest ihren Key-Kontext nach jedem Zonen- oder Difficulty-Wechsel neu auf.
+
+162. Jedes Event der Hidden-Allowlist in `ConfigBuilders.BuildGateOpts` ist in der Bootstrap-Event-Registry als `hidden = true` eingetragen; die Registry beschreibt das tatsaechliche Gate.
+
+163. Gefittete Flat-Button-Labels kehren nach einem langen Label unter einem Locale- oder eigenen Font auf ihre Basis-Schriftgroesse zurueck; ein Font-Wechsel aktualisiert nur den Font-Pfad der Basis.
+
+164. Wiederkehrende Anzeige-Ticks schreiben nur Geaendertes: die Center-Notice faerbt ihren Text pro Frame nur beim Blinken, der Notice-Teleportknopf setzt seinen Statustext nur bei neuem Wert, die M+-Timeline verankert und faerbt ihre Elemente nur bei Aenderung, und die Stats-Box empfaengt `UNIT_STATS` nur fuer den Spieler.
+
+165. Das HELLO-ACK respektiert die Sync-Einstellung und laeuft ueber denselben gedrosselten Versandweg wie alle anderen isiLive-Nachrichten.
+
+166. Routine-Aktualisierungen der Teleport-Buttons bei geschlossenem Hauptfenster werden bis zum naechsten Oeffnen aufgeschoben; Queue- und Invite-Hervorhebungen laufen sofort.
 
 ## Regelbloecke
 
@@ -2413,13 +2425,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-KEYENDE-KAMPFENDE-OHNE-DOPPEL-REFRESH
 - Regelnummer: 154
 - Status: aktiv
-- Zusammenfassung: Ein Post-Run-Follow-up-Refresh, dessen `runFullRefresh` abgewiesen wird (der Refresh-Debounce ist laenger als die Follow-up-Verzoegerung), kehrt ohne Roster-Kette, ohne RIO-Delta-Aenderung und ohne weiteren Follow-up zurueck; der erste verzoegerte Refresh mit Retries und die Regel-4-Freigabe des RIO-Deltas bleiben unveraendert, und ein im Raid zurueckgestellter Follow-up behaelt diese Eigenschaft. Oeffnet `CHALLENGE_MODE_COMPLETED` die Main-UI in der Gruppe per Auto-Open tatsaechlich (`setMainFrameVisible(true)` meldet `true`), entfaellt die anschliessende zweite Roster-Kette, weil der Show-Callback sie bereits ausgefuehrt hat. Fuehrt `PLAYER_REGEN_ENABLED` ein im Kampf zurueckgestelltes Einblenden in der Gruppe tatsaechlich aus, entfaellt das nachfolgende `updateUI`; ohne dieses Einblenden laeuft es weiterhin und schreibt im Kampf veraltete Rollen-Marker-Makros neu. `refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")` wertet die Season nur aus, solange eine Auswertung aussteht (anfangs, nach einer im Kampf uebersprungenen oder ohne Map-Tabelle gebliebenen Auswertung oder nach einer nicht schluessigen Auswahl); `PLAYER_LOGIN` und `CHALLENGE_MODE_MAPS_UPDATE` werten wie in Regel 97 immer aus.
+- Zusammenfassung: Nach `CHALLENGE_MODE_COMPLETED` laeuft genau ein verzoegerter Post-Run-Refresh mit Retries; ein erfolgreicher Refresh plant keinen Follow-up-Refresh mehr ein, die Regel-4-Freigabe des RIO-Deltas bleibt unveraendert, und ein im Raid zurueckgestellter Refresh behaelt nur seine verbleibenden Retries. Oeffnet `CHALLENGE_MODE_COMPLETED` die Main-UI in der Gruppe per Auto-Open tatsaechlich (`setMainFrameVisible(true)` meldet `true`), entfaellt die anschliessende zweite Roster-Kette, weil der Show-Callback sie bereits ausgefuehrt hat. Fuehrt `PLAYER_REGEN_ENABLED` ein im Kampf zurueckgestelltes Einblenden in der Gruppe tatsaechlich aus, entfaellt das nachfolgende `updateUI`; ohne dieses Einblenden laeuft es weiterhin und schreibt im Kampf veraltete Rollen-Marker-Makros neu. `refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")` wertet die Season nur aus, solange eine Auswertung aussteht (anfangs, nach einer im Kampf uebersprungenen oder ohne Map-Tabelle gebliebenen Auswertung oder nach einer nicht schluessigen Auswahl); `PLAYER_LOGIN` und `CHALLENGE_MODE_MAPS_UPDATE` werten wie in Regel 97 immer aus.
+- Ersetzte Festlegung (0.9.417, 2026-10-07): zuvor "Ein Post-Run-Follow-up-Refresh, dessen `runFullRefresh` abgewiesen wird (der Refresh-Debounce ist laenger als die Follow-up-Verzoegerung), kehrt ohne Roster-Kette, ohne RIO-Delta-Aenderung und ohne weiteren Follow-up zurueck; der erste verzoegerte Refresh mit Retries und die Regel-4-Freigabe des RIO-Deltas bleiben unveraendert, und ein im Raid zurueckgestellter Follow-up behaelt diese Eigenschaft." Die zwei Follow-up-Refreshes (je 6 s nach einem erfolgreichen Refresh) liefen immer in den 10-s-Refresh-Debounce und aktualisierten nichts; auf User-Entscheidung wurden sie ganz entfernt. Die uebrigen Festlegungen der Regel sind unveraendert.
 - Erforderliche Tests:
-  - Event handlers skip the roster chain of a follow-up the refresh debounce refused
+  - Event handlers schedule no post-run follow-up after a successful delayed refresh
   - Event handlers refresh the roster once when the key end auto-opens the window
   - Event handlers do not repeat the post-combat render after a deferred show
   - ControllerWiring season refresh at combat end only catches up a pending evaluation
-  - Event handlers schedule follow-up refreshes after successful delayed refresh
   - Event handlers enable RIO delta only after delayed post-run refresh
 
 ### RULE-SYNC-EMPFANG-UND-TRACE-OHNE-LEERLAUFKOSTEN
@@ -2476,3 +2488,56 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI mount game-menu panel shows verified mount shortcuts under travel panel
   - SEARCH_RESULT_UPDATED drops the numeric result id the client sends without any work
   - SEARCH_RESULT_UPDATED captures candidate in normal mode
+
+### RULE-M0-RUN-WIRING-UND-ANSAGE-KONTEXT
+- Regelnummer: 161
+- Status: aktiv
+- Zusammenfassung: `ControllerWiring` reicht `setTrackedPartyRunInfo`, `clearTrackedPartyRunInfo` und `isTrackedPartyRunActive` aus dem Factory-Event-Handler-Kontext an die Event-Handler durch, sodass ein nach Regel 92 erkannter M0-Run (Party-Instanz, Difficulty-ID 23, kein Keystein) den `trackedPartyRun` im Runtime-State der Factory oeffnet und beim Verlassen schliesst; ohne diese Durchreichung blieben CD-Tracker, DeathWatch und BR-/Bloodlust-Ansagen im M0-Fall entgegen Regel 92 geschlossen (seit 0.9.340). Die Event-Handler fallen ohne die drei Funktionen weiterhin auf No-ops zurueck. `CombatEvents` verwirft seinen zwischengespeicherten Key-Kontext bei `INSTANCE_CONTEXT_CHANGED`, das der Runtime-Handler fuer `ZONE_CHANGED`, `ZONE_CHANGED_INDOORS`, `ZONE_CHANGED_NEW_AREA`, `PLAYER_DIFFICULTY_CHANGED` und `UPDATE_INSTANCE_INFO` vor der Raid-Pruefung weitergibt; das Dedup-Fenster je Caster bleibt dabei erhalten. `CHALLENGE_MODE_START`, `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` setzen wie bisher Cache und Dedup-Fenster zurueck.
+- Erforderliche Tests:
+  - Mplus stress: an M0 dungeon entry opens the tracked party run through the real wiring
+  - Mplus stress: Bloodlust announce follows the instance after a zone change without a key event
+  - CombatEvents broadcasts own Bloodlust cast when in key
+
+### RULE-GATE-REGISTRY-OHNE-STILLEN-OVERRIDE
+- Regelnummer: 162
+- Status: aktiv
+- Zusammenfassung: Die Hidden-Spalte der `EVENT_REGISTRY` in `core/isiLive_bootstrap.lua` und die Hidden-Allowlist aus `ConfigBuilders.BuildGateOpts` widersprechen sich nicht: Jedes Event der Allowlist ist registriert und in der Registry als `hidden = true` gefuehrt. `CHAT_MSG_ADDON` und `GROUP_ROSTER_UPDATE` stehen deshalb in der Registry auf `hidden = true`; das ist das Gate, das schon vorher galt, weil die Allowlist die Registry-Werte `false` beziehungsweise `"cond"` still ueberschrieb. Das Laufzeitverhalten aendert sich nicht. `"cond"` bleibt Ereignissen vorbehalten, die nur ueber `shouldAllowWhenHidden` passieren.
+- Erforderliche Tests:
+  - ConfigBuilders hidden allowlist agrees with the bootstrap event registry
+  - ConfigBuilders BuildGateOpts passes fields and includes allowWhenHidden
+
+### RULE-FLAT-BUTTON-BASISGROESSE-OHNE-RATSCHE
+- Regelnummer: 163
+- Status: aktiv
+- Zusammenfassung: `SetFlatButtonText` behaelt die einmal erfasste Basis-Schriftgroesse eines Flat-Button-Labels bei. Wendet `UICommon.ApplyLocaleFont` einen Locale- oder eigenen Font an (etwa unter `ruRU` oder nach Wahl einer eigenen Schrift), uebernimmt die Basis nur den neuen Font-Pfad aus `GetFont()`; die von einem vorherigen Fit verkleinerte aktuelle Groesse wird nicht als neue Basis uebernommen. Ein kurzes Label nach einem langen kehrt damit auf die Basisgroesse zurueck, und wiederholte lange Labels senken sie nicht schrittweise ab. Die Fit-Schritte aus Regel 62 und die Mindestgroesse bleiben unveraendert.
+- Erforderliche Tests:
+  - RosterLayout SetFlatButtonText restores the base size after a long label under a locale font
+  - RosterLayout SetFlatButtonText resets a previously shrunken label before refitting
+  - RosterLayout SetFlatButtonText uses ruRU font override before fitting Cyrillic labels
+
+### RULE-ANZEIGE-TICKS-OHNE-LEERSCHREIBEN
+- Regelnummer: 164
+- Status: aktiv
+- Zusammenfassung: Das `OnUpdate` der Center-Notice setzt die Textfarbe nur, solange die Notice blinkt; `ShowCenterNotice` setzt die Grundfarbe ausdruecklich mit Alpha 1 und beendet damit auch ein vorheriges Blinken. Der Notice-Teleportknopf schreibt seinen Statustext (Restzeit oder Portal-Label) im 0,1-s-Takt nur, wenn sich der angezeigte Text aendert. Die M+-Timeline im CD-Tracker verankert ihre Cutoff-Markierungen nur bei geaenderter x-Position neu und setzt die Farbtextur von Spur, Markierungen und Fuellung nur, wenn sich die aufgeloeste Farbtabelle aendert; Breitenwechsel, Notenwechsel und Ein-/Ausblenden wirken wie bisher. Die Stats-Box registriert `UNIT_STATS` per `RegisterUnitEvent` nur fuer `player`; ohne diese API faellt sie auf `RegisterEvent` mit der bestehenden Unit-Pruefung zurueck.
+- Erforderliche Tests:
+  - Center notice repaints the text color per frame only while blinking
+  - Center notice teleport button rewrites its status text only when it changes
+  - UpdateCdTrackerRow re-anchors and repaints the timeline only when it changes
+  - StatsBox receives UNIT_STATS only for the player unit
+  - UpdateCdTrackerRow draws elapsed time and cutoff ticks and emphasizes the reachable grade
+
+### RULE-HELLO-ACK-SYNC-EINSTELLUNG-UND-DROSSELUNG
+- Regelnummer: 165
+- Status: aktiv
+- Zusammenfassung: Das ACK auf ein eingehendes HELLO wird ueber `Sync.SendAck` versendet. Es geht nur raus, wenn die Sync-Einstellung (`IsiLiveDB.syncEnabled`) nicht ausgeschaltet ist, und es laeuft wie jede andere isiLive-Nachricht ueber `DispatchAddonMessage` (ChatThrottleLib, sonst `C_ChatInfo.SendAddonMessage`), jetzt mit Whisper-Ziel. Vorher fluesterte `ControllerWiring` das ACK direkt an der Sync-Einstellung und an ChatThrottleLib vorbei. Payload `ACK:<Version>`, Kanal `WHISPER` und Ziel (der HELLO-Absender) bleiben unveraendert; der Loop-Breaker aus Regel 82 und die Fan-out-Drosselung aus Regel 159 bleiben unberuehrt.
+- Erforderliche Tests:
+  - Mplus stress: the hello acknowledgement honors the sync setting
+  - ControllerWiring CreateEventHandlersController sendAck includes addon version in payload
+  - Architecture C_ChatInfo senders route through rawget(_G) cache
+
+### RULE-TELEPORT-BUTTONS-HIDDEN-AUFSCHIEBEN
+- Regelnummer: 166
+- Status: aktiv
+- Zusammenfassung: `UpdateMPlusTeleportButton` ohne Sound-Kontext (Sync-Daten, Key-Start, Cooldown-Tick, Gruppenwechsel) baut die Teleport-Buttons bei geschlossenem Hauptfenster nicht neu auf, sondern merkt die Aktualisierung vor; das `OnShow` des Hauptfensters holt sie einmal nach, auch bei Einblendungen ohne Show-Callbacks. Aufrufe mit Sound-Kontext (`queue`, `invite`) laufen unabhaengig von der Sichtbarkeit sofort, weil sie das Fenster fuer die LFG-Hervorhebung selbst oeffnen. Ohne vorgemerkte Aktualisierung loest ein Oeffnen keinen zusaetzlichen Neuaufbau aus.
+- Erforderliche Tests:
+  - Mplus stress: hidden teleport button updates are deferred until the window is shown

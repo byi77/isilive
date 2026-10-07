@@ -286,6 +286,32 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox receives UNIT_STATS only for the player unit", function()
+    local baseCreateFrame = BuildCreateFrameStub()
+    local unitEvents = {}
+    local function CreateFrameWithUnitEvents(...)
+      local frame = baseCreateFrame(...)
+      frame.RegisterUnitEvent = function(self, event, ...)
+        unitEvents[event] = { ... }
+        self._events = self._events or {}
+        self._events[event] = true
+      end
+      return frame
+    end
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {},
+      CreateFrame = CreateFrameWithUnitEvents,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = Assert.NotNil(addon.StatsBox.instance, "stats box should create an instance")
+      local filter = Assert.NotNil(unitEvents.UNIT_STATS, "UNIT_STATS must be registered with a unit filter")
+      Assert.Equal(#filter, 1, "the filter names exactly one unit")
+      Assert.Equal(filter[1], "player", "the filter must be the player")
+      Assert.True(box.frame:IsEventRegistered("PLAYER_EQUIPMENT_CHANGED"), "other stat events stay registered")
+    end)
+  end)
+
   test("StatsBox clamps its movable frame to the screen", function()
     WithGlobals({
       UIParent = {},

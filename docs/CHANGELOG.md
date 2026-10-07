@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-07 - Version 0.9.417 (patch)
+
+- Mythic 0: BR/Bloodlust display, tank/healer death alerts and BR/Bloodlust
+  announces work again in a mythic dungeon without an inserted key. Since
+  0.9.340 the tracked party run never reached the runtime state because the
+  controller wiring did not pass its setters to the event handlers.
+- The Bloodlust/BR announce re-resolves its key context after every zone or
+  difficulty change instead of keeping the first answer until the next
+  challenge-mode event.
+- The HELLO acknowledgement honors the sync setting and goes through
+  ChatThrottleLib; with sync switched off it used to be whispered anyway.
+- Flat action buttons return to their base font size after a long label under a
+  locale or custom font instead of shrinking step by step.
+- Idle work: the center notice no longer repaints its text color every frame,
+  its teleport button rewrites the status text only on change, the M+ timeline
+  re-anchors and repaints only on change, the Stats Box receives `UNIT_STATS`
+  for the player only, and teleport button refreshes while the main window is
+  hidden are deferred to the next show.
+- Removed the two post-run follow-up refreshes; they always hit the 10 s refresh
+  debounce and refreshed nothing. The event registry now matches the hidden-gate
+  allowlist (no behavior change).
+- New rules 161-166 with end-to-end regressions. M0 utilities and flat-button
+  sizing still need a live check.
+
 ## 2026-10-07 - Version 0.9.416 (patch)
 
 - Kick tracker: the talent cooldown reduction now stays applied. `OnCast` used

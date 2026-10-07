@@ -1332,6 +1332,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
+    -- Before the raid gate: a cached in-key answer from before the raid must
+    -- not outlive the zone it was read in.
+    ctx.handleCombatEventsEvent("INSTANCE_CONTEXT_CHANGED")
     if IsRaidModeActive(ctx) then
       return
     end

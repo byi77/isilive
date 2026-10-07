@@ -54,14 +54,12 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     state.SetPendingPostChallengeRefresh({
       frame = "frameRef",
       retriesRemaining = 2,
-      followUpRefreshesRemaining = 1,
     })
 
     local pending = state.GetPendingPostChallengeRefresh()
     Assert.NotNil(pending, "deferred post-challenge refresh state must be readable after storing it")
     Assert.Equal(pending.frame, "frameRef", "stored deferred refresh must preserve the frame reference")
     Assert.Equal(pending.retriesRemaining, 2, "stored deferred refresh must preserve retry count")
-    Assert.Equal(pending.followUpRefreshesRemaining, 1, "stored deferred refresh must preserve follow-up refresh count")
 
     state.SetPendingPostChallengeRefresh(nil)
     Assert.Nil(state.GetPendingPostChallengeRefresh(), "clearing deferred post-challenge state must remove it")
@@ -74,7 +72,6 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     state.SetPendingPostChallengeRefresh({
       frame = "frameRef",
       retriesRemaining = 4,
-      followUpRefreshesRemaining = 2,
     })
 
     local snapshot = state.GetSnapshot()
@@ -91,11 +88,6 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
       snapshot.pendingPostChallengeRefresh.retriesRemaining,
       4,
       "snapshot must preserve deferred retry count"
-    )
-    Assert.Equal(
-      snapshot.pendingPostChallengeRefresh.followUpRefreshesRemaining,
-      2,
-      "snapshot must preserve deferred follow-up refresh count"
     )
   end)
 

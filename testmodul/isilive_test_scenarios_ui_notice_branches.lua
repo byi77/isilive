@@ -704,6 +704,45 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
+  test("Center notice repaints the text color per frame only while blinking", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      local colorWrites = 0
+      local originalSetTextColor = centerNotice.text.SetTextColor
+      centerNotice.text.SetTextColor = function(...)
+        colorWrites = colorWrites + 1
+        return originalSetTextColor(...)
+      end
+
+      centerNotice.Show("Steady", 12, nil, nil, { persistent = true })
+      local afterShow = colorWrites
+      local onUpdate = centerNotice.frame:GetScript("OnUpdate")
+      for _ = 1, 600 do
+        onUpdate(centerNotice.frame, 1 / 60)
+      end
+      Assert.Equal(colorWrites, afterShow, "a steady notice must not repaint its text color every frame")
+      local _, _, _, steadyAlpha = centerNotice.text:GetTextColor()
+      Assert.Equal(steadyAlpha, 1, "a steady notice keeps full alpha")
+
+      centerNotice.Show("Blinking", 12, nil, nil, { persistent = true, blink = true })
+      local afterBlinkShow = colorWrites
+      for _ = 1, 10 do
+        onUpdate(centerNotice.frame, 0.1)
+      end
+      Assert.Equal(colorWrites - afterBlinkShow, 10, "a blinking notice pulses its alpha on every frame")
+
+      centerNotice.Show("Steady again", 12, nil, nil, { persistent = true })
+      local _, _, _, restoredAlpha = centerNotice.text:GetTextColor()
+      Assert.Equal(restoredAlpha, 1, "showing a steady notice after a blink restores full alpha")
+    end)
+  end)
+
   test("Center notice removes hidden OnUpdate polling and restores it when shown", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
@@ -942,6 +981,74 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       )
       local _, fontSize = centerNotice.teleportButton.cooldownText:GetFont()
       Assert.True(fontSize >= 16, "ready portal label should use the enlarged teleport status font")
+    end)
+  end)
+
+  test("Center notice teleport button rewrites its status text only when it changes", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local remaining = 0
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return remaining
+        end,
+        formatCooldownSeconds = function(seconds)
+          return string.format("%d", math.ceil(seconds))
+        end,
+        getL = function()
+          return { CENTER_NOTICE_PORTAL_READY_LABEL = "Portal" }
+        end,
+      })
+      centerNotice.Show(nil, 12, "Grube von Saron", nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = { { label = "Dungeon:", value = "Grube von Saron" } },
+      })
+      local button = centerNotice.teleportButton
+      local textWrites = 0
+      local originalSetText = button.cooldownText.SetText
+      button.cooldownText.SetText = function(...)
+        textWrites = textWrites + 1
+        return originalSetText(...)
+      end
+      local onUpdate = button:GetScript("OnUpdate")
+
+      for _ = 1, 100 do
+        onUpdate(button, 0.1)
+      end
+      Assert.Equal(textWrites, 1, "a ready portal writes its label once, not every tick")
+      Assert.Equal(button.cooldownText:GetText(), "Portal", "the ready label stays in place")
+
+      remaining = 3
+      for _ = 1, 30 do
+        onUpdate(button, 0.1)
+        remaining = math.max(0, remaining - 0.1)
+      end
+      remaining = 0
+      onUpdate(button, 0.1)
+      Assert.True(textWrites <= 1 + 4, "a counting cooldown writes once per displayed second at most")
+      Assert.Equal(button.cooldownText:GetText(), "Portal", "the label returns once the cooldown is over")
+      Assert.True(button.cooldownText:IsShown(), "the status text stays visible")
     end)
   end)
 

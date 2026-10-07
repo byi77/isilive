@@ -488,7 +488,7 @@ return function(test, ctx)
   end)
 
   test("ControllerWiring CreateEventHandlersController sendAck includes addon version in payload", function()
-    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()
     local captured
     WithGlobals({
@@ -502,6 +502,7 @@ return function(test, ctx)
       deps.getAddonVersionRaw = function()
         return "0.9.180"
       end
+      deps.modules.sync = addon.Sync
       addon.ControllerWiring.CreateEventHandlersController(module, deps)
       local config = getCaptured()
       config.sendAck("Alice-Realm")

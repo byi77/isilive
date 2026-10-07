@@ -93,8 +93,9 @@ function CombatEvents.CreateController(opts)
   -- Cache the isInKey() result so a pull of casts (BR + Bloodlust both trigger
   -- many UNIT_SPELLCAST_SUCCEEDED in seconds) does not hit
   -- pcall(C_ChallengeMode.GetActiveChallengeMapID) on every cast. The cache is
-  -- invalidated in Reset() which fires on CHALLENGE_MODE_START / COMPLETED /
-  -- RESET — exactly the events at which the value can change.
+  -- invalidated in Reset() on CHALLENGE_MODE_START / COMPLETED / RESET, and by
+  -- INSTANCE_CONTEXT_CHANGED on zone and difficulty changes: entering or
+  -- leaving a mythic dungeon without a key fires no challenge event.
   local cachedInKey = nil
 
   local function IsInKeyCached()
@@ -190,6 +191,12 @@ function CombatEvents.CreateController(opts)
     cachedInKey = nil
   end
 
+  -- Zone or difficulty change: only the cached in-key answer is stale; the
+  -- per-caster dedup window must survive.
+  function controller.InvalidateContextCache()
+    cachedInKey = nil
+  end
+
   -- Test-only hook: exposes the live size of the dedup map so the unit
   -- test for ShouldDedup's expiry sweep can verify the map stays bounded.
   -- Production paths never read this; the name carries the `_Test_` prefix
@@ -226,6 +233,10 @@ function CombatEvents.HandleEvent(event, ...)
   end
   if event == "UNIT_SPELLCAST_SUCCEEDED" then
     controllerInstance.HandleUnitSpellcastSucceeded(...)
+    return
+  end
+  if event == "INSTANCE_CONTEXT_CHANGED" then
+    controllerInstance.InvalidateContextCache()
     return
   end
   if event == "CHALLENGE_MODE_START" or event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
