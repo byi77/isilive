@@ -71,6 +71,30 @@ local function ScanBagsForKeystoneSnapshot()
   return nil, nil
 end
 
+-- The bag-scan fallback (a pcall per bag slot) runs whenever the client
+-- reports no owned keystone -- which for a character without a key is every
+-- call: each loot (BAG_UPDATE_DELAYED, twice), each roster render and each
+-- snapshot send. Its answer, including "no key", is kept until the bags may
+-- have changed: RefreshLocalPlayerKey, which BAG_UPDATE_DELAYED and the
+-- other owned-key triggers drive, drops it before it reads.
+local bagScanResolved = false
+local bagScanMapID = nil
+local bagScanLevel = nil
+
+local function InvalidateBagScan()
+  bagScanResolved = false
+  bagScanMapID = nil
+  bagScanLevel = nil
+end
+
+local function ScanBagsForKeystoneSnapshotCached()
+  if not bagScanResolved then
+    bagScanMapID, bagScanLevel = ScanBagsForKeystoneSnapshot()
+    bagScanResolved = true
+  end
+  return bagScanMapID, bagScanLevel
+end
+
 local function GetOwnedKeystoneSnapshot()
   local mapID, level = nil, nil
 
@@ -85,7 +109,7 @@ local function GetOwnedKeystoneSnapshot()
   end
 
   if not level or level <= 0 or not mapID or mapID <= 0 then
-    mapID, level = ScanBagsForKeystoneSnapshot()
+    mapID, level = ScanBagsForKeystoneSnapshotCached()
   end
 
   if not mapID or not level then
@@ -231,6 +255,12 @@ end
 
 local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, opts)
   opts = opts or {}
+  -- Solo or in a raid there is no sync channel and every Send* below drops
+  -- its payload; skip building the key, stats, rating, DPS and location
+  -- snapshot that nobody would receive.
+  if type(sync.GetAddonSyncChannel) == "function" and sync.GetAddonSyncChannel() == nil then
+    return
+  end
 
   local isVisible = isFrameVisible()
   local force = not not opts.force
@@ -646,6 +676,7 @@ local function RegisterVerifiedSyncAliasForRoster(sync, roster, sender)
 end
 
 local function RefreshLocalPlayerKey(sync, roster)
+  InvalidateBagScan()
   local playerInfo = roster and roster.player
   if type(playerInfo) ~= "table" then
     return false
@@ -900,11 +931,15 @@ function KeySync.CreateController(opts)
 
   function controller.SendOwnBackgroundSnapshot(source)
     local visible = isFrameVisible()
+    -- Background triggers (loot, sub-zone changes, gear swaps) only publish
+    -- what changed, visible or not: an unchanged key, stats, DPS or location
+    -- re-sent on every loot reached every peer's receive path for nothing.
+    -- HELLO, REQSYNC and explicit refreshes keep sending full state.
     SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
       force = false,
       source = source,
       allowHidden = not visible,
-      onlyIfChanged = not visible,
+      onlyIfChanged = true,
       includeDps = true,
     })
   end

@@ -89,7 +89,11 @@ local function BuildSyncStub(state, opts)
       table.insert(state.cleared, { name = name, realm = realm })
       return true
     end,
+    GetKickInfoGeneration = function()
+      return state.kickGeneration or 0
+    end,
     SetPlayerKickInfo = function(name, realm, onCooldown, cooldownRemain, _spellID, hasKick, extras)
+      state.setKickInfoCalls = (state.setKickInfoCalls or 0) + 1
       state.lastSetKickInfo = {
         name = name,
         realm = realm,
@@ -315,6 +319,47 @@ return function(test, ctx)
   end)
 
   -- SendOwnKickState defensive paths ------------------------------------------
+
+  test("kick tracker: poll rewrites the own kick state only on change, removal or heartbeat", function()
+    local _ctx, _modules, state = LoadFactoryKickTracker()
+    local ticker = Assert.NotNil(state.tickers and state.tickers[1], "the in-key kick poll must be running")
+    local function Tick(seconds)
+      state.time = state.time + seconds
+      ticker.callback()
+    end
+    local function Writes()
+      return state.setKickInfoCalls or 0
+    end
+
+    Tick(0.5)
+    local afterFirst = Writes()
+    for _ = 1, 16 do
+      Tick(0.5)
+    end
+    Assert.Equal(Writes(), afterFirst, "eight seconds of an unchanged ready kick must not rewrite the own state")
+
+    state.kickInfo = {
+      availabilityResolved = true,
+      spellID = 6552,
+      hasKick = true,
+      onCooldown = true,
+      cooldownRemain = 15,
+    }
+    Tick(0.5)
+    Assert.Equal(Writes(), afterFirst + 1, "a kick going on cooldown must be written")
+    state.kickInfo.cooldownRemain = 14.5
+    Tick(0.5)
+    Assert.Equal(Writes(), afterFirst + 1, "a countdown that only decays must not be rewritten")
+
+    state.kickGeneration = 1
+    Tick(0.5)
+    Assert.Equal(Writes(), afterFirst + 2, "an own entry dropped elsewhere must be rewritten on the next poll")
+
+    state.kickInfo.cooldownRemain = 4.5
+    Tick(10)
+    Assert.Equal(Writes(), afterFirst + 3, "the own state must be refreshed at least every ten seconds")
+    Assert.Equal(state.lastSetKickInfo.cooldownRemain, 4.5, "the refresh must carry the current remain")
+  end)
 
   test("kick tracker: SendOwnKickState returns false when controller is missing", function()
     local _ctx, _modules, state = LoadFactoryKickTracker({})

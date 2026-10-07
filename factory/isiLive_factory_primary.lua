@@ -124,11 +124,28 @@ local function InitializeFactoryPrimaryControllers(ctx)
     logRuntimeTraceDeep = ctx.runtimeLogController and ctx.runtimeLogController.TraceDeep or nil,
   })
 
+  local runtimeLog = ctx.runtimeLogController
   if type(modules.sync.SetTraceLogger) == "function" then
-    modules.sync.SetTraceLogger(ctx.runtimeLogController and ctx.runtimeLogController.Trace or nil)
+    modules.sync.SetTraceLogger(
+      runtimeLog and runtimeLog.Trace or nil,
+      runtimeLog
+          and type(runtimeLog.IsLevelEnabled) == "function"
+          and function()
+            return runtimeLog.IsLevelEnabled("normal")
+          end
+        or nil
+    )
   end
   if type(modules.sync.SetDeepTraceLogger) == "function" then
-    modules.sync.SetDeepTraceLogger(ctx.runtimeLogController and ctx.runtimeLogController.TraceDeep or nil)
+    modules.sync.SetDeepTraceLogger(
+      runtimeLog and runtimeLog.TraceDeep or nil,
+      runtimeLog
+          and type(runtimeLog.IsLevelEnabled) == "function"
+          and function()
+            return runtimeLog.IsLevelEnabled("deep")
+          end
+        or nil
+    )
   end
   if type(modules.sync.SetLogger) == "function" then
     modules.sync.SetLogger(nil)

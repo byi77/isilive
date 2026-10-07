@@ -772,3 +772,32 @@ Offen und nur ingame pruefbar: Zustellung von Death-Alert, PI-Meldung und
 Bloodlust-Warnung fuer party2-4 ueber die Hilfs-Frames sowie die tatsaechliche
 Entlastung durch den Client-seitigen Unit-Filter (`/etrace`,
 `C_AddOnProfiler`).
+
+## Performance-Audit, Pakete 6-17 (2026-10-07)
+
+0.9.416 setzt die Pakete 6-8 (P2 aus dem ersten Block) und die P2-Pakete 9-17
+um; Regeln 150-160. Messungen am Lua-Mock, jeweils gegen den alten Code
+gegengeprueft:
+
+- Killtracker: eine Minute im Key ohne Aenderung 120 -> 0 Zeilen-Refreshes und
+  120 -> 0 Forces-DB-Reads (die 120 Live-Reads aus Regel 60 bleiben).
+- Hidden-Render: 100 Peer-Key-Aenderungen bei ausgeblendeter UI 500 -> 0
+  gerenderte Zeilen, ein Render beim Einblenden.
+- `SetReadableText`: 50 unveraenderte Aufrufe 50 -> 1 `SetFont`/`SetText`;
+  Rollen-Button 50 unveraenderte Renders 400 -> 0 `SetAttribute`.
+- Kick-Tracker: Heiler 500 Casts + 500 Polls 1000 -> 0 Spec-Abfragen; der
+  talentierte Kick-CD blieb vorher nie erhalten (Bug, Regel 153).
+- Raid: 100 Roster-Updates 500 -> 0 GUID-Reads; 10.000 fremde Addon-Nachrichten
+  0 Raid-Checks und 0 Namensreads.
+- ESC-Mounts: 1500 -> 1000 Journal-Reads bei 1000 Mounts, keine Zwischentabellen.
+
+Bewusst nicht umgesetzt (Begruendung in der Workspace-`TODO.md`): Post-Challenge-
+Jitter und Known-Users-Erhalt, `ZONE_CHANGED*`-Fan-out, GRU-Coalescer ausserhalb
+des Raids, Mount-Favoriten-Cache, LFG-Scroll-Zeilen (ingame zu belegen), seltene
+Log-Stellen, Bloodlust-Button-Warnung. Offene User-Entscheidung: die
+Post-Run-Follow-ups (6 s) laufen immer in den 10-s-Debounce und sind funktional
+wirkungslos.
+
+Offen und nur ingame pruefbar: Oeffnen der UI nach Key-Ende, Raid-Rueckkehr und
+Queue-Beitritt (aufgeschobener Render), party2-4-Hinweise ueber die Hilfs-Frames,
+talentierter Kick-CD, Raid-Lead-Hinweis im laufenden Raid.

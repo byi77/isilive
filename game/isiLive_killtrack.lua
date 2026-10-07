@@ -13,10 +13,32 @@ local debugLogger = nil
 
 local lastDriftKey = nil
 
+-- The season forces DB costs a date() read plus two date parses and can only
+-- change mid-run through a season switch, so the answer (a DB or a miss) is
+-- kept for the run and re-resolved when the active season changes -- a season
+-- that resolves late (CHALLENGE_MODE_MAPS_UPDATE) is still picked up. Cleared
+-- on CHALLENGE_MODE_START / COMPLETED / RESET.
+local forcesDBResolved = false
+local cachedForcesDB = nil
+local cachedForcesSeasonID = nil
+
+local function ClearForcesDBCache()
+  forcesDBResolved = false
+  cachedForcesDB = nil
+  cachedForcesSeasonID = nil
+end
+
 local function GetMatchingForcesDB()
   local seasonData = addonTable.SeasonData
   if type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function" then
-    return seasonData.GetMatchingForcesData()
+    local seasonID = seasonData.ACTIVE_SEASON_ID
+    if forcesDBResolved and cachedForcesSeasonID == seasonID then
+      return cachedForcesDB
+    end
+    cachedForcesDB = seasonData.GetMatchingForcesData()
+    cachedForcesSeasonID = seasonID
+    forcesDBResolved = true
+    return cachedForcesDB
   end
   return addonTable.MPlusForces
 end
@@ -64,13 +86,58 @@ local function Now()
   return 0
 end
 
+-- Forward declarations: defined below next to the pull-display logic.
+local ShouldDisplayPull
+local RememberNotifiedState
+
 local function NotifyUpdate()
+  RememberNotifiedState(ShouldDisplayPull())
   for i = 1, #updateCallbacks do
     local cb = updateCallbacks[i]
     if type(cb) == "function" then
       pcall(cb)
     end
   end
+end
+
+local function GetPaceRunRevision()
+  local pace = addonTable.ForcesPace
+  if type(pace) == "table" and type(pace.GetRunRevision) == "function" then
+    local ok, revision = pcall(pace.GetRunRevision)
+    if ok then
+      return revision
+    end
+  end
+  return nil
+end
+
+-- Last state the subscribers saw. The 0.5 s ticker re-reads live forces for
+-- the whole key (rule 60), but between pulls nothing changes; it notifies only
+-- when a value KillTrack.GetData() exposes may have moved. The pace target is
+-- represented by ForcesPace's run revision, so it is not recomputed per tick.
+local notified = {}
+
+function RememberNotifiedState(displayPull)
+  notified.active = state.active
+  notified.percent = state.percent
+  notified.rawCount = state.rawCount
+  notified.total = state.total
+  notified.mapID = state.mapID
+  notified.displayPull = displayPull
+  notified.pullPercent = displayPull and pull.pullPercent or 0
+  notified.paceRevision = GetPaceRunRevision()
+end
+
+local function HasStateChangedSinceNotify()
+  local displayPull = ShouldDisplayPull()
+  return notified.active ~= state.active
+    or notified.percent ~= state.percent
+    or notified.rawCount ~= state.rawCount
+    or notified.total ~= state.total
+    or notified.mapID ~= state.mapID
+    or notified.displayPull ~= displayPull
+    or notified.pullPercent ~= (displayPull and pull.pullPercent or 0)
+    or notified.paceRevision ~= GetPaceRunRevision()
 end
 
 -- Enemy-forces criteria ID of the current key. Some boss fights add their own
@@ -364,7 +431,7 @@ local function UpdatePullPercent()
   end
 end
 
-local function ShouldDisplayPull()
+function ShouldDisplayPull()
   if pull.inCombat then
     return true
   end
@@ -397,7 +464,9 @@ local function StartRefreshTicker()
     end
     ReadLiveData()
     UpdatePullPercent()
-    NotifyUpdate()
+    if HasStateChangedSinceNotify() then
+      NotifyUpdate()
+    end
   end)
 end
 
@@ -495,6 +564,7 @@ function KillTrack._DispatchEvent(event)
       CallPace("DiscardRun")
     end
     lockedForcesCriteriaID = nil
+    ClearForcesDBCache()
     state.active = false
     state.percent = 0
     state.rawCount = 0
@@ -507,6 +577,7 @@ function KillTrack._DispatchEvent(event)
     NotifyUpdate()
   elseif event == "CHALLENGE_MODE_START" then
     lockedForcesCriteriaID = nil
+    ClearForcesDBCache()
     CallPace("BeginRun")
     ReadLiveData()
     if state.active then

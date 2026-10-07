@@ -102,56 +102,49 @@ local function IsCollectedMountSpellAvailable(spellID)
     and info.shouldHideOnChar ~= true
 end
 
-local function HasVerifiedFavoriteMount()
+-- One pass over the whole mount journal (every mount in the game, collected
+-- or not) per panel refresh. The ESC menu refreshes the panel on every
+-- opening, and two separate passes -- "is there any favorite" and "which
+-- favorites are usable here" -- each built two tables per journal entry.
+-- Returns whether any collected, non-hidden favorite exists and the spell IDs
+-- of those that are usable right now.
+local function CollectFavoriteMounts()
+  local usableSpellIDs = {}
   local mountJournal = GetMountJournal()
-  if type(mountJournal) ~= "table" or type(mountJournal.GetMountIDs) ~= "function" then
-    return false
+  if
+    type(mountJournal) ~= "table"
+    or type(mountJournal.GetMountIDs) ~= "function"
+    or type(mountJournal.GetMountInfoByID) ~= "function"
+  then
+    return false, usableSpellIDs
   end
 
-  local ok, mountIDs = pcall(mountJournal.GetMountIDs)
-  if not ok or type(mountIDs) ~= "table" then
-    return false
+  local okIDs, mountIDs = pcall(mountJournal.GetMountIDs)
+  if not okIDs or type(mountIDs) ~= "table" then
+    return false, usableSpellIDs
   end
 
+  local hasFavorite = false
+  local getMountInfoByID = mountJournal.GetMountInfoByID
   for _, mountID in ipairs(mountIDs) do
-    local info = ReadMountInfoByID(mountJournal, mountID)
-    if
-      type(info) == "table"
-      and info.isCollected == true
-      and info.isFavorite == true
-      and info.shouldHideOnChar ~= true
-    then
-      return true
+    if type(mountID) == "number" and mountID > 0 then
+      local ok, _, spellID, _, _, isUsable, _, isFavorite, _, _, shouldHideOnChar, isCollected =
+        pcall(getMountInfoByID, mountID)
+      if
+        ok
+        and type(spellID) == "number"
+        and isFavorite == true
+        and isCollected == true
+        and shouldHideOnChar ~= true
+      then
+        hasFavorite = true
+        if IsMountUsableByID(mountJournal, mountID, { isUsable = isUsable == true }) then
+          usableSpellIDs[#usableSpellIDs + 1] = spellID
+        end
+      end
     end
   end
-  return false
-end
-
-local function ResolveFavoriteMountSpellIDs()
-  local mountJournal = GetMountJournal()
-  if type(mountJournal) ~= "table" or type(mountJournal.GetMountIDs) ~= "function" then
-    return {}
-  end
-
-  local ok, mountIDs = pcall(mountJournal.GetMountIDs)
-  if not ok or type(mountIDs) ~= "table" then
-    return {}
-  end
-
-  local spellIDs = {}
-  for _, mountID in ipairs(mountIDs) do
-    local info = ReadMountInfoByID(mountJournal, mountID)
-    if
-      type(info) == "table"
-      and info.isCollected == true
-      and info.isFavorite == true
-      and info.shouldHideOnChar ~= true
-      and IsMountUsableByID(mountJournal, mountID, info)
-    then
-      spellIDs[#spellIDs + 1] = info.spellID
-    end
-  end
-  return spellIDs
+  return hasFavorite, usableSpellIDs
 end
 
 local function ResolveSpellNameByID(spellID)
@@ -199,9 +192,8 @@ local function ResolveMountMacroText(spellID)
   return "/click GameMenuButtonContinue\n/cast " .. spellName
 end
 
-local function ResolveFavoriteMountMacroText()
-  local spellIDs = ResolveFavoriteMountSpellIDs()
-  if #spellIDs == 0 then
+local function ResolveFavoriteMountMacroText(spellIDs)
+  if type(spellIDs) ~= "table" or #spellIDs == 0 then
     return nil
   end
 
@@ -209,12 +201,12 @@ local function ResolveFavoriteMountMacroText()
   return ResolveMountMacroText(spellIDs[index])
 end
 
-local function CloneMountPanelEntryWithMacro(entry)
+local function CloneMountPanelEntryWithMacro(entry, favoriteSpellIDs)
   if type(entry) ~= "table" then
     return nil
   end
 
-  local macroText = entry.requiresFavorite == true and ResolveFavoriteMountMacroText()
+  local macroText = entry.requiresFavorite == true and ResolveFavoriteMountMacroText(favoriteSpellIDs)
     or ResolveMountMacroText(entry.spellID)
   if type(macroText) ~= "string" or macroText == "" then
     return nil
@@ -230,15 +222,21 @@ end
 
 local function ResolveVisibleMountPanelEntries()
   local visible = {}
+  local favoritesResolved = false
+  local hasFavorite, favoriteSpellIDs = false, nil
   for _, entry in ipairs(MOUNT_PANEL_UI_ENTRIES) do
     local isVisible
     if entry.requiresFavorite == true then
-      isVisible = HasVerifiedFavoriteMount()
+      if not favoritesResolved then
+        hasFavorite, favoriteSpellIDs = CollectFavoriteMounts()
+        favoritesResolved = true
+      end
+      isVisible = hasFavorite
     else
       isVisible = IsCollectedMountSpellAvailable(entry.spellID)
     end
     if isVisible then
-      local visibleEntry = CloneMountPanelEntryWithMacro(entry)
+      local visibleEntry = CloneMountPanelEntryWithMacro(entry, favoriteSpellIDs)
       if visibleEntry ~= nil then
         visible[#visible + 1] = visibleEntry
       end

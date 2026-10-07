@@ -214,6 +214,218 @@ return function(test, ctx, fixtures)
     end)
   end)
 
+  test("Mplus stress: an idle minute in a key reads forces but repaints nothing unchanged", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local panel = session.runtime.rosterPanelController
+      local originalRefreshKillTrackRow = panel.RefreshKillTrackRow
+      local rowRefreshes = 0
+      panel.RefreshKillTrackRow = function(...)
+        rowRefreshes = rowRefreshes + 1
+        return originalRefreshKillTrackRow(...)
+      end
+      local seasonData = session.addon.SeasonData
+      local originalForces = seasonData.GetMatchingForcesData
+      local forcesReads = 0
+      seasonData.GetMatchingForcesData = function(...)
+        forcesReads = forcesReads + 1
+        return originalForces(...)
+      end
+      local deathWatch = session.addon.DeathWatch
+      local originalSummaries = deathWatch.GetAllDeathSummaries
+      local summaryCopies = 0
+      deathWatch.GetAllDeathSummaries = function(...)
+        summaryCopies = summaryCopies + 1
+        return originalSummaries(...)
+      end
+      local scenarioReadsBefore = session.scenarioReads
+
+      -- Between pulls: the 0.5 s ticker keeps reading live forces (rule 60),
+      -- but nothing on the row can change while the forces stand still.
+      session.Advance(60)
+      local ticksRead = session.scenarioReads - scenarioReadsBefore
+      Assert.True(ticksRead >= 100, "the ticker must keep reading live scenario data for the whole key")
+      io.write(
+        string.format(
+          "[STRESS] idle key minute: scenario reads=%d row refreshes=%d forces DB reads=%d death summary copies=%d\n",
+          ticksRead,
+          rowRefreshes,
+          forcesReads,
+          summaryCopies
+        )
+      )
+      Assert.Equal(rowRefreshes, 0, "unchanged forces must not repaint the kill row")
+      Assert.True(forcesReads <= 1, "the forces DB must be resolved once per run, not per tick")
+      Assert.Equal(summaryCopies, 0, "the death count must not copy and sort every death summary")
+
+      -- A real forces change still reaches the row on the next tick.
+      session.forces = 25
+      session.Advance(0.5)
+      Assert.True(rowRefreshes >= 1, "a forces change must repaint the kill row")
+      Assert.Equal(session.addon.KillTrack.GetData().rawCount, 25, "the row must read the new raw count")
+      panel.RefreshKillTrackRow = originalRefreshKillTrackRow
+      seasonData.GetMatchingForcesData = originalForces
+      deathWatch.GetAllDeathSummaries = originalSummaries
+    end)
+  end)
+
+  test("Mplus stress: hidden roster renders are deferred until the window is shown", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local panel = session.runtime.rosterPanelController
+      session.runtime.mainFrame:Hide()
+      session.Advance(1)
+      -- UnitIsConnected is read once per rendered roster row.
+      local rowRenders = 0
+      local originalUnitIsConnected = _G.UnitIsConnected
+      _G.UnitIsConnected = function()
+        rowRenders = rowRenders + 1
+        return true
+      end
+      local ok, err = pcall(function()
+        for level = 2, 101 do
+          sender.Sync.SendKey({
+            mapID = 2662,
+            level = level,
+            capturedAt = session.now + level,
+            source = "stress",
+            isVisible = true,
+            force = true,
+          })
+          local wire = session.messages[#session.messages]
+          session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, "Peer1-Realm")
+        end
+        io.write(string.format("[STRESS] hidden roster: 100 peer key changes rendered %d rows\n", rowRenders))
+        Assert.Equal(rowRenders, 0, "a hidden window must not render roster rows for incoming sync data")
+        Assert.Equal(session.runtime.GetRoster().party1.keyLevel, 101, "hidden sync must still update the roster data")
+        Assert.True(panel.IsHiddenRenderPending(), "the hidden roster must be marked stale")
+
+        -- Opening through a plain Show (the path the queue join, raid return
+        -- and LFG highlight take without show callbacks) must render once.
+        session.runtime.mainFrame:Show()
+        Assert.True(rowRenders > 0, "opening the window must render the deferred roster")
+        Assert.False(panel.IsHiddenRenderPending(), "the deferred render must clear the stale mark")
+      end)
+      _G.UnitIsConnected = originalUnitIsConnected
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: 10000 foreign addon messages are dropped before any sync work", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local raidChecks, nameReads = 0, 0
+      local originalIsInRaid, originalUnitFullName = _G.IsInRaid, _G.UnitFullName
+      _G.IsInRaid = function(...)
+        raidChecks = raidChecks + 1
+        return originalIsInRaid(...)
+      end
+      _G.UnitFullName = function(...)
+        nameReads = nameReads + 1
+        return originalUnitFullName(...)
+      end
+      local ok, err = pcall(function()
+        Stress.Measure("key foreign addon traffic", 10000, function()
+          for i = 1, 10000 do
+            session.Dispatch("CHAT_MSG_ADDON", "BigWigs", "V^Timer^" .. (i % 7), "PARTY", "Peer1-Realm")
+          end
+        end)
+      end)
+      _G.IsInRaid, _G.UnitFullName = originalIsInRaid, originalUnitFullName
+      assert(ok, err)
+      io.write(
+        string.format("[STRESS] foreign addon traffic: raid checks=%d player name reads=%d\n", raidChecks, nameReads)
+      )
+      Assert.Equal(raidChecks, 0, "foreign prefixes must be dropped before the raid check")
+      Assert.Equal(nameReads, 0, "foreign prefixes must be dropped before the player-name lookup")
+      Assert.Equal(session.fullRenders, 0, "foreign prefixes must not touch the roster")
+    end)
+  end)
+
+  test("Mplus stress: roster churn inside a running raid skips the party-only handlers", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      session.raid = true
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(0.1)
+      local guidReads = 0
+      local originalUnitGUID = _G.UnitGUID
+      _G.UnitGUID = function(...)
+        guidReads = guidReads + 1
+        return originalUnitGUID(...)
+      end
+      local ok, err = pcall(function()
+        for _ = 1, 100 do
+          session.Dispatch("GROUP_ROSTER_UPDATE")
+        end
+      end)
+      _G.UnitGUID = originalUnitGUID
+      assert(ok, err)
+      io.write(string.format("[STRESS] raid roster churn: 100 updates read %d unit GUIDs\n", guidReads))
+      Assert.Equal(guidReads, 0, "a running raid must not run the death-watch roster sweep on every roster update")
+
+      session.raid = false
+      session.Dispatch("GROUP_ROSTER_UPDATE")
+      session.Advance(0.1)
+      Assert.Equal(session.CountTickers(0.5) >= 1, true, "leaving the raid must resume the key tickers")
+    end)
+  end)
+
+  test("Mplus stress: peer state fan-outs answer new peers but not every repeated hello", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local function FanOutsSince(index)
+        local count = 0
+        for i = index + 1, #session.messages do
+          local payload = session.messages[i].payload
+          if payload:find("^HELLO:") and (payload:find(":hello%-ack") or payload:find(":reqsync%-ack")) then
+            count = count + 1
+          end
+        end
+        return count
+      end
+      local function DeliverHello(peer)
+        sender.Sync.SendHello({ force = true, isVisible = true, version = "0.9.1", source = "group" })
+        local wire = session.messages[#session.messages]
+        Assert.True(wire.payload:find("HELLO:", 1, true) == 1, "wire bytes must come from the production HELLO sender")
+        session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, peer)
+      end
+
+      local mark = #session.messages
+      DeliverHello("Peer2-Realm")
+      Assert.Equal(FanOutsSince(mark), 1, "a hello from a peer never synced with must get a fan-out")
+
+      session.Advance(2)
+      mark = #session.messages
+      for _ = 1, 4 do
+        DeliverHello("Peer2-Realm")
+      end
+      Assert.Equal(FanOutsSince(mark), 0, "repeated hellos from a known peer inside the window must not fan out")
+
+      mark = #session.messages
+      session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", "REQSYNC", "PARTY", "Peer2-Realm")
+      Assert.Equal(FanOutsSince(mark), 0, "a REQSYNC right after a fan-out must not trigger a second one")
+
+      mark = #session.messages
+      DeliverHello("Peer3-Realm")
+      Assert.Equal(FanOutsSince(mark), 1, "a new peer must still be answered inside the window")
+
+      session.Advance(11)
+      mark = #session.messages
+      DeliverHello("Peer2-Realm")
+      Assert.Equal(FanOutsSince(mark), 1, "a known peer is answered again once the window has passed")
+
+      mark = #session.messages
+      for _ = 1, 5 do
+        session.Dispatch("CHAT_MSG_ADDON", "LibKS", "R", "PARTY", "Peer4-Realm")
+      end
+      local libReplies = 0
+      for i = mark + 1, #session.messages do
+        if session.messages[i].prefix == "LibKS" then
+          libReplies = libReplies + 1
+        end
+      end
+      Assert.True(libReplies <= 1, "five LibKeystone requests inside two seconds must draw at most one reply")
+    end)
+  end)
+
   test("Mplus stress: 10000 unavailable scenario reads preserve the verified key snapshot", function()
     Stress.WithKey(ctx, fixtures, function(session)
       local timer = session.addon.MplusTimer.GetTimerData()

@@ -276,6 +276,32 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
+  test("ForcesPace run revision moves with boss kills but not with trash forces", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      local pace = addon.ForcesPace
+      env.scenario.ResetBosses()
+      local beforeStart = pace.GetRunRevision()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      local afterStart = pace.GetRunRevision()
+      Assert.True(afterStart ~= beforeStart, "a new run must move the revision")
+
+      for count = 10, 40, 10 do
+        env.scenario.SetForces(count)
+        addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      end
+      Assert.Equal(pace.GetRunRevision(), afterStart, "trash forces alone must not move the pace revision")
+
+      env.scenario.Kill(2)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      local afterKill = pace.GetRunRevision()
+      Assert.True(afterKill ~= afterStart, "a boss kill must move the revision so the pace target is recomputed")
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_RESET")
+      Assert.True(pace.GetRunRevision() ~= afterKill, "discarding the run must move the revision")
+    end)
+  end)
+
   test("ForcesPace commits only a complete run tracked from the start", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()

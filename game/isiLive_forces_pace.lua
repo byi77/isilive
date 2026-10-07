@@ -37,6 +37,16 @@ local MAX_BOSSES = 32
 --   orderComplete: the kill order covers every dead boss (no seeded kills)
 local run = nil
 
+-- Bumped whenever the run state that feeds GetPaceTarget changes: a new,
+-- discarded or committed run, a run (re)seeded by Observe, and every new boss
+-- kill. KillTrack compares it instead of recomputing the target -- which
+-- re-validates every stored route -- on each 0.5 s ticker read.
+local runRevision = 0
+
+local function BumpRunRevision()
+  runRevision = runRevision + 1
+end
+
 local function IsFiniteNumber(value)
   return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
@@ -208,11 +218,18 @@ end
 -- before the first scenario read of that run.
 function ForcesPace.BeginRun()
   run = NewRun(true)
+  BumpRunRevision()
 end
 
 -- Drops the current run without learning (CHALLENGE_MODE_RESET).
 function ForcesPace.DiscardRun()
   run = nil
+  BumpRunRevision()
+end
+
+-- Revision of the run state behind GetPaceTarget; see runRevision.
+function ForcesPace.GetRunRevision()
+  return runRevision
 end
 
 -- Feeds one validated scenario snapshot from KillTrack. Boss kills are
@@ -226,9 +243,11 @@ function ForcesPace.Observe(snapshot)
     -- No CHALLENGE_MODE_START was seen for this key (reload mid-run, addon
     -- enabled late, or another dungeon): track it, but never learn from it.
     run = NewRun(false)
+    BumpRunRevision()
   end
   if run.mapID == nil then
     run.mapID = snapshot.mapID
+    BumpRunRevision()
   end
   if snapshot.bossesResolved ~= true or type(snapshot.bosses) ~= "table" then
     return
@@ -237,7 +256,10 @@ function ForcesPace.Observe(snapshot)
   if #bosses == 0 then
     return
   end
-  run.totalBosses = #bosses
+  if run.totalBosses ~= #bosses then
+    run.totalBosses = #bosses
+    BumpRunRevision()
+  end
 
   if not run.seeded then
     -- Bosses already dead when tracking begins cannot be placed in the kill
@@ -252,6 +274,7 @@ function ForcesPace.Observe(snapshot)
       end
     end
     run.seeded = true
+    BumpRunRevision()
     return
   end
 
@@ -266,6 +289,7 @@ function ForcesPace.Observe(snapshot)
       local position = #run.order + 1
       run.order[position] = boss.index
       run.checkpoints[position] = percent
+      BumpRunRevision()
     end
   end
 end
@@ -277,6 +301,7 @@ end
 function ForcesPace.CommitRun()
   local finished = run
   run = nil
+  BumpRunRevision()
   if type(finished) ~= "table" or not finished.trackedFromStart or not finished.learnable or not finished.seeded then
     return false
   end

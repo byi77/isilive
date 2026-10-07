@@ -143,6 +143,56 @@ return function(test, ctx)
   -- reused. Changing the setting therefore reached no existing FontString at
   -- all, and the selection looked like it did nothing.
 
+  test("UICommon.SetReadableText skips repaints that would not change the font or the text", function()
+    local db = { locale = "enUS", uiFontFamily = "arial" }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetLocale = function()
+        return "enUS"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui_fonts.lua" })
+      local fontString = MakeFontStringStub()
+      local setFonts, setTexts = 0, 0
+      local originalSetFont = fontString.SetFont
+      function fontString:SetFont(...)
+        setFonts = setFonts + 1
+        return originalSetFont(self, ...)
+      end
+      function fontString:SetText(text)
+        setTexts = setTexts + 1
+        self._text = text
+      end
+      function fontString:GetText()
+        return self._text
+      end
+
+      for _ = 1, 50 do
+        addon.UICommon.SetReadableText(fontString, "Felix")
+      end
+      Assert.Equal(setFonts, 1, "50 unchanged writes must apply the user font once")
+      Assert.Equal(setTexts, 1, "50 unchanged writes must set the text once")
+      Assert.Equal(fontString._fontPath, "Fonts\\ARIALN.TTF", "the user font must be applied")
+
+      addon.UICommon.SetReadableText(fontString, "Anna")
+      Assert.Equal(setTexts, 2, "a new text must be written")
+      Assert.Equal(setFonts, 1, "a new Latin text keeps the already correct font")
+
+      addon.UICommon.SetReadableText(fontString, "\208\159\208\184\208\189")
+      Assert.Equal(fontString._fontPath, addon.UICommon.CYRILLIC_FONT_PATH, "Cyrillic text must still switch the font")
+
+      fontString:SetFont("Fonts\\FRIZQT__.TTF", 12)
+      fontString._text = "changed elsewhere"
+      addon.UICommon.SetReadableText(fontString, "Anna")
+      Assert.Equal(fontString._fontPath, "Fonts\\ARIALN.TTF", "a font set elsewhere must be corrected")
+      Assert.Equal(fontString._text, "Anna", "a text set elsewhere must be overwritten")
+
+      db.uiFontFamily = "skurri"
+      addon.UICommon.SetReadableText(fontString, "Anna")
+      Assert.Equal(fontString._fontPath, "Fonts\\SKURRI.TTF", "a new font selection must apply on the next write")
+    end)
+  end)
+
   test("UICommon.RefreshTrackedFonts re-applies a changed selection to existing FontStrings", function()
     local db = { locale = "enUS", uiFontFamily = "" }
     WithGlobals({

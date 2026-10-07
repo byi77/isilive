@@ -655,6 +655,51 @@ local function RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("KeySync keeps the bag-scan answer until the owned-key refresh drops it", function()
+    local hasKey = false
+    local slotReads = 0
+    WithGlobals({
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return nil
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return nil
+        end,
+      },
+      C_Container = {
+        GetContainerNumSlots = function(bagID)
+          return bagID == 0 and 16 or 0
+        end,
+        GetContainerItemID = function(bagID, slotID)
+          slotReads = slotReads + 1
+          if hasKey and bagID == 0 and slotID == 5 then
+            return 180653
+          end
+          return nil
+        end,
+        GetContainerItemLink = function()
+          return "|cffa335ee|Hkeystone:180653:2649:14:10:10:10:10|h[Keystone]|h|r"
+        end,
+      },
+    }, function()
+      local sync = BuildMockSync()
+      local ctrl = BuildController(LoadAddonModules, sync)
+      for _ = 1, 50 do
+        Assert.Nil(ctrl.GetOwnedKeystoneSnapshot(), "a character without a key must report none")
+      end
+      Assert.Equal(slotReads, 16, "50 lookups without a key must scan the bags once")
+
+      hasKey = true
+      local roster = { player = { name = "TestPlayer", realm = "TestRealm" } }
+      Assert.True(ctrl.RefreshLocalPlayerKey(roster), "the owned-key refresh must pick up the looted key")
+      Assert.Equal(roster.player.keyLevel, 14, "the refresh must rescan the bags")
+      local mapID, level = ctrl.GetOwnedKeystoneSnapshot()
+      Assert.Equal(mapID, 2649, "later lookups must see the new key")
+      Assert.Equal(level, 14, "later lookups must see the new key level")
+    end)
+  end)
+
   test("KeySync GetOwnedKeystoneSnapshot falls back to bag scan when C_MythicPlus is absent", function()
     WithGlobals({
       C_MythicPlus = nil,

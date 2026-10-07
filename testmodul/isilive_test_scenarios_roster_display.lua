@@ -49,6 +49,41 @@ return function(test, ctx)
       end)
     end
 
+    test.it("Roster display builds the class color markup once per class color", function()
+      local created = 0
+      local warrior = { r = 0.78, g = 0.61, b = 0.43 }
+      WithGlobals({
+        RAID_CLASS_COLORS = { WARRIOR = warrior },
+        CreateColor = function()
+          created = created + 1
+          return {
+            GenerateHexColor = function()
+              return "ffc79c6e"
+            end,
+          }
+        end,
+      }, function()
+        local Roster = LoadAddonModules({ "isiLive_roster.lua" }).Roster
+        local info = { name = "Felix", class = "WARRIOR", role = "TANK" }
+        local first = Roster.BuildDisplayData(info, mockOpts)
+        for _ = 1, 100 do
+          local again = Roster.BuildDisplayData(info, mockOpts)
+          Assert.Equal(again.colorHex, first.colorHex, "the cached markup must not change between renders")
+        end
+        Assert.Equal(created, 1, "101 rows of one class must build the color markup once")
+        Assert.Equal(first.colorHex, "ffc79c6e", "the markup must still come from the client color API")
+        Assert.Equal(first.accentColor[1], 0.78, "the accent strip keeps the class red channel")
+
+        warrior.g = 0.5
+        local recolored = Roster.BuildDisplayData(info, mockOpts)
+        Assert.Equal(created, 2, "a changed class color must rebuild its markup")
+        Assert.Equal(recolored.accentColor[2], 0.5, "the rebuilt accent must carry the new channel")
+
+        local unknown = Roster.BuildDisplayData({ name = "Nobody", class = "UNKNOWN" }, mockOpts)
+        Assert.Nil(unknown.accentColor, "an unknown class keeps the accent strip hidden")
+      end)
+    end)
+
     test.it("Roster display prepends positive RIO delta in parentheses", function()
       runTest(function(Roster)
         mockOpts.getRioDelta = function(_info, _unit)

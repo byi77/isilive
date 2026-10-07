@@ -737,8 +737,20 @@ local function FinalizeFactoryRuntime(ctx)
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
     logRuntimeTracefDeep = ctx.runtimeLogController and ctx.runtimeLogController.LogfDeep or nil,
   })
+  -- Raid state of the previous GROUP_ROSTER_UPDATE: inside a running raid the
+  -- polling and processing switches below are already off, so repeated
+  -- roster updates (every join, leave and subgroup move) skip them.
+  local lastPostDispatchRaid = false
   ctx.OnEvent = function(self, event, ...)
     ctx.eventHandlersController.Dispatch(self, event, ...)
+    if event == "GROUP_ROSTER_UPDATE" then
+      local raidNow = ctx.IsRaidGroup() == true
+      local steadyRaid = raidNow and lastPostDispatchRaid
+      lastPostDispatchRaid = raidNow
+      if steadyRaid then
+        return
+      end
+    end
     if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
       if modules.killTrack and type(modules.killTrack.SetPollingSuspended) == "function" then
         modules.killTrack.SetPollingSuspended(ctx.IsRaidGroup())
@@ -780,6 +792,11 @@ local function FinalizeFactoryRuntime(ctx)
   modules.bootstrap.RegisterDispatcherEvents(ctx.eventFrame)
   modules.bootstrap.BindMainFrameScripts(ctx.mainFrame, {
     onShow = function()
+      -- First: renders requested while hidden were deferred (rule 152); bring
+      -- the roster up to date before the window is drawn.
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.FlushHiddenRender) == "function" then
+        ctx.rosterPanelController.FlushHiddenRender()
+      end
       ctx.SetProcessingActive(true)
       if type(ctx.RefreshCdTrackerPolling) == "function" then
         ctx.RefreshCdTrackerPolling()

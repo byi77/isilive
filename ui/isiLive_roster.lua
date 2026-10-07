@@ -60,6 +60,31 @@ local function BuildColorHexSafe(r, g, b)
   return string.format("ff%02x%02x%02x", rr, gg, bb)
 end
 
+local WHITE_CLASS_COLOR = { r = 1, g = 1, b = 1 }
+
+-- Hex markup and accent RGB per class color, built once per color instead of
+-- once per row and render (CreateColor + GenerateHexColor + a fresh accent
+-- table). Keyed weakly by the RAID_CLASS_COLORS entry; an entry whose channels
+-- changed since it was cached is rebuilt. Consumers only read accentColor.
+local classColorDisplayCache = setmetatable({}, { __mode = "k" })
+
+local function ResolveClassColorDisplay(knownClassColor)
+  local classColor = knownClassColor or WHITE_CLASS_COLOR
+  local r, g, b = classColor.r, classColor.g, classColor.b
+  local cached = classColorDisplayCache[classColor]
+  if cached and cached.r == r and cached.g == g and cached.b == b then
+    return cached.hex, cached.accent
+  end
+  local hex = BuildColorHexSafe(r, g, b)
+  local accent = nil
+  local nr, ng, nb = tonumber(r), tonumber(g), tonumber(b)
+  if knownClassColor and nr and ng and nb then
+    accent = { nr, ng, nb }
+  end
+  classColorDisplayCache[classColor] = { r = r, g = g, b = b, hex = hex, accent = accent }
+  return hex, accent
+end
+
 local function GetReadyCheckStatusSafe(unit)
   if not IsExistingUnit(unit) then
     return nil
@@ -95,27 +120,37 @@ local function IsUnitConnectedSafe(unit)
   return isConnected ~= false
 end
 
+-- One comparator for every render instead of a new closure per sort; the
+-- priority tables are handed over through these upvalues, which every call
+-- sets before it sorts.
+local sortRolePriority = nil
+local sortUnitPriority = nil
+
+local function CompareRosterEntries(a, b)
+  local ghostA = a.info.isGhost == true
+  local ghostB = b.info.isGhost == true
+  if ghostA ~= ghostB then
+    return not ghostA
+  end
+  local roleA = sortRolePriority[a.info.role or "NONE"] or sortRolePriority.NONE or 99
+  local roleB = sortRolePriority[b.info.role or "NONE"] or sortRolePriority.NONE or 99
+  if roleA ~= roleB then
+    return roleA < roleB
+  end
+  local unitA = sortUnitPriority[a.unit] or 99
+  local unitB = sortUnitPriority[b.unit] or 99
+  return unitA < unitB
+end
+
 function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   local orderedRoster = {}
   for unit, info in pairs(roster or {}) do
     table.insert(orderedRoster, { unit = unit, info = info })
   end
 
-  table.sort(orderedRoster, function(a, b)
-    local ghostA = a.info.isGhost == true
-    local ghostB = b.info.isGhost == true
-    if ghostA ~= ghostB then
-      return not ghostA
-    end
-    local roleA = rolePriority[a.info.role or "NONE"] or rolePriority.NONE or 99
-    local roleB = rolePriority[b.info.role or "NONE"] or rolePriority.NONE or 99
-    if roleA ~= roleB then
-      return roleA < roleB
-    end
-    local unitA = unitPriority[a.unit] or 99
-    local unitB = unitPriority[b.unit] or 99
-    return unitA < unitB
-  end)
+  sortRolePriority = rolePriority
+  sortUnitPriority = unitPriority
+  table.sort(orderedRoster, CompareRosterEntries)
 
   return orderedRoster
 end
@@ -142,7 +177,7 @@ function Roster.BuildDisplayData(info, opts)
   local colorHex
   -- RGB of the row's left accent strip: the class color, grey for inactive
   -- rows, nil when no class color is known (the strip then stays hidden).
-  local accentColor = nil
+  local accentColor
   if info.isGhost or isOffline then
     colorHex = "ff808080" -- Grey
     accentColor = INACTIVE_ACCENT_COLOR
@@ -152,12 +187,7 @@ function Roster.BuildDisplayData(info, opts)
       classColors = nil
     end
     local knownClassColor = classColors and classColors[info.class] or nil
-    local classColor = knownClassColor or { r = 1, g = 1, b = 1 }
-    colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
-    local r, g, b = tonumber(classColor.r), tonumber(classColor.g), tonumber(classColor.b)
-    if knownClassColor and r and g and b then
-      accentColor = { r, g, b }
-    end
+    colorHex, accentColor = ResolveClassColorDisplay(knownClassColor)
   end
 
   local readyCheckStatus = nil

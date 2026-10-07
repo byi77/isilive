@@ -50,12 +50,16 @@ end
 -- Resolves a persisted key to a usable font path. An unknown key resolves to
 -- nil, which falls back to the template font instead of erroring -- that also
 -- covers a value saved by a build whose choice list looked different.
+--
+-- Walks the shared read-only list directly: GetFontChoices() hands out a copy
+-- for the settings dropdown, and this runs for every text a roster render
+-- sets while a custom font is chosen.
 function UICommon.ResolveFontPathByKey(key)
   if type(key) ~= "string" or key == "" then
     return nil
   end
 
-  for _, entry in ipairs(UICommon.GetFontChoices()) do
+  for _, entry in ipairs(UICommon.BUILTIN_FONT_CHOICES) do
     if entry.key == key and type(entry.path) == "string" and entry.path ~= "" then
       return entry.path
     end

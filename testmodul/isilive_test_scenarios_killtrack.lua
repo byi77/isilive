@@ -503,6 +503,34 @@ local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("KillTrack resolves the Forces DB once per run and again after a season switch", function()
+    local env = BuildKillTrackEnv({ scenario = { quantity = 50, total = 450, mapID = 588 } })
+    WithGlobals(env.globals, function()
+      local reads = 0
+      local seasonData = {
+        ACTIVE_SEASON_ID = "midnight_s1",
+        GetMatchingForcesData = function()
+          reads = reads + 1
+          return nil
+        end,
+      }
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" }, { SeasonData = seasonData })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      for _ = 1, 20 do
+        addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      end
+      Assert.Equal(reads, 1, "one run must resolve the Forces DB once, including a miss")
+
+      seasonData.ACTIVE_SEASON_ID = "midnight_s2"
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Equal(reads, 2, "a season switch must re-resolve the Forces DB")
+
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_RESET")
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      Assert.Equal(reads, 3, "a new run must re-resolve the Forces DB")
+    end)
+  end)
+
   test("KillTrack debug logger fires once on API/DB total drift, then suppresses repeats", function()
     local env = BuildKillTrackEnv({ scenario = { quantity = 50, total = 450, mapID = 559 } })
     local driftMessages = {}

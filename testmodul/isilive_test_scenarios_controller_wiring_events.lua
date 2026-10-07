@@ -337,6 +337,55 @@ return function(test, ctx)
     Assert.True(invoked, "handleGroupRosterUpdate must invoke controllers.group.HandleGroupRosterUpdate")
   end)
 
+  test("ControllerWiring season refresh at combat end only catches up a pending evaluation", function()
+    local inCombat = false
+    local evaluations = 0
+    local autoSelectOk = true
+    WithGlobals({
+      InCombatLockdown = function()
+        return inCombat
+      end,
+      C_ChallengeMode = {
+        GetMapTable = function()
+          return { 1, 2 }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" }, {
+        SeasonData = {
+          TryAutoSelectSeasonFromChallengeMapIDs = function()
+            evaluations = evaluations + 1
+            return autoSelectOk, false, "test"
+          end,
+        },
+      })
+      local module, getCaptured = CaptureEventModule()
+      addon.ControllerWiring.CreateEventHandlersController(module, BuildMinimalEventDeps())
+      local refresh = getCaptured().refreshActiveSeasonFromBlizzard
+
+      refresh("PLAYER_LOGIN")
+      Assert.Equal(evaluations, 1, "login must evaluate the season")
+      for _ = 1, 10 do
+        refresh("PLAYER_REGEN_ENABLED")
+      end
+      Assert.Equal(evaluations, 1, "combat ends must not re-evaluate a concluded season")
+
+      inCombat = true
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(evaluations, 1, "an update in combat must be deferred")
+      inCombat = false
+      refresh("PLAYER_REGEN_ENABLED")
+      Assert.Equal(evaluations, 2, "the next combat end must catch up the deferred evaluation")
+      refresh("PLAYER_REGEN_ENABLED")
+      Assert.Equal(evaluations, 2, "a caught-up evaluation must not repeat")
+
+      autoSelectOk = false
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      refresh("PLAYER_REGEN_ENABLED")
+      Assert.Equal(evaluations, 4, "an inconclusive evaluation stays pending for the next combat end")
+    end)
+  end)
+
   test("ControllerWiring CreateEventHandlersController processAddonMessage feeds sync module", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()

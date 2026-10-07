@@ -374,12 +374,13 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx)
   return TryRecordCompletedRun(ctx, identity, POST_RUN_CAPTURE_RETRIES)
 end
 
-local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining)
+local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining, isFollowUp)
   if IsRaidModeActive(ctx) then
     SetPendingPostChallengeRefresh(ctx, {
       frame = frame,
       retriesRemaining = retriesRemaining,
       followUpRefreshesRemaining = followUpRefreshesRemaining,
+      isFollowUp = isFollowUp == true,
     })
     return
   end
@@ -395,6 +396,14 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
   end
 
   local refreshed = ctx.runFullRefresh() ~= false
+
+  -- A follow-up whose refresh was refused (the refresh debounce outlasts the
+  -- follow-up delay) changed nothing: the delta stays as the successful first
+  -- refresh left it, so re-running the whole roster chain would only repeat
+  -- the previous render.
+  if isFollowUp and not refreshed then
+    return
+  end
 
   if not refreshed and retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
@@ -414,7 +423,7 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
 
   if refreshed and followUpRefreshesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
-      RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1)
+      RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1, true)
     end)
   end
 end
@@ -643,7 +652,8 @@ function ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
     ctx,
     pending.frame or frame,
     pending.retriesRemaining or POST_RUN_REFRESH_RETRIES,
-    pending.followUpRefreshesRemaining or POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS
+    pending.followUpRefreshesRemaining or POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS,
+    pending.isFollowUp == true
   )
   return true
 end
@@ -748,10 +758,16 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end
     TryRecordCompletedRun(ctx, runInfo, POST_RUN_CAPTURE_RETRIES)
 
+    -- An auto-open that actually showed the window already ran the in-group
+    -- roster refresh through its show callback; the same refresh again in the
+    -- same frame is skipped.
+    local autoOpenedWithRefresh = false
     if ctx.isInGroup() and ctx.shouldAutoOpenMainFrameOnKeyEnd() then
-      ctx.setMainFrameVisible(true)
+      autoOpenedWithRefresh = ctx.setMainFrameVisible(true) == true
     end
-    RefreshRosterAfterRunStateChange(ctx, frame)
+    if not autoOpenedWithRefresh then
+      RefreshRosterAfterRunStateChange(ctx, frame)
+    end
     ctx.updateStatusLine()
     ctx.notifyPostChallengeSync()
     if ctx.timerAfter then

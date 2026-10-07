@@ -863,6 +863,103 @@ local function SendPeerStateFanOut(ctx, helloSource, targetSource)
   ctx.sendShareKeysCooldownState()
 end
 
+-- The peer-state fan-out is a group broadcast, so one per window serves every
+-- peer. Before, every client answered every HELLO and every REQSYNC with a
+-- full fan-out: on a roster change in a five-player isiLive group that was one
+-- fan-out per peer pair (N squared), and a join drew a second round from the
+-- joiner's REQSYNC half a second later.
+--   * HELLO from a peer never synced with: always answered (it needs the data).
+--   * HELLO from a known peer: skipped when this client fanned out within the
+--     last PEER_FAN_OUT_KNOWN_PEER_SECONDS.
+--   * REQSYNC: skipped when this client fanned out within the last
+--     PEER_FAN_OUT_REQSYNC_SECONDS (typically the joiner's own HELLO).
+-- LibKeystone "R" requests are answered with a group broadcast too, so one
+-- reply per LIBKEYSTONE_REPLY_MIN_INTERVAL_SECONDS serves every requester.
+-- Without a time source every request is answered as before.
+local PEER_FAN_OUT_KNOWN_PEER_SECONDS = 10
+local PEER_FAN_OUT_REQSYNC_SECONDS = 3
+local LIBKEYSTONE_REPLY_MIN_INTERVAL_SECONDS = 2
+
+local function BuildSyncReplyThrottles(ctx)
+  local lastPeerFanOutAt = nil
+  local lastLibKeystoneReplyAt = nil
+
+  local function Now()
+    return type(ctx.getTime) == "function" and tonumber(ctx.getTime()) or nil
+  end
+
+  local function IsInsideWindow(lastAt, now, window)
+    return window ~= nil and lastAt ~= nil and now >= lastAt and now - lastAt < window
+  end
+
+  local function ShouldSendPeerFanOut(kind, senderWasKnown)
+    local now = Now()
+    if not now then
+      return true
+    end
+    local window = nil
+    if kind == "reqsync" then
+      window = PEER_FAN_OUT_REQSYNC_SECONDS
+    elseif senderWasKnown then
+      window = PEER_FAN_OUT_KNOWN_PEER_SECONDS
+    end
+    if IsInsideWindow(lastPeerFanOutAt, now, window) then
+      return false
+    end
+    lastPeerFanOutAt = now
+    return true
+  end
+
+  local function ShouldReplyLibKeystone()
+    local now = Now()
+    if not now then
+      return true
+    end
+    if IsInsideWindow(lastLibKeystoneReplyAt, now, LIBKEYSTONE_REPLY_MIN_INTERVAL_SECONDS) then
+      return false
+    end
+    lastLibKeystoneReplyAt = now
+    return true
+  end
+
+  return ShouldSendPeerFanOut, ShouldReplyLibKeystone
+end
+
+-- A running peer kick cooldown changes the roster on every packet (and on
+-- every decay step a later packet observes). Kick state is neither part of the
+-- reload mirror nor of the status line or teleport button, so a change that
+-- touches only kick fields refreshes just the kick column. Everything else --
+-- target, isiLive marker, key, stats, DPS, location -- keeps the full refresh.
+local function ApplySyncRosterChanges(ctx, syncResult)
+  local fullRefresh = syncResult.targetUpdated == true
+  local kickChanged = syncResult.kickUpdated == true
+  ctx.forEachRosterInfo(function(info)
+    if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
+      info.hasIsiLive = true
+      fullRefresh = true
+    end
+    local anyChanged, nonKickChanged = ctx.applyKnownKeyToRosterEntry(info)
+    if anyChanged then
+      if nonKickChanged == false then
+        kickChanged = true
+      else
+        fullRefresh = true
+      end
+    end
+  end)
+  if not fullRefresh and kickChanged and ctx.refreshKickColumn() ~= true then
+    fullRefresh = true
+  end
+  if fullRefresh then
+    ctx.updateStatusLine()
+    ctx.updateMPlusTeleportButton()
+    if type(ctx.saveReloadRosterMirror) == "function" then
+      ctx.saveReloadRosterMirror()
+    end
+    ctx.updateUI()
+  end
+end
+
 local function ApplyMirroredShareKeysCooldown(ctx, syncResult)
   local remain = tonumber(syncResult.shareKeysCooldownRemain)
   if remain and remain > 0 then
@@ -1048,10 +1145,26 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleMplusTimerEvent = ResolveEventHandler(ctx.handleMplusTimerEvent)
   ctx.handleLeaderWatchEvent = ResolveEventHandler(ctx.handleLeaderWatchEvent)
 
+  -- Raid state seen by the previous GROUP_ROSTER_UPDATE. A forming or running
+  -- raid fires this event for every join, leave and subgroup move; once the
+  -- transition into the raid has been handled, the hard-off (rule 11) leaves
+  -- only the roster hide and the leader watch (raid lead-transfer alert) with
+  -- work to do.
+  local lastRosterUpdateInRaid = false
+
   local function HandleGroupRosterUpdateEvent(frame)
     ApplyRaidEventSuppression(ctx)
     if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
       ctx.exitTestMode()
+      return
+    end
+
+    local inRaidNow = IsRaidModeActive(ctx)
+    local steadyRaid = inRaidNow and lastRosterUpdateInRaid
+    lastRosterUpdateInRaid = inRaidNow
+    if steadyRaid then
+      ctx.handleGroupRosterUpdate()
+      ctx.handleLeaderWatchEvent("GROUP_ROSTER_UPDATE")
       return
     end
 
@@ -1183,11 +1296,17 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.applyHotkeyBindings()
     end
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
+    -- True when the deferred show just ran its own post-combat roster refresh
+    -- (OnShow render plus the in-group show callback); the full update below
+    -- would only repeat it in the same frame.
+    local shownWithRefresh = false
     if pendingVisible ~= nil then
       if IsRaidModeActive(ctx) then
         ctx.setMainFrameVisible(false)
       else
-        ctx.setMainFrameVisible(pendingVisible)
+        shownWithRefresh = ctx.setMainFrameVisible(pendingVisible) == true
+          and pendingVisible == true
+          and ctx.isInGroup() == true
       end
     end
     ctx.handleKickTrackerEvent("PLAYER_REGEN_ENABLED")
@@ -1202,7 +1321,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ApplyPendingMainFrameSize(ctx)
     ApplyPendingLeaderButtonUpdates(ctx)
     if ctx.isMainFrameShown() then
-      ctx.updateUI()
+      -- Out of combat again: this render rewrites role-button macros that went
+      -- stale during lockdown, unless the deferred show above already did.
+      if not shownWithRefresh then
+        ctx.updateUI()
+      end
       ctx.updateMPlusTeleportButton()
       ctx.tryRestoreCenterNoticeTeleportButton()
     end
@@ -1289,7 +1412,14 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
   end
 
+  local ShouldSendPeerFanOut, ShouldReplyLibKeystone = BuildSyncReplyThrottles(ctx)
+
   local function HandleChatMsgAddonEvent(_self, prefix, message, channel, sender)
+    -- Boss mods, meters and WeakAuras share the group addon channel; their
+    -- messages are dropped before the raid check and the player-name lookup.
+    if type(ctx.isSyncPrefix) == "function" and not ctx.isSyncPrefix(prefix) then
+      return
+    end
     if IsRaidModeActive(ctx) then
       return
     end
@@ -1298,15 +1428,17 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
 
-    if syncResult.shouldReplyLibKeystone then
+    if syncResult.shouldReplyLibKeystone and ShouldReplyLibKeystone() then
       ctx.sendLibKeystonePartyData(true)
     end
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
       -- New peer detected: send the full own-state fan-out immediately.
-      SendPeerStateFanOut(ctx, "hello-ack", "hello")
+      if ShouldSendPeerFanOut("hello", syncResult.senderWasKnown == true) then
+        SendPeerStateFanOut(ctx, "hello-ack", "hello")
+      end
     end
-    if syncResult.shouldRequestRefresh then
+    if syncResult.shouldRequestRefresh and ShouldSendPeerFanOut("reqsync", false) then
       SendPeerStateFanOut(ctx, "reqsync-ack", "reqsync")
     end
     if syncResult.shouldShareKeys then
@@ -1324,39 +1456,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.registerVerifiedSyncAliasForRoster(ctx.getRoster(), syncResult.sender)
     end
 
-    -- A running peer kick cooldown changes the roster on every packet (and on
-    -- every decay step a later packet observes). Kick state is neither part
-    -- of the reload mirror nor of the status line or teleport button, so a
-    -- change that touches only kick fields refreshes just the kick column.
-    -- Everything else -- target, isiLive marker, key, stats, DPS, location --
-    -- keeps the full refresh.
-    local fullRefresh = syncResult.targetUpdated == true
-    local kickChanged = syncResult.kickUpdated == true
-    ctx.forEachRosterInfo(function(info)
-      if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
-        info.hasIsiLive = true
-        fullRefresh = true
-      end
-      local anyChanged, nonKickChanged = ctx.applyKnownKeyToRosterEntry(info)
-      if anyChanged then
-        if nonKickChanged == false then
-          kickChanged = true
-        else
-          fullRefresh = true
-        end
-      end
-    end)
-    if not fullRefresh and kickChanged and ctx.refreshKickColumn() ~= true then
-      fullRefresh = true
-    end
-    if fullRefresh then
-      ctx.updateStatusLine()
-      ctx.updateMPlusTeleportButton()
-      if type(ctx.saveReloadRosterMirror) == "function" then
-        ctx.saveReloadRosterMirror()
-      end
-      ctx.updateUI()
-    end
+    ApplySyncRosterChanges(ctx, syncResult)
   end
 
   local function IsCoalescerRaidActive()

@@ -208,6 +208,28 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 149. `UNIT_AURA` und `UNIT_HEALTH` werden nur fuer `player` und `party1` bis `party4` zugestellt (Unit-gefilterte Registrierung ueber Dispatcher- und Hilfs-Frames); das Event-Gate prueft seine Erlaubnis-Tabellen vor Kampf- und Sichtbarkeitsabfrage, und DeathWatch ueberspringt die Unit-Abfragen fuer lebende Units, solange kein Tod gespeichert ist.
 
+150. Der Killtracker-Refresh-Ticker liest im Key weiterhin alle 0,5 Sekunden Live-Daten (Regel 60), benachrichtigt die UI aber nur, wenn sich ein angezeigter Wert oder die Forces-Pace-Revision geaendert hat; die Forces-DB wird pro Run und Season einmal aufgeloest, und die Kill-Zeile liest Todeszahl und Keylevel ohne Kopien.
+
+151. Ein Roster-Render schreibt die Secure-Attribute eines Rollen-Buttons nur, wenn sich das Makro gegenueber dem zuletzt geschriebenen geaendert hat; Klassenfarben-Markup, Sortier-Comparator, Schriftaufloesung und Namens-Normalisierung der Stats werden nicht mehr pro Zeile und Render neu erzeugt.
+
+152. Bei ausgeblendeter Main-UI rendert das Roster-Panel nicht, sondern markiert sich als veraltet; das `OnShow` des Hauptfensters holt den Render einmal nach, bevor das Fenster gezeichnet wird. Lesbare Texte setzen Schrift und Text nur, wenn sie sich vom aktuellen Zustand des FontStrings unterscheiden.
+
+153. Der eigene Kick-Tracker loest Basis-Cooldown und Talent-Reduktion einmal pro Spell- oder Talentwechsel auf und behaelt die talentierte Abklingzeit fuer jeden weiteren Kick; ein Spec ohne Interrupt wird nicht bei jedem Cast neu aufgeloest, und der Kick-Poll schreibt den eigenen Zustand nur bei Aenderung, nach Entfernung oder spaetestens alle zehn Sekunden.
+
+154. Key-Ende und Kampfende loesen keine doppelten Roster-Refreshes aus: ein vom Debounce abgewiesener Post-Run-Follow-up endet ohne Roster-Kette, ein Auto-Open beim Key-Ende ersetzt die zweite Roster-Kette, ein nach dem Kampf nachgeholtes Einblenden ersetzt das Post-Combat-`updateUI`, und `PLAYER_REGEN_ENABLED` holt die Season-Auswertung nur nach, solange sie aussteht.
+
+155. Addon-Nachrichten mit fremdem Praefix werden vor Raid-Pruefung und Spielernamen-Aufloesung verworfen; Sync-Spielerschluessel werden je aufgeloestem Name-Realm-Paar zwischengespeichert, und Sync-, Roster- und Teleport-Traces bauen weder Argumente noch Closures, solange ihre Log-Stufe aus ist.
+
+156. Die VIP-DK-Warnung verwendet je Aktionsbutton ein einziges Overlay fuer die ganze Sitzung, statt bei jeder Warnung neue Frames zu erzeugen.
+
+157. Der Keystone-Taschenscan-Fallback wird bis zur naechsten Owned-Key-Aktualisierung zwischengespeichert, eigene Status-Snapshots werden ohne Sync-Kanal nicht gebaut, und Hintergrund-Snapshots senden nur geaenderte Werte.
+
+158. In einem bereits laufenden Raid verarbeitet `GROUP_ROSTER_UPDATE` nur noch Roster-Ausblendung und Leader-Watch; die Uebergaenge in den Raid und aus ihm laufen vollstaendig.
+
+159. Der Peer-State-Fan-out antwortet auf jedes HELLO eines bisher unbekannten Peers, aber hoechstens einmal je zehn Sekunden auf HELLOs bekannter Peers und nicht auf ein REQSYNC innerhalb von drei Sekunden nach dem letzten Fan-out; LibKeystone-Anfragen werden hoechstens einmal je zwei Sekunden beantwortet.
+
+160. Das ESC-Mount-Panel liest das Mount-Journal je Aktualisierung in einem einzigen Durchlauf ohne Zwischentabellen, und `LFG_LIST_SEARCH_RESULT_UPDATED` mit numerischer Result-ID endet ohne Capture, Log und Challenge-Pruefung.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2339,3 +2361,118 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - DeathWatch health ticks of living units skip the unit reads while nobody is dead
   - DeathWatch fires again after revive and renewed death
   - Mplus stress: 30000 irrelevant combat events avoid CD scans and announces
+
+### RULE-KILLTRACK-TICKER-NUR-BEI-AENDERUNG
+- Regelnummer: 150
+- Status: aktiv
+- Zusammenfassung: Der Killtracker-Refresh-Ticker liest bei jedem Tick die Live-Scenario-Daten (Regel 60) und ruft `NotifyUpdate` nur auf, wenn sich gegenueber dem zuletzt gemeldeten Zustand `active`, `percent`, `rawCount`, `total`, `mapID`, die Pull-Anzeige, der angezeigte Pull-Prozentwert oder `ForcesPace.GetRunRevision()` geaendert hat; jedes `NotifyUpdate` merkt sich den gemeldeten Zustand. Ereignisgetriebene Benachrichtigungen (Key-Start, -Ende, -Reset, Kampfbeginn, Kampfende, Scenario-Updates, Demo-Daten) bleiben unbedingt. `ForcesPace` erhoeht seine Run-Revision bei Run-Start, Verwerfen, Commit, neuem oder neu gesaetem Run, geaenderter Bosszahl und jedem neuen Bosskill, nicht aber bei reinen Trash-Forces. KillTrack loest `SeasonData.GetMatchingForcesData` je Run einmal auf, auch bei einem Fehltreffer, und erneut nach einem Wechsel von `SeasonData.ACTIVE_SEASON_ID` sowie bei `CHALLENGE_MODE_START`, `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET`. Die Kill-Zeile liest die Todeszahl ueber `DeathWatch.GetTotalDeathCount()` (Summe der Todeszusammenfassungen ohne Kopie und Sortierung) und das Keylevel ueber `MplusTimer.GetKeyLevel()`; den Pace-Strich verankert sie nur neu, wenn sich seine Position oder sein Ankerframe aendert.
+- Erforderliche Tests:
+  - Mplus stress: an idle minute in a key reads forces but repaints nothing unchanged
+  - Mplus stress: visible five minute key refreshes forces without full roster renders
+  - refresh ticker callback reads live forces and notifies subscribers while state is active
+  - ForcesPace run revision moves with boss kills but not with trash forces
+  - KillTrack resolves the Forces DB once per run and again after a season switch
+  - DeathWatch total death count matches the per-player summaries
+  - mplus_timer: GetKeyLevel matches the snapshot key level without sampling the timer
+  - UpdateKillTrackRow places the pace tick at the learned target and shows the signed delta
+
+### RULE-ROSTER-RENDER-WIEDERVERWENDUNG
+- Regelnummer: 151
+- Status: aktiv
+- Zusammenfassung: Ausserhalb von Combat-Lockdown setzt der Roster-Render `type1`, `type2`, `macrotext1` und `macrotext2` eines Rollen-Buttons nur, wenn noch nie geschrieben wurde oder eines der beiden Makros vom zuletzt tatsaechlich geschriebenen Wert abweicht; ein im Kampf veraltetes Makro wird dadurch beim naechsten Render ausserhalb des Kampfs neu geschrieben, und die Zielregeln des Rollen-Marker-Makros (Charaktername, `/cleartarget`-Schutz, kein Unit-Token) bleiben unveraendert. `Roster.BuildDisplayData` erzeugt Farb-Markup und Akzentfarbe je Klassenfarbe einmal und baut sie neu, sobald sich ein Farbkanal aendert; eine unbekannte Klasse behaelt das weisse Markup ohne Akzentstreifen. `Roster.BuildOrderedRoster` sortiert mit einem einzigen wiederverwendeten Comparator. `UICommon.ResolveFontPathByKey` liest die feste Schriftliste ohne Kopie. Die Namens-Normalisierung der Stats wird je aufgeloestem Name-Realm-Paar zwischengespeichert, begrenzt auf 200 Eintraege.
+- Erforderliche Tests:
+  - Roster display builds the class color markup once per class color
+  - UICommon.GetFontChoices lists exactly the fonts the client ships
+  - Architecture secure button mutation surface is explicitly audited for combat and key safety
+
+### RULE-ROSTER-RENDER-ERST-BEI-SICHTBARKEIT
+- Regelnummer: 152
+- Status: aktiv
+- Zusammenfassung: Solange die Main-UI ausgeblendet ist, fuehren `RenderRoster`, `RefreshReadyCheckState`, `RefreshKickColumn` und `RefreshKillTrackRow` des Roster-Panels keine Zeilen-, Ready-Check-, Kick- oder Killtracker-Darstellung aus, sondern setzen eine Veraltet-Markierung und markieren den CD-Tracker fuer einen sichtbaren Rescan. Das `OnShow`-Skript des Hauptfensters ruft als Erstes `FlushHiddenRender` auf, das bei gesetzter Markierung und sichtbarem Fenster genau einen vollstaendigen Render mit dem aktuellen Roster ausfuehrt und die Markierung loescht; das gilt fuer jeden Oeffnungsweg, auch fuer Einblendungen mit `skipShowCallbacks` (Queue-Beitritt, Raid-Rueckkehr, LFG-Highlight). Die Datenpfade (Sync, Roster, CD-Tracker, Klanghinweise) laufen bei ausgeblendeter UI unveraendert weiter; die Erlaubnis zum Vor-Rendern aus Regel 28 und der Hidden-Pre-Render aus Regel 93 werden damit als aufgeschobener Render beim Einblenden umgesetzt. `UICommon.ApplyFontPath` ruft `SetFont` nur, wenn `GetFont()` einen anderen Pfad meldet, und `UICommon.SetReadableText` ruft `SetText` nur, wenn `GetText()` einen anderen Text liefert; verglichen wird jeweils mit dem tatsaechlichen Zustand des FontStrings, sodass von anderer Stelle gesetzte Schriften oder Texte weiterhin korrigiert werden, und die Kyrillisch-Regel sowie die Schriftwahl-Vorrangregel bleiben unveraendert.
+- Erforderliche Tests:
+  - Mplus stress: hidden roster renders are deferred until the window is shown
+  - Mplus stress: 1000 hidden player aura updates coalesce into one CD pass
+  - Roster panel first visible render rescans cd tracker after hidden mode
+  - UICommon.SetReadableText skips repaints that would not change the font or the text
+  - UICommon.SetReadableText applies Cyrillic-capable font before writing Cyrillic text
+  - UICommon.RefreshTrackedFonts re-applies a changed selection to existing FontStrings
+  - Roster row tooltip shows last run DPS when available
+
+### RULE-KICKTRACKER-AUFLOESUNG-UND-EIGENER-SYNC
+- Regelnummer: 153
+- Status: aktiv
+- Zusammenfassung: `KickTracker.ResolveKickState` (ausgeloest durch `SPELLS_CHANGED`, `PLAYER_SPECIALIZATION_CHANGED` und `UNIT_PET`) liest nach der Spec-Aufloesung bei gesetzter Talent-Markierung den Basis-Cooldown und wendet die Talent-Reduktionen an, sodass der erste Kick eines Pulls keinen Talentbaum mehr durchlaeuft. `OnCast` liest Basis-Cooldown und Talente nur, solange die Talent-Markierung gesetzt ist, und setzt sie fuer einen anderen als den bisher beobachteten Kick-Spell neu; die einmal angewendete Talent-Reduktion bleibt dadurch fuer jeden weiteren Kick erhalten und wird nicht durch den Basiswert ersetzt. Ist kein Kick-Spell beobachtet, loesen `OnCast` und `Scan` den Spec nur dann erneut auf, wenn er nicht bereits exakt als Spec ohne Interrupt aufgeloest ist; pet-gebundene Kicks werden weiterhin bei jedem Cast und Poll erneut aufgeloest, weil `UNIT_PET` und `SPELLS_CHANGED` im Kampf vom Gate verworfen werden. Der Kick-Poll schreibt den eigenen Zustand per `SetPlayerKickInfo` nur, wenn er sich in Kick-Verfuegbarkeit, Cooldown-Status, Spell-ID oder Cooldown-Ende (mehr als 0,1 Sekunden) aendert, Extras traegt, ein erzwungener Sync laeuft, `Sync.GetKickInfoGeneration()` sich seit dem letzten Schreiben geaendert hat (Eintrag durch `ClearKnownUsers` oder `ClearPlayerKickInfo` entfernt) oder seit dem letzten Schreiben mindestens zehn Sekunden vergangen sind; der 45-Sekunden-Stale-Vertrag aus Regel 50 bleibt damit eingehalten, und Sende-Takt und Payload des KICK-Syncs bleiben unveraendert.
+- Erforderliche Tests:
+  - KickTracker keeps the talent-reduced cooldown on every kick, not just the first
+  - KickTracker resolves talents when the kick state resolves, not on the first kick
+  - KickTracker does not re-resolve a spec without an interrupt on every cast
+  - KickTracker scans all talent trees for cooldown reductions
+  - KickTracker resolves Demonology Warlock pet interrupt when available
+  - kick tracker: poll rewrites the own kick state only on change, removal or heartbeat
+
+### RULE-KEYENDE-KAMPFENDE-OHNE-DOPPEL-REFRESH
+- Regelnummer: 154
+- Status: aktiv
+- Zusammenfassung: Ein Post-Run-Follow-up-Refresh, dessen `runFullRefresh` abgewiesen wird (der Refresh-Debounce ist laenger als die Follow-up-Verzoegerung), kehrt ohne Roster-Kette, ohne RIO-Delta-Aenderung und ohne weiteren Follow-up zurueck; der erste verzoegerte Refresh mit Retries und die Regel-4-Freigabe des RIO-Deltas bleiben unveraendert, und ein im Raid zurueckgestellter Follow-up behaelt diese Eigenschaft. Oeffnet `CHALLENGE_MODE_COMPLETED` die Main-UI in der Gruppe per Auto-Open tatsaechlich (`setMainFrameVisible(true)` meldet `true`), entfaellt die anschliessende zweite Roster-Kette, weil der Show-Callback sie bereits ausgefuehrt hat. Fuehrt `PLAYER_REGEN_ENABLED` ein im Kampf zurueckgestelltes Einblenden in der Gruppe tatsaechlich aus, entfaellt das nachfolgende `updateUI`; ohne dieses Einblenden laeuft es weiterhin und schreibt im Kampf veraltete Rollen-Marker-Makros neu. `refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")` wertet die Season nur aus, solange eine Auswertung aussteht (anfangs, nach einer im Kampf uebersprungenen oder ohne Map-Tabelle gebliebenen Auswertung oder nach einer nicht schluessigen Auswahl); `PLAYER_LOGIN` und `CHALLENGE_MODE_MAPS_UPDATE` werten wie in Regel 97 immer aus.
+- Erforderliche Tests:
+  - Event handlers skip the roster chain of a follow-up the refresh debounce refused
+  - Event handlers refresh the roster once when the key end auto-opens the window
+  - Event handlers do not repeat the post-combat render after a deferred show
+  - ControllerWiring season refresh at combat end only catches up a pending evaluation
+  - Event handlers schedule follow-up refreshes after successful delayed refresh
+  - Event handlers enable RIO delta only after delayed post-run refresh
+
+### RULE-SYNC-EMPFANG-UND-TRACE-OHNE-LEERLAUFKOSTEN
+- Regelnummer: 155
+- Status: aktiv
+- Zusammenfassung: Der `CHAT_MSG_ADDON`-Handler verwirft Nachrichten, deren Praefix laut `Sync.IsSyncPrefix` weder `ISILIVE` noch `LibKS` ist, vor der Raid-Pruefung und bevor Name und Realm des Spielers aufgeloest werden; ohne verdrahtetes Praedikat wird jede Nachricht wie bisher an `processAddonMessage` gereicht. `Sync.NormalizePlayerKey` speichert den normalisierten Schluessel je aufgeloestem Name-Realm-Paar (nach Aufteilung eines Name-Realm-Strings und Ersatz eines leeren Realms durch den aktuellen Heimatrealm) zwischen, begrenzt auf 256 Eintraege. `Sync.SetTraceLogger` und `Sync.SetDeepTraceLogger` nehmen eine optionale Aktiv-Pruefung entgegen; meldet sie `false`, baut `SyncLog` beziehungsweise `SyncLogDeep` weder Argumenttabelle noch Builder, und der Empfangspfad wertet die `tostring`-Argumente seiner Logzeilen nicht aus. Die Factory verbindet sie mit `IsLevelEnabled("normal")` und `IsLevelEnabled("deep")` des Runtime-Logs. Bei aktivem Log entstehen dieselben Zeilen wie zuvor. Der Roster-Render-Trace nutzt einen festen Builder statt einer Closure je Render, und das Teleport-Button-Update ruft Deep-Trace und Deep-Logf nur auf, wenn die Deep-Stufe aktiv ist.
+- Erforderliche Tests:
+  - Mplus stress: 10000 foreign addon messages are dropped before any sync work
+  - Sync NormalizePlayerKey normalizes each resolved name and realm once
+  - Sync trace logging builds nothing while the paired level check is off
+  - Sync NormalizePlayerKey extracts name and realm correctly
+
+### RULE-VIP-DK-OVERLAY-WIEDERVERWENDUNG
+- Regelnummer: 156
+- Status: aktiv
+- Zusammenfassung: Die VIP-DK-Warnung erzeugt fuer jeden gefundenen Aktionsbutton hoechstens ein Overlay und verwendet es bei jeder weiteren Warnung erneut; neu gefundene Buttons erhalten ihr eigenes Overlay, und die Anzeige- und Ausblendlogik aus Regel 90 bleibt unveraendert.
+- Erforderliche Tests:
+  - VipDkAssist reuses one overlay per action button across Dark Transformations
+  - VipDkAssist starts Soul Reaper warning after Dark Transformation
+
+### RULE-KEYSTONE-SCAN-CACHE-UND-SPARSAME-SNAPSHOTS
+- Regelnummer: 157
+- Status: aktiv
+- Zusammenfassung: Liefert `C_MythicPlus` keinen eigenen Schluessel, wird das Ergebnis des Taschenscans (einschliesslich "kein Schluessel") zwischengespeichert, bis `RefreshLocalPlayerKey` es verwirft; `RefreshLocalPlayerKey` (Owned-Key-Refresh, unter anderem durch `BAG_UPDATE_DELAYED`) verwirft es vor jedem Lesen und scannt neu. `SendOwnStateSnapshot` bricht vor dem Bau von Key-, Stats-, Rating-, DPS- und Location-Snapshot ab, wenn `Sync.GetAddonSyncChannel()` keinen Kanal liefert. `SendOwnBackgroundSnapshot` sendet unabhaengig von der Sichtbarkeit nur geaenderte Payloads (`onlyIfChanged = true`); HELLO-, REQSYNC- und explizite Refresh-Antworten senden weiterhin den vollen Zustand.
+- Erforderliche Tests:
+  - KeySync keeps the bag-scan answer until the owned-key refresh drops it
+  - KeySync GetOwnedKeystoneSnapshot falls back to bag scan when C_MythicPlus returns nil
+  - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
+
+### RULE-RAID-ROSTER-UPDATES-NUR-UEBERGAENGE
+- Regelnummer: 158
+- Status: aktiv
+- Zusammenfassung: Meldet `GROUP_ROSTER_UPDATE` einen Raid und meldete schon das vorherige `GROUP_ROSTER_UPDATE` einen Raid, fuehrt der Handler nach Raid-Event-Suppression und Testmodus-Pruefung nur `handleGroupRosterUpdate` und den Leader-Watch aus (Raid-Lead-Hinweis aus Regel 144) und ueberspringt Spec-Backfill, LFGDetect, DeathWatch, Kick-Tracker, Statuszeile, aufgeschobenen Post-Run-Refresh und M0-Roster-Snapshot; der Factory-Nachlauf ueberspringt in diesem Fall Killtrack-Polling-, Verarbeitungs- und CD-Polling-Umschaltung. Der Uebergang in den Raid und aus dem Raid sowie `PLAYER_ENTERING_WORLD` laufen vollstaendig.
+- Erforderliche Tests:
+  - Mplus stress: roster churn inside a running raid skips the party-only handlers
+  - Raid suppression unregisters dispatcher events but keeps the wake-up events
+  - Raid lead-transfer alert reaches the leader watch through the hidden gate only when opted in
+
+### RULE-PEER-FANOUT-DROSSELUNG
+- Regelnummer: 159
+- Status: aktiv
+- Zusammenfassung: Ein initiales HELLO (Regel 82) wird weiterhin mit `ACK` beantwortet. Der volle Peer-State-Fan-out folgt immer, wenn der Absender vor dieser Nachricht nicht als isiLive-Nutzer bekannt war; bei bekanntem Absender nur, wenn dieser Client in den letzten zehn Sekunden keinen Fan-out gesendet hat. Ein REQSYNC loest den Fan-out nur aus, wenn der letzte Fan-out mindestens drei Sekunden zurueckliegt. Ohne Zeitquelle wird jede Anfrage beantwortet. Eine LibKeystone-Anfrage `R` wird hoechstens einmal je zwei Sekunden beantwortet, weil die Antwort als Gruppen-Broadcast alle Anfragenden bedient.
+- Erforderliche Tests:
+  - Mplus stress: peer state fan-outs answer new peers but not every repeated hello
+  - Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos
+  - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
+
+### RULE-ESC-MOUNTS-UND-LFG-SUCHERGEBNIS-SPARSAM
+- Regelnummer: 160
+- Status: aktiv
+- Zusammenfassung: `ResolveVisibleMountPanelEntries` ermittelt in einem einzigen Durchlauf ueber `C_MountJournal.GetMountIDs()`, ob ein gesammelter, nicht verborgener Favorit existiert und welche Favoriten gerade benutzbar sind, und liest dabei je Journal-Eintrag `GetMountInfoByID` genau einmal ohne Zwischentabelle; Sichtbarkeit und Zufallsauswahl des Favoriten-Shortcuts bleiben unveraendert. Der Handler fuer `LFG_LIST_SEARCH_RESULT_UPDATED` kehrt bei einem Payload, der weder String noch Tabelle ist (die vom Client gesendete numerische Result-ID), ohne Log, Challenge-Pruefung und Queue-Capture zurueck; String- und Tabellen-Payloads werden wie bisher verarbeitet.
+- Erforderliche Tests:
+  - UI mount panel reads each journal entry once per refresh
+  - UI mount game-menu panel shows verified mount shortcuts under travel panel
+  - SEARCH_RESULT_UPDATED drops the numeric result id the client sends without any work
+  - SEARCH_RESULT_UPDATED captures candidate in normal mode

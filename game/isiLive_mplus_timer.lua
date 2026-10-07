@@ -171,6 +171,15 @@ function MplusTimer.IsRunning()
   return state.running == true
 end
 
+-- Public: key level of the current (or demo) run, 0 when none. Same source
+-- as GetTimerData().keyLevel without sampling the timer or building a table.
+function MplusTimer.GetKeyLevel()
+  if demoData then
+    return tonumber(demoData.keyLevel) or 0
+  end
+  return state.keyLevel or 0
+end
+
 function MplusTimer.HandleEvent(event)
   if event == "CHALLENGE_MODE_START" then
     StartTimer()

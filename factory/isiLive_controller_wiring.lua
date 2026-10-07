@@ -367,7 +367,15 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return nil
     end
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
+  -- PLAYER_LOGIN and CHALLENGE_MODE_MAPS_UPDATE own the season evaluation;
+  -- PLAYER_REGEN_ENABLED only catches up an evaluation that is still pending
+  -- (skipped in combat, no map table yet, or not conclusive). It used to
+  -- re-run the full season validation at the end of every single fight.
+  local seasonRefreshPending = true
   config.refreshActiveSeasonFromBlizzard = function(eventName)
+    if eventName == "PLAYER_REGEN_ENABLED" and not seasonRefreshPending then
+      return false
+    end
     local seasonData = addonTable.SeasonData
     local challengeMode = rawget(_G, "C_ChallengeMode")
     local getMapTable = type(challengeMode) == "table" and rawget(challengeMode, "GetMapTable") or nil
@@ -383,18 +391,21 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     if type(inCombatLockdown) == "function" then
       local okCombat, inCombat = pcall(inCombatLockdown)
       if not okCombat or inCombat == true then
+        seasonRefreshPending = true
         return false
       end
     end
 
     local okMaps, mapIDs = pcall(getMapTable)
     if not okMaps or type(mapIDs) ~= "table" then
+      seasonRefreshPending = true
       return false
     end
 
     local ok, changed, message = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, {
       forcesData = addonTable.MPlusForces,
     })
+    seasonRefreshPending = ok ~= true
     if type(config.logRuntimeTracef) == "function" then
       config.logRuntimeTracef(
         "[SEASON] auto_select event=%s ok=%s changed=%s active=%s reason=%s",
@@ -502,6 +513,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       deps.getInspectSpecRole
     )
   end
+  config.isSyncPrefix = type(modules.sync.IsSyncPrefix) == "function" and modules.sync.IsSyncPrefix
+    or function()
+      return true
+    end
   config.processAddonMessage = function(prefix, message, sender, channel)
     local localName, localRealm = deps.getUnitNameAndRealm("player")
     return modules.sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm, channel)

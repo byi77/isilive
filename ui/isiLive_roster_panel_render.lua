@@ -815,10 +815,23 @@ local function RenderRosterImpl(state, roster)
           if type(row.roleButton.EnableMouse) == "function" then
             row.roleButton:EnableMouse(marker ~= nil)
           end
-          row.roleButton:SetAttribute("type1", "macro")
-          row.roleButton:SetAttribute("type2", "macro")
-          row.roleButton:SetAttribute("macrotext1", macroText1)
-          row.roleButton:SetAttribute("macrotext2", macroText2)
+          -- Write the secure attributes only when the macro differs from the
+          -- one last written. The comparison runs against what was actually
+          -- written, so a macro that went stale during combat lockdown (no
+          -- write possible) is still rewritten on the next out-of-combat render.
+          if
+            row.roleButton._isiLiveMacroWritten ~= true
+            or row.roleButton._isiLiveMacroText1 ~= macroText1
+            or row.roleButton._isiLiveMacroText2 ~= macroText2
+          then
+            row.roleButton:SetAttribute("type1", "macro")
+            row.roleButton:SetAttribute("type2", "macro")
+            row.roleButton:SetAttribute("macrotext1", macroText1)
+            row.roleButton:SetAttribute("macrotext2", macroText2)
+            row.roleButton._isiLiveMacroText1 = macroText1
+            row.roleButton._isiLiveMacroText2 = macroText2
+            row.roleButton._isiLiveMacroWritten = true
+          end
         else
           row.roleButton:Hide()
         end

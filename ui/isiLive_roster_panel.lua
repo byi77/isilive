@@ -888,6 +888,40 @@ function RosterPanel.CreateController(opts)
     end
   end
 
+  -- Roster renders requested while the main window is hidden are deferred:
+  -- sync packets, roster updates and in-key CD passes used to rebuild every row
+  -- of an invisible window. The request only marks the roster stale, and the
+  -- main frame's OnShow runs one render through FlushHiddenRender before the
+  -- window is first drawn -- which covers every way of opening it, including
+  -- the shows that skip their own show callbacks.
+  local hiddenRenderPending = false
+
+  local function DeferRenderWhileHidden()
+    if IsMainFrameShown() then
+      return false
+    end
+    hiddenRenderPending = true
+    MarkCdTrackerDirty()
+    return true
+  end
+
+  -- One builder for the render trace instead of a closure per render; the
+  -- roster reaches it through this upvalue for the duration of the call.
+  local renderTraceRoster = nil
+  local function BuildRenderTraceMessage()
+    local count = 0
+    for _ in pairs(renderTraceRoster or {}) do
+      count = count + 1
+    end
+    return string.format(
+      "[ROSTER_UI] render_roster entries=%s frameShown=%s layout=%s raid=%s",
+      tostring(count),
+      tostring(IsMainFrameShown()),
+      tostring(ui.layoutMode),
+      tostring(isRaidGroup())
+    )
+  end
+
   local controller = {}
 
   function controller.ApplyLocalization()
@@ -980,21 +1014,15 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RenderRoster(roster)
+    if DeferRenderWhileHidden() then
+      return
+    end
+    hiddenRenderPending = false
     MaybeRescanCdTrackerForVisibleRender()
     if logRuntimeTraceDeep then
-      logRuntimeTraceDeep(function()
-        local count = 0
-        for _ in pairs(roster or {}) do
-          count = count + 1
-        end
-        return string.format(
-          "[ROSTER_UI] render_roster entries=%s frameShown=%s layout=%s raid=%s",
-          tostring(count),
-          tostring(IsMainFrameShown()),
-          tostring(ui.layoutMode),
-          tostring(isRaidGroup())
-        )
-      end)
+      renderTraceRoster = roster
+      logRuntimeTraceDeep(BuildRenderTraceMessage)
+      renderTraceRoster = nil
     end
     RenderRosterImpl({
       memberRows = memberRows,
@@ -1040,7 +1068,24 @@ function RosterPanel.CreateController(opts)
     })
   end
 
+  -- Runs the render deferred while the window was hidden. Called from the
+  -- main frame's OnShow; a no-op when nothing is pending.
+  function controller.FlushHiddenRender()
+    if not hiddenRenderPending or not IsMainFrameShown() then
+      return false
+    end
+    controller.RenderRoster(getRoster())
+    return true
+  end
+
+  function controller.IsHiddenRenderPending()
+    return hiddenRenderPending
+  end
+
   function controller.RefreshReadyCheckState(roster)
+    if DeferRenderWhileHidden() then
+      return
+    end
     RefreshReadyCheckStateImpl({
       memberRows = memberRows,
       buildOrderedRoster = buildOrderedRoster,
@@ -1070,6 +1115,9 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RefreshKickColumn()
+    if DeferRenderWhileHidden() then
+      return
+    end
     for _, row in pairs(memberRows) do
       if row.kick and row.tooltipInfo then
         local info = row.tooltipInfo
@@ -1092,6 +1140,9 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RefreshKillTrackRow()
+    if DeferRenderWhileHidden() then
+      return
+    end
     UpdateKillTrackRow(ui.killTrackRow, {
       getTargetDungeonInfo = getTargetDungeonInfo,
       isInChallengeMode = isInChallengeMode,

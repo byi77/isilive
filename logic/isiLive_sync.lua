@@ -96,10 +96,20 @@ local dpsInfoByPlayerKey = {}
 local locInfoByPlayerKey = {}
 local targetInfoByPlayerKey = {}
 local kickInfoByPlayerKey = {}
+local kickInfoGeneration = 0
+local NORMALIZED_KEY_CACHE_LIMIT = 256
+local normalizedKeyCache = {}
+local normalizedKeyCacheSize = 0
 local verifiedAliasByRosterKey = {}
 local syncDebugLog = nil
 local syncDebugTrace = nil
 local syncDebugTraceDeep = nil
+-- Optional "would this level be recorded" checks paired with the trace
+-- loggers. The runtime logger is always wired, but recording is off by
+-- default; without the check every sync message built an argument table and
+-- a closure only for the logger to drop them.
+local syncTraceActive = nil
+local syncDeepTraceActive = nil
 
 --- Sets the primary debug logger for sync events.
 -- @param fn function|nil Receives a formatted string. Pass nil to disable.
@@ -109,18 +119,36 @@ end
 
 --- Sets the trace logger for sync send/receive events.
 -- @param fn function|nil Receives a lazy builder function; call it to materialise the string. Pass nil to disable.
-function Sync.SetTraceLogger(fn)
+-- @param isActive function|nil Optional check; when it returns false the
+--   message is neither built nor handed to fn.
+function Sync.SetTraceLogger(fn, isActive)
   syncDebugTrace = type(fn) == "function" and fn or nil
+  syncTraceActive = type(isActive) == "function" and isActive or nil
 end
 
 --- Sets the deep-trace logger for high-frequency suppression events (e.g. cooldown blocks).
 -- @param fn function|nil Same lazy-builder contract as SetTraceLogger. Pass nil to disable.
-function Sync.SetDeepTraceLogger(fn)
+-- @param isActive function|nil Same contract as for SetTraceLogger.
+function Sync.SetDeepTraceLogger(fn, isActive)
   syncDebugTraceDeep = type(fn) == "function" and fn or nil
+  syncDeepTraceActive = type(isActive) == "function" and isActive or nil
+end
+
+local function IsTraceLoggerActive(traceFn)
+  local isActive = nil
+  if traceFn == syncDebugTrace then
+    isActive = syncTraceActive
+  elseif traceFn == syncDebugTraceDeep then
+    isActive = syncDeepTraceActive
+  end
+  return isActive == nil or isActive() == true
 end
 
 local function SyncLogInternal(traceFn, event, formatText, ...)
   if not traceFn and not syncDebugLog then
+    return
+  end
+  if traceFn and not IsTraceLoggerActive(traceFn) then
     return
   end
   local argCount = select("#", ...)
@@ -154,6 +182,22 @@ end
 
 local function SyncLogDeep(event, formatText, ...)
   SyncLogInternal(syncDebugTraceDeep, event, formatText, ...)
+end
+
+-- True when a SyncLog / SyncLogDeep line would be recorded. Lets hot callers
+-- skip building tostring() arguments that the logger would discard.
+local function IsSyncLogActive()
+  if syncDebugTrace then
+    return IsTraceLoggerActive(syncDebugTrace)
+  end
+  return syncDebugLog ~= nil
+end
+
+local function IsSyncLogDeepActive()
+  if syncDebugTraceDeep then
+    return IsTraceLoggerActive(syncDebugTraceDeep)
+  end
+  return syncDebugLog ~= nil
 end
 
 local function FormatBytes(value)
@@ -418,12 +462,41 @@ function Sync.NormalizePlayerKey(name, realm)
     r = type(getRealmName) == "function" and getRealmName() or ""
   end
 
+  n = tostring(n)
+  r = tostring(r)
+  -- One received sync message normalizes the same few players ~35 times
+  -- (sender, self, alias registration and every roster backfill lookup), so
+  -- the key is cached per resolved (name, realm) pair. The cap bounds a long
+  -- session; dropping the cache only costs a recomputation per player.
+  local byRealm = normalizedKeyCache[n]
+  local cachedKey = byRealm and byRealm[r]
+  if cachedKey then
+    return cachedKey
+  end
+
   -- Strict normalization via shared StringUtils:
   -- Name: strip all whitespace; Realm: strip spaces/dashes/dots/parens/quotes
-  local n_clean = StringUtils.StripWhitespace(tostring(n))
-  local r_clean = StringUtils.NormalizeRealmName(tostring(r))
+  local n_clean = StringUtils.StripWhitespace(n)
+  local r_clean = StringUtils.NormalizeRealmName(r)
   local key = string.lower(n_clean .. "-" .. r_clean)
+  if normalizedKeyCacheSize >= NORMALIZED_KEY_CACHE_LIMIT then
+    normalizedKeyCache = {}
+    normalizedKeyCacheSize = 0
+  end
+  if not normalizedKeyCache[n] then
+    normalizedKeyCache[n] = {}
+  end
+  normalizedKeyCache[n][r] = key
+  normalizedKeyCacheSize = normalizedKeyCacheSize + 1
   return key
+end
+
+--- True for the two addon-message prefixes isiLive processes (ISILIVE and
+-- LibKS). Lets the receive path drop foreign addon traffic before any work.
+-- @param prefix string
+-- @return boolean
+function Sync.IsSyncPrefix(prefix)
+  return prefix == ISILIVE_SYNC_PREFIX or prefix == LIBKEYSTONE_SYNC_PREFIX
 end
 
 --- Returns the ISILIVE addon message prefix used for all sync payloads.
@@ -675,6 +748,7 @@ function Sync.ClearKnownUsers()
   locInfoByPlayerKey = {}
   targetInfoByPlayerKey = {}
   kickInfoByPlayerKey = {}
+  kickInfoGeneration = kickInfoGeneration + 1
   verifiedAliasByRosterKey = {}
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
@@ -1110,7 +1184,18 @@ function Sync.ClearPlayerKickInfo(name, realm)
   end
   local hadValue = type(kickInfoByPlayerKey[key]) == "table"
   kickInfoByPlayerKey[key] = nil
+  if hadValue then
+    kickInfoGeneration = kickInfoGeneration + 1
+  end
   return hadValue
+end
+
+--- Counter that moves whenever stored kick entries are dropped (ClearKnownUsers,
+-- ClearPlayerKickInfo). Lets the local kick poll skip rewriting an unchanged
+-- own entry without missing that the entry itself was removed.
+-- @return number
+function Sync.GetKickInfoGeneration()
+  return kickInfoGeneration
 end
 
 --- Stores a received location (map) payload for a peer. Clears the entry when mapID is invalid.
@@ -1956,6 +2041,8 @@ if type(receiveFactory) == "function" then
     IsPlainPeerName = IsPlainPeerName,
     SyncLog = SyncLog,
     SyncLogDeep = SyncLogDeep,
+    IsSyncLogActive = IsSyncLogActive,
+    IsSyncLogDeepActive = IsSyncLogDeepActive,
     FormatBytes = FormatBytes,
     SplitPayload = SplitPayload,
     ParseKickPayload = ParseKickPayload,

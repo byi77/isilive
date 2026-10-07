@@ -108,6 +108,11 @@ end
 
 local function NewTooltipMainFrameStub()
   return {
+    -- Row tooltips are hovered on a visible window; hidden renders are
+    -- deferred until the window is shown (rule 152).
+    IsShown = function()
+      return true
+    end,
     SetBackdrop = function() end,
     SetBackdropColor = function() end,
     SetFrameLevel = function() end,

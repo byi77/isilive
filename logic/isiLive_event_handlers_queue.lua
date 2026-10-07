@@ -271,6 +271,14 @@ function QueueLifecycle.BuildHandlers(ctx)
       ctx.captureQueueJoinCandidate(...)
     end,
     LFG_LIST_SEARCH_RESULT_UPDATED = function(_self, ...)
+      -- The client passes only the numeric search-result ID, and the queue-join
+      -- capture can only take a group name from a string or table payload: a
+      -- numeric payload always ended in its "no_group_name" skip, after an
+      -- argument table, a challenge check and log arguments per listed result.
+      local payload = ...
+      if type(payload) ~= "string" and type(payload) ~= "table" then
+        return
+      end
       -- Throttled: the LFG browser fires this once per listed result, many
       -- times a second, which used to evict the entire runtime log buffer.
       if logfThrottled then

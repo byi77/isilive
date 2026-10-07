@@ -204,14 +204,16 @@ local function ResolveSpecData()
   }
 end
 
+local function IndexField(info, key)
+  return info[key]
+end
+
 local function ReadCooldownField(info, key)
   if type(info) ~= "table" then
     return nil, false
   end
 
-  local ok, value = pcall(function()
-    return info[key]
-  end)
+  local ok, value = pcall(IndexField, info, key)
   if not ok then
     return nil, false
   end
@@ -804,11 +806,30 @@ function KickTracker.CreateController(opts)
 
   local controller = {}
 
+  -- Without a watched interrupt the state is re-resolved from casts and the
+  -- poll, because a pet-bound kick (Warlock) can appear mid-combat while
+  -- UNIT_PET and SPELLS_CHANGED are gated out. A spec that has no interrupt at
+  -- all can only change through a spec switch -- which re-resolves through
+  -- PLAYER_SPECIALIZATION_CHANGED -- so it skips the per-cast resolve that
+  -- used to run on every global cooldown of a healer.
+  local function RefreshSpecIfUnwatched()
+    if watchedSpellID then
+      return
+    end
+    if
+      availabilityResolved == true
+      and type(specData) == "table"
+      and specData.availabilityResolved == true
+      and specData.hasKick == false
+    then
+      return
+    end
+    RefreshSpec()
+  end
+
   -- Called from UNIT_SPELLCAST_SUCCEEDED for the tracked unit (player or pet).
   function controller.OnCast(unit, spellID)
-    if not watchedSpellID then
-      RefreshSpec()
-    end
+    RefreshSpecIfUnwatched()
     if unit ~= watchedCastUnit then
       return false
     end
@@ -816,10 +837,20 @@ function KickTracker.CreateController(opts)
     -- Primary path: this cast is the spec's registered interrupt.
     local spellData = GetSpellDataByID(specData, spellID)
     if spellData then
-      watchedSpellID = spellData.spellID
+      if watchedSpellID ~= spellData.spellID then
+        watchedSpellID = spellData.spellID
+        watchedCd = spellData.cd
+        talentScanDirty = true
+      end
       watchedCd = watchedCd or spellData.cd
-      ReadBaseCd()
-      ScanOwnTalents()
+      -- Base cooldown and talent reductions are resolved once per spell or
+      -- talent change (ResolveKickState runs them out of combat). Re-reading
+      -- the base value on every cast used to reset the talent-reduced
+      -- cooldown to the untalented one from the second kick on.
+      if talentScanDirty then
+        ReadBaseCd()
+        ScanOwnTalents()
+      end
       local cd = tonumber(watchedCd or spellData.cd)
       if not cd or cd <= 0 then
         return false
@@ -868,6 +899,13 @@ function KickTracker.CreateController(opts)
   function controller.ResolveKickState()
     talentScanDirty = true
     RefreshSpec()
+    -- Spec, spell and pet events arrive outside combat: resolve the base
+    -- cooldown and walk the talent tree here instead of on the first kick of
+    -- the next pull.
+    if watchedSpellID and talentScanDirty then
+      ReadBaseCd()
+      ScanOwnTalents()
+    end
     local exactStateKnown = CacheCooldown()
     local info = controller.GetKickInfo()
     return {
@@ -882,9 +920,7 @@ function KickTracker.CreateController(opts)
 
   -- Called every 0.5s from ticker to detect expiry.
   function controller.Scan()
-    if not watchedSpellID then
-      RefreshSpec()
-    end
+    RefreshSpecIfUnwatched()
     local now = getTime()
     if onCooldown and cdEndTime > 0 then
       if now >= cdEndTime then

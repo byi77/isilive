@@ -82,6 +82,28 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     end)
   end)
 
+  test("VipDkAssist reuses one overlay per action button across Dark Transformations", function()
+    WithGlobals({}, function()
+      local soulReaperButton = { id = "soul-reaper-button" }
+      local controller, scheduled, overlays = BuildHarness({ buttons = { soulReaperButton } })
+      for _ = 1, 20 do
+        controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+        scheduled[#scheduled].callback()
+        Assert.True(controller.IsWarningActive(), "every Dark Transformation must raise the warning again")
+        scheduled[#scheduled].callback()
+      end
+      Assert.Equal(#overlays, 1, "20 warnings on the same button must reuse a single overlay frame")
+      Assert.False(overlays[1].shown, "the reused overlay must be hidden after the last warning")
+
+      local movedButton = { id = "soul-reaper-button-moved" }
+      local secondController, secondScheduled, secondOverlays = BuildHarness({ buttons = { movedButton } })
+      secondController.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      secondScheduled[1].callback()
+      Assert.Equal(#secondOverlays, 1, "a newly found button still gets its overlay")
+      Assert.True(secondOverlays[1].shown, "the new button's overlay must be shown")
+    end)
+  end)
+
   test("VipDkAssist starts Putrefy warning after Dark Transformation", function()
     WithGlobals({}, function()
       local controller, scheduled, overlays = BuildHarness({

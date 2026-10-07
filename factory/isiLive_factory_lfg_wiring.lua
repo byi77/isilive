@@ -64,9 +64,14 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), targetMapID, preferredOwnerName)
   end
   ctx.UpdateMPlusTeleportButton = function(soundContext)
-    local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
-    local logfDeep = ctx.runtimeLogController and ctx.runtimeLogController.LogfDeep or nil
-    local traceDeep = ctx.runtimeLogController and ctx.runtimeLogController.TraceDeep or nil
+    local runtimeLog = ctx.runtimeLogController
+    local logf = runtimeLog and runtimeLog.Logf or nil
+    -- One level check per call instead of four trace closures and a deep
+    -- format call that the logger drops while deep tracing is off.
+    local deepActive = runtimeLog ~= nil
+      and (type(runtimeLog.IsLevelEnabled) ~= "function" or runtimeLog.IsLevelEnabled("deep") == true)
+    local logfDeep = deepActive and runtimeLog.LogfDeep or nil
+    local traceDeep = deepActive and runtimeLog.TraceDeep or nil
     if soundContext and logf then
       logf("[TP] update_button_called soundContext=%s", tostring(soundContext))
     elseif logfDeep then

@@ -638,6 +638,91 @@ local function RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules,
   end)
 end
 
+local function RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
+  test("Event handlers skip the roster chain of a follow-up the refresh debounce refused", function()
+    local scheduled = {}
+    local refreshResults = { true, false, false }
+    local refreshCalls = 0
+    local uiUpdates = 0
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        table.insert(scheduled, { seconds = seconds, callback = callback })
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return refreshResults[refreshCalls]
+      end,
+      updateUI = function()
+        uiUpdates = uiUpdates + 1
+      end,
+    })
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    scheduled[1].callback()
+    local uiAfterFirstRefresh = uiUpdates
+    Assert.True(uiAfterFirstRefresh > 0, "the successful post-run refresh must refresh the roster")
+    scheduled[2].callback()
+    Assert.Equal(refreshCalls, 2, "the follow-up must still attempt its refresh")
+    Assert.Equal(uiUpdates, uiAfterFirstRefresh, "a refused follow-up must not re-run the roster chain")
+    Assert.Equal(#scheduled, 2, "a refused follow-up must not schedule further follow-ups")
+  end)
+
+  test("Event handlers refresh the roster once when the key end auto-opens the window", function()
+    local function CountRosterRefreshes(showResult)
+      local uiUpdates = 0
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        timerAfter = function() end,
+        shouldAutoOpenMainFrameOnKeyEnd = function()
+          return true
+        end,
+        setMainFrameVisible = function()
+          return showResult
+        end,
+        updateUI = function()
+          uiUpdates = uiUpdates + 1
+        end,
+      })
+      controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+      return uiUpdates
+    end
+    local withoutShow = CountRosterRefreshes(false)
+    local withShow = CountRosterRefreshes(true)
+    Assert.Equal(
+      withShow,
+      withoutShow - 1,
+      "an auto-open that showed the window already refreshed the roster; the second refresh is skipped"
+    )
+  end)
+
+  test("Event handlers do not repeat the post-combat render after a deferred show", function()
+    local function CountRegenRenders(showResult)
+      local uiUpdates = 0
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getPendingMainFrameVisible = function()
+          return true
+        end,
+        setMainFrameVisible = function()
+          return showResult
+        end,
+        isMainFrameShown = function()
+          return true
+        end,
+        updateUI = function()
+          uiUpdates = uiUpdates + 1
+        end,
+        updateMPlusTeleportButton = function() end,
+        tryRestoreCenterNoticeTeleportButton = function() end,
+      })
+      controller:Dispatch("PLAYER_REGEN_ENABLED")
+      return uiUpdates
+    end
+    Assert.Equal(CountRegenRenders(false), 1, "without a deferred show the post-combat render must run")
+    Assert.Equal(CountRegenRenders(true), 0, "a deferred show already rendered after combat")
+  end)
+end
+
 local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers keep non-UI regen recovery while frame is hidden", function()
     local applyHotkeyCalls = 0
@@ -931,4 +1016,5 @@ return function(test, ctx)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
 end

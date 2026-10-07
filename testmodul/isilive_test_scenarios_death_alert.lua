@@ -177,6 +177,27 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(#env.alerts, 2, "the revive must still clear the latched flag and re-arm the edge")
   end)
 
+  test("DeathWatch total death count matches the per-player summaries", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    local controller = addon.DeathWatch.CreateController(env.deps)
+    Assert.Equal(controller.GetTotalDeathCount(), 0, "no deaths must count zero")
+    for _, unit in ipairs({ "party1", "party3", "party1" }) do
+      env.deadUnits[unit] = true
+      controller.HandleUnitHealth(unit)
+      env.deadUnits[unit] = false
+      controller.HandleUnitHealth(unit)
+    end
+    local summed = 0
+    for _, entry in ipairs(controller.GetAllDeathSummaries()) do
+      summed = summed + entry.count
+    end
+    Assert.Equal(controller.GetTotalDeathCount(), 3, "three recorded deaths must count three")
+    Assert.Equal(controller.GetTotalDeathCount(), summed, "the total must equal the sum of the summaries")
+    controller.Reset()
+    Assert.Equal(controller.GetTotalDeathCount(), 0, "a reset must clear the total")
+  end)
+
   test("DeathWatch fires again after revive and renewed death", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv()

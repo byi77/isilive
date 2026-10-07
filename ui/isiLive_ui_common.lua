@@ -266,12 +266,17 @@ local function ApplyFontPath(fontString, fontPath)
     return false
   end
 
-  local _, fontSize, fontFlags = fontString:GetFont()
+  local currentPath, fontSize, fontFlags = fontString:GetFont()
   if type(fontSize) ~= "number" then
     return false
   end
 
-  fontString:SetFont(fontPath, fontSize, fontFlags)
+  -- Compared against the string's actual font, not a cached decision, so a
+  -- font another caller set in between is still corrected. SetFont is the
+  -- expensive part of a roster text update and usually a no-op repaint.
+  if currentPath ~= fontPath then
+    fontString:SetFont(fontPath, fontSize, fontFlags)
+  end
   return true
 end
 
@@ -367,6 +372,12 @@ function UICommon.SetReadableText(fontString, text, localeTag)
 
   local value = tostring(text or "")
   UICommon.ApplyReadableFontForText(fontString, value, localeTag)
+  -- Roster renders re-set ~45 unchanged texts; skip the ones the string
+  -- already shows. Compared against GetText, so text set elsewhere in between
+  -- is still overwritten.
+  if type(fontString.GetText) == "function" and fontString:GetText() == value then
+    return true
+  end
   fontString:SetText(value)
   return true
 end

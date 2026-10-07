@@ -198,6 +198,11 @@ local function BuildContext(opts)
   ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")
   ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
+  -- Without the predicate every prefix is handed to processAddonMessage,
+  -- which drops unknown prefixes itself.
+  ctx.isSyncPrefix = OptionalFunction(opts.isSyncPrefix, function()
+    return true
+  end)
   -- Returns true when the lightweight kick-column refresh ran; anything else
   -- makes the caller fall back to the full roster refresh.
   ctx.refreshKickColumn = OptionalFunction(opts.refreshKickColumn, function()

@@ -204,6 +204,33 @@ return function(test, ctx)
     end)
   end)
 
+  test("mplus_timer: GetKeyLevel matches the snapshot key level without sampling the timer", function()
+    local globals, _state, frames = BuildEnv({ keyLevel = 9, timeLimit = 1800 })
+    local elapsedSamples = 0
+    globals.GetWorldElapsedTime = function()
+      elapsedSamples = elapsedSamples + 1
+      return 1, 0
+    end
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      local eventFrame = AfterLoad(frames)
+      Assert.Equal(addon.MplusTimer.GetKeyLevel(), 0, "no key must report level 0")
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
+      Assert.Equal(addon.MplusTimer.GetKeyLevel(), 9, "START must expose the active key level")
+      Assert.Equal(elapsedSamples, 0, "the key level must not sample GetWorldElapsedTime")
+      Assert.Equal(
+        addon.MplusTimer.GetKeyLevel(),
+        addon.MplusTimer.GetTimerData().keyLevel,
+        "same source as the snapshot"
+      )
+      addon.MplusTimer.SetDemoData({ running = true, keyLevel = 14 })
+      Assert.Equal(addon.MplusTimer.GetKeyLevel(), 14, "demo data must drive the key level like GetTimerData")
+      addon.MplusTimer.ClearDemoData()
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_RESET")
+      Assert.Equal(addon.MplusTimer.GetKeyLevel(), 0, "RESET must clear the key level")
+    end)
+  end)
+
   test("mplus_timer: IsRunning answers from demo data while a demo snapshot is set", function()
     local globals = BuildEnv()
     WithGlobals(globals, function()

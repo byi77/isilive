@@ -27,7 +27,61 @@ local function InitializeFactorySecondaryKickTracker(
   local C_Timer_ref = rawget(_G, "C_Timer")
   local timerAfter = type(C_Timer_ref) == "table" and C_Timer_ref.After or nil
 
+  -- Own kick state as last written to Sync. The 0.5 s poll used to rewrite it
+  -- every tick (key normalization plus a fresh entry table) although the
+  -- stored remain decays on its own. It is rewritten on a real change, after
+  -- the entry was dropped elsewhere (Sync's kick generation moved), and at
+  -- least every OWN_KICK_REFRESH_SECONDS so it never ages past the 45 s
+  -- stale window of rule 50. Extras-carrying states are always written.
+  local OWN_KICK_REFRESH_SECONDS = 10
+  local ownKickWritten = { valid = false }
+
+  local function GetKickInfoGeneration()
+    if modules.sync and type(modules.sync.GetKickInfoGeneration) == "function" then
+      return modules.sync.GetKickInfoGeneration()
+    end
+    return nil
+  end
+
+  local function OwnKickCooldownEnd(info, now)
+    if info.onCooldown ~= true then
+      return 0
+    end
+    return now + (tonumber(info.cooldownRemain) or 0)
+  end
+
+  local function OwnKickNeedsWrite(info, now)
+    local written = ownKickWritten
+    if not written.valid or written.extras or info.extras ~= nil then
+      return true
+    end
+    if written.generation ~= GetKickInfoGeneration() or now - written.at >= OWN_KICK_REFRESH_SECONDS then
+      return true
+    end
+    if
+      written.hasKick ~= info.hasKick
+      or written.onCooldown ~= (info.onCooldown == true)
+      or written.spellID ~= info.spellID
+    then
+      return true
+    end
+    return math.abs(written.cooldownEnd - OwnKickCooldownEnd(info, now)) > 0.1
+  end
+
+  local function RememberOwnKickWrite(info, now)
+    local written = ownKickWritten
+    written.valid = true
+    written.hasKick = info.hasKick
+    written.onCooldown = info.onCooldown == true
+    written.spellID = info.spellID
+    written.extras = info.extras ~= nil
+    written.cooldownEnd = OwnKickCooldownEnd(info, now)
+    written.at = now
+    written.generation = GetKickInfoGeneration()
+  end
+
   local function ClearOwnKickSyncCache()
+    ownKickWritten.valid = false
     if not (modules.sync and type(modules.sync.ClearPlayerKickInfo) == "function") then
       return false
     end
@@ -118,7 +172,12 @@ local function InitializeFactorySecondaryKickTracker(
       return false
     end
     local hasKick = info.hasKick
-    if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
+    local now = getTime()
+    if
+      modules.sync
+      and type(modules.sync.SetPlayerKickInfo) == "function"
+      and (force == true or OwnKickNeedsWrite(info, now))
+    then
       local selfName = getUnitName and getUnitName("player") or nil
       local selfRealm = getRealmName and getRealmName() or nil
       if not addonTable.StringUtils.IsBlank(selfName) then
@@ -132,9 +191,9 @@ local function InitializeFactorySecondaryKickTracker(
           info.extras,
           info.spellID
         )
+        RememberOwnKickWrite(info, now)
       end
     end
-    local now = getTime()
     local heartbeatDue = now >= kickHeartbeatAt
     if heartbeatDue then
       kickHeartbeatAt = now + KICK_HEARTBEAT_INTERVAL

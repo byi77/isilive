@@ -29,6 +29,74 @@ local function RegisterNormalizeKeyTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  test("Sync NormalizePlayerKey normalizes each resolved name and realm once", function()
+    local realmName = "Home Realm"
+    WithGlobals({
+      GetRealmName = function()
+        return realmName
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      local strips = 0
+      local originalStrip = addon.StringUtils.StripWhitespace
+      addon.StringUtils.StripWhitespace = function(...)
+        strips = strips + 1
+        return originalStrip(...)
+      end
+      local first = addon.Sync.NormalizePlayerKey("Felix Name", "Some Realm")
+      for _ = 1, 500 do
+        Assert.Equal(addon.Sync.NormalizePlayerKey("Felix Name", "Some Realm"), first, "a cached key must not change")
+      end
+      Assert.Equal(strips, 1, "501 lookups of one player must normalize the name once")
+      Assert.Equal(
+        addon.Sync.NormalizePlayerKey("Felix Name-Some Realm"),
+        first,
+        "a dashed full name maps to the same key"
+      )
+
+      local sameRealm = addon.Sync.NormalizePlayerKey("Anna")
+      realmName = "Other Realm"
+      Assert.True(
+        addon.Sync.NormalizePlayerKey("Anna") ~= sameRealm,
+        "a realm-less name must follow the current home realm, not a stale cache entry"
+      )
+      Assert.True(addon.Sync.IsSyncPrefix("ISILIVE"), "the isiLive prefix is a sync prefix")
+      Assert.True(addon.Sync.IsSyncPrefix("LibKS"), "the LibKeystone prefix is a sync prefix")
+      Assert.False(addon.Sync.IsSyncPrefix("BigWigs"), "foreign prefixes are not sync prefixes")
+    end)
+  end)
+
+  test("Sync trace logging builds nothing while the paired level check is off", function()
+    WithGlobals({
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      local traceCalls, deepCalls = 0, 0
+      local active = false
+      addon.Sync.SetTraceLogger(function(build)
+        traceCalls = traceCalls + 1
+        Assert.True(type(build()) == "string", "an active trace must still receive a buildable message")
+      end, function()
+        return active
+      end)
+      addon.Sync.SetDeepTraceLogger(function()
+        deepCalls = deepCalls + 1
+      end, function()
+        return active
+      end)
+      for level = 2, 51 do
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2662:" .. level .. ":100", "Peer-Realm", "Me", "Realm", "PARTY")
+      end
+      Assert.Equal(traceCalls + deepCalls, 0, "50 messages with logging off must not reach the trace loggers")
+
+      active = true
+      addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2662:60:100", "Peer-Realm", "Me", "Realm", "PARTY")
+      Assert.True(traceCalls > 0, "with logging on the receive path must still trace")
+    end)
+  end)
+
   test("Sync NormalizePlayerKey handles multi-dash realm names", function()
     WithGlobals({
       strsplit = function(sep, str, max)

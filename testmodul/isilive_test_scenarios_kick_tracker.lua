@@ -815,6 +815,119 @@ local function RegisterCooldownRecoveryTests(test, Assert, WithGlobals, LoadAddo
   end)
 end
 
+-- Warrior (spec 71, Pummel 6552, 15 s base) with Seasoned Soldier (-10 %)
+-- active, plus call counters for the spec and talent-tree APIs.
+local function BuildTalentedWarriorGlobals(counters, specID)
+  return {
+    GetSpecialization = function()
+      counters.spec = counters.spec + 1
+      return 1
+    end,
+    GetSpecializationInfo = function(index)
+      if index == 1 then
+        return specID or 71
+      end
+      return nil
+    end,
+    GetSpellBaseCooldown = function(spellID)
+      if spellID == 6552 then
+        return 15000
+      end
+      return 0
+    end,
+    C_ClassTalents = {
+      GetActiveConfigID = function()
+        return 42
+      end,
+    },
+    C_Traits = {
+      GetConfigInfo = function()
+        return { treeIDs = { 1001 } }
+      end,
+      GetTreeNodes = function()
+        return { 22 }
+      end,
+      GetNodeInfo = function()
+        counters.talentNodes = counters.talentNodes + 1
+        return { activeEntry = { entryID = 222 }, activeRank = 1 }
+      end,
+      GetEntryInfo = function()
+        return { definitionID = 333 }
+      end,
+      GetDefinitionInfo = function()
+        return { spellID = 391271 }
+      end,
+    },
+  }
+end
+
+local function RegisterKickTrackerCostTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("KickTracker keeps the talent-reduced cooldown on every kick, not just the first", function()
+    local now = 100
+    local counters = { spec = 0, talentNodes = 0 }
+    WithGlobals(BuildTalentedWarriorGlobals(counters), function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      local controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.True(controller.OnCast("player", 6552), "the first Pummel must be observed")
+      Assert.Equal(controller.GetKickInfo().cooldownRemain, 14, "the first kick must use the talented 14 s")
+      now = 200
+      Assert.True(controller.OnCast("player", 6552), "the second Pummel must be observed")
+      Assert.Equal(
+        controller.GetKickInfo().cooldownRemain,
+        14,
+        "the second kick must keep the talented cooldown instead of falling back to the 15 s base"
+      )
+    end)
+  end)
+
+  test("KickTracker resolves talents when the kick state resolves, not on the first kick", function()
+    local now = 100
+    local counters = { spec = 0, talentNodes = 0 }
+    WithGlobals(BuildTalentedWarriorGlobals(counters), function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      local controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+      -- SPELLS_CHANGED / PLAYER_SPECIALIZATION_CHANGED / UNIT_PET, out of combat.
+      controller.ResolveKickState()
+      local nodesBeforeKick = counters.talentNodes
+      Assert.True(nodesBeforeKick > 0, "resolving the kick state must walk the talent tree")
+      controller.OnCast("player", 6552)
+      Assert.Equal(counters.talentNodes, nodesBeforeKick, "the first kick in a pull must not walk the talent tree")
+      Assert.Equal(controller.GetKickInfo().cooldownRemain, 14, "the pre-resolved talent must still apply")
+    end)
+  end)
+
+  test("KickTracker does not re-resolve a spec without an interrupt on every cast", function()
+    local counters = { spec = 0, talentNodes = 0 }
+    WithGlobals(BuildTalentedWarriorGlobals(counters, 105), function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      local controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return 100
+        end,
+      })
+      local info = controller.GetKickInfo()
+      Assert.True(info.availabilityResolved, "Restoration Druid must resolve to an exact no-kick state")
+      Assert.False(info.hasKick, "Restoration Druid has no interrupt")
+      local specReadsAfterInit = counters.spec
+      for _ = 1, 500 do
+        controller.OnCast("player", 8936)
+        controller.Scan()
+      end
+      Assert.Equal(counters.spec, specReadsAfterInit, "500 healer casts and polls must not re-read the spec")
+      controller.ResolveKickState()
+      Assert.True(counters.spec > specReadsAfterInit, "a spec change event must still re-resolve the state")
+    end)
+  end)
+end
+
 local function RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KickTracker tracks Avenger's Shield as an extra kick for Protection Paladin", function()
     ---@type KickController|nil
@@ -964,4 +1077,5 @@ return function(test, ctx)
   RegisterWarlockKickTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCooldownRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKickTrackerCostTests(test, Assert, WithGlobals, LoadAddonModules)
 end

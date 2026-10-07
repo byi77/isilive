@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-10-07 - Version 0.9.416 (patch)
+
+- Kick tracker: the talent cooldown reduction now stays applied. `OnCast` used
+  to re-read the base cooldown on every kick, so the kick column showed the
+  untalented cooldown unless Blizzard's exact cooldown was readable. Talents are
+  resolved on spec/spell/pet changes outside combat instead of on the first
+  kick of a pull; specs without an interrupt no longer re-resolve on every cast;
+  the own kick state is rewritten only on change, removal or every 10 s.
+- Hidden main window: roster, ready-check, kick-column and killtracker renders
+  are deferred and run once from the main frame's `OnShow`, which covers every
+  way of opening it. Readable texts skip `SetFont`/`SetText` when nothing changed.
+- Killtracker: the 0.5 s ticker still reads live forces but notifies only when a
+  displayed value or the forces-pace run revision changed; the forces DB is
+  resolved once per run and season; death count and key level are read without
+  copies. Roster rows reuse class-color markup, a single sort comparator and
+  unchanged role-marker macros (no secure attribute writes when unchanged).
+- Sync: foreign addon prefixes are dropped before the raid check; player keys
+  are cached per name/realm; sync traces build nothing while logging is off;
+  peer-state fan-outs answer new peers always and known peers at most every
+  10 s (REQSYNC not within 3 s of a fan-out); LibKeystone replies at most every
+  2 s; background snapshots send only changed values and nothing is built
+  without a sync channel; the keystone bag-scan fallback is cached until the
+  next owned-key refresh.
+- Raid: roster updates inside a running raid run only the roster hide and the
+  leader watch. Key end and combat end no longer repeat roster refreshes, and the
+  season is re-evaluated at combat end only while an evaluation is pending.
+- ESC mount panel reads the mount journal once per refresh without per-mount
+  tables; `LFG_LIST_SEARCH_RESULT_UPDATED` with the numeric result ID returns
+  immediately; the VIP DK warning reuses one overlay per action button.
+- New rules 150-160 with stress and unit regressions. Hidden-window opening paths,
+  party2-4 alerts, talented kick cooldowns and raid lead alerts still need a live
+  check.
+
 ## 2026-10-06 - Version 0.9.415 (patch)
 
 - Player `UNIT_AURA` payloads that need a Sated rescan and `SPELL_UPDATE_CHARGES`

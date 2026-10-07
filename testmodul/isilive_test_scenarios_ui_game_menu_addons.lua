@@ -1530,6 +1530,48 @@ local function RegisterGameMenuAddonPanelCharacterScopeTests(test, Assert, WithG
 end
 
 local function RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("UI mount panel reads each journal entry once per refresh", function()
+    local infoReads = 0
+    local mountIDs = {}
+    for id = 1, 1000 do
+      mountIDs[id] = id
+    end
+    WithGlobals({
+      C_MountJournal = {
+        GetMountIDs = function()
+          return mountIDs
+        end,
+        GetMountFromSpell = function()
+          return nil
+        end,
+        GetMountInfoByID = function(mountID)
+          infoReads = infoReads + 1
+          local isFavorite = mountID == 500 or mountID == 900
+          local isUsable = mountID == 900
+          return "Mount", 70000 + mountID, nil, false, isUsable, nil, isFavorite, false, nil, false, true
+        end,
+        GetMountUsabilityByID = function(mountID)
+          return mountID == 900
+        end,
+      },
+      C_Spell = {
+        GetSpellName = function(spellID)
+          return "Mount " .. tostring(spellID)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_game_menu_mounts.lua" })
+      local entries = addon.UIGameMenuMounts.ResolveVisibleMountPanelEntries()
+      Assert.Equal(infoReads, 1000, "one refresh must read each of the 1000 journal entries exactly once")
+      Assert.Equal(#entries, 1, "only the favorite shortcut is available in this journal")
+      Assert.Equal(entries[1].id, "favorite_mount", "the favorite shortcut must stay visible")
+      Assert.True(
+        entries[1].secureMacroText:find("/cast Mount 70900", 1, true) ~= nil,
+        "the favorite shortcut must cast the only usable favorite"
+      )
+    end)
+  end)
+
   test("UI mount game-menu panel shows verified mount shortcuts under travel panel", function()
     local createFrameStub = BuildCreateFrameStub()
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")

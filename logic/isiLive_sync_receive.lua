@@ -13,6 +13,13 @@ addonTable.SyncReceiveFactory = function(deps)
   local IsPlainPeerName = deps.IsPlainPeerName
   local SyncLog = deps.SyncLog
   local SyncLogDeep = deps.SyncLogDeep
+  -- Every received message logs twice; these gates skip building the
+  -- tostring() arguments while recording is off.
+  local function AlwaysActive()
+    return true
+  end
+  local IsSyncLogActive = type(deps.IsSyncLogActive) == "function" and deps.IsSyncLogActive or AlwaysActive
+  local IsSyncLogDeepActive = type(deps.IsSyncLogDeepActive) == "function" and deps.IsSyncLogDeepActive or AlwaysActive
   local FormatBytes = deps.FormatBytes
   local SplitPayload = deps.SplitPayload
   local ParseKickPayload = deps.ParseKickPayload
@@ -65,14 +72,16 @@ addonTable.SyncReceiveFactory = function(deps)
       return nil
     end
 
-    SyncLog(
-      "libkeystone_received",
-      "sender=%s mapID=%s level=%s rio=%s",
-      tostring(sender),
-      tostring(keyMapID),
-      tostring(keyLevel),
-      tostring(playerRating)
-    )
+    if IsSyncLogActive() then
+      SyncLog(
+        "libkeystone_received",
+        "sender=%s mapID=%s level=%s rio=%s",
+        tostring(sender),
+        tostring(keyMapID),
+        tostring(keyLevel),
+        tostring(playerRating)
+      )
+    end
     local keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, keyMapID, keyLevel, nil, LIBKEYSTONE_SOURCE)
     local previousStats = Sync.GetPlayerStatsInfo(sender, nil)
     local statsUpdated = Sync.SetPlayerStatsInfo(
@@ -125,7 +134,9 @@ addonTable.SyncReceiveFactory = function(deps)
       return nil
     end
 
-    SyncLog("message_received", "sender=%s type=%s", tostring(sender), tostring(message:match("^(%a+)") or "unknown"))
+    if IsSyncLogActive() then
+      SyncLog("message_received", "sender=%s type=%s", tostring(sender), tostring(message:match("^(%a+)") or "unknown"))
+    end
 
     local senderKey = Sync.NormalizePlayerKey(sender)
     local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
@@ -314,6 +325,9 @@ addonTable.SyncReceiveFactory = function(deps)
       shouldAck = false
     end
 
+    -- Read before MarkUser: lets the HELLO fan-out tell a peer it has never
+    -- synced with from one re-announcing itself on a roster change.
+    local senderWasKnown = shouldAck and Sync.IsUserKnown(sender) == true or false
     if payloadValid then
       Sync.MarkUser(sender)
     end
@@ -329,23 +343,27 @@ addonTable.SyncReceiveFactory = function(deps)
       or shouldShareKeys
       or shareKeysCooldownRemain ~= nil
     local logFn = anyFlag and SyncLog or SyncLogDeep
-    logFn(
-      "message_applied",
-      "sender=%s key=%s stats=%s dps=%s loc=%s target=%s kick=%s ack=%s reqsync=%s sharekeys=%s skcd=%s",
-      tostring(sender),
-      tostring(keyUpdated),
-      tostring(statsUpdated),
-      tostring(dpsUpdated),
-      tostring(locUpdated),
-      tostring(targetUpdated),
-      tostring(kickUpdated),
-      tostring(shouldAck),
-      tostring(shouldRequestRefresh),
-      tostring(shouldShareKeys),
-      tostring(shareKeysCooldownRemain)
-    )
+    local logActive = anyFlag and IsSyncLogActive() or (not anyFlag and IsSyncLogDeepActive())
+    if logActive then
+      logFn(
+        "message_applied",
+        "sender=%s key=%s stats=%s dps=%s loc=%s target=%s kick=%s ack=%s reqsync=%s sharekeys=%s skcd=%s",
+        tostring(sender),
+        tostring(keyUpdated),
+        tostring(statsUpdated),
+        tostring(dpsUpdated),
+        tostring(locUpdated),
+        tostring(targetUpdated),
+        tostring(kickUpdated),
+        tostring(shouldAck),
+        tostring(shouldRequestRefresh),
+        tostring(shouldShareKeys),
+        tostring(shareKeysCooldownRemain)
+      )
+    end
     return {
       shouldAck = shouldAck and true or false,
+      senderWasKnown = senderWasKnown,
       shouldRequestRefresh = shouldRequestRefresh and true or false,
       sender = sender,
       peerAddonVersion = peerAddonVersion,

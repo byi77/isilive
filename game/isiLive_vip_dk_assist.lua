@@ -369,13 +369,24 @@ function VipDkAssist.CreateController(opts)
     end
   end
 
+  -- One overlay per action button for the session. WoW never frees a frame,
+  -- and every Dark Transformation used to create fresh overlay frames for the
+  -- same buttons. Same pattern as BloodlustButtonWarning.overlaysByButton.
+  local overlaysByButton = {}
+
   local function RebuildOverlays()
     HideWarning()
     overlays = {}
     for _, scanner in ipairs(GetEnabledScanners()) do
       local buttons = scanner() or {}
       for _, button in ipairs(buttons) do
-        local overlay = createOverlay(button)
+        local overlay = overlaysByButton[button]
+        if not overlay then
+          overlay = createOverlay(button)
+          if overlay then
+            overlaysByButton[button] = overlay
+          end
+        end
         if overlay then
           overlays[#overlays + 1] = overlay
         end

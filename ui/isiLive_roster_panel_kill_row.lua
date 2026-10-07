@@ -99,10 +99,17 @@ local function ShowPaceTick(row, barWidth, target)
   end
   local x = math.floor(barWidth * target / 100 + 0.5)
   x = math.max(1, math.min(x, barWidth - 1))
-  if type(tick.ClearAllPoints) == "function" then
-    tick:ClearAllPoints()
+  -- Re-anchor only when the position or the anchor frame moved; the row
+  -- refreshes on every forces change while the target stays put.
+  local container = row.killTrackBarContainer
+  if tick._isiLivePaceX ~= x or tick._isiLivePaceAnchor ~= container then
+    if type(tick.ClearAllPoints) == "function" then
+      tick:ClearAllPoints()
+    end
+    tick:SetPoint("CENTER", container, "LEFT", x, 0)
+    tick._isiLivePaceX = x
+    tick._isiLivePaceAnchor = container
   end
-  tick:SetPoint("CENTER", row.killTrackBarContainer, "LEFT", x, 0)
   tick:Show()
 end
 
@@ -410,6 +417,13 @@ end
 
 local function ResolveActiveKeyLevel()
   local MplusTimer = addonTable.MplusTimer
+  if type(MplusTimer) == "table" and type(MplusTimer.GetKeyLevel) == "function" then
+    local keyLevel = tonumber(MplusTimer.GetKeyLevel())
+    if not keyLevel or keyLevel <= 0 then
+      return nil
+    end
+    return math.floor(keyLevel)
+  end
   local timerData = type(MplusTimer) == "table"
       and type(MplusTimer.GetTimerData) == "function"
       and MplusTimer.GetTimerData()
@@ -423,6 +437,9 @@ end
 
 local function ResolveTotalDeathCount()
   local deathWatch = addonTable.DeathWatch
+  if type(deathWatch) == "table" and type(deathWatch.GetTotalDeathCount) == "function" then
+    return tonumber(deathWatch.GetTotalDeathCount()) or 0
+  end
   if type(deathWatch) ~= "table" or type(deathWatch.GetAllDeathSummaries) ~= "function" then
     return 0
   end

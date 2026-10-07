@@ -111,6 +111,7 @@ local function MakeRoleButtonMock()
     if Blocked(self) then
       return
     end
+    self._attributeWrites = (self._attributeWrites or 0) + 1
     self._attributes[key] = value
   end
   function mock:GetAttribute(key)
@@ -199,6 +200,54 @@ end
 
 -- Scenarios 9 and 10 live in their own function: folded into the WithGlobals
 -- callback they pushed it past the 420-line hard metrics gate.
+local function RunAttributeWriteScenario(RI, addon)
+  -- ----------------------------------------------------------------------
+  -- Scenario 11: unchanged renders write no secure attributes.
+  --
+  -- Every sync packet, roster update and CD pass re-renders the roster. The
+  -- role button only needs a write when its macro changes; the comparison
+  -- runs against the last macro actually written, so a change still lands.
+  -- ----------------------------------------------------------------------
+  print("\n========== Scenario 11: unchanged renders skip the secure attribute writes ==========")
+  do
+    local memberRows = BuildMemberRows()
+    local state = BuildState(memberRows, addon)
+    local function CountWrites()
+      local total = 0
+      for _, row in ipairs(memberRows) do
+        total = total + (row.roleButton._attributeWrites or 0)
+      end
+      return total
+    end
+    local roster = {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+    }
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, roster)
+    local firstWrites = CountWrites()
+    Check(firstWrites > 0, "first render: the role buttons receive their macros")
+    for _ = 1, 50 do
+      RI.RenderRosterImpl(state, roster)
+    end
+    Check(CountWrites() == firstWrites, "50 unchanged renders: no further SetAttribute call on any role button")
+
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
+    })
+    local healRow = FindRowForUnit(memberRows, "party1")
+    Check(CountWrites() > firstWrites, "a new occupant must rewrite the macro")
+    Check(
+      healRow ~= nil
+        and healRow.roleButton:GetAttribute("macrotext1")
+          == "/cleartarget\n/target Zara\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
+      "the rewritten macro targets the new occupant"
+    )
+  end
+end
+
 local function RunMouseInputScenarios(RI, addon)
   -- ----------------------------------------------------------------------
   -- Scenario 9: a row without a marker macro must release the row's mouse input.
@@ -751,6 +800,8 @@ Harness.WithGlobals({
       )
     end
   end
+
+  RunAttributeWriteScenario(RI, addon)
 
   RunMouseInputScenarios(RI, addon)
 end)

@@ -360,6 +360,19 @@ function DeathWatch.CreateController(opts)
     return CopyDeathSummary(guid and deathSummaryByGuid[guid] or nil)
   end
 
+  -- Sum of all recorded deaths, read straight from the summaries: the kill
+  -- row needs only this number, not a sorted copy of every entry.
+  function controller.GetTotalDeathCount()
+    local total = 0
+    for _, entry in pairs(deathSummaryByGuid) do
+      local count = type(entry) == "table" and tonumber(entry.count) or nil
+      if count and count > 0 then
+        total = total + math.floor(count)
+      end
+    end
+    return total
+  end
+
   function controller.GetAllDeathSummaries()
     local out = {}
     for _, entry in pairs(deathSummaryByGuid) do
@@ -487,4 +500,11 @@ function DeathWatch.GetAllDeathSummaries()
     return {}
   end
   return controllerInstance.GetAllDeathSummaries()
+end
+
+function DeathWatch.GetTotalDeathCount()
+  if not controllerInstance or type(controllerInstance.GetTotalDeathCount) ~= "function" then
+    return 0
+  end
+  return controllerInstance.GetTotalDeathCount()
 end

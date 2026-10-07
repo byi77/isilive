@@ -18,6 +18,10 @@ local DAMAGE_METER_TYPE_DAMAGE_DONE = 0
 local DAMAGE_METER_SESSION_TYPE_OVERALL = 0
 local DAMAGE_METER_SESSION_TYPE_CURRENT = 1
 
+local NORMALIZED_NAME_CACHE_LIMIT = 200
+local normalizedNameCache = {}
+local normalizedNameCacheSize = 0
+
 local function NormalizeName(name, realm)
   if not name then
     return nil
@@ -40,10 +44,29 @@ local function NormalizeName(name, realm)
       end
     end
   end
+  -- Every roster render and DPS tooltip asks for the same few players, so the
+  -- normalized key is cached per resolved (name, realm) pair. The cap bounds a
+  -- long session full of group changes; dropping the cache only costs one
+  -- recomputation per player.
+  local byRealm = normalizedNameCache[n]
+  local cachedKey = byRealm and byRealm[r]
+  if cachedKey then
+    return cachedKey
+  end
   -- Normalize via shared StringUtils (matches Sync.NormalizePlayerKey):
   local n_clean = StringUtils.StripWhitespace(n)
   local r_clean = StringUtils.NormalizeRealmName(r)
-  return string.lower(n_clean .. "-" .. r_clean)
+  local key = string.lower(n_clean .. "-" .. r_clean)
+  if normalizedNameCacheSize >= NORMALIZED_NAME_CACHE_LIMIT then
+    normalizedNameCache = {}
+    normalizedNameCacheSize = 0
+  end
+  if not normalizedNameCache[n] then
+    normalizedNameCache[n] = {}
+  end
+  normalizedNameCache[n][r] = key
+  normalizedNameCacheSize = normalizedNameCacheSize + 1
+  return key
 end
 
 local function EnsureStatsTables()

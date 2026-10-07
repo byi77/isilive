@@ -303,9 +303,29 @@ return function(test, ctx)
 
   -- LFG_LIST_SEARCH_RESULT_UPDATED ---------------------------------------------
 
+  test("SEARCH_RESULT_UPDATED drops the numeric result id the client sends without any work", function()
+    local throttledCalls = 0
+    local challengeChecks = 0
+    local handlers, counters = LoadHandlers({
+      logRuntimeTracefThrottled = function()
+        throttledCalls = throttledCalls + 1
+      end,
+      isInChallengeMode = function()
+        challengeChecks = challengeChecks + 1
+        return false
+      end,
+    })
+    for id = 1, 200 do
+      handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, id)
+    end
+    Assert.Equal(counters.captures, 0, "a numeric result id carries no group name to capture")
+    Assert.Equal(throttledCalls, 0, "a numeric result id must not build log arguments")
+    Assert.Equal(challengeChecks, 0, "a numeric result id must not run the challenge check")
+  end)
+
   test("SEARCH_RESULT_UPDATED captures candidate in normal mode", function()
     local handlers, counters = LoadHandlers()
-    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 42)
+    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "Weekly Keys")
     Assert.Equal(counters.captures, 1, "must capture candidate")
   end)
 
@@ -323,7 +343,7 @@ return function(test, ctx)
         table.insert(throttledCalls, { key = key, interval = interval, format = format, args = { ... } })
       end,
     })
-    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 99)
+    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "Pug 12")
     Assert.Equal(#throttledCalls, 1, "the throttled logger must be invoked exactly once")
     Assert.Equal(#logCalls, 0, "the search-result line must not reach the unthrottled logger")
     Assert.Equal(throttledCalls[1].key, "queue_search_result", "the throttle key must identify this line")
@@ -333,7 +353,7 @@ return function(test, ctx)
       "[QUEUE] search_result_updated searchResultID=%s inChallenge=%s",
       "trace format string must match"
     )
-    Assert.Equal(throttledCalls[1].args[1], "99", "first formatted arg is the search result id")
+    Assert.Equal(throttledCalls[1].args[1], "Pug 12", "first formatted arg is the result payload")
     Assert.Equal(counters.captures, 1, "candidate is still captured after logging")
   end)
 
@@ -343,7 +363,7 @@ return function(test, ctx)
         return true
       end,
     })
-    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 42)
+    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "Weekly Keys")
     Assert.Equal(counters.captures, 0, "must not capture in challenge mode")
   end)
 
@@ -353,7 +373,7 @@ return function(test, ctx)
         return true
       end,
     })
-    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 42)
+    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "Weekly Keys")
     Assert.Equal(counters.captures, 0, "must not capture in raid group")
   end)
 
@@ -363,7 +383,7 @@ return function(test, ctx)
     local handlers, counters = LoadHandlers({
       logRuntimeTracef = nil,
     })
-    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, 42)
+    handlers.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "Weekly Keys")
     Assert.Equal(counters.captures, 1, "must capture even without runtime trace function")
   end)
 
