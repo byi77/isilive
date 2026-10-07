@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-07 - Version 0.9.418 (patch)
+
+- Key end: the delayed post-run refresh keeps known isiLive peers and their
+  synced data and only re-reads the own keystone. Peers no longer flash as
+  "no isiLive" after every key, and their post-run hellos fall under the
+  known-peer fan-out window, so four hellos draw at most one full state
+  broadcast instead of one per peer. The manual refresh button and leaving the
+  group still reset the sync state completely.
+- M+ forces database refreshed from MDT 6.2.21 (same 145 enemies across 8
+  dungeons); valid until 2026-10-22.
+- `tools/sync_mdt_forces.ps1` clones the MDT cache with its git directory
+  outside the WoW folder; a real `.git` folder there trips the Battle.net
+  permission scan.
+- New rule 167 with an end-to-end regression.
+
 ## 2026-10-07 - Version 0.9.417 (patch)
 
 - Mythic 0: BR/Bloodlust display, tank/healer death alerts and BR/Bloodlust

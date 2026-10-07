@@ -692,8 +692,30 @@ local function RefreshLocalPlayerKey(sync, roster)
   return true
 end
 
-local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
+local function RefreshOwnKeyEntry(sync, roster, playerName, playerRealm)
+  local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
+  if roster.player and type(roster.player) == "table" then
+    roster.player.keyMapID = ownKeyMapID
+    roster.player.keyLevel = ownKeyLevel
+  end
+  sync.SetPlayerKeyInfo(playerName, playerRealm, ownKeyMapID, ownKeyLevel)
+end
+
+-- opts.keepKnownPeers (post-run refresh): peers stay known and keep their
+-- synced data; only the own key is re-read. Every client sends its new key
+-- after the run anyway, and newer captures replace older ones. Wiping the
+-- peers made every post-run HELLO look like a stranger's, so each client
+-- answered each peer with a full fan-out, and the roster showed every peer
+-- as "no isiLive" until the replies came back.
+local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster, opts)
   if not roster then
+    return
+  end
+
+  local playerName, playerRealm = getUnitNameAndRealm("player")
+  if type(opts) == "table" and opts.keepKnownPeers == true then
+    sync.MarkUser(playerName, playerRealm)
+    RefreshOwnKeyEntry(sync, roster, playerName, playerRealm)
     return
   end
 
@@ -701,7 +723,6 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
     sync.ClearKnownUsers()
   end
 
-  local playerName, playerRealm = getUnitNameAndRealm("player")
   sync.MarkUser(playerName, playerRealm)
 
   -- Non-player entries are cleared; the player entry is then set directly
@@ -728,12 +749,7 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
     end
   end
 
-  local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
-  if roster.player and type(roster.player) == "table" then
-    roster.player.keyMapID = ownKeyMapID
-    roster.player.keyLevel = ownKeyLevel
-  end
-  sync.SetPlayerKeyInfo(playerName, playerRealm, ownKeyMapID, ownKeyLevel)
+  RefreshOwnKeyEntry(sync, roster, playerName, playerRealm)
 end
 
 -- Parses a Blizzard LFG name field like "Mematiwow" or "Mematiwow-Blackmoore"
@@ -981,8 +997,8 @@ function KeySync.CreateController(opts)
     return RefreshLocalPlayerKey(sync, roster)
   end
 
-  function controller.ForceRefreshSyncState(roster)
-    ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
+  function controller.ForceRefreshSyncState(roster, refreshOpts)
+    ForceRefreshSyncState(sync, getUnitNameAndRealm, roster, refreshOpts)
   end
 
   function controller.ResolveActiveKeyOwnerUnit(roster, activeJoinedKeyMapID, preferredOwnerName)

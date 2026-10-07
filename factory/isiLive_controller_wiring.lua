@@ -946,9 +946,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
     recordRun = ctx.recordRun,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     sendOwnKickState = ctx.sendOwnKickState,
-    runFullRefresh = function()
+    runFullRefresh = function(opts)
       if ctx.refreshController then
-        return ctx.refreshController.RunFullRefresh()
+        return ctx.refreshController.RunFullRefresh(opts)
       end
       return false
     end,

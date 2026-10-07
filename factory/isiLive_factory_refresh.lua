@@ -9,8 +9,8 @@ local function InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
     ctx.inspectController.QueueForceRefreshData(ctx.GetRoster())
   end
 
-  local function ForceRefreshSyncState()
-    ctx.keySyncController.ForceRefreshSyncState(ctx.GetRoster())
+  local function ForceRefreshSyncState(opts)
+    ctx.keySyncController.ForceRefreshSyncState(ctx.GetRoster(), opts)
   end
 
   local function TriggerGroupRosterUpdate()

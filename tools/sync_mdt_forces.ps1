@@ -1,6 +1,10 @@
 param(
   [string]$Season = "midnight_s1",
   [string]$MdtRepo = "https://github.com/Nnoggie/MythicDungeonTools",
+  # The clone sits inside the WoW folder. A real .git directory there makes the
+  # Battle.net agent fail its permission scan on the read-only object files
+  # (error 2118, endless update loop), so the git dir lives outside.
+  [string]$MdtGitDir = (Join-Path $env:USERPROFILE "source/gitdirs/mdt-cache.git"),
   [switch]$NoPull
 )
 
@@ -37,7 +41,7 @@ try {
 
   if (-not (Test-Path (Join-Path $mdtDir ".git"))) {
     Write-Step "cloning MDT into $mdtDir"
-    git clone --depth=1 $MdtRepo $mdtDir
+    git clone --depth=1 --separate-git-dir $MdtGitDir $MdtRepo $mdtDir
     if ($LASTEXITCODE -ne 0) { throw "git clone failed ($LASTEXITCODE)" }
   } elseif (-not $NoPull) {
     Write-Step "refreshing MDT clone"

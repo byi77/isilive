@@ -20,7 +20,7 @@ function Refresh.CreateController(opts)
     return false
   end
   local triggerGroupRosterUpdate = opts.triggerGroupRosterUpdate or function() end
-  local forceRefreshSyncState = opts.forceRefreshSyncState or function() end
+  local forceRefreshSyncState = opts.forceRefreshSyncState or function(_refreshOpts) end
   local sendIsiLiveHello = opts.sendIsiLiveHello or function(_force, _source) end
   local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force, _source) end
   local sendOwnBackgroundSnapshot = opts.sendOwnBackgroundSnapshot or function(_source) end
@@ -61,7 +61,8 @@ function Refresh.CreateController(opts)
 
   local controller = {}
 
-  function controller.RunFullRefresh()
+  -- refreshOpts.keepKnownPeers: see KeySync ForceRefreshSyncState (post-run refresh).
+  function controller.RunFullRefresh(refreshOpts)
     if isStopped() or isPaused() then
       if logRuntimeTracef then
         logRuntimeTracef("[REFRESH] run_full_refresh blocked reason=%s", isStopped() and "stopped" or "paused")
@@ -112,7 +113,7 @@ function Refresh.CreateController(opts)
       triggerGroupRosterUpdate()
     end
 
-    forceRefreshSyncState()
+    forceRefreshSyncState(refreshOpts)
     sendIsiLiveHello(true, "refresh")
     sendOwnKeySnapshot(true, "refresh")
     sendRefreshRequest(true)

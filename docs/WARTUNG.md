@@ -825,3 +825,19 @@ talentierter Kick-CD, Raid-Lead-Hinweis im laufenden Raid.
 
 Offen: Sprachflagge im Raid (User-Entscheidung, Regel 11), Binding-Watchdog
 (haengt an Ingame-Frage zu `UPDATE_BINDINGS`), N8-Messung, Lazy-Settings.
+
+## Post-Run-Refresh und Forces-Refresh (2026-10-07)
+
+0.9.418, Regel 167. Der Post-Run-Refresh ruft `RunFullRefresh({ keepKnownPeers = true })`;
+`ForceRefreshSyncState` loescht dann keine Peers mehr und liest nur den eigenen
+Keystein. Vorher loeschte jeder Client nach dem Key alle Peers, jedes Post-Run-HELLO
+kam von einem "Unbekannten" und loeste je Peer einen vollen Fan-out aus (Regel 159
+greift nur fuer bekannte Peers). Test: 4 Post-Run-HELLOs -> hoechstens 1 Fan-out.
+Zeitliche Streuung (Jitter) wurde verworfen. Manueller Refresh und Gruppenende
+loeschen weiter vollstaendig.
+
+Forces-DB: der Generator vergibt 15 Tage Laufzeit, Refresh daher etwa alle zwei
+Wochen (`tools/sync_mdt_forces.ps1 -Season midnight_s2`, dann Release). Der
+MDT-Cache unter `tools/cache/mdt` haelt sein Git-Verzeichnis ausserhalb des
+WoW-Ordners (`--separate-git-dir`); ein echter `.git`-Ordner dort fuehrt zur
+Battle.net-Update-Schleife (error 2118).

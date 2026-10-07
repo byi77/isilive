@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 local Stress = dofile("testmodul/isilive_test_mplus_stress_helpers.lua")
 
 return function(test, ctx, fixtures)
@@ -470,6 +471,57 @@ return function(test, ctx, fixtures)
         end
       end
       Assert.True(libReplies <= 1, "five LibKeystone requests inside two seconds must draw at most one reply")
+    end)
+  end)
+
+  test("Mplus stress: the post-run refresh keeps known peers and answers their hellos once", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local peers = { "Peer1-Realm", "Peer2-Realm", "Peer3-Realm", "Peer4-Realm" }
+      local function HelloWire(source)
+        sender.Sync.SendHello({ force = true, isVisible = true, version = "0.9.1", source = source })
+        return session.messages[#session.messages]
+      end
+      local function FanOutsSince(index)
+        local count = 0
+        for n = index + 1, #session.messages do
+          local payload = session.messages[n].payload
+          if payload:find("^HELLO:") and payload:find(":hello%-ack") then
+            count = count + 1
+          end
+        end
+        return count
+      end
+      local groupWire = HelloWire("group")
+      for _, peer in ipairs(peers) do
+        session.Dispatch("CHAT_MSG_ADDON", groupWire.prefix, groupWire.payload, groupWire.channel, peer)
+      end
+      local sync = session.addon.Sync
+      for _, peer in ipairs(peers) do
+        Assert.True(sync.IsUserKnown(peer), peer .. " must be known before the key ends")
+      end
+
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      session.Advance(6)
+      local roster = session.runtime.GetRoster()
+      for _, peer in ipairs(peers) do
+        Assert.True(sync.IsUserKnown(peer), peer .. " must stay known through the post-run refresh")
+      end
+      Assert.True(roster.party1.hasIsiLive == true, "a known peer must keep its isiLive marker after the key")
+
+      local refreshWire = HelloWire("refresh")
+      local mark = #session.messages
+      for _, peer in ipairs(peers) do
+        session.Dispatch("CHAT_MSG_ADDON", refreshWire.prefix, refreshWire.payload, refreshWire.channel, peer)
+      end
+      Assert.True(FanOutsSince(mark) <= 1, "four post-run hellos from known peers draw at most one fan-out")
+
+      -- The manual refresh still starts from a clean slate.
+      session.Advance(11)
+      Assert.True(session.runtime.refreshController.RunFullRefresh(), "the manual refresh must run")
+      Assert.False(sync.IsUserKnown("Peer1-Realm"), "a manual refresh still forgets known peers")
+      Assert.False(roster.party1.hasIsiLive == true, "a manual refresh still clears the isiLive markers")
     end)
   end)
 

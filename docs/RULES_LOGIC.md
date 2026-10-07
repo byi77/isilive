@@ -242,6 +242,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 166. Routine-Aktualisierungen der Teleport-Buttons bei geschlossenem Hauptfenster werden bis zum naechsten Oeffnen aufgeschoben; Queue- und Invite-Hervorhebungen laufen sofort.
 
+167. Der Post-Run-Refresh nach Key-Ende behaelt bekannte isiLive-Peers und ihre Sync-Daten; nur der manuelle Refresh und das Aufloesen der Gruppe setzen den Sync-Zustand vollstaendig zurueck.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2541,3 +2543,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: `UpdateMPlusTeleportButton` ohne Sound-Kontext (Sync-Daten, Key-Start, Cooldown-Tick, Gruppenwechsel) baut die Teleport-Buttons bei geschlossenem Hauptfenster nicht neu auf, sondern merkt die Aktualisierung vor; das `OnShow` des Hauptfensters holt sie einmal nach, auch bei Einblendungen ohne Show-Callbacks. Aufrufe mit Sound-Kontext (`queue`, `invite`) laufen unabhaengig von der Sichtbarkeit sofort, weil sie das Fenster fuer die LFG-Hervorhebung selbst oeffnen. Ohne vorgemerkte Aktualisierung loest ein Oeffnen keinen zusaetzlichen Neuaufbau aus.
 - Erforderliche Tests:
   - Mplus stress: hidden teleport button updates are deferred until the window is shown
+
+### RULE-POSTRUN-REFRESH-BEHAELT-PEERS
+- Regelnummer: 167
+- Status: aktiv
+- Zusammenfassung: Der verzoegerte Post-Run-Refresh nach `CHALLENGE_MODE_COMPLETED` ruft `RunFullRefresh({ keepKnownPeers = true })` auf. `ForceRefreshSyncState` loescht dabei weder bekannte Peers (`ClearKnownUsers`) noch deren Key-, Stats-, DPS- und Loc-Daten oder die isiLive-Markierung im Roster; es markiert nur den eigenen Spieler und liest den eigenen Keystein neu ein. HELLO, Key-Snapshot und REQSYNC des Refreshs gehen unveraendert raus; neue Keys der Peers ersetzen die alten ueber ihren `capturedAt`-Stempel. Die Post-Run-HELLOs bekannter Peers fallen damit unter das Known-Peer-Fenster aus Regel 159 statt je Peer einen vollen Fan-out auszuloesen. Der manuelle Refresh (Button) und das Aufloesen der Gruppe setzen den Sync-Zustand weiterhin vollstaendig zurueck. Regel 4 (RIO-Delta erst nach erfolgreichem verzoegertem Refresh) und Verzoegerung, Retries und Raid-Aufschub des Post-Run-Refreshs bleiben unveraendert; die Kick-Daten behaltener Peers verfallen nach Regel 50 weiterhin nach 45 Sekunden ohne neues Paket.
+- Erforderliche Tests:
+  - Mplus stress: the post-run refresh keeps known peers and answers their hellos once
+  - Event handlers enable RIO delta only after delayed post-run refresh
+  - Event handlers retry post-run refresh when first delayed attempt is blocked
