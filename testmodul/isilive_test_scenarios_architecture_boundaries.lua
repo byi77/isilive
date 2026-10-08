@@ -381,6 +381,18 @@ return function(test, ctx)
 
   test("Architecture settings general module owns the General and ESC-menu sections", function()
     local toc = ReadFile("isiLive.toc")
+    local layoutIndex = toc:find("ui/isiLive_settings_layout.lua", 1, true)
+    local controlsIndex = toc:find("ui/isiLive_settings_controls.lua", 1, true)
+    Assert.True(
+      layoutIndex ~= nil and controlsIndex ~= nil and layoutIndex < controlsIndex,
+      "SettingsLayout must load before the SettingsControls facade"
+    )
+    local layout = ReadFile("ui/isiLive_settings_layout.lua")
+    Assert.True(
+      layout:find("addonTable.SettingsLayout = SettingsLayout", 1, true) ~= nil
+        and layout:find("function SettingsLayout.Relayout(", 1, true) ~= nil,
+      "SettingsLayout owns the row registry and reflow"
+    )
     local generalIndex = toc:find("ui/isiLive_settings_general.lua", 1, true)
     local sectionsIndex = toc:find("ui/isiLive_settings_sections.lua", 1, true)
     local panelIndex = toc:find("ui/isiLive_settings.lua\n", 1, true)

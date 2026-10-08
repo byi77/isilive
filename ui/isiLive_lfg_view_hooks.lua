@@ -7,6 +7,7 @@ addonTable.LFGViewHooks = Hooks
 local callbacks
 local hookedSearchButtons = setmetatable({}, { __mode = "k" })
 local hookedApplicantButtons = setmetatable({}, { __mode = "k" })
+local applicantMemberUpdatesHooked = false
 
 local function RequireCallbacks()
   return assert(callbacks, "isiLive: LFGViewHooks callbacks missing")
@@ -37,11 +38,17 @@ local function HookGlobalFunction(name, callback)
   return pcall(hooksecurefuncRef, name, callback) == true
 end
 
-local function HookApplicantButton(button, applicantIDOverride)
+local function RefreshApplicantButton(cb, button, applicantIDOverride, membersAlreadyUpdated)
+  if not (membersAlreadyUpdated and applicantMemberUpdatesHooked) then
+    cb.applyApplicantMembersFromButton(button, applicantIDOverride)
+  end
+  cb.applyApplicantBonusToButton(button, applicantIDOverride)
+end
+
+local function HookApplicantButton(button, applicantIDOverride, membersAlreadyUpdated)
   local cb = RequireCallbacks()
   if not button or hookedApplicantButtons[button] then
-    cb.applyApplicantMembersFromButton(button, applicantIDOverride)
-    cb.applyApplicantBonusToButton(button, applicantIDOverride)
+    RefreshApplicantButton(cb, button, applicantIDOverride, membersAlreadyUpdated)
     return
   end
   hookedApplicantButtons[button] = true
@@ -61,11 +68,10 @@ local function HookApplicantButton(button, applicantIDOverride)
       cb.applyApplicantBonusToButton(self, cb.resolveApplicantIDFromButton(button))
     end)
   end
-  cb.applyApplicantMembersFromButton(button, applicantIDOverride)
-  cb.applyApplicantBonusToButton(button, applicantIDOverride)
+  RefreshApplicantButton(cb, button, applicantIDOverride, membersAlreadyUpdated)
 end
 
-local function HookApplicantButtonsFromViewer(viewer)
+local function HookApplicantButtonsFromViewer(viewer, membersAlreadyUpdated)
   if type(viewer) ~= "table" then
     return
   end
@@ -73,22 +79,22 @@ local function HookApplicantButtonsFromViewer(viewer)
   local buttons = type(scrollFrame) == "table" and rawget(scrollFrame, "buttons") or nil
   if type(buttons) == "table" then
     for _, button in ipairs(buttons) do
-      HookApplicantButton(button)
+      HookApplicantButton(button, nil, membersAlreadyUpdated)
     end
   end
   local scrollBox = rawget(viewer, "ScrollBox")
   if type(scrollBox) == "table" and type(scrollBox.GetFrames) == "function" then
     for _, button in pairs(scrollBox:GetFrames() or {}) do
-      HookApplicantButton(button)
+      HookApplicantButton(button, nil, membersAlreadyUpdated)
     end
   end
 end
 
-local function HookNamedApplicantButtons()
+local function HookNamedApplicantButtons(membersAlreadyUpdated)
   for index = 1, 20 do
     local button = rawget(_G, "LFGListApplicationViewerScrollFrameButton" .. tostring(index))
     if type(button) == "table" then
-      HookApplicantButton(button)
+      HookApplicantButton(button, nil, membersAlreadyUpdated)
     end
   end
 end
@@ -106,7 +112,7 @@ local function HookApplicationViewer()
     ScrollBoxUtil_ref:OnViewFramesChanged(scrollBox, function(buttons)
       if type(buttons) == "table" then
         for _, button in pairs(buttons) do
-          HookApplicantButton(button)
+          HookApplicantButton(button, nil, true)
         end
       end
     end)
@@ -117,15 +123,20 @@ local function HookApplicationViewer()
     return
   end
   pcall(hooksecurefuncRef, "LFGListApplicationViewer_UpdateResults", function(self)
-    HookApplicantButtonsFromViewer(self)
-    HookNamedApplicantButtons()
+    HookApplicantButtonsFromViewer(self, true)
+    HookNamedApplicantButtons(true)
   end)
   pcall(hooksecurefuncRef, "LFGListApplicationViewer_UpdateApplicant", function(button, applicantID)
-    HookApplicantButton(button, applicantID)
+    -- Blizzard UpdateApplicant already called UpdateApplicantMember for each row.
+    HookApplicantButton(button, applicantID, true)
   end)
-  pcall(hooksecurefuncRef, "LFGListApplicationViewer_UpdateApplicantMember", function(member, applicantID, memberIndex)
-    cb.applyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
-  end)
+  applicantMemberUpdatesHooked = pcall(
+    hooksecurefuncRef,
+    "LFGListApplicationViewer_UpdateApplicantMember",
+    function(member, applicantID, memberIndex)
+      cb.applyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
+    end
+  )
   pcall(hooksecurefuncRef, "LFGListApplicantMember_OnEnter", function(member)
     cb.showApplicantMemberTooltip(member)
   end)
@@ -176,6 +187,24 @@ function Hooks.HookSearchPanel()
   end
   local searchBox = LFGListFrameRef.SearchPanel.ScrollBox
   HookApplicationViewer()
+
+  local bonusEvents = CreateEventFrame()
+  if bonusEvents then
+    bonusEvents:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
+    bonusEvents:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+    bonusEvents:SetScript("OnEvent", function(_, event, value)
+      if addonTable.Validators.IsSecretValue(value) then
+        return
+      end
+      if event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
+        if type(value) == "number" then
+          cb.refreshSearchResultBonuses(value)
+        end
+      elseif value == "player" then
+        cb.refreshSearchResultBonuses()
+      end
+    end)
+  end
 
   local ScrollBoxUtil_ref = rawget(_G, "ScrollBoxUtil")
   if type(ScrollBoxUtil_ref) == "table" and type(ScrollBoxUtil_ref.OnViewFramesChanged) == "function" then

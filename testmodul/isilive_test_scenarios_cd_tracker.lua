@@ -41,6 +41,66 @@ return function(test, ctx)
     })
   end
 
+  test("CdTracker Lust scan stops at the first plain empty slot and keeps unresolved slots distinct", function()
+    local reads, mode = 0, "empty"
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return rawequal(value, secret)
+      end,
+      C_UnitAuras = {
+        GetAuraDataByIndex = function(unit, index, filter)
+          Assert.Equal(unit, "player", "scan stays on the player")
+          Assert.Equal(filter, "HARMFUL", "scan uses the harmful aura list")
+          reads = reads + 1
+          if mode == "empty" then
+            if index > 1 then
+              error("read past a confirmed empty list")
+            end
+            return nil
+          elseif mode == "short" then
+            if index <= 3 then
+              return { spellId = 1 }
+            end
+            return nil
+          elseif mode == "full" then
+            return index == 40 and MakeLustAura(200) or { spellId = 1 }
+          elseif mode == "error" and index == 1 then
+            error("temporarily unreadable slot")
+          elseif mode == "secret" and index == 1 then
+            return secret
+          elseif mode == "maskedID" and index == 1 then
+            return { spellId = secret }
+          end
+          return MakeLustAura(200)
+        end,
+      },
+    }, function()
+      local ctrl = MakeController()
+      for _, scenario in ipairs({
+        { "empty", 1 },
+        { "short", 4 },
+        { "full", 40 },
+        { "error", 2 },
+        { "secret", 2 },
+        { "maskedID", 2 },
+      }) do
+        mode, reads = scenario[1], 0
+        ctrl.Scan()
+        Assert.Equal(reads, scenario[2], "API call budget for " .. mode)
+        if mode == "empty" or mode == "short" then
+          Assert.Nil(ctrl.GetLustInfo(), "no verified matching aura remains unresolved")
+        else
+          Assert.Equal(ctrl.GetLustInfo().remain, 200, "unresolved slots must not hide a later verified aura")
+        end
+      end
+      mode, reads = "empty", 0
+      ctrl.Scan()
+      Assert.Equal(reads, 1, "a removed aura clears state with one empty-slot read")
+      Assert.Nil(ctrl.GetLustInfo(), "confirmed empty list clears a previously observed Lust timer")
+    end)
+  end)
+
   -- BRes tests
 
   test("CdTracker returns nil BRes info before first scan", function()

@@ -281,7 +281,9 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
   end
 
   function nav.UpdateFromScroll()
-    local position = type(scrollFrame.GetVerticalScroll) == "function" and scrollFrame:GetVerticalScroll() or 0
+    local position = type(scrollFrame.GetVerticalScroll) == "function" and tonumber(scrollFrame:GetVerticalScroll())
+      or 0
+    position = position or 0
     local active = NAV_SECTIONS[1].key
     for _, section in ipairs(NAV_SECTIONS) do
       if nav.offsets[section.key] and position >= nav.offsets[section.key] - 12 then
@@ -365,17 +367,31 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
   nav.offsets.vip = -y
   y = BuildVIPGuestSettingsSection(content, y, L, config, controls)
 
-  local finalYOffset = tonumber(y) or 0
-  local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))
-  local contentWidth = type(content.GetWidth) == "function" and content:GetWidth() or SETTINGS_CONTENT_WIDTH
-  if type(content.SetSize) == "function" then
-    content:SetSize(contentWidth, contentHeight)
-  elseif type(content.SetHeight) == "function" then
-    content:SetHeight(contentHeight)
+  local originalOffsets = {}
+  for key, offset in pairs(nav.offsets) do
+    originalOffsets[key] = offset
   end
-  if type(scrollFrame.UpdateScrollChildRect) == "function" then
-    scrollFrame:UpdateScrollChildRect()
+  function nav.Relayout()
+    local finalYOffset = addonTable.SettingsControls.Relayout(content, nav.offsets, originalOffsets, y)
+    local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))
+    local contentWidth = type(content.GetWidth) == "function" and content:GetWidth() or SETTINGS_CONTENT_WIDTH
+    if type(content.SetSize) == "function" then
+      content:SetSize(contentWidth, contentHeight)
+    elseif type(content.SetHeight) == "function" then
+      content:SetHeight(contentHeight)
+    end
+    if type(scrollFrame.UpdateScrollChildRect) == "function" then
+      scrollFrame:UpdateScrollChildRect()
+    end
+    if type(scrollFrame.GetVerticalScrollRange) == "function" and type(scrollFrame.SetVerticalScroll) == "function" then
+      local current = type(scrollFrame.GetVerticalScroll) == "function" and tonumber(scrollFrame:GetVerticalScroll())
+        or 0
+      local range = tonumber(scrollFrame:GetVerticalScrollRange()) or 0
+      scrollFrame:SetVerticalScroll(math.min(current or 0, math.max(0, range)))
+    end
+    nav.UpdateFromScroll()
   end
+  nav.Relayout()
 
   return nav
 end
@@ -462,6 +478,7 @@ function SettingsPanel.Create(opts)
       return
     end
     RefreshSettingsControls(controls, config)
+    panel.navigation.Relayout()
     panel.navigation.Refresh()
   end
   canvas.Refresh = Refresh

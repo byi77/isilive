@@ -116,6 +116,10 @@ function TestMode.CreateController(opts)
   end
 
   function controller.ExitTestMode()
+    local inCombat = rawget(_G, "InCombatLockdown")
+    if type(inCombat) == "function" and inCombat() then
+      return
+    end
     local state = deps.getState()
     if not state.isTestMode and not state.isTestAllMode then
       return

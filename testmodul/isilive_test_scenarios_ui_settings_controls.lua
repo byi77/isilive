@@ -14,6 +14,127 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
+  test("Settings language refresh reflows existing rows navigation and scroll range without rebuilding", function()
+    local createFrame, frames = BuildCreateFrameStub()
+    local labels = {
+      SETTINGS_PAGE_HINT = "Short intro",
+      BETA_NOTICE_TEXT = "Short beta notice",
+      SETTINGS_SECTION_GENERAL_HINT = "Short hint",
+      SETTINGS_LANGUAGE_DESC = "Short language explanation",
+      SETTINGS_MINIMAP_BUTTON = "Short minimap label",
+      SETTINGS_MINIMAP_BUTTON_DESC = "Short minimap explanation",
+      SETTINGS_FONT_FAMILY_DESC = "Short font explanation",
+      SETTINGS_LFG_GROUP_BONUSES_DESC = "Short buff explanation",
+      SETTINGS_RESET_UI_POSITION_HINT = "Short reset explanation",
+    }
+    local longLabels = {}
+    for key in pairs(labels) do
+      longLabels[key] = string.rep("Localized wrapped text ", 40)
+    end
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {},
+      CreateFrame = createFrame,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas)
+          return { canvas = canvas }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_languages.lua", "isiLive_settings.lua" })
+      local active = labels
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return active
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return {}
+        end,
+        deferBuild = true,
+      })
+      local deferredCount = #frames
+      active = longLabels
+      panel.Refresh()
+      Assert.Equal(#frames, deferredCount, "language change before first open does not allocate controls")
+      active = labels
+      panel.EnsureBuilt()
+      panel.Refresh()
+      local count = #frames
+      local shortHeight = panel.content:GetHeight()
+      local shortOffsets = {}
+      for key, offset in pairs(panel.navigation.offsets) do
+        shortOffsets[key] = offset
+      end
+      local rectUpdates = 0
+      panel.scrollFrame.UpdateScrollChildRect = function()
+        rectUpdates = rectUpdates + 1
+      end
+      panel.scrollFrame.GetVerticalScrollRange = function()
+        return math.max(0, panel.content:GetHeight() - 600)
+      end
+      local shortPositions = {}
+      for _, frame in ipairs(frames) do
+        if frame._parent == panel.content and frame._settingKey then
+          shortPositions[frame] = { frame:GetPoint(1) }
+        end
+      end
+      active = longLabels
+      panel.Refresh()
+      Assert.True(panel.content:GetHeight() > shortHeight, "translated wrapped text must increase the content height")
+      Assert.True(
+        panel.navigation.offsets.general > shortOffsets.general,
+        "intro and beta growth moves general navigation"
+      )
+      Assert.True(
+        panel.navigation.offsets.display > shortOffsets.display,
+        "language controls and hints move following sections"
+      )
+      Assert.True(panel.navigation.offsets.vip > shortOffsets.vip, "all downstream sections move")
+      for _, frame in ipairs(frames) do
+        if frame._settingKey == "SETTINGS_MINIMAP_BUTTON" then
+          Assert.Equal(frame.label._point[1], "TOPLEFT", "wrapped checkbox labels grow down from their own row")
+          local _, _, _, _, rowY = frame:GetPoint(1)
+          Assert.True(
+            frame.description._point[5] < rowY - frame.label:GetStringHeight(),
+            "translated description stays below the entire wrapped label"
+          )
+        end
+      end
+      local longHeight = panel.content:GetHeight()
+      panel.Refresh()
+      Assert.Equal(panel.content:GetHeight(), longHeight, "repeated refresh cannot accumulate layout drift")
+      panel.scrollFrame:SetVerticalScroll(longHeight)
+      active = labels
+      panel.Refresh()
+      Assert.Equal(panel.content:GetHeight(), shortHeight, "switching back restores the original content height")
+      for key, offset in pairs(shortOffsets) do
+        Assert.Equal(panel.navigation.offsets[key], offset, "switching back restores every section target")
+      end
+      for frame, point in pairs(shortPositions) do
+        local restored = { frame:GetPoint(1) }
+        Assert.Equal(restored[4], point[4], "child controls keep their indentation")
+        Assert.Equal(restored[5], point[5], "existing controls return to their original anchors")
+      end
+      Assert.Equal(#frames, count, "refresh reuses frames and menu pools")
+      Assert.True(rectUpdates >= 3, "scroll child bounds are updated after each reflow")
+      Assert.Equal(
+        panel.scrollFrame:GetVerticalScroll(),
+        shortHeight - 600,
+        "shrinking content clamps the scroll position"
+      )
+      panel.navigation.buttons.display._scripts.OnClick()
+      Assert.Equal(
+        panel.scrollFrame:GetVerticalScroll(),
+        panel.navigation.offsets.display,
+        "navigation jumps to the updated section"
+      )
+    end)
+  end)
+
   test("Settings sliders show a filled share and a hover state, and the font menu previews each font", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}

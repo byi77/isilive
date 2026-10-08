@@ -3,16 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.425`.
+Current version: `0.9.426`.
 
-Version 0.9.425: roster tooltips lay out once, cache verified language lookups,
-and localize key details without broken sync-debug fallback labels.
+Version 0.9.426: live LFG bonus-heart updates, client-localized Augmentation
+recognition and settings layout refresh after language changes.
 
-<!-- highlights-reviewed-for: 0.9.425 -->
+<!-- highlights-reviewed-for: 0.9.426 -->
 
 Highlights:
-- **Lighter, localized roster tooltips.** Tooltip contents are measured once per completed render. Verified player-language lookups are cached, key details follow your UI language, and missing sync-debug labels no longer show `%s`.
-- **Target dungeon recognized.** Entering the dungeon your group queued for now clears the queue target and the teleport highlight, and group members on this version who already stand inside get the portal icon in the roster. Until now these checks compared two different kinds of map IDs and never matched.
-- **Stats box matches the character sheet.** Crit, Versatility, Leech, Speed and Avoidance use the same values as your character sheet, Devourer Demon Hunters see Intellect, and in keys the percentages stay visible. Player tooltips no longer show a "?? ??" language line, LFG flags appear without a new search, and settings dropdowns close with the window.
-- **Safer in restricted keys.** When the game masks battle-res charges, pet spell IDs or a player's death state, isiLive no longer errors: the BR row shows "BR: --" instead of a guessed number, and the death watch skips the unreadable tick.
-- **Reliable after raids and keys.** Leaving a raid that had shrunk to five players reopens the window again, Refresh picks up a key swapped mid-fight, and clicking Re-Sync right after a key no longer hides the RIO change.
+- **Current LFG bonus hearts.** Search-result and player specialization changes refresh existing hearts. Re-enabling bonus markers also refreshes applicant hearts immediately.
+- **Lighter applicant rows.** Flags and hearts share one verified member read per row, reuse Blizzard's member updates and skip applicant reads for unowned tooltips.
+- **Augmentation in every client language.** Spec text is matched against Blizzard's verified localized name; unreadable results remain unresolved.
+- **Settings follow language changes.** Existing controls, navigation targets and scroll bounds are remeasured without rebuilding the panel.
+- **Safer previews and lighter scans.** Demo exit preserves the preview during combat; request exit again outside combat. Exhaustion scans stop at confirmed empty slots, and non-NPC mob tooltips skip Forces database lookups.

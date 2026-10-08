@@ -437,6 +437,38 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
+  test("MobTooltip rejects non-NPC and masked GUIDs before resolving the Forces DB", function()
+    local secret = {}
+    local reads = 0
+    SetupTooltipEnv(WithGlobals, {
+      issecretvalue = function(value)
+        return rawequal(value, secret)
+      end,
+    }, function(postCalls)
+      local addon = LoadAddonModules({ "isiLive_mob_tooltip.lua" })
+      addon.SeasonData = {
+        GetMatchingForcesData = function()
+          reads = reads + 1
+          return NewMplusForcesDB()
+        end,
+      }
+      local lines = {}
+      local tooltip = MakeGameTooltip(lines)
+      addon.MobTooltip.Register()
+      for _, guid in ipairs({ "Player-1-12345", "Pet-0-1-161-1-76132-1", "not-a-guid", "", secret }) do
+        postCalls[1].callback(tooltip, { guid = guid })
+      end
+      postCalls[1].callback(tooltip, {})
+      Assert.Equal(reads, 0, "ineligible and unresolved hovers must not request season/Forces validation")
+      Assert.Equal(#lines, 0, "ineligible hovers must remain silent")
+      for _, kind in ipairs({ "Creature", "Vehicle" }) do
+        postCalls[1].callback(tooltip, { guid = kind .. "-0-3889-161-12345-76132-0000ABCDEF" })
+      end
+      Assert.Equal(reads, 2, "both supported NPC kinds still resolve the verified Forces DB")
+      Assert.Equal(#lines, 2, "both eligible GUIDs retain their forces percentage")
+    end)
+  end)
+
   RegisterRegistrationTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTooltipRenderTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGuardTests(test, Assert, WithGlobals, LoadAddonModules)

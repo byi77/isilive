@@ -264,10 +264,6 @@ local function NormalizeSpecText(value)
   local text = string.lower(value)
   text = text:gsub("^%s+", "")
   text = text:gsub("%s+$", "")
-  text = text:gsub("ä", "a")
-  text = text:gsub("ö", "o")
-  text = text:gsub("ü", "u")
-  text = text:gsub("ß", "ss")
   return text
 end
 
@@ -285,14 +281,25 @@ local function ReadPositiveNumber(value)
 end
 
 local function ResolveSpecIDFromText(value, classToken)
+  if IsSecretValue(value) then
+    return nil
+  end
   local normalized = NormalizeSpecText(value)
   if not normalized then
     return nil
   end
-  if
-    classToken == "EVOKER"
-    and (normalized == "augmentation" or normalized == "verstarkung" or normalized == "starkung")
-  then
+  if classToken ~= "EVOKER" then
+    return nil
+  end
+  local getSpecInfo = rawget(_G, "GetSpecializationInfoByID")
+  if type(getSpecInfo) ~= "function" then
+    return nil
+  end
+  local ok, specID, specName = pcall(getSpecInfo, AUGMENTATION_EVOKER_SPEC_ID)
+  if not ok or IsSecretValue(specID) or IsSecretValue(specName) then
+    return nil
+  end
+  if specID == AUGMENTATION_EVOKER_SPEC_ID and normalized == NormalizeSpecText(specName) then
     return AUGMENTATION_EVOKER_SPEC_ID
   end
   return nil

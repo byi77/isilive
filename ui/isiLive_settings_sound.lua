@@ -738,7 +738,12 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
       separator.line = line
     end
     controls.vipDkSeparator = separator
-    yOffset = yOffset - 14
+    yOffset = addonTable.SettingsControls.RegisterLayout(canvas, yOffset, function(y)
+      separator:ClearAllPoints()
+      separator:SetPoint("TOPLEFT", canvas, "TOPLEFT", VIP_SEPARATOR_OFFSET_X, y - 5)
+      separator:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -VIP_SEPARATOR_OFFSET_X, y - 5)
+      return y - 14
+    end)
   end
 
   local function CreateVipDkChildSoundCheckbox(controlKey, labelKey, fallbackLabel, dbKey, applyFnName)

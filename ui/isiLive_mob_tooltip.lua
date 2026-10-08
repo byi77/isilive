@@ -95,14 +95,14 @@ local function AppendForcesLine(tooltip, data)
     return
   end
 
-  local db = GetForcesDB()
-  if not db then
-    return
-  end
-
   local guid = ResolveGuid(data)
   local npcId = NpcIdFromGuid(guid)
   if not npcId then
+    return
+  end
+
+  local db = GetForcesDB()
+  if not db then
     return
   end
 

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-10-09 - Version 0.9.426 (patch)
+
+- Audit round 4, C2: search-result updates invalidate only their bonus caches
+  and refresh their hearts; player specialization changes refresh search and
+  applicant hearts. Re-enabling the bonus setting refreshes existing applicant
+  hearts immediately. Verified realm-language caches remain intact.
+- Audit round 4, C3: applicant flags and hearts share one member read and one
+  bonus count per row render. Outer applicant, viewer and recycle hooks reuse
+  Blizzard's member-update pass when that hook is installed. Unowned tooltips
+  do not read applicant data.
+- Audit round 4, C4: Augmentation text recognition uses the verified localized
+  name from Blizzard's `GetSpecializationInfoByID(1473)` on any client locale.
+  Missing, masked or mismatched API results stay unresolved.
+- Audit round 4, D4: settings refresh remeasures existing text and controls,
+  moves following rows and navigation targets, updates content bounds and
+  clamps the scroll position when text becomes shorter. Deferred panels stay
+  unbuilt until first open; refreshes reuse existing frames and hooks. Row
+  tracking and section elements live in the new settings layout helper,
+  keeping the controls module below the 1,200-line size gate.
+- Audit round 4, D5: `ExitTestMode` returns before any preview cleanup or UI
+  callback while combat lockdown is active. Preview flags, data and settings
+  remain intact; a new exit request outside combat performs the normal cleanup.
+- Audit round 4, E6: the Bloodlust exhaustion scan stops at the first confirmed
+  plain empty aura slot. API errors and masked values do not count as an empty
+  list; a later verified exhaustion aura remains detectable.
+- Audit round 4, E8: mob tooltips resolve a Creature/Vehicle NPC GUID before
+  requesting the season-matched Forces DB. Player, pet, malformed and masked
+  GUIDs skip that database work; eligible NPC percentages remain unchanged.
+
+
 ## 2026-10-08 - Version 0.9.425 (patch)
 
 - Audit round 4, A8: private roster tooltips lay out their completed contents

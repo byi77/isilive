@@ -96,6 +96,7 @@ local FILE_PATHS = {
   ["isiLive_ui_game_menu.lua"] = "ui/isiLive_ui_game_menu.lua",
   ["isiLive_settings_reset.lua"] = "ui/isiLive_settings_reset.lua",
   ["isiLive_settings_hearthstone.lua"] = "ui/isiLive_settings_hearthstone.lua",
+  ["isiLive_settings_layout.lua"] = "ui/isiLive_settings_layout.lua",
   ["isiLive_settings_controls.lua"] = "ui/isiLive_settings_controls.lua",
   ["isiLive_settings_nameplates.lua"] = "ui/isiLive_settings_nameplates.lua",
   ["isiLive_settings_behavior.lua"] = "ui/isiLive_settings_behavior.lua",
@@ -290,6 +291,7 @@ local IMPLICIT_DEPENDENCIES = {
   ["isiLive_lfg_view_hooks.lua"] = { "isiLive_lfg_bonus_model.lua" },
   ["isiLive_lfg_flags.lua"] = { "isiLive_lfg_bonus_model.lua", "isiLive_lfg_view_hooks.lua" },
   ["isiLive_status.lua"] = { "isiLive_season_data.lua" },
+  ["isiLive_settings_controls.lua"] = { "isiLive_settings_layout.lua" },
   ["isiLive_settings.lua"] = {
     "isiLive_settings_reset.lua",
     "isiLive_settings_hearthstone.lua",

@@ -506,7 +506,13 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
   controls.nameplatePreviewUpdate = UpdatePreview
   UpdatePreview()
 
-  yOffset = yOffset - (LINE_HEIGHT + 16)
+  yOffset = addonTable.SettingsControls.RegisterLayout(canvas, yOffset, function(y)
+    previewLabel:ClearAllPoints()
+    previewLabel:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, y - 6)
+    preview:ClearAllPoints()
+    preview:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 160, y - 8)
+    return y - math.max(LINE_HEIGHT + 16, addonTable.SettingsControls.MeasureWrappedTextHeight(previewLabel, 0, 12))
+  end)
 
   return yOffset
 end

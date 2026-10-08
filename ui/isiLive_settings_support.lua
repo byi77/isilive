@@ -298,7 +298,10 @@ function SettingsSupport.BuildResetSection(canvas, yOffset, labels, config, cont
     }
   )
   controls.resetUiHint = AttachResetUiHint(canvas, controls.resetUiBtn, labels)
-  yOffset = yOffset - 18
+  yOffset = addonTable.SettingsControls.RegisterLayout(canvas, yOffset, function(y)
+    local hintHeight = MeasureWrappedTextHeight(controls.resetUiHint, 0, 4)
+    return y - math.max(18, hintHeight - LINE_HEIGHT)
+  end)
 
   controls.resetDBBtn, yOffset = CreateSettingsActionButton(
     canvas,
@@ -333,7 +336,11 @@ function SettingsSupport.BuildBetaSection(canvas, yOffset, labels, controls)
   noticeText:SetText(labels.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
   controls.betaNoticeText = noticeText
 
-  yOffset = yOffset - MeasureWrappedTextHeight(noticeText, LINE_HEIGHT, 6)
+  yOffset = addonTable.SettingsControls.RegisterLayout(canvas, yOffset, function(y)
+    noticeText:ClearAllPoints()
+    noticeText:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, y - 4)
+    return y - MeasureWrappedTextHeight(noticeText, LINE_HEIGHT, 6)
+  end)
 
   local function CreateBetaUrlBox(text, offsetY)
     local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
@@ -369,6 +376,15 @@ function SettingsSupport.BuildBetaSection(canvas, yOffset, labels, controls)
 
   local betaCommentsUrl = "https://www.curseforge.com/wow/addons/isilive/comments"
   controls.betaCommentsUrlBox = CreateBetaUrlBox(betaCommentsUrl, yOffset)
+
+  local commentsY = yOffset
+  addonTable.SettingsControls.RegisterLayout(canvas, commentsY + LINE_HEIGHT, function(y)
+    urlBox:ClearAllPoints()
+    urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, y - 4)
+    controls.betaCommentsUrlBox:ClearAllPoints()
+    controls.betaCommentsUrlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, y - LINE_HEIGHT - 4)
+    return y - LINE_HEIGHT * 2
+  end)
 
   return yOffset - LINE_HEIGHT
 end

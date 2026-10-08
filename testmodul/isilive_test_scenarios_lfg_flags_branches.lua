@@ -595,6 +595,218 @@ local function RegisterSearchResultFlagCacheTests(test, Assert, LoadAddonModules
   end)
 end
 
+local function RegisterAuditBonusTests(test, Assert, LoadAddonModules, WithGlobals)
+  test("LFG bonuses refresh changed search results and the player spec without flushing flags", function()
+    local events = {}
+    local currentClass = "MAGE"
+    local playerSpec = 63
+    local reads = {}
+    local globals = BonusGlobals({
+      GetSpecializationInfo = function()
+        return playerSpec
+      end,
+      C_LFGList = {
+        GetSearchResultInfo = function()
+          return { numMembers = 1, leaderName = "Hero-Realm" }
+        end,
+        GetSearchResultPlayerInfo = function(id)
+          reads[id] = (reads[id] or 0) + 1
+          return { classFilename = id == 17 and currentClass or "MAGE" }
+        end,
+      },
+    })
+    globals.LFGListFrame = { SearchPanel = { ScrollBox = {} } }
+    globals.ScrollBoxUtil = { OnViewFramesChanged = function() end }
+    globals.CreateFrame = function()
+      local registered = {}
+      return {
+        RegisterEvent = function(_, event)
+          registered[event] = true
+        end,
+        SetScript = function(_, _, fn)
+          for event in pairs(registered) do
+            events[event] = fn
+          end
+        end,
+      }
+    end
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local LI = addon._LFGFlagsInternal
+      addon.LFGFlags.HookSearchPanel()
+      local a, b = NewButtonStub({ resultID = 17 }), NewButtonStub({ resultID = 18 })
+      LI.HookButton(a)
+      LI.HookButton(b)
+      LI.BuildSearchResultMemberBonuses(17)
+      local flagCache = LI.GetCacheForTests()
+      flagCache[17] = "de"
+      Assert.Equal(a._isiSearchBonusBadges[1]._text, BONUS_MARKUP, "mage adds intellect for caster")
+      local otherReads = reads[18]
+      currentClass = "WARRIOR"
+      events.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "LFG_LIST_SEARCH_RESULT_UPDATED", 17)
+      Assert.Equal(a._isiSearchBonusBadges[1]._text, "", "departed intellect buff must disappear immediately")
+      Assert.Equal(
+        LI.BuildSearchResultMemberBonuses(17)[1].classToken,
+        "WARRIOR",
+        "tooltip member cache must also be invalidated"
+      )
+      Assert.Equal(reads[18], otherReads, "unrelated result stays cached")
+      Assert.Equal(flagCache[17], "de", "bonus invalidation preserves verified realm flags")
+      currentClass = "MAGE"
+      events.LFG_LIST_SEARCH_RESULT_UPDATED(nil, "LFG_LIST_SEARCH_RESULT_UPDATED", 17)
+      Assert.Equal(a._isiSearchBonusBadges[1]._text, BONUS_MARKUP, "arriving buff appears without a new search")
+      playerSpec = 71
+      local before = reads[17]
+      events.PLAYER_SPECIALIZATION_CHANGED(nil, "PLAYER_SPECIALIZATION_CHANGED", "party1")
+      Assert.Equal(reads[17], before, "another unit's spec does not refresh player bonuses")
+      events.PLAYER_SPECIALIZATION_CHANGED(nil, "PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.Equal(a._isiSearchBonusBadges[1]._text, "", "player spec changes recalculate relevance on visible rows")
+    end)
+  end)
+
+  test("LFG applicant row rendering reads each member once and skips unowned tooltips", function()
+    local reads, profileReads, counts = 0, 0, 0
+    local available = true
+    local globals = BonusGlobals({
+      GetSpecializationInfo = function()
+        profileReads = profileReads + 1
+        return 63
+      end,
+      C_LFGList = {
+        GetApplicantInfo = function()
+          return { numMembers = 1 }
+        end,
+        GetApplicantMemberInfo = function()
+          reads = reads + 1
+          if not available then
+            return nil
+          end
+          return "Hero-Realm", "MAGE", "Mage"
+        end,
+      },
+    })
+    local hooks, recycle = {}, nil
+    globals.GameTooltip = {
+      GetOwner = function()
+        return nil
+      end,
+      AddLine = function()
+        error("unowned tooltip must stay untouched")
+      end,
+      Show = function()
+        error("unowned tooltip must stay hidden")
+      end,
+    }
+    globals.hooksecurefunc = function(name, fn)
+      hooks[name] = fn
+    end
+    globals.LFGListFrame = {
+      SearchPanel = { ScrollBox = {} },
+      ApplicationViewer = { ScrollBox = {
+        GetFrames = function()
+          return {}
+        end,
+      } },
+    }
+    globals.ScrollBoxUtil = {
+      OnViewFramesChanged = function(_, box, fn)
+        if box == globals.LFGListFrame.ApplicationViewer.ScrollBox then
+          recycle = fn
+        end
+      end,
+    }
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local originalCount = addon.LFGBonusModel.CountApplicantBonusMarkers
+      addon.LFGBonusModel.CountApplicantBonusMarkers = function(...)
+        counts = counts + 1
+        return originalCount(...)
+      end
+      -- Reload the facade to capture the instrumented model callback.
+      assert(loadfile("ui/isiLive_lfg_flags.lua"))("isiLive", addon)
+      addon.LFGFlags.HookSearchPanel()
+      local member = { Name = NewFontStringStub(), ClassIcon = {}, CreateTexture = NewTextureStub }
+      local button = { applicantID = 51, Members = { member }, HookScript = function() end }
+      addon._LFGFlagsInternal.HookApplicantButton(button)
+      Assert.Equal(reads, 1, "flag and heart use the same member snapshot")
+      Assert.Equal(profileReads, 1, "player profile is resolved once per member")
+      Assert.Equal(counts, 1, "relevant bonuses are counted once")
+      Assert.True(member._isiLiveBonusBadgeIcons[1]._shown, "snapshot still renders the real heart texture")
+      hooks.LFGListApplicationViewer_UpdateApplicantMember(member, 51, 1)
+      hooks.LFGListApplicationViewer_UpdateApplicant(button, 51)
+      recycle({ button })
+      hooks.LFGListApplicationViewer_UpdateResults({ ScrollFrame = { buttons = { button } } })
+      Assert.Equal(reads, 2, "Blizzard member, applicant, recycle and viewer hooks share one member render")
+      Assert.Equal(counts, 2, "outer viewer hooks do not repeat bonus classification")
+      available = false
+      addon._LFGFlagsInternal.ApplyApplicantBonusToMemberFrame(member, 51, 1)
+      Assert.Equal(reads, 3, "missing member snapshot must not trigger retries within the same render")
+      Assert.True(not member._isiLiveBonusBadgeIcons[1]._shown, "unresolved recycled row loses its old heart")
+      available = true
+      addon.LFGFlags.SetGroupBonusesEnabled(false)
+      addon.LFGFlags.SetGroupBonusesEnabled(true)
+      Assert.True(member._isiLiveBonusBadgeIcons[1]._shown, "re-enabling bonuses refreshes existing applicant rows")
+    end)
+  end)
+
+  test("LFG Augmentation spec text uses the client name on every supported locale and fails closed", function()
+    local name, mode = "", "valid"
+    local globals = BonusGlobals()
+    local secret = {}
+    globals.issecretvalue = function(value)
+      return rawequal(value, secret)
+    end
+    globals.GetSpecializationInfoByID = function(id)
+      if mode == "error" then
+        error("uncached spec")
+      end
+      if mode == "secretName" then
+        return id, secret
+      end
+      if mode == "secretID" then
+        return secret, name
+      end
+      if mode == "empty" then
+        return id, nil
+      end
+      if mode == "wrongID" then
+        return 1467, name
+      end
+      return id, name
+    end
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local resolve = addon.LFGBonusModel.ResolveSpecIDFromText
+      for _, clientName in ipairs({
+        "Augmentation",
+        "Verstärkung",
+        "Augmentation française",
+        "Aumento",
+        "Усиление",
+        "Aumentação",
+        "증강",
+        "增辉",
+      }) do
+        name = clientName
+        Assert.Equal(resolve(clientName, "EVOKER"), 1473, "verified client name resolves independent of addon locale")
+        Assert.Nil(resolve(clientName, "SHAMAN"), "shared localized names never override the class")
+        Assert.Nil(resolve("unknown", "EVOKER"), "arbitrary text stays unresolved")
+      end
+      name = "Localized client name"
+      Assert.Nil(resolve("Augmentation", "EVOKER"), "English is not a substitute for another client name")
+      for _, failure in ipairs({ "error", "empty", "wrongID", "secretName", "secretID" }) do
+        mode = failure
+        Assert.Nil(resolve(name, "EVOKER"), "missing or mismatched API values fail closed")
+      end
+      mode = "valid"
+      Assert.Nil(resolve(secret, "EVOKER"), "masked input is rejected before text normalization")
+      Assert.Equal(resolve(name, "EVOKER"), 1473, "a transient failure can recover")
+      _G.GetSpecializationInfoByID = nil
+      Assert.Nil(resolve(name, "EVOKER"), "absent API does not guess a spec")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -1485,6 +1697,9 @@ return function(test, ctx)
         end,
       },
     })
+    globals.GetSpecializationInfoByID = function(specID)
+      return specID, "Verstärkung"
+    end
     WithGlobals(globals, function()
       local addon = LoadBonusModules(LoadAddonModules)
       local LI = addon._LFGFlagsInternal
@@ -2053,6 +2268,7 @@ return function(test, ctx)
     end)
   end)
 
+  RegisterAuditBonusTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterApplicantFallbackCoverageTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterSearchResultFlagCacheTests(test, Assert, LoadAddonModules, WithGlobals)

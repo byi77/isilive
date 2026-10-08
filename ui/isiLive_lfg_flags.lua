@@ -442,18 +442,16 @@ local function BuildSingleApplicantMemberSuffix(applicantID, memberIndex)
   return BuildBonusSuffix(member.classToken, member.specID, ResolvePlayerBonusProfile())
 end
 
-local function BuildSingleApplicantMemberBadge(applicantID, memberIndex)
+local function BuildSingleApplicantMemberBadge(member)
   if not lfgGroupBonusesEnabled then
     return nil, nil, 0
   end
-  local member = applicantID and memberIndex and ReadApplicantMemberInfo(applicantID, memberIndex) or nil
   if not member then
     return nil, nil, 0
   end
   local profile = ResolvePlayerBonusProfile()
-  return BuildApplicantBonusMarkerBadge(member.classToken, member.specID, profile),
-    APPLICANT_BONUS_TEXT_COLOR,
-    CountApplicantBonusMarkers(member.classToken, member.specID, profile)
+  local count = CountApplicantBonusMarkers(member.classToken, member.specID, profile)
+  return BuildSearchResultBonusBadgeText(count), APPLICANT_BONUS_TEXT_COLOR, count
 end
 
 local function StripColorCodes(text)
@@ -824,6 +822,20 @@ local function ApplyApplicantBonusToButton(button, applicantIDOverride)
   if not lfgGroupBonusesEnabled then
     return
   end
+  local tooltip = rawget(_G, "GameTooltip")
+  if type(button) ~= "table" or type(tooltip) ~= "table" or type(tooltip.GetOwner) ~= "function" then
+    return
+  end
+  local owner = tooltip:GetOwner()
+  if IsSecretValue(owner) then
+    return
+  end
+  if owner == nil then
+    return
+  end
+  if owner ~= button and owner ~= rawget(button, "InviteButton") and owner ~= rawget(button, "DeclineButton") then
+    return
+  end
   local applicantID = ReadPositiveNumber(applicantIDOverride) or ResolveApplicantIDFromButton(button)
   local members = applicantID and BuildApplicantMemberBonuses(applicantID) or nil
   local suffix = BuildCombinedSuffixFromMembers(members)
@@ -831,17 +843,13 @@ local function ApplyApplicantBonusToButton(button, applicantIDOverride)
     return
   end
 
-  local tooltip = rawget(_G, "GameTooltip")
   if type(tooltip) == "table" and type(tooltip.AddLine) == "function" and type(tooltip.Show) == "function" then
-    local owner = type(tooltip.GetOwner) == "function" and tooltip:GetOwner() or nil
-    if owner == button or owner == rawget(button, "InviteButton") or owner == rawget(button, "DeclineButton") then
-      if TooltipHasApplicantBonusLine(suffix) then
-        return
-      end
-      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
-      tooltip:AddLine(string.format(tooltipText, suffix), 0.85, 0.85, 0.9)
-      tooltip:Show()
+    if TooltipHasApplicantBonusLine(suffix) then
+      return
     end
+    local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
+    tooltip:AddLine(string.format(tooltipText, suffix), 0.85, 0.85, 0.9)
+    tooltip:Show()
   end
 end
 
@@ -1025,7 +1033,7 @@ local function AnchorApplicantFlag(member, nameText, tex)
   )
 end
 
-local function ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex)
+local function ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex, snapshot)
   if type(member) ~= "table" then
     return
   end
@@ -1051,7 +1059,10 @@ local function ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex)
   end
   member._isiApplicantID = applicantID
   member._isiApplicantMemberIndex = memberIndex
-  local applicantMember = ReadApplicantMemberInfo(applicantID, memberIndex)
+  local applicantMember = snapshot
+  if applicantMember == nil then
+    applicantMember = ReadApplicantMemberInfo(applicantID, memberIndex)
+  end
   local tag = applicantMember and ResolveLanguageTagFromName(applicantMember.name)
   local path = tag and type(getFlagTexturePath) == "function" and getFlagTexturePath(tag)
   if not path then
@@ -1136,12 +1147,20 @@ local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex
     return
   end
   hookedApplicantMembers[member] = true
-  ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex)
   applicantID = ReadPositiveNumber(applicantID)
   memberIndex = ReadPositiveNumber(memberIndex or rawget(member, "memberIdx"))
+  -- A false snapshot is authoritative for this render; do not retry a missing member.
+  member._isiApplicantID = applicantID
+  member._isiApplicantMemberIndex = memberIndex
+  local snapshot = applicantID
+      and memberIndex
+      and (lfgFlagsEnabled or lfgGroupBonusesEnabled)
+      and ReadApplicantMemberInfo(applicantID, memberIndex)
+    or false
+  ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex, snapshot)
   local badge, markerCount
   if applicantID and memberIndex then
-    badge, _, markerCount = BuildSingleApplicantMemberBadge(applicantID, memberIndex)
+    badge, _, markerCount = BuildSingleApplicantMemberBadge(snapshot)
   end
   local nameText = rawget(member, "Name")
   if type(nameText) ~= "table" or type(nameText.GetText) ~= "function" or type(nameText.SetText) ~= "function" then
@@ -1502,6 +1521,19 @@ ViewHooks.Configure({
     resultTagCache = {}
     ClearSearchResultBonusCache()
   end,
+  refreshSearchResultBonuses = function(resultID)
+    ClearSearchResultBonusCache(resultID)
+    ViewHooks.ForEachSearchButton(function(button)
+      if resultID == nil or rawget(button, "resultID") == resultID then
+        ApplySearchResultBonusBadge(button, rawget(button, "resultID"))
+      end
+    end)
+    if resultID == nil then
+      for member in pairs(hookedApplicantMembers) do
+        ApplyApplicantBonusToMemberFrame(member, member._isiApplicantID, member._isiApplicantMemberIndex)
+      end
+    end
+  end,
   refreshSearchResultTooltip = function(resultID)
     resultTagCache[resultID] = nil
     ClearSearchResultBonusCache(resultID)
@@ -1610,6 +1642,9 @@ function LFGFlags.SetGroupBonusesEnabled(enabled)
     ApplySearchResultBonusBadge(button, rawget(button, "resultID"))
   end)
   if lfgGroupBonusesEnabled then
+    for member in pairs(hookedApplicantMembers) do
+      ApplyApplicantBonusToMemberFrame(member, member._isiApplicantID, member._isiApplicantMemberIndex)
+    end
     return
   end
   for member in pairs(hookedApplicantMembers) do

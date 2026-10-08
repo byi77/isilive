@@ -24,7 +24,7 @@ local function BuildTestModeController(LoadAddonModules, overrides)
   }
 
   local addon = LoadAddonModules({ "isiLive_test_mode.lua" })
-  local controller = addon.TestMode.CreateController({
+  local opts = {
     getL = function()
       return {
         TEST_ENABLED = "Test mode enabled.",
@@ -105,7 +105,19 @@ local function BuildTestModeController(LoadAddonModules, overrides)
     clearDemoFeatureData = function()
       state.clearDemoFeatureDataCalls = state.clearDemoFeatureDataCalls + 1
     end,
-  })
+  }
+  if overrides.beforeCallback then
+    for key, value in pairs(opts) do
+      if type(value) == "function" then
+        local callbackKey, original = key, value
+        opts[key] = function(...)
+          overrides.beforeCallback(callbackKey)
+          return original(...)
+        end
+      end
+    end
+  end
+  local controller = addon.TestMode.CreateController(opts)
 
   return controller, state
 end
@@ -551,6 +563,45 @@ return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
+
+  test("TestMode exit in combat preserves the entire preview without cleanup callbacks", function()
+    local combat = false
+    WithGlobals({
+      InCombatLockdown = function()
+        return combat
+      end,
+    }, function()
+      local controller, state = BuildTestModeController(LoadAddonModules, {
+        beforeCallback = function(name)
+          if combat then
+            error("combat exit called " .. name)
+          end
+        end,
+      })
+      controller.EnterFullDummyPreview()
+      local roster = state.roster
+      local updates, prints = state.uiUpdates, #state.prints
+      combat = true
+      controller.ExitTestMode()
+      controller.ExitTestMode()
+      Assert.True(state.isTestMode and state.isTestAllMode, "combat must retain both demo flags")
+      Assert.True(state.roster == roster, "combat must retain the exact preview roster")
+      Assert.Equal(state.uiUpdates, updates, "combat must not render an empty roster")
+      Assert.Equal(#state.prints, prints, "combat must not announce a false exit")
+      Assert.True(state.mainFrameVisible, "combat must not hide the preview")
+      Assert.Equal(state.clearDemoFeatureDataCalls, 0, "combat must not restore settings or hide protected children")
+      state.isTestMode = false
+      controller.ExitTestMode()
+      Assert.True(state.isTestAllMode, "the test-all-only state is protected too")
+      combat = false
+      controller.ExitTestMode()
+      Assert.False(state.isTestAllMode, "a new exit request after combat completes normally")
+      Assert.Equal(state.clearDemoFeatureDataCalls, 1, "cleanup executes once after combat")
+      Assert.False(state.mainFrameVisible, "normal exit hides the main frame")
+      controller.ExitTestMode()
+      Assert.Equal(state.clearDemoFeatureDataCalls, 1, "inactive exit stays idempotent")
+    end)
+  end)
 
   RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
   RegisterTestModeGuardTests(test, Assert, LoadAddonModules)

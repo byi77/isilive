@@ -1,7 +1,38 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.425`
-Zuletzt aktualisiert: `2026-10-08`
+Versionsbasis: `0.9.426`
+Zuletzt aktualisiert: `2026-10-09`
+
+Audit-Runde 4, D5/E6/E8 (0.9.426): `ExitTestMode` kehrt bei
+Kampf-Lockdown vor jedem State- oder UI-Callback zurueck; Demo-Flags, Roster,
+Timer und temporaere Einstellungen bleiben erhalten. Es wird kein
+Exit nach Kampfende geplant; eine erneute Exit-Anforderung ausserhalb des
+Kampfes fuehrt den normalen idempotenten Abbau aus.
+`CdTracker.ScanLust` beendet den HARMFUL-Indexscan beim ersten erfolgreich
+gelesenen, nicht maskierten `nil`-Slot. Fehler, maskierte Aura-Objekte und
+maskierte Spell-IDs sind kein Listenende; spaetere verifizierte Treffer
+bleiben erreichbar. Die Obergrenze bleibt 40 Slots.
+Der Mob-Tooltip prueft weiterhin zuerst den laufenden Key und danach die
+Creature-/Vehicle-GUID; erst dann wird die saisongepruefte Forces-DB geholt.
+Nicht-NPCs und unresolved GUIDs erzeugen keine Datenbankabfrage.
+
+Audit-Runde 4, C2/C3/C4/D4 (0.9.426):
+`LFG_LIST_SEARCH_RESULT_UPDATED` verwirft nur die Bonus-Caches des betroffenen
+Ergebnisses und zeichnet dessen Herzchen neu. Ein Spec-Wechsel fuer `player`
+aktualisiert alle bekannten Such- und Bewerberzeilen; Realm-Flaggen bleiben
+gecacht. Flagge und Herzen verwenden je Bewerber-Render dieselbe
+Mitgliedsstichprobe; die aeusseren Blizzard-Hooks wiederholen den bereits
+gehookten Mitglieds-Render nicht. Ein Tooltip ohne passenden Besitzer liest
+keine Bewerberdaten. Augmentation-Text wird nur fuer EVOKER anhand des
+verifizierten Clientnamens aus `GetSpecializationInfoByID(1473)` erkannt;
+unbekannte, maskierte und fehlende Werte bleiben unresolved.
+
+Settings-Controls registrieren beim einmaligen Bau ihre Layout-Funktionen
+und urspruenglichen Zeilengrenzen. Nach Text-Refresh werden vorhandene
+Controls neu gemessen und verankert; feste Abschnittsabstaende und
+Child-Einrueckungen bleiben erhalten. Navigationsziele, Content-Hoehe und
+Scrollbereich werden aktualisiert, die Scrollposition bei Bedarf begrenzt.
+Vor dem ersten Oeffnen bleibt das lazy gebaute Panel unangetastet.
 
 Audit-Runde 4, A8/A9 (0.9.425): Private Roster-Tooltips sammeln ihre Zeilen
 und messen/verankern beim abschliessenden `Show` jede aktive Zeile einmal.

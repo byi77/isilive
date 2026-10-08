@@ -133,7 +133,11 @@ function CdTracker.CreateController(opts)
     local found = false
     for index = 1, 40 do
       local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
-      if ok and type(aura) == "table" then
+      local plainAura = ok and not IsSecretValue(aura)
+      if plainAura and aura == nil then
+        break
+      end
+      if plainAura and type(aura) == "table" then
         local spellID = ReadPlainNumber(aura, "spellId")
         if spellID and LUST_SATED_IDS[spellID] then
           local expiry = ReadPlainNumber(aura, "expirationTime")

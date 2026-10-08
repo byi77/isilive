@@ -424,8 +424,12 @@ local function CreateDisplayPreview(canvas, yOffset, config)
     size:SetText(string.format("%.0f%%", scale * 100))
   end
   Refresh()
-  return { frame = frame, sample = sample, caption = caption, title = title, size = size, Refresh = Refresh },
-    yOffset - 86
+  local nextY = addonTable.SettingsControls.RegisterLayout(canvas, yOffset, function(y)
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", canvas, "TOPLEFT", 16, y)
+    return y - 86
+  end)
+  return { frame = frame, sample = sample, caption = caption, title = title, size = size, Refresh = Refresh }, nextY
 end
 
 local function ResolveSettingsLocale(config)
