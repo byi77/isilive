@@ -185,6 +185,57 @@ return function(test, ctx)
     end)
   end)
 
+  test("roster_tooltip: private tooltip batches layout once with a linear measurement budget", function()
+    WithGlobals(BuildGlobals(), function()
+      local addon = Load()
+      local tooltip = BuildTooltipFrameStub()
+      local createLine, nativeShow = tooltip.CreateFontString, tooltip.Show
+      local heightReads, widthReads, anchors, sizes = 0, 0, 0, 0
+      tooltip.CreateFontString = function(self, ...)
+        local line = createLine(self, ...)
+        line.GetStringHeight = function()
+          heightReads = heightReads + 1
+          return 14
+        end
+        line.GetStringWidth = function()
+          widthReads = widthReads + 1
+          return 60
+        end
+        line.SetPoint = function()
+          anchors = anchors + 1
+        end
+        return line
+      end
+      tooltip.SetSize = function(self, width, height)
+        sizes = sizes + 1
+        self._size = { width, height }
+      end
+      tooltip.Show = function(self)
+        Assert.True(sizes > 0, "layout must finish before the native Show")
+        nativeShow(self)
+      end
+      addon._RosterInternal.EnsureSimpleTooltipAPI(tooltip)
+      for _, count in ipairs({ 10, 100, 5 }) do
+        heightReads, widthReads, anchors, sizes = 0, 0, 0, 0
+        tooltip:SetText("Header")
+        for index = 2, count do
+          tooltip:AddLine("Line " .. index)
+        end
+        Assert.Equal(heightReads + widthReads + anchors + sizes, 0, "line writes must not run partial layouts")
+        tooltip:Show()
+        Assert.Equal(heightReads, count, "each active line may be measured once")
+        Assert.Equal(widthReads, count, "each active width may be measured once")
+        Assert.Equal(anchors, count, "only active lines may be anchored, even after a larger tooltip")
+        Assert.Equal(sizes, 1, "one completed tooltip requires one size write")
+        Assert.Equal(tooltip._size[1], 220, "minimum width must remain unchanged")
+        Assert.Equal(tooltip._size[2], 20 + 14 * count + 3 * (count - 1), "padding and spacing must remain unchanged")
+      end
+      for index = 6, #tooltip._isiLiveTooltipLines do
+        Assert.False(tooltip._isiLiveTooltipLines[index]._shown, "unused pooled lines must remain hidden")
+      end
+    end)
+  end)
+
   test("roster_tooltip: SetOwner with ANCHOR_CURSOR reads GetCursorPosition and UIParent scale", function()
     local cursorCalls = 0
     WithGlobals(
@@ -374,6 +425,28 @@ return function(test, ctx)
       local addon = Load()
       local args = buildShowArgs("not-a-table")
       Assert.Equal(callShow(addon, args), false)
+    end)
+  end)
+
+  test("roster_tooltip: existing units still render through the private tooltip without SetUnit", function()
+    local globals = BuildGlobals()
+    globals.UnitExists = function()
+      return true
+    end
+    globals.GameTooltip = {
+      SetUnit = function()
+        error("roster hover must not invoke Blizzard SetUnit")
+      end,
+    }
+    WithGlobals(globals, function()
+      local addon = Load()
+      local args = buildShowArgs({ name = "Alice", class = "MAGE", ilvl = 625 }, { unit = "party1" })
+      args.tooltipFrame.SetUnit = function()
+        error("the private tooltip must not use a dead SetUnit branch")
+      end
+      Assert.True(callShow(addon, args))
+      Assert.True(args.tooltipFrame._isiLiveTooltipShown, "the private tooltip must remain visible")
+      Assert.Equal(args.tooltipFrame._isiLiveTooltipLines[1]:GetText(), "|cff3fc6eaAlice|r")
     end)
   end)
 
@@ -760,6 +833,55 @@ return function(test, ctx)
       end
       Assert.Equal(matched, true, "sync hello addonVersion must surface")
       addon.Sync = nil
+    end)
+  end)
+
+  test("roster_tooltip: key line uses the selected locale format", function()
+    WithGlobals(BuildGlobals(), function()
+      local addon = LoadAddonModules({ "isiLive_texts.lua", "isiLive_roster_tooltip.lua" })
+      for locale, expected in pairs({ enUS = "Key: Ara-Kara +12", deDE = "Schlüsselstein: Ara-Kara +12" }) do
+        local args = buildShowArgs({ name = "Alice", class = "MAGE", keyMapID = 2649, keyLevel = 12 }, {
+          getL = function()
+            return addon.Texts.GetLocaleTables()[locale]
+          end,
+          getDungeonName = function()
+            return "Ara-Kara"
+          end,
+        })
+        Assert.True(callShow(addon, args))
+        local found = false
+        for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+          found = found or line:GetText() == expected
+        end
+        Assert.True(found, "the key line must use the active locale and retain dungeon and level")
+      end
+    end)
+  end)
+
+  test("roster_tooltip: missing debug labels render values without format placeholders", function()
+    local globals = BuildGlobals({ IsiLiveDB = { runtimeLogEnabled = true } })
+    globals.IsShiftKeyDown = function()
+      return true
+    end
+    WithGlobals(globals, function()
+      local addon = Load()
+      addon.Sync = {}
+      for _, bucket in ipairs({ "Hello", "Key", "Stats", "Dps", "Loc" }) do
+        addon.Sync["GetPlayer" .. bucket .. "Info"] = function()
+          return { source = "verified", capturedAt = 90 }
+        end
+      end
+      local args = buildShowArgs({ name = "Alice", class = "MAGE" })
+      Assert.True(callShow(addon, args))
+      local lines = {}
+      for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+        local text = line:GetText()
+        Assert.False(text:find("%s", 1, true) ~= nil, "literal format placeholders must never be rendered")
+        lines[text] = true
+      end
+      for _, label in ipairs({ "Hello", "Key", "Stats", "DPS", "Loc" }) do
+        Assert.True(lines[label .. ": verified"], "fallback debug labels must retain the verified source")
+      end
     end)
   end)
 end

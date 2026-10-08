@@ -81,6 +81,7 @@ addonTable.TextsLocales.ptBR = {
   MODE_LAYOUT_H = "Layout horizontal compacto.",
   MODE_LAYOUT_M2 = "Layout principal horizontal.",
   TOOLTIP_SYNC_FRESHNESS = "Intervalo de sync: %s",
+  TOOLTIP_KEY_FMT = "Pedra-chave: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Fonte: %s",
   TOOLTIP_SYNC_VERSION = "Versão do cliente: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d progresso (%.2f%% de %d)",

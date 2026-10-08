@@ -81,6 +81,7 @@ addonTable.TextsLocales.itIT = {
   MODE_LAYOUT_H = "Layout orizzontale compatto.",
   MODE_LAYOUT_M2 = "Layout principale orizzontale.",
   TOOLTIP_SYNC_FRESHNESS = "Intervallo sync: %s",
+  TOOLTIP_KEY_FMT = "Chiave: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Fonte: %s",
   TOOLTIP_SYNC_VERSION = "Versione del client: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d progresso (%.2f%% di %d)",

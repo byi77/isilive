@@ -198,11 +198,23 @@ function Locale.GetLanguageDisplayName(languageTag, localeTag)
   return localeNames[tag] or tag
 end
 
+local languageTooltipMarkupCache = {}
 function Locale.GetLanguageTooltipMarkup(languageTag, localeTag)
-  local flagMarkup = Locale.GetLanguageFlagMarkup(languageTag)
+  local tag = languageTag and tostring(languageTag):upper() or "??"
   local displayLocale = Locale.ResolveLocaleTag(localeTag or (rawget(_G, "GetLocale") and GetLocale()))
-  local displayName = Locale.GetLanguageDisplayName(languageTag, displayLocale)
-  return string.format("%s %s", flagMarkup, displayName)
+  local cache = languageTooltipMarkupCache[displayLocale]
+  if cache and cache[tag] then
+    return cache[tag]
+  end
+  local markup =
+    string.format("%s %s", Locale.GetLanguageFlagMarkup(tag), Locale.GetLanguageDisplayName(tag, displayLocale))
+  -- Cache only the finite set of known language tags; arbitrary payloads stay uncached.
+  if LANGUAGE_NAME_BY_LOCALE.enUS[tag] then
+    cache = cache or {}
+    languageTooltipMarkupCache[displayLocale] = cache
+    cache[tag] = markup
+  end
+  return markup
 end
 
 function Locale.NormalizeRealmLookupKey(realm)

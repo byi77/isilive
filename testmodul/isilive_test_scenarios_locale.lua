@@ -642,6 +642,26 @@ return function(test, ctx)
     Assert.True(markup:find("|T", 1, true) ~= nil, "tooltip markup must include flag texture")
   end)
 
+  test("Locale tooltip markup caches only known tags per display locale", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
+    local builds = 0
+    local buildFlag = addon.Locale.GetLanguageFlagMarkup
+    addon.Locale.GetLanguageFlagMarkup = function(...)
+      builds = builds + 1
+      return buildFlag(...)
+    end
+    local english = addon.Locale.GetLanguageTooltipMarkup("de", "enUS")
+    Assert.Equal(addon.Locale.GetLanguageTooltipMarkup("DE", "enUS"), english)
+    Assert.Equal(builds, 1, "normalized known tags must reuse markup")
+    local german = addon.Locale.GetLanguageTooltipMarkup("DE", "deDE")
+    Assert.True(german:find("Deutsch", 1, true) ~= nil)
+    Assert.True(english:find("German", 1, true) ~= nil)
+    Assert.Equal(builds, 2, "display locale must be part of the markup cache key")
+    addon.Locale.GetLanguageTooltipMarkup("ZZ", "enUS")
+    addon.Locale.GetLanguageTooltipMarkup("ZZ", "enUS")
+    Assert.Equal(builds, 4, "arbitrary unknown language tags must not populate the cache")
+  end)
+
   test("Locale.NormalizeRealmLookupKey returns empty string for nil input", function()
     local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
     Assert.Equal(addon.Locale.NormalizeRealmLookupKey(nil), "", "nil realm must normalize to empty string")

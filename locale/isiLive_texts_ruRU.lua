@@ -81,6 +81,7 @@ addonTable.TextsLocales.ruRU = {
   MODE_LAYOUT_H = "Компактное горизонтальное расположение.",
   MODE_LAYOUT_M2 = "Основное горизонтальное расположение.",
   TOOLTIP_SYNC_FRESHNESS = "Интервал синхронизации: %s",
+  TOOLTIP_KEY_FMT = "Ключ: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Источник: %s",
   TOOLTIP_SYNC_VERSION = "Версия клиента: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d к шкале (%.2f%% от %d)",

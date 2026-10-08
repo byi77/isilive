@@ -81,6 +81,7 @@ addonTable.TextsLocales.deDE = {
   MODE_LAYOUT_H = "Kompaktes horizontales Layout.",
   MODE_LAYOUT_M2 = "Horizontales Haupt-Layout.",
   TOOLTIP_SYNC_FRESHNESS = "Abgleichsintervall: %s",
+  TOOLTIP_KEY_FMT = "Schlüsselstein: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Quelle: %s",
   TOOLTIP_SYNC_VERSION = "Client-Version: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d Fortschritt (%.2f%% von %d)",

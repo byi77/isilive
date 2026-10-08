@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-08 - Version 0.9.425 (patch)
+
+- Audit round 4, A8: private roster tooltips lay out their completed contents
+  once before `Show`, instead of laying out every partial line list. Each
+  active line is measured and anchored once; unused pooled lines stay hidden.
+  Existing width, padding and spacing remain unchanged.
+- Audit round 4, A9: verified that the reported dead private-tooltip `SetUnit`
+  branch is already absent, including in the audited 0.9.421 snapshot. Added
+  regression coverage for existing-unit hovers using the private tooltip;
+  the required Blizzard `SetUnit` language hook remains intact.
+
+- Audit round 4, A4: successful player GUID language lookups are cached in a
+  bounded session cache; unresolved and masked reads are retried. Language
+  tooltip markup is reused per known language tag and display locale, so a
+  language change keeps the correct translated name.
+- Audit round 4, A5/A6: roster tooltip key lines use localized formats in
+  all eight UI languages, and missing sync-debug labels no longer display
+  literal `%s` placeholders.
+- Audit round 4, A3: the Blizzard unit-tooltip language path checks that
+  LibRealmInfo provides `GetRealmInfoByGUID` before reading `UnitGUID`.
+  Missing or unusable libraries skip that read; verified static realm
+  language data and usable GUID lookups keep working.
+
 ## 2026-10-08 - Version 0.9.424 (patch)
 
 - Target dungeon: "the player is inside the target dungeon" is decided by

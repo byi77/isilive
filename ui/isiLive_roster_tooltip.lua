@@ -90,8 +90,8 @@ local function LayoutSimpleTooltip(tooltip)
   local tooltipHeight = TOOLTIP_VERTICAL_PADDING
   local tooltipWidth = TOOLTIP_MIN_WIDTH
   local previousLine = nil
-  for index, line in ipairs(lines) do
-    local isActiveLine = index <= lineCount
+  for index = 1, lineCount do
+    local line = lines[index]
     if type(line) == "table" and type(line.SetPoint) == "function" then
       if type(line.ClearAllPoints) == "function" then
         line:ClearAllPoints()
@@ -102,29 +102,27 @@ local function LayoutSimpleTooltip(tooltip)
         line:SetPoint("TOPLEFT", previousLine, "BOTTOMLEFT", 0, -TOOLTIP_LINE_SPACING)
       end
     end
-    if isActiveLine then
-      local lineHeight = 16
-      if type(line) == "table" and type(line.GetStringHeight) == "function" then
-        local ok, measuredHeight = pcall(line.GetStringHeight, line)
-        local measuredHeightNumber = ok and tonumber(measuredHeight) or nil
-        if measuredHeightNumber and measuredHeightNumber > 0 then
-          lineHeight = math.max(measuredHeightNumber, 14)
-        end
+    local lineHeight = 16
+    if type(line) == "table" and type(line.GetStringHeight) == "function" then
+      local ok, measuredHeight = pcall(line.GetStringHeight, line)
+      local measuredHeightNumber = ok and tonumber(measuredHeight) or nil
+      if measuredHeightNumber and measuredHeightNumber > 0 then
+        lineHeight = math.max(measuredHeightNumber, 14)
       end
-      tooltipHeight = tooltipHeight + lineHeight
-      if previousLine ~= nil then
-        tooltipHeight = tooltipHeight + TOOLTIP_LINE_SPACING
-      end
-      if type(line) == "table" and type(line.GetStringWidth) == "function" then
-        local ok, measuredWidth = pcall(line.GetStringWidth, line)
-        local measuredWidthNumber = ok and not IsSecretValue(measuredWidth) and tonumber(measuredWidth) or nil
-        if measuredWidthNumber and measuredWidthNumber > 0 then
-          local paddedWidth = measuredWidthNumber + (TOOLTIP_HORIZONTAL_PADDING * 2)
-          tooltipWidth = math.max(tooltipWidth, math.min(TOOLTIP_MAX_WIDTH, paddedWidth))
-        end
-      end
-      previousLine = line
     end
+    tooltipHeight = tooltipHeight + lineHeight
+    if previousLine ~= nil then
+      tooltipHeight = tooltipHeight + TOOLTIP_LINE_SPACING
+    end
+    if type(line) == "table" and type(line.GetStringWidth) == "function" then
+      local ok, measuredWidth = pcall(line.GetStringWidth, line)
+      local measuredWidthNumber = ok and not IsSecretValue(measuredWidth) and tonumber(measuredWidth) or nil
+      if measuredWidthNumber and measuredWidthNumber > 0 then
+        local paddedWidth = measuredWidthNumber + (TOOLTIP_HORIZONTAL_PADDING * 2)
+        tooltipWidth = math.max(tooltipWidth, math.min(TOOLTIP_MAX_WIDTH, paddedWidth))
+      end
+    end
+    previousLine = line
   end
   tooltipHeight = tooltipHeight + TOOLTIP_VERTICAL_PADDING
 
@@ -219,7 +217,6 @@ local function EnsureSimpleTooltipAPI(tooltip)
       line:Show()
     end
     self._isiLiveTooltipLineCount = 1
-    LayoutSimpleTooltip(self)
   end
 
   function tooltip:AddLine(text, r, g, b)
@@ -236,10 +233,10 @@ local function EnsureSimpleTooltipAPI(tooltip)
       line:Show()
     end
     self._isiLiveTooltipLineCount = index
-    LayoutSimpleTooltip(self)
   end
 
   function tooltip:Show()
+    LayoutSimpleTooltip(self)
     self._isiLiveTooltipShown = true
     PositionSimpleTooltip(self)
     if type(self._isiLiveTooltipNativeShow) == "function" then
@@ -599,6 +596,7 @@ local function ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTool
   return nil
 end
 
+local guidLanguageCache, guidLanguageCacheSize = {}, 0
 local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, getRealmInfoLib)
   if type(tooltipData) ~= "table" then
     return nil, nil
@@ -619,16 +617,14 @@ local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, get
     return nil, nil
   end
 
-  -- Only player GUIDs can carry a realm locale, and this runs on every unit
-  -- tooltip -- including the world-cursor tooltip, which Blizzard refreshes on
-  -- mouse movement. Creature GUIDs pass the isPlayer check above because
-  -- Blizzard sends nil rather than false for them, so without this every NPC
-  -- the cursor crosses used to reach the realm-library lookup below. Enough of
-  -- those in one frame and the client aborts the whole call with "script ran
-  -- too long", blaming whatever line it happened to stop on. A 7-character
-  -- prefix compare rejects them before any work happens.
+  -- Cursor tooltips refresh on mouse movement. Creature data can have nil
+  -- isPlayer, so reject non-player GUIDs before repeated realm-library work
+  -- can exhaust the frame's script budget.
   if string.sub(guid, 1, 7) ~= "Player-" then
     return nil, nil
+  end
+  if guidLanguageCache[guid] then
+    return guidLanguageCache[guid], guid
   end
 
   local realmInfoLib = type(getRealmInfoLib) == "function" and getRealmInfoLib() or nil
@@ -651,6 +647,11 @@ local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, get
     return nil, nil
   end
 
+  if guidLanguageCacheSize >= 128 then
+    guidLanguageCache, guidLanguageCacheSize = {}, 0
+  end
+  guidLanguageCache[guid] = languageTag
+  guidLanguageCacheSize = guidLanguageCacheSize + 1
   return languageTag, guid
 end
 
@@ -910,35 +911,22 @@ local function ShowRosterInfoTooltip(
       tooltip:AddLine(versionText, 0.65, 0.85, 1)
     end
     if syncDebugEnabled then
-      local L = type(getL) == "function" and getL() or {}
-      local debugHeader = type(L.TOOLTIP_SYNC_DEBUG_HEADER) == "string" and L.TOOLTIP_SYNC_DEBUG_HEADER or "Sync debug"
-      local debugKeyLabel = type(L.TOOLTIP_SYNC_DEBUG_KEY) == "string" and L.TOOLTIP_SYNC_DEBUG_KEY or "Key: %s"
-      local debugStatsLabel = type(L.TOOLTIP_SYNC_DEBUG_STATS) == "string" and L.TOOLTIP_SYNC_DEBUG_STATS or "Stats: %s"
-      local debugDpsLabel = type(L.TOOLTIP_SYNC_DEBUG_DPS) == "string" and L.TOOLTIP_SYNC_DEBUG_DPS or "DPS: %s"
-      local debugLocLabel = type(L.TOOLTIP_SYNC_DEBUG_LOC) == "string" and L.TOOLTIP_SYNC_DEBUG_LOC or "Loc: %s"
-      local debugHelloLabel = type(L.TOOLTIP_SYNC_DEBUG_HELLO) == "string" and L.TOOLTIP_SYNC_DEBUG_HELLO or "Hello: %s"
+      local debugHeader = type(Lrow.TOOLTIP_SYNC_DEBUG_HEADER) == "string" and Lrow.TOOLTIP_SYNC_DEBUG_HEADER
+        or "Sync debug"
       local currentStamp = GetCurrentSyncTimestamp()
-
       tooltip:AddLine(debugHeader, 0.5, 0.75, 1)
-      local debugHello = FormatSyncDebugField(debugHelloLabel, syncHelloInfo, currentStamp)
-      if debugHello then
-        tooltip:AddLine(debugHello, 0.6, 0.78, 1)
-      end
-      local debugKey = FormatSyncDebugField(debugKeyLabel, syncKeyInfo, currentStamp)
-      if debugKey then
-        tooltip:AddLine(debugKey, 0.6, 0.78, 1)
-      end
-      local debugStats = FormatSyncDebugField(debugStatsLabel, syncStatsInfo, currentStamp)
-      if debugStats then
-        tooltip:AddLine(debugStats, 0.6, 0.78, 1)
-      end
-      local debugDps = FormatSyncDebugField(debugDpsLabel, syncDpsInfo, currentStamp)
-      if debugDps then
-        tooltip:AddLine(debugDps, 0.6, 0.78, 1)
-      end
-      local debugLoc = FormatSyncDebugField(debugLocLabel, syncLocInfo, currentStamp)
-      if debugLoc then
-        tooltip:AddLine(debugLoc, 0.6, 0.78, 1)
+      for _, field in ipairs({
+        { "TOOLTIP_SYNC_DEBUG_HELLO", syncHelloInfo, "Hello" },
+        { "TOOLTIP_SYNC_DEBUG_KEY", syncKeyInfo, "Key" },
+        { "TOOLTIP_SYNC_DEBUG_STATS", syncStatsInfo, "Stats" },
+        { "TOOLTIP_SYNC_DEBUG_DPS", syncDpsInfo, "DPS" },
+        { "TOOLTIP_SYNC_DEBUG_LOC", syncLocInfo, "Loc" },
+      }) do
+        local label = type(Lrow[field[1]]) == "string" and Lrow[field[1]] or field[3]
+        local text = FormatSyncDebugField(label, field[2], currentStamp)
+        if text then
+          tooltip:AddLine(text, 0.6, 0.78, 1)
+        end
       end
     end
     local keyMapID = tonumber(info.keyMapID)
@@ -951,7 +939,8 @@ local function ShowRosterInfoTooltip(
       if type(dungeonName) ~= "string" or dungeonName == "" then
         dungeonName = "?"
       end
-      tooltip:AddLine(string.format("Key: %s +%d", tostring(dungeonName), keyLevel), 1, 0.85, 0)
+      local fmt = type(Lrow.TOOLTIP_KEY_FMT) == "string" and Lrow.TOOLTIP_KEY_FMT or "Key: %s +%d"
+      tooltip:AddLine(string.format(fmt, tostring(dungeonName), keyLevel), 1, 0.85, 0)
     end
 
     local L = type(getL) == "function" and getL() or {}
@@ -1024,7 +1013,12 @@ local function AppendBlizzardUnitLanguageLine(
 
         if okPlayer and not IsSecretValue(isPlayer) and isPlayer == true then
           local unitGUIDFn = rawget(_G, "UnitGUID")
-          if type(getRealmInfoLib) == "function" and type(unitGUIDFn) == "function" then
+          local realmInfoLib = type(getRealmInfoLib) == "function" and getRealmInfoLib() or nil
+          if
+            type(realmInfoLib) == "table"
+            and type(realmInfoLib.GetRealmInfoByGUID) == "function"
+            and type(unitGUIDFn) == "function"
+          then
             local okGuid, unitGUID = pcall(unitGUIDFn, resolvedUnit)
             if okGuid and not IsSecretValue(unitGUID) and type(unitGUID) == "string" then
               local guidLanguageTag = ResolveBlizzardTooltipLanguageTagFromTooltipData({

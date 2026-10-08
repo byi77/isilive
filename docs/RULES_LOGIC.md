@@ -395,6 +395,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - All deDE keys exist in enUS locale
   - Locale tag resolver returns enUS as default fallback
   - Locale.LocaleToLanguageTag resolves from static lookup without iterating supported languages
+  - Locale tooltip markup caches only known tags per display locale
+  - roster_tooltip: key line uses the selected locale format
+  - roster_tooltip: missing debug labels render values without format placeholders
   - Settings panel refresh localizes behavior auto and raid notes
   - Locale hearthstone settings strings are localized per supported language
   - Settings hearthstone selector shows English toy names for non-German addon locales
@@ -1175,6 +1178,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox renders distinct stat row tints without a border
   - StatsBox keeps value-percent separator hidden while preserving row highlight and hover affordance
   - StatsBox applies font size offset from settings
+  - roster_tooltip: private tooltip batches layout once with a linear measurement budget
   - StatsBox applies high contrast text shadow
   - StatsBox renders labels and values right-aligned
   - StatsBox keeps value column stable for four-digit stats
@@ -1904,6 +1908,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the class badge and clears them
   - MobNameplate renders percent text for an eligible hostile unit in an active key
   - UICommon private tooltip uses the shared notice surface
+  - roster_tooltip: private tooltip batches layout once with a linear measurement budget
+  - roster_tooltip: existing units still render through the private tooltip without SetUnit
   - MobTooltip appends forces line for matching creature in active M+ key
   - DeathAlert renders big red death text and restarts animation on repeated show
 
@@ -2778,6 +2784,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: `Locale.GetUnitServerLanguage` und `Locale.LocaleToLanguageTag` liefern `"??"`, wenn Realm oder Realm-Locale unbekannt sind (etwa ohne Eintrag in den statischen Realmdaten und ohne LibRealmInfo). Der Blizzard-Unit-Tooltip behandelt `"??"` wie die LFG-Flaggen (Regel 68) als "kein Sprach-Tag": Der GUID-Pfad verwirft es, der Unit-Pfad haengt keine Zeile an und speichert keinen Dedup-Schluessel; statt "?? ??" erscheint keine Sprachzeile.
 - Erforderliche Tests:
   - Blizzard GameTooltip post-call appends no line for an unknown realm language
+  - Blizzard GameTooltip post-call skips UnitGUID without a usable realm library
+  - Blizzard GameTooltip post-call resolves UnitGUID with a usable realm library
+  - Blizzard GameTooltip caches verified GUID languages and retries unresolved reads
 
 ### RULE-LFG-FLAGGE-NUR-STABILE-ERGEBNISSE-CACHEN
 - Regelnummer: 190

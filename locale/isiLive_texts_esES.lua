@@ -81,6 +81,7 @@ addonTable.TextsLocales.esES = {
   MODE_LAYOUT_H = "Diseno horizontal compacto.",
   MODE_LAYOUT_M2 = "Diseno principal horizontal.",
   TOOLTIP_SYNC_FRESHNESS = "Intervalo de sync: %s",
+  TOOLTIP_KEY_FMT = "Piedra angular: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Fuente: %s",
   TOOLTIP_SYNC_VERSION = "Versión del cliente: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d progreso (%.2f%% de %d)",

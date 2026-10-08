@@ -81,6 +81,7 @@ addonTable.TextsLocales.frFR = {
   MODE_LAYOUT_H = "Disposition horizontale compacte.",
   MODE_LAYOUT_M2 = "Disposition principale horizontale.",
   TOOLTIP_SYNC_FRESHNESS = "Intervalle de sync : %s",
+  TOOLTIP_KEY_FMT = "Clé : %s +%d",
   TOOLTIP_SYNC_SOURCE = "Source : %s",
   TOOLTIP_SYNC_VERSION = "Version du client : %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d progression (%.2f%% sur %d)",

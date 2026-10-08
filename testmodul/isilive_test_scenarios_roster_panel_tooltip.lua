@@ -809,7 +809,7 @@ end
 
 -- Shared setup for the post-call contract tests: the real locale module
 -- resolves the language through the production tooltip post-call.
-local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tooltipData, onDone)
+local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tooltipData, onDone, realmInfoLib)
   local tooltipLines = {}
   local gameTooltip = MakeGameTooltip(tooltipLines)
   local showCalls = 0
@@ -817,6 +817,7 @@ local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tool
     showCalls = showCalls + 1
   end
   local postCallCallbacks = {}
+  local guidReads = 0
 
   WithGlobals({
     GameTooltip = gameTooltip,
@@ -836,6 +837,7 @@ local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tool
       return unit == "mouseover"
     end,
     UnitGUID = function()
+      guidReads = guidReads + 1
       return "Player-9999-0ABCDEF1"
     end,
     UnitIsUnit = function()
@@ -851,8 +853,9 @@ local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tool
   }, function()
     local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
     local getRealmInfoLib = function()
-      return nil
+      return realmInfoLib
     end
+    LoadAddonModules({ "realm_language_data.lua" }, addon)
     local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
       getLanguageTooltipMarkup = addon.Locale.GetLanguageTooltipMarkup,
       getUnitNameAndRealm = function()
@@ -866,11 +869,43 @@ local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tool
     for _, callback in ipairs(postCallCallbacks) do
       callback(gameTooltip, tooltipData)
     end
-    onDone(registered, tooltipLines, showCalls, #postCallCallbacks)
+    onDone(registered, tooltipLines, showCalls, #postCallCallbacks, guidReads)
   end)
 end
 
 local function RegisterBlizzardUnitTooltipPostCallContractTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Blizzard GameTooltip post-call skips UnitGUID without a usable realm library", function()
+    for _, library in ipairs({ false, {}, { GetRealmInfoByGUID = false } }) do
+      RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, "Aegwynn", {
+        unitToken = "mouseover",
+        isPlayer = true,
+      }, function(registered, tooltipLines, _showCalls, _postCallCount, guidReads)
+        Assert.True(registered, "the production unit post-call must be registered")
+        Assert.Equal(guidReads, 0, "an unusable realm library must not trigger a UnitGUID read")
+        Assert.Equal(#tooltipLines, 1, "verified static realm data must still render the language line")
+      end, library)
+    end
+  end)
+
+  test("Blizzard GameTooltip post-call resolves UnitGUID with a usable realm library", function()
+    local realmReads = 0
+    RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, "Unknownrealm", {
+      unitToken = "mouseover",
+      isPlayer = true,
+    }, function(registered, tooltipLines, _showCalls, _postCallCount, guidReads)
+      Assert.True(registered, "the production unit post-call must be registered")
+      Assert.Equal(guidReads, 1, "a usable realm library must receive the live unit GUID")
+      Assert.Equal(realmReads, 1, "the GUID must be resolved exactly once")
+      Assert.Equal(#tooltipLines, 1, "the library-resolved language must still render")
+    end, {
+      GetRealmInfoByGUID = function(_self, guid)
+        Assert.Equal(guid, "Player-9999-0ABCDEF1", "the realm library must receive the observed GUID")
+        realmReads = realmReads + 1
+        return nil, nil, nil, nil, "frFR"
+      end,
+    })
+  end)
+
   test("Blizzard GameTooltip post-call leaves Show to the tooltip data handler", function()
     -- Gethe/wow-ui-source live TooltipDataHandler.lua: InternalProcessInfo runs
     -- ProcessTooltipPostCalls and then self:Show(), so the post-call must not.
@@ -930,13 +965,106 @@ local function RegisterBlizzardUnitTooltipPostCallContractTests(test, Assert, Wi
       isPlayer = true,
       unitToken = "mouseover",
       dataInstanceID = 502,
-    }, function(registered, tooltipLines, _showCalls, postCallCount)
+    }, function(registered, tooltipLines, _showCalls, postCallCount, guidReads)
       Assert.True(registered, "Blizzard tooltip language hook must register successfully")
       Assert.Equal(postCallCount, 1, "TooltipDataProcessor must register exactly one unit post-call")
       for _, line in ipairs(tooltipLines) do
         Assert.False(line:find("??", 1, true) ~= nil, "an unknown realm must not render a ?? language line")
       end
       Assert.Equal(#tooltipLines, 0, "an unknown realm language must not append a tooltip line")
+      Assert.Equal(guidReads, 0, "a missing realm library must not trigger a UnitGUID read")
+    end)
+  end)
+end
+
+local function RegisterBlizzardGuidCacheTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Blizzard GameTooltip caches verified GUID languages and retries unresolved reads", function()
+    local lines, callbacks = {}, {}
+    local tooltip = MakeGameTooltip(lines)
+    local reads, markupBuilds, displayLocale = 0, 0, "enUS"
+    local realmLocale, failRealmRead = nil, false
+    WithGlobals({
+      GameTooltip = tooltip,
+      hooksecurefunc = function() end,
+      TooltipDataProcessor = {
+        AddTooltipPostCall = function(_, callback)
+          callbacks[#callbacks + 1] = callback
+        end,
+      },
+      Enum = { TooltipDataType = { Unit = 1 } },
+      issecretvalue = function(value)
+        return value == "masked"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+      local buildFlag = addon.Locale.GetLanguageFlagMarkup
+      addon.Locale.GetLanguageFlagMarkup = function(...)
+        markupBuilds = markupBuilds + 1
+        return buildFlag(...)
+      end
+      Assert.True(addon.RosterUI.RegisterBlizzardUnitLanguageTooltip({
+        getUnitNameAndRealm = function() end,
+        getUnitServerLanguage = function() end,
+        getRealmInfoLib = function()
+          return {
+            GetRealmInfoByGUID = function()
+              reads = reads + 1
+              if failRealmRead then
+                error("realm data not available")
+              end
+              return nil, nil, nil, nil, realmLocale
+            end,
+          }
+        end,
+        getLanguageTooltipMarkup = function(tag)
+          return addon.Locale.GetLanguageTooltipMarkup(tag, displayLocale)
+        end,
+      }))
+      local function Hover(guid, isPlayer)
+        tooltip.OnTooltipCleared(tooltip)
+        callbacks[1](tooltip, { guid = guid, isPlayer = isPlayer })
+      end
+      Hover("Player-1-A", true)
+      Hover("Player-1-A", true)
+      Assert.Equal(reads, 2, "unresolved GUID lookups must be retried")
+      Assert.Equal(#lines, 0, "unresolved language must not render")
+      realmLocale = "masked"
+      Hover("Player-1-A", true)
+      Assert.Equal(#lines, 0, "a masked library result must not render or populate the cache")
+      for _, unresolvedLocale in ipairs({ "", "zzZZ" }) do
+        realmLocale = unresolvedLocale
+        Hover("Player-1-A", true)
+      end
+      failRealmRead = true
+      Hover("Player-1-A", true)
+      failRealmRead = false
+      Assert.Equal(reads, 6, "empty, unknown and throwing library reads must also remain uncached")
+      Assert.Equal(#lines, 0, "unresolved library answers must never render a line")
+      realmLocale = "deDE"
+      Hover("Player-1-A", true)
+      Hover("Player-1-A", true)
+      Hover("Player-2-B", true)
+      Hover("Player-1-A", true)
+      Assert.Equal(reads, 8, "verified GUIDs must stay cached across clears and other player hovers")
+      Assert.Equal(markupBuilds, 1, "the same displayed language must build markup only once")
+      Assert.Equal(#lines, 4, "each cleared tooltip must receive its own language line")
+      Assert.True(lines[4]:find("German", 1, true) ~= nil)
+      displayLocale = "deDE"
+      Hover("Player-1-A", true)
+      Assert.True(lines[5]:find("Deutsch", 1, true) ~= nil, "locale changes must not reuse old display text")
+      Assert.Equal(reads, 8, "locale changes must retain verified GUID resolution")
+      Assert.Equal(markupBuilds, 2, "a new display locale must build its own markup")
+      Hover("masked", true)
+      Hover("Creature-0-1", true)
+      Hover("Player-1-A", false)
+      Assert.Equal(reads, 8, "masked and non-player GUIDs must not read the realm library")
+      Assert.Equal(#lines, 5, "masked and explicitly non-player data must never hit the cache")
+      for index = 3, 129 do
+        Hover("Player-" .. index .. "-C", true)
+      end
+      local beforeEvictedRead = reads
+      Hover("Player-1-A", true)
+      Assert.Equal(reads, beforeEvictedRead + 1, "the bounded GUID cache must release old entries")
     end)
   end)
 end
@@ -948,4 +1076,5 @@ return function(test, ctx)
   RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipCreatureGuidSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipPostCallContractTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
+  RegisterBlizzardGuidCacheTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
 end

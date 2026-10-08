@@ -81,6 +81,7 @@ addonTable.TextsLocales.trTR = {
   MODE_LAYOUT_H = "Kompakt yatay duzen.",
   MODE_LAYOUT_M2 = "Ana yatay duzen.",
   TOOLTIP_SYNC_FRESHNESS = "Senkr. araligi: %s",
+  TOOLTIP_KEY_FMT = "Anahtar: %s +%d",
   TOOLTIP_SYNC_SOURCE = "Kaynak: %s",
   TOOLTIP_SYNC_VERSION = "İstemci sürümü: %s",
   TOOLTIP_MOB_PROGRESS_LINE = "+%d ilerleme (%.2f%% / %d)",

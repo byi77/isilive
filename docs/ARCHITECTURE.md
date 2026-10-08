@@ -1,7 +1,22 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.424`
+Versionsbasis: `0.9.425`
 Zuletzt aktualisiert: `2026-10-08`
+
+Tooltip-Layout (Audit-Runde 4, A8): Die private Tooltip-API schreibt bei
+`SetText`/`AddLine` nur den Inhalt. `Show` fuehrt das Layout fuer die aktive
+Zeilenmenge einmal aus, bevor die native Frame-Anzeige aufgerufen wird.
+Die vorhandenen Pool-Zeilen bleiben wiederverwendbar; inaktive Zeilen werden
+im Layout nicht mehr gemessen oder verankert. Roster-Hovers verwenden auch
+mit vorhandenem Unit-Token die private API, keinen `SetUnit`-Zweig (A9).
+
+Tooltip-Caches (Audit-Runde 4, A4): `ui/isiLive_roster_tooltip.lua` haelt
+hoechstens 128 verifizierte GUID-zu-Sprach-Tag-Ergebnisse pro Sitzung.
+Beim naechsten erfolgreichen neuen Eintrag wird der volle Cache geleert;
+fehlende und maskierte Ergebnisse bleiben ungecacht. Tooltip-Clear entfernt
+nur den Zeilen-Dedup-Zustand. `locale/isiLive_locale.lua` speichert das
+Flaggen-/Sprachnamen-Markup fuer bekannte Sprach-Tags je aufgeloester
+Anzeigesprache, sodass Sprachwechsel keine veralteten Namen wiederverwenden.
 
 Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
 sowie nach `GROUP_ROSTER_UPDATE` und `PLAYER_ENTERING_WORLD` anhand der
@@ -335,7 +350,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.424                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.425                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

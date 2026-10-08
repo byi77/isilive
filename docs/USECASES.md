@@ -1,7 +1,27 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.424`
+Versionsbasis: `0.9.425`
 Zuletzt aktualisiert: `2026-10-08`
+
+Audit-Runde 4, A8/A9 (0.9.425): Private Roster-Tooltips sammeln ihre Zeilen
+und messen/verankern beim abschliessenden `Show` jede aktive Zeile einmal.
+Inaktive Pool-Zeilen bleiben ausgeblendet; Breitenbudget und Abstaende bleiben
+erhalten. Ein vorhandener Unit-Token fuehrt weiterhin ueber den privaten
+Tooltip und ruft kein `SetUnit` auf. Der zu A9 gemeldete tote Zweig ist bereits
+im geprueften Stand 0.9.421 nicht vorhanden; der Blizzard-Sprach-Hook bleibt.
+
+Audit-Runde 4, A4/A5/A6 (0.9.425): Wiederholte Spieler-GUID-Hovers nutzen
+verifizierte Sprachaufloesungen auch nach Tooltip-Clear weiter; nach 128
+Eintraegen wird der GUID-Cache beim naechsten erfolgreichen neuen Eintrag
+geleert. Fehlende oder maskierte Ergebnisse werden erneut gelesen.
+Sprachmarkup wird nur fuer bekannte Tags je Anzeigesprache gespeichert;
+ein Sprachwechsel zeigt daher den passenden Namen. Die Key-Zeile nutzt die
+aktive Uebersetzung, und Debug-Ersatzlabels enthalten keine Format-Platzhalter.
+
+Audit-Runde 4, A3 (0.9.425): Der Blizzard-Unit-Tooltip liest fuer seine
+Sprachzeile `UnitGUID` nur, wenn LibRealmInfo `GetRealmInfoByGUID` bereitstellt.
+Ohne nutzbare Bibliothek bleibt die Sprachaufloesung ueber verifizierte
+statische Realm-Daten erhalten; unbekannte Realm-Sprache erzeugt keine Zeile.
 
 Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe
 bleibt das Hauptfenster gemaess bestehender Sichtbarkeitsregeln bedienbar, aber
