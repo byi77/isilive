@@ -28,6 +28,7 @@ end
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
+  local Fixtures = ctx.fixtures
   LoadAddonModules = ctx.load_modules
 
   MakeController = function(overrides)
@@ -219,6 +220,71 @@ return function(test, ctx)
       local ctrl = MakeController()
       ctrl.Scan()
       Assert.Nil(ctrl.GetBResInfo(), "BRes info must be nil when GetSpellCharges throws")
+    end)
+  end)
+
+  -- The BRes scan runs from the 1 s tracker ticker without a pcall around it,
+  -- so one masked charge value compared or calculated with used to raise on
+  -- every tick in a restricted key. The stand-in lies to `type()` like the
+  -- client value does, so the old `type(charges) == "number"` check let it in.
+  local function WithMaskedCharges(getSpellCharges, fn)
+    local secret, globals = Fixtures.MakeStrictSecret()
+    globals.C_Spell = {
+      GetSpellCharges = function()
+        return getSpellCharges(secret)
+      end,
+    }
+    WithGlobals(globals, function()
+      fn(MakeController({
+        getTime = function()
+          return 1000
+        end,
+      }))
+    end)
+  end
+
+  test("CdTracker fails closed on masked Battle Res charge counts", function()
+    WithMaskedCharges(function(secret)
+      return { currentCharges = secret, maxCharges = 2, cooldownStartTime = 900, cooldownDuration = 300 }
+    end, function(ctrl)
+      ctrl.Scan()
+      Assert.Nil(ctrl.GetBResInfo(), "a masked struct charge count must leave the BRes row unresolved")
+    end)
+
+    WithMaskedCharges(function(secret)
+      return secret, 2, 0, 900, 300
+    end, function(ctrl)
+      ctrl.Scan()
+      Assert.Nil(ctrl.GetBResInfo(), "a masked flat charge count must leave the BRes row unresolved")
+    end)
+
+    WithMaskedCharges(function(secret)
+      return { currentCharges = 1, maxCharges = secret, cooldownStartTime = 900, cooldownDuration = 300 }
+    end, function(ctrl)
+      ctrl.Scan()
+      Assert.Nil(ctrl.GetBResInfo(), "a masked maximum must leave the BRes row unresolved")
+    end)
+  end)
+
+  test("CdTracker shows plain charges without a countdown when the recharge timing is masked", function()
+    WithMaskedCharges(function(secret)
+      return { currentCharges = 1, maxCharges = 2, cooldownStartTime = secret, cooldownDuration = secret }
+    end, function(ctrl)
+      ctrl.Scan()
+      local info = ctrl.GetBResInfo()
+      Assert.NotNil(info, "plain charge counts must still be shown")
+      Assert.Equal(info.charges, 1, "plain current charges must be kept")
+      Assert.Equal(info.cooldownRemain, 0, "a masked recharge start must not produce a countdown")
+      Assert.Nil(info.cooldownDuration, "a masked recharge duration must not reach the swipe")
+    end)
+
+    WithMaskedCharges(function(secret)
+      return 1, 2, 0, secret, secret
+    end, function(ctrl)
+      ctrl.Scan()
+      local info = ctrl.GetBResInfo()
+      Assert.NotNil(info, "plain flat charge counts must still be shown")
+      Assert.Equal(info.cooldownRemain, 0, "a masked flat recharge start must not produce a countdown")
     end)
   end)
 

@@ -613,7 +613,8 @@ local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, get
     return nil, nil
   end
 
-  local isPlayer = tooltipData.isPlayer
+  -- Masked counts as unknown (like nil); the plain GUID prefix check decides.
+  local isPlayer = addonTable.Validators.ReadPlainField(tooltipData, "isPlayer")
   if isPlayer == false then
     return nil, nil
   end
@@ -1060,7 +1061,7 @@ local function AppendBlizzardUnitLanguageLine(
   end
 
   if preferTooltipDataOnly then
-    local tooltipDataInstanceID = type(tooltipData) == "table" and tonumber(tooltipData.dataInstanceID) or nil
+    local tooltipDataInstanceID = tonumber(addonTable.Validators.ReadPlainField(tooltipData, "dataInstanceID"))
     languageKey = tooltipDataInstanceID or languageTag
   elseif languageKey == nil then
     languageKey = languageTag

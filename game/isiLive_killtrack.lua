@@ -168,12 +168,15 @@ local function ReadScenarioCriteria()
   end
   local scan = { weighted = {}, bosses = {}, bossesResolved = true, incomplete = false }
   local numCriteria = stepInfo.numCriteria
+  -- Rejected as secret before anything else, including the nil check.
+  if IsSecretValue(numCriteria) then
+    return nil, false
+  end
   if numCriteria == nil then
     return scan, true
   end
   if
-    IsSecretValue(numCriteria)
-    or type(numCriteria) ~= "number"
+    type(numCriteria) ~= "number"
     or numCriteria < 0
     or numCriteria % 1 ~= 0
     or numCriteria ~= numCriteria
@@ -184,7 +187,12 @@ local function ReadScenarioCriteria()
   for i = 1, numCriteria do
     local okCrit, cInfo = pcall(scenarioInfo.GetCriteriaInfo, i)
     local readable = okCrit and not IsSecretValue(cInfo) and type(cInfo) == "table"
-    local isWeightedProgress = readable and cInfo.isWeightedProgress or nil
+    -- Plain assignment only: `readable and field or nil` would test the
+    -- possibly masked field for truth before the secret check below.
+    local isWeightedProgress = nil
+    if readable then
+      isWeightedProgress = cInfo.isWeightedProgress
+    end
     if not readable or IsSecretValue(isWeightedProgress) then
       -- Unclassifiable: could be enemy forces or a boss. Neither the boss
       -- list nor an unlocked forces choice can be trusted for this read.
@@ -207,7 +215,7 @@ end
 
 local function ReadCriteriaNumber(cInfo, field)
   local value = cInfo[field]
-  if value == nil or IsSecretValue(value) then
+  if IsSecretValue(value) or value == nil then
     return nil
   end
   return tonumber(value)
@@ -278,7 +286,7 @@ local function ApplyEnemyForces(cInfo, mapID)
   -- case where Blizzard taints / nils the field.
   local apiTotalRaw = cInfo.totalQuantity
   local apiTotal = nil
-  if apiTotalRaw and not IsSecretValue(apiTotalRaw) then
+  if not IsSecretValue(apiTotalRaw) and apiTotalRaw then
     local n = tonumber(apiTotalRaw)
     if n and n > 0 then
       apiTotal = n
@@ -328,12 +336,12 @@ local function ApplyEnemyForces(cInfo, mapID)
 
   local rawCount = nil
   local qStr = cInfo.quantityString
-  if qStr and not IsSecretValue(qStr) then
+  if not IsSecretValue(qStr) and qStr then
     rawCount = tonumber(qStr:match("(%d+)"))
   end
   if rawCount == nil then
     local qty = cInfo.quantity
-    if qty and not IsSecretValue(qty) then
+    if not IsSecretValue(qty) and qty then
       rawCount = tonumber(qty)
     end
   end

@@ -2693,3 +2693,35 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Ergaenzung zu Regel 179 fuer das ESC-Panel. `BuildRuntimeSetupSlashCommandsContext` in `factory/isiLive_factory.lua` kopierte auch `ctx.panelUI` in den Slash-Kontext, obwohl `ApplyLocalizationToUI` das Panel erst im `ADDON_LOADED`-Handler erzeugt, also nach dem Bau des Kontexts; der Kontext hielt deshalb `nil`, und `/isilive resetui` setzte die Hintergrundfarbe des ESC-Panel-Frames (`panelFrame:SetBackdropColor`) nie zurueck. Der Slash-Kontext traegt jetzt zusaetzlich `getPanelUI`, das `ctx.panelUI` bei jedem Aufruf liest; `ConfigBuilders.BuildSlashCommandsOpts` loest das Panel ueber `ResolvePanelUI` auf (ein direkt gesetztes `panelUI` hat Vorrang). Das Feld `panelUI` bleibt erhalten; Erstellungsreihenfolge und uebrige Nutzer von `ctx.panelUI` (Aufrufzeit-Lesezugriffe) bleiben unveraendert.
 - Erforderliche Tests:
   - factory composition root: /isilive resetui repaints the ESC panel created after the slash context
+
+### RULE-SECRET-GUARD-VOR-JEDER-OPERATION
+- Regelnummer: 181
+- Status: aktiv
+- Zusammenfassung: Ein moeglicher Secret Value (Rueckgabe einer Blizzard-API, Event-Argument oder Feld einer Blizzard-Struktur) wird mit `Validators.IsSecretValue` bzw. `Validators.ReadPlain*` verworfen, bevor irgendeine andere Operation auf ihm laeuft: kein `==`/`~=` (auch nicht gegen `nil`), kein Ordnungsvergleich, keine Arithmetik, kein Tabellenindex, kein Wahrheitstest, kein `tonumber`/`tostring` und keine Verkettung; `type()` und reine Zuweisung bleiben zulaessig. Umgesetzt fuer: (1) `CdTracker` liest `C_Spell.GetSpellCharges` (Tupel und `ChargeInfo`-Struktur) nur noch geguardet; maskierte Ladungszahl oder Maximum lassen die BR-Anzeige fail-closed auf `BR: --` (Regel 54, keine erfundene Zahl), eine maskierte Wiederaufladezeit zeigt die Klartext-Ladungen ohne Countdown; `VipDkAssist` liest die Putrefy-Ladungen ebenso. (2) Die `UNIT_SPELLCAST_SUCCEEDED`-Handler von `KickTracker.OnCast`, `CombatEvents` und `VipDkAssist` verwerfen eine maskierte Spell-ID als erste Anweisung, fuer jede Unit; weil der Forwarder den KickTracker zuerst aufruft, kann ein Fehler dort CombatEvents und VipDkAssist nicht mehr dasselbe Event kosten. (3) `KillTrack` prueft `numCriteria`, die Kriterien-Zahlen, `totalQuantity`, `quantityString` und `quantity` vor dem nil- bzw. Wahrheitstest auf Secret und liest `isWeightedProgress` per reiner Zuweisung. (4) Der Roster-Tooltip liest `isPlayer` und `dataInstanceID` ueber `ReadPlainField`; ein maskiertes `isPlayer` gilt wie `nil` als unbekannt, die Klartext-GUID-Pruefung entscheidet weiter. Das statische Gate `tools/check_secret_value_guards.lua` ueberwacht `GetSpellCharges` und erkennt auch von StyLua umbrochene `pcall`-Zuweisungen (`local a, b =` mit `pcall(...)` in der Folgezeile). Wo ein Lua-Stub den Fehler nicht ausloesen kann (`== nil`, Tabellenschluessel, Wahrheitstest, `tonumber`), pinnen Quelltextpruefungen die Reihenfolge.
+- Erforderliche Tests:
+  - CdTracker fails closed on masked Battle Res charge counts
+  - CdTracker shows plain charges without a countdown when the recharge timing is masked
+  - Secret value checker rejects method aliases and late guards
+  - UNIT_SPELLCAST_SUCCEEDED handlers reject a masked spell ID first
+  - Mplus stress: masked pet and player cast spell IDs are dropped by every cast handler
+  - Masked-capable struct fields are rejected as secret before their first use
+
+### RULE-TODESALARM-MASKIERTER-STATUS-SCHNELLPFAD
+- Regelnummer: 182
+- Status: aktiv
+- Zusammenfassung: `DeathWatch.HandleUnitHealth` liest `UnitIsDeadOrGhost` fuer eine beobachtete Unit im Key einmal vorab. Ist der Wert unlesbar (maskiert oder API fehlt, der Leser liefert `nil`), kehrt der Handler sofort zurueck, ohne Setting, Existenz, Verbindung und GUID abzufragen; die volle Auswertung hatte in diesem Fall ohne Rueckfallwert (`deadFallback = nil`) ebenfalls ohne Zustandsaenderung geendet, kostete aber in Restricted-Keys drei Unit-Abfragen pro Lebenspunkte-Tick. Lebende Units ohne gespeicherten Tod kehren wie bisher frueh zurueck; tote Units und lebende Units mit gespeichertem Tod laufen durch die volle Auswertung. Ein gespeicherter Tod bleibt bei maskierten Ticks unveraendert und wird beim naechsten lesbaren Wiederbeleben geloescht. `PLAYER_DEAD` mit Rueckfallwert und die Alive-Events laufen unveraendert ueber die volle Auswertung.
+- Ersetzte Festlegung (Audit, 2026-10-08): Regel 149 "tote, unlesbare oder bereits gespeicherte Faelle laufen durch die volle Auswertung". Unlesbare Faelle enden jetzt im Schnellpfad; der Detailblock von Regel 149 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - DeathWatch health ticks with a masked dead state skip the unit reads
+  - DeathWatch health ticks of living units skip the unit reads while nobody is dead
+  - DeathWatch fires again after revive and renewed death
+
+### RULE-STATS-BOX-IM-RAID-AUSNAHME
+- Regelnummer: 183
+- Status: aktiv
+- Zusammenfassung: Die Spieler-Stats-Box (`ui/isiLive_stats_box.lua`, Opt-in ueber `statsBoxEnabled`) bleibt im Raid eingeblendet und sammelt dort weiter die eigenen Werte. Sie besitzt einen eigenen Event-Frame (Spieler-Stat-Events, `UNIT_STATS` nur fuer `player`), den der Raid-Hard-off des Dispatchers nicht abmeldet, und zeigt ausschliesslich Werte des eigenen Charakters. Begruendung: User-Entscheidung (2026-10-08), Opt-in-Overlay fuer eigene Werte. Alle uebrigen Festlegungen aus Regel 11 (Main-UI zu, keine Hinweise, Chatausgaben, Center-Animationen und keine sonstige Hintergrundverarbeitung im Raid) bleiben unveraendert.
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-08): Regel 11 "es laeuft ausser den VIP-Einstellungen weder UI-, Output- noch Hintergrundverarbeitung weiter". Ausgenommen ist zusaetzlich die aktivierte Stats-Box; der Detailblock von Regel 11 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - StatsBox stays shown and keeps collecting in a raid group
+  - StatsBox receives UNIT_STATS only for the player unit
+  - StatsBox disabled event bursts collect no stats and player updates avoid forced layout

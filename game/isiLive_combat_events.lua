@@ -150,6 +150,12 @@ function CombatEvents.CreateController(opts)
   -- when the protected SendChatMessage is invoked from a tainted M+/boss
   -- execution context.
   function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)
+    -- `type()` lies about a Secret Value, so the type check below does not
+    -- keep a masked pet spell ID out of the BR_SPELL_IDS / LUST_CAST_IDS
+    -- lookups. Rejected first, for every unit.
+    if IsSecretValue(spellID) then
+      return
+    end
     if unit ~= "player" and unit ~= "pet" then
       return
     end

@@ -620,6 +620,77 @@ local function RegisterDeathWatchTests(test, ctx)
 
     Assert.Equal(#alerts, 0, "successful secret UnitExists result must not be treated as an existing unit")
   end)
+
+  -- Runs the module's UNIT_HEALTH entry with the real default API readers:
+  -- inside a restricted key UnitIsDeadOrGhost answers with a Secret Value on
+  -- every tick, which must neither alert nor buy three further unit reads.
+  test("DeathWatch health ticks with a masked dead state skip the unit reads", function()
+    local secret = {}
+    local alerts = {}
+    local masked = true
+    local deadState = false
+    local unitReads = 0
+    local function CountedRead(value)
+      return function()
+        unitReads = unitReads + 1
+        return value
+      end
+    end
+    WithGlobals({
+      IsiLiveDB = {},
+      issecretvalue = function(value)
+        return value == secret
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 42
+        end,
+      },
+      UnitExists = CountedRead(true),
+      UnitIsConnected = CountedRead(true),
+      UnitGUID = CountedRead("Player-2"),
+      UnitIsDeadOrGhost = function()
+        if masked then
+          return secret
+        end
+        return deadState
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_death_watch.lua" })
+      addon.DeathWatch.SetDependencies({
+        -- Role lookup lives in the Units module, which is not loaded here.
+        getUnitRole = function()
+          return "TANK"
+        end,
+        onRoleDeath = function(role, unit)
+          table.insert(alerts, { role = role, unit = unit })
+        end,
+      })
+
+      for _ = 1, 1000 do
+        addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      end
+      Assert.Equal(unitReads, 0, "a masked dead state must not run the existence, connection and GUID reads")
+      Assert.Equal(#alerts, 0, "a masked dead state must never alert")
+
+      -- A latched death survives masked ticks unchanged and still re-arms on
+      -- the next readable revive, exactly as the full evaluation did.
+      masked, deadState = false, true
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      Assert.Equal(#alerts, 1, "a readable death must still alert")
+      masked = true
+      local readsBefore = unitReads
+      for _ = 1, 1000 do
+        addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      end
+      Assert.Equal(unitReads, readsBefore, "masked ticks while a death is latched must not read the unit either")
+      masked, deadState = false, false
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      masked, deadState = false, true
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      Assert.Equal(#alerts, 2, "the readable revive must still clear the latched flag and re-arm the edge")
+    end)
+  end)
 end
 
 local function BuildFrameStub(track)

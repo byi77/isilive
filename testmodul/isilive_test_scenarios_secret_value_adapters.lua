@@ -114,6 +114,26 @@ return function(test, ctx)
     })
     Assert.Equal(#orderedGuardHits, 0, "the same pcall result checked before use must pass")
 
+    -- StyLua wraps long pcall assignments; the shipped BRes scan compared the
+    -- GetSpellCharges result with `~= nil` in exactly that shape.
+    local wrappedHits = checker.AnalyzeLines("fixture.lua", {
+      "local ok, chargeInfoOrCharges, maxCharges =",
+      "  pcall(C_Spell_ref.GetSpellCharges, spellID)",
+      "if ok and chargeInfoOrCharges ~= nil then",
+      "  return chargeInfoOrCharges, maxCharges",
+      "end",
+    })
+    Assert.Equal(#wrappedHits, 2, "a wrapped GetSpellCharges pcall must still be audited per result")
+
+    local wrappedGuardedHits = checker.AnalyzeLines("fixture.lua", {
+      "local ok, chargeInfoOrCharges, maxCharges =",
+      "  pcall(C_Spell_ref.GetSpellCharges, spellID)",
+      "if not ok or IsSecretValue(chargeInfoOrCharges) or IsSecretValue(maxCharges) then",
+      "  return nil",
+      "end",
+    })
+    Assert.Equal(#wrappedGuardedHits, 0, "a wrapped pcall whose results are rejected first must pass")
+
     local wrapperHits = checker.AnalyzeLines("fixture.lua", {
       "local function IsChallengeModeActive()",
       "  return false",
@@ -523,5 +543,99 @@ return function(test, ctx)
       Assert.Nil(dump.guid, "missing nameplate unit must not be read for a GUID")
       Assert.Nil(dump.unitName, "missing nameplate unit must not be read for a name")
     end)
+  end)
+
+  -- STATIC: a masked spell ID used as a table key or compared with `==`
+  -- raises in the client, but plain Lua never consults a metamethod for either,
+  -- so no runtime stub can turn the missing guard red. This pins the order on
+  -- the source instead: the first statement of every UNIT_SPELLCAST_SUCCEEDED
+  -- handler rejects the spell ID as secret, before the unit filter and before
+  -- any lookup. The runtime half lives in the Mplus stress scenarios.
+  test("UNIT_SPELLCAST_SUCCEEDED handlers reject a masked spell ID first", function()
+    local handlers = {
+      { path = "game/isiLive_kick_tracker.lua", signature = "function controller.OnCast(unit, spellID)" },
+      {
+        path = "game/isiLive_combat_events.lua",
+        signature = "function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)",
+      },
+      {
+        path = "game/isiLive_vip_dk_assist.lua",
+        signature = "function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)",
+      },
+    }
+    for _, handler in ipairs(handlers) do
+      local file = assert(io.open(handler.path, "r"))
+      local source = file:read("*a")
+      file:close()
+      local signatureAt = source:find(handler.signature, 1, true)
+      signatureAt = Assert.NotNil(signatureAt, handler.path .. " must define " .. handler.signature)
+      local bodyStart = source:find("\n", signatureAt, true) + 1
+      local firstStatement = nil
+      for line in source:sub(bodyStart):gmatch("[^\n]*") do
+        local code = line:gsub("%-%-.*$", ""):match("^%s*(.-)%s*$")
+        if code ~= "" then
+          firstStatement = code
+          break
+        end
+      end
+      Assert.Equal(
+        firstStatement,
+        "if IsSecretValue(spellID) then",
+        handler.path .. " must reject a masked spell ID before any other statement"
+      )
+    end
+  end)
+
+  -- STATIC: `== nil`, `~= nil`, a truth test and `tonumber` on a masked field
+  -- never reach a Lua metamethod, so no runtime stub can turn these orderings
+  -- red. Every local copied out of a Blizzard struct below must be rejected as
+  -- secret before its first use (same ordering rule the gate applies to
+  -- watched pcall results), and the tooltip flags must go through ReadPlain*.
+  test("Masked-capable struct fields are rejected as secret before their first use", function()
+    local checker = assert(loadfile("tools/check_secret_value_guards.lua"))("test")
+    local function ReadSourceLines(path)
+      local lines = {}
+      for line in io.lines(path) do
+        lines[#lines + 1] = line
+      end
+      return lines
+    end
+
+    local orderedLocals = {
+      {
+        path = "game/isiLive_killtrack.lua",
+        anchor = "local numCriteria = stepInfo.numCriteria",
+        name = "numCriteria",
+      },
+      { path = "game/isiLive_killtrack.lua", anchor = "local value = cInfo[field]", name = "value" },
+      { path = "game/isiLive_killtrack.lua", anchor = "local apiTotalRaw = cInfo.totalQuantity", name = "apiTotalRaw" },
+      { path = "game/isiLive_killtrack.lua", anchor = "local qStr = cInfo.quantityString", name = "qStr" },
+      { path = "game/isiLive_killtrack.lua", anchor = "local qty = cInfo.quantity", name = "qty" },
+    }
+    for _, entry in ipairs(orderedLocals) do
+      local lines = ReadSourceLines(entry.path)
+      local anchorLine = nil
+      for lineno, line in ipairs(lines) do
+        if line:find(entry.anchor, 1, true) then
+          anchorLine = lineno
+          break
+        end
+      end
+      anchorLine = Assert.NotNil(anchorLine, entry.path .. " must still read " .. entry.anchor)
+      Assert.True(
+        checker.ResultHasOrderedGuard(lines, anchorLine, entry.name),
+        entry.path .. ":" .. anchorLine .. " must reject " .. entry.name .. " as secret before its first use"
+      )
+    end
+
+    local file = assert(io.open("ui/isiLive_roster_tooltip.lua", "r"))
+    local tooltipSource = file:read("*a")
+    file:close()
+    for _, rawRead in ipairs({ "tooltipData.isPlayer", "tooltipData.dataInstanceID" }) do
+      Assert.Nil(
+        tooltipSource:find(rawRead, 1, true),
+        "ui/isiLive_roster_tooltip.lua must read " .. rawRead .. " through ReadPlainField"
+      )
+    end
   end)
 end

@@ -1290,6 +1290,38 @@ return function(test, ctx)
     end)
   end)
 
+  -- Deliberate exception to the raid hard-off (user decision 2026-10-08): the
+  -- opt-in box shows the player's own values and owns its event frame, so a
+  -- raid neither hides it nor stops its stat collection.
+  test("StatsBox stays shown and keeps collecting in a raid group", function()
+    local db, collections = { statsBoxEnabled = true }, 0
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = BuildCreateFrameStub(),
+      IsInRaid = function()
+        return true
+      end,
+      GetNumGroupMembers = function()
+        return 20
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          collections = collections + 1
+          return { { key = "haste", label = "Haste", value = 100, percent = 1 } }
+        end,
+      })
+      Assert.True(box.frame:IsShown(), "an enabled stats box must stay shown in a raid")
+      local before = collections
+      box.frame:FireEvent("UNIT_STATS", "player")
+      box.frame:FireEvent("PLAYER_EQUIPMENT_CHANGED")
+      Assert.Equal(collections - before, 2, "an enabled stats box must keep collecting player stats in a raid")
+    end)
+  end)
+
   test("StatsBox removes hidden OnUpdate polling and restores it when enabled", function()
     local db = { statsBoxEnabled = false }
     WithGlobals({

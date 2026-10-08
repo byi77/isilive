@@ -204,4 +204,48 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
   return eventHandlersModule.CreateController(options), counters, entryRef
 end
 
+-- Strict Secret Value stand-in. Like the client value it lies to `type()`
+-- (reports `typeName`, default "number") and raises on ordering, arithmetic,
+-- concatenation, length, indexing and calls. Lua cannot make `== nil`, `~= nil`
+-- or a plain table-key lookup raise, so those stay invisible here; they are
+-- pinned by tools/check_secret_value_guards.lua or source checks instead.
+-- Returns the value plus the globals (`issecretvalue`, `type`) to install via
+-- WithGlobals for the duration of the test.
+function Fixtures.MakeStrictSecret(typeName)
+  typeName = typeName or "number"
+  local function Raise()
+    error("attempt to perform an operation on a secret value", 2)
+  end
+  local secret = setmetatable({}, {
+    __lt = Raise,
+    __le = Raise,
+    __eq = Raise,
+    __add = Raise,
+    __sub = Raise,
+    __mul = Raise,
+    __div = Raise,
+    __mod = Raise,
+    __unm = Raise,
+    __concat = Raise,
+    __len = Raise,
+    __index = Raise,
+    __newindex = Raise,
+    __call = Raise,
+    __tostring = Raise,
+  })
+  local rawType = type
+  local globals = {
+    issecretvalue = function(value)
+      return rawequal(value, secret)
+    end,
+    type = function(value)
+      if rawequal(value, secret) then
+        return typeName
+      end
+      return rawType(value)
+    end,
+  }
+  return secret, globals
+end
+
 return Fixtures

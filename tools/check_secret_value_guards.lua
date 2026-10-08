@@ -94,6 +94,7 @@ local WATCHED_APIS = {
   "IsChallengeModeActive",
   "GetActiveKeystoneInfo",
   "GetInspectItemLevel",
+  "GetSpellCharges",
   "UnitGroupRolesAssigned",
   "UnitIsDeadOrGhost",
   "UnitIsGroupLeader",
@@ -448,11 +449,21 @@ local function analyzeLines(path, lines)
 
     if not overridden then
       local assignedNames, pcallTarget = code:match("^%s*local%s+([^=]-)%s*=%s*pcall%s*%(%s*([%w_%.]+)")
+      local guardAnchor = lineno
+      if not assignedNames and lineno < #lines then
+        -- StyLua wraps a long assignment as `local a, b =` plus `pcall(...)`
+        -- on the next line; that form must not slip past the ordering rule.
+        local wrappedNames = code:match("^%s*local%s+([^=]-)%s*=%s*$")
+        local nextTarget = stripComment(lines[lineno + 1]):match("^%s*pcall%s*%(%s*([%w_%.]+)")
+        if wrappedNames and nextTarget then
+          assignedNames, pcallTarget, guardAnchor = wrappedNames, nextTarget, lineno + 1
+        end
+      end
       local pcallApi = pcallTarget and resolveWatchedApi(pcallTarget, watchedAliasByName) or nil
       if pcallApi and assignedNames then
         local names = splitAssignedNames(assignedNames)
         for index = 2, #names do
-          if not resultHasOrderedGuard(lines, lineno, names[index]) then
+          if not resultHasOrderedGuard(lines, guardAnchor, names[index]) then
             hits[#hits + 1] = string.format(
               "%s:%d [%s result %s]: pcall result is used before the same value is rejected as secret",
               path,
@@ -559,6 +570,7 @@ if ... == "test" then
   return {
     AnalyzeLines = analyzeLines,
     AnalyzePayloadFields = analyzePayloadFields,
+    ResultHasOrderedGuard = resultHasOrderedGuard,
   }
 end
 

@@ -1352,4 +1352,50 @@ return function(test, ctx, fixtures)
       assert(ok, err)
     end)
   end)
+
+  -- RUNTIME HALF: the masked stand-in cannot make a table-key lookup or an
+  -- `==` raise (plain Lua never consults a metamethod there), so this half
+  -- only pins the observable contract through the real dispatcher -- no
+  -- dispatch error, no announce, no kick cooldown, and a later plain cast
+  -- still reaches CombatEvents behind KickTracker. The ordering itself is
+  -- pinned by "UNIT_SPELLCAST_SUCCEEDED handlers reject a masked spell ID first".
+  test("Mplus stress: masked pet and player cast spell IDs are dropped by every cast handler", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local function CountLustAnnounces()
+        local count = 0
+        for _, message in ipairs(session.messages) do
+          if tostring(message.payload):find("^BRLUST:LUST:") then
+            count = count + 1
+          end
+        end
+        return count
+      end
+      local kickController = session.runtime.kickTrackerController
+      local kickBefore = kickController and kickController.GetKickInfo and kickController.GetKickInfo()
+      local onCooldownBefore = type(kickBefore) == "table" and kickBefore.onCooldown or nil
+      local messagesBefore = #session.messages
+
+      for _ = 1, 200 do
+        session.Dispatch("UNIT_SPELLCAST_SUCCEEDED", "pet", "pet-cast", secret)
+        session.Dispatch("UNIT_SPELLCAST_SUCCEEDED", "player", "player-cast", secret)
+      end
+      Assert.Equal(#session.messages, messagesBefore, "masked cast spell IDs must not produce any addon message")
+      local kickAfter = kickController and kickController.GetKickInfo and kickController.GetKickInfo()
+      Assert.Equal(
+        type(kickAfter) == "table" and kickAfter.onCooldown or nil,
+        onCooldownBefore,
+        "masked cast spell IDs must not start a kick cooldown"
+      )
+
+      session.Advance(5)
+      local before = CountLustAnnounces()
+      session.Dispatch("UNIT_SPELLCAST_SUCCEEDED", "player", "lust-cast", 2825)
+      Assert.Equal(CountLustAnnounces() - before, 1, "a plain cast after the masked ones must still announce")
+    end, function(globals)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
 end

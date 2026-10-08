@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-08 - Version 0.9.422 (patch)
+
+- Secret values: every possibly masked value is rejected as secret before any
+  other operation touches it, including `== nil`, comparisons, arithmetic and
+  table indexing (rule 181). Battle-res charges from `GetSpellCharges` fail
+  closed to "BR: --" when masked and show the plain charge count without a
+  countdown when only the recharge timing is masked; the kick tracker, combat
+  announces and the VIP DK assist return on a masked cast spell ID; the
+  killtrack criteria and the roster tooltip fields `isPlayer` and
+  `dataInstanceID` are read through the plain-value helpers.
+- `tools/check_secret_value_guards.lua` now watches `GetSpellCharges` and also
+  sees `pcall` assignments that StyLua wraps over two lines, which had hidden
+  the battle-res path from the gate.
+- Death watch: an unreadable (masked) dead state returns on the fast path
+  instead of running the full evaluation on every `UNIT_HEALTH` tick, which
+  could not change any state anyway (rule 182).
+- The stats box stays shown and keeps updating in raids as a documented
+  exception to rule 11 (rule 183, user decision).
+- Tests: a strict secret fixture that throws on comparison, arithmetic and
+  indexing.
+
 ## 2026-10-08 - Version 0.9.421 (patch)
 
 - Sync: a known peer whose join or reload hello falls into the fan-out window

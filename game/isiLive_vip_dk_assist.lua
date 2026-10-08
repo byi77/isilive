@@ -103,14 +103,15 @@ local function DefaultGetPutrefyCharges()
     return nil
   end
   local ok, chargeInfoOrCharges = pcall(cSpell.GetSpellCharges, PUTREFY_SPELL_ID)
-  if not ok or chargeInfoOrCharges == nil then
+  -- Reject a masked return before any comparison, including the nil check.
+  if not ok or IsSecretValue(chargeInfoOrCharges) or type(chargeInfoOrCharges) == "nil" then
     return nil
   end
   -- Struct return since 11.0; the flat multi-return is kept for older stubs.
   if type(chargeInfoOrCharges) == "table" then
     return ReadPlainNumber(chargeInfoOrCharges, "currentCharges")
   end
-  if IsSecretValue(chargeInfoOrCharges) or type(chargeInfoOrCharges) ~= "number" then
+  if type(chargeInfoOrCharges) ~= "number" then
     return nil
   end
   return chargeInfoOrCharges
@@ -416,6 +417,10 @@ function VipDkAssist.CreateController(opts)
   end
 
   function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)
+    -- Rejected before `tonumber` converts it (defensive for player casts too).
+    if IsSecretValue(spellID) then
+      return
+    end
     if unit ~= "player" then
       return
     end

@@ -829,6 +829,13 @@ function KickTracker.CreateController(opts)
 
   -- Called from UNIT_SPELLCAST_SUCCEEDED for the tracked unit (player or pet).
   function controller.OnCast(unit, spellID)
+    -- A masked spell ID (pet casts in restricted content) is rejected before
+    -- the spell-data lookups compare it or use it as a table key; the event
+    -- forwarder calls this first, so a raise here would also cost CombatEvents
+    -- and VipDkAssist the same event.
+    if IsSecretValue(spellID) then
+      return false
+    end
     RefreshSpecIfUnwatched()
     if unit ~= watchedCastUnit then
       return false

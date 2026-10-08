@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.421`
+Versionsbasis: `0.9.422`
 Zuletzt aktualisiert: `2026-10-08`
 
 Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
@@ -335,7 +335,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.421                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.422                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

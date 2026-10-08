@@ -312,12 +312,17 @@ function DeathWatch.CreateController(opts)
     -- UNIT_HEALTH fires on every damage and heal tick of five units during a
     -- pull. A living unit while no dead flag is latched cannot change any state
     -- (the full path would only clear an already-absent flag), so it skips the
-    -- setting, existence, connection and GUID reads. Dead, unreadable or
-    -- latched cases still run the full evaluation.
+    -- setting, existence, connection and GUID reads. An unreadable state
+    -- (masked or missing API, reported as nil) returns here too: the full
+    -- evaluation reaches the same read with no fallback and bails without
+    -- touching any state, so running it only cost three unit reads per tick
+    -- inside restricted keys. Dead, and living-while-latched cases still run
+    -- the full evaluation.
     if type(unit) ~= "string" or not WATCHED_UNITS[unit] or not IsInKeyCached() then
       return
     end
-    if next(deadByGuid) == nil and unitIsDeadOrGhost(unit) == false then
+    local dead = unitIsDeadOrGhost(unit)
+    if dead == nil or (dead == false and next(deadByGuid) == nil) then
       return
     end
     EvaluateUnit(unit, nil)

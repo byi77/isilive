@@ -5,6 +5,7 @@ local CdTracker = {}
 addonTable.CdTracker = CdTracker
 local ReadPlainField = addonTable.Validators.ReadPlainField
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local BRES_SPELL_IDS = {
   20484, -- Rebirth (Druid)
@@ -41,11 +42,24 @@ function CdTracker.CreateController(opts)
   local lustDuration = nil
   local lustIcon = nil
 
+  -- GetSpellCharges may hand back Secret Values in restricted content, both as
+  -- the flat multi-return and as fields of the ChargeInfo struct. Every value
+  -- is rejected as secret before anything else touches it -- the plain nil
+  -- check of the first return is already an operation on a Secret Value.
+  -- A masked first return still means "this spell answered": the scan stops
+  -- there and reports no charge info, so the row fails closed to "BR: --".
   local function ResolveBResChargeInfo(C_Spell_ref)
     for _, spellID in ipairs(BRES_SPELL_IDS) do
       local ok, chargeInfoOrCharges, maxCharges, _, chargeStart, chargeDuration =
         pcall(C_Spell_ref.GetSpellCharges, spellID)
-      if ok and chargeInfoOrCharges ~= nil then
+      local maskedTiming = IsSecretValue(chargeStart) or IsSecretValue(chargeDuration)
+      if ok and (IsSecretValue(chargeInfoOrCharges) or IsSecretValue(maxCharges)) then
+        return nil
+      end
+      if maskedTiming then
+        chargeStart, chargeDuration = nil, nil
+      end
+      if ok and type(chargeInfoOrCharges) ~= "nil" then
         return chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration
       end
     end
@@ -55,16 +69,25 @@ function CdTracker.CreateController(opts)
   local function ApplyBResChargeInfo(chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration)
     local charges
     if type(chargeInfoOrCharges) == "table" then
-      charges = chargeInfoOrCharges.currentCharges
-      maxCharges = chargeInfoOrCharges.maxCharges
-      chargeStart = chargeInfoOrCharges.cooldownStartTime
-      chargeDuration = chargeInfoOrCharges.cooldownDuration
+      charges = ReadPlainNumber(chargeInfoOrCharges, "currentCharges")
+      maxCharges = ReadPlainNumber(chargeInfoOrCharges, "maxCharges")
+      chargeStart = ReadPlainNumber(chargeInfoOrCharges, "cooldownStartTime")
+      chargeDuration = ReadPlainNumber(chargeInfoOrCharges, "cooldownDuration")
     else
+      -- Flat multi-return: ResolveBResChargeInfo already rejected every
+      -- masked value, so only the type is left to check.
       charges = chargeInfoOrCharges
     end
 
+    -- Missing or masked charge counts fail closed (no made-up number).
     if type(charges) ~= "number" or type(maxCharges) ~= "number" then
       return false
+    end
+    if type(chargeStart) ~= "number" then
+      chargeStart = nil
+    end
+    if type(chargeDuration) ~= "number" then
+      chargeDuration = nil
     end
     bresCharges = charges
     bresMaxCharges = maxCharges
@@ -72,6 +95,8 @@ function CdTracker.CreateController(opts)
       bresCooldownRemain = math.max(0, chargeStart + chargeDuration - getTime())
       bresCooldownDuration = chargeDuration
     else
+      -- Full charges, or a recharge whose timing is masked: no countdown is
+      -- invented, the row shows the plain charge count only.
       bresCooldownRemain = 0
       bresCooldownDuration = nil
     end
