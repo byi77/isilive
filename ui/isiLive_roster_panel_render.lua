@@ -341,27 +341,28 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   return row
 end
 
+-- The target is a challenge-mode map ID; a member stands in it only when its
+-- party instance ID equals the instance ID behind that challenge map (rules
+-- 193/194). The own row reads the live instance; other rows read the instance
+-- ID a current isiLive client sent in the LOC "IN" suffix. The UiMapID
+-- (C_Map.GetBestMapForUnit, legacy LOC field 2) is a different ID space and is
+-- never compared, so members without a current isiLive client stay unmarked.
 local function IsEntryAtTargetDungeon(targetMapID, entry, info)
-  local isAtDungeon = false
-
-  if targetMapID and entry and entry.unit and addonTable.Validators.IsExistingUnit(entry.unit) then
-    local mapApi = rawget(_G, "C_Map")
-    local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit or nil
-    if type(getBestMapForUnit) == "function" then
-      local ok, playerMapID = pcall(getBestMapForUnit, entry.unit)
-      if ok and not IsSecretValue(playerMapID) and tonumber(playerMapID) == tonumber(targetMapID) then
-        isAtDungeon = true
-      end
-    end
+  local validators = addonTable.Validators
+  if IsSecretValue(targetMapID) or type(targetMapID) ~= "number" or targetMapID <= 0 then
+    return false
   end
 
-  if not isAtDungeon and targetMapID and info and info.syncLocMapID then
-    if tonumber(info.syncLocMapID) == tonumber(targetMapID) then
-      isAtDungeon = true
-    end
+  if entry and entry.unit == "player" then
+    return validators.IsPlayerInChallengeMapInstance(targetMapID) == true
   end
 
-  return isAtDungeon
+  local memberInstanceID = info and info.syncLocInstanceID
+  if type(memberInstanceID) ~= "number" or memberInstanceID <= 0 then
+    return false
+  end
+  local targetInstanceID = validators.ResolveChallengeMapInstanceID(targetMapID)
+  return targetInstanceID ~= nil and memberInstanceID == targetInstanceID
 end
 
 local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, includeReadyCheckDecorations)

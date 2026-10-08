@@ -196,9 +196,16 @@ addonTable.SyncReceiveFactory = function(deps)
     elseif bucket == "LOC" and parts[2] then
       local mapID = ToFiniteNumber(parts[2])
       local capturedAt = ToFiniteNumber(parts[3])
+      -- Optional "IN" suffix carries the party instance ID (rule 194). A
+      -- legacy payload without it stores no instance ID, so its UiMapID can
+      -- never mark a member as standing in the target dungeon.
+      local instanceID = nil
+      if parts[5] == "IN" then
+        instanceID = ToFiniteNumber(parts[6])
+      end
       if mapID and (parts[3] == nil or capturedAt) then
         payloadValid = true
-        locUpdated = Sync.SetPlayerLocInfo(sender, nil, mapID, capturedAt, parts[4])
+        locUpdated = Sync.SetPlayerLocInfo(sender, nil, mapID, capturedAt, parts[4], instanceID)
       end
     elseif bucket == "TARGET" and parts[2] and parts[3] then
       local levelText = nil

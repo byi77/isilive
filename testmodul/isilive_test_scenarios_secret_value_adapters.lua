@@ -374,43 +374,60 @@ return function(test, ctx)
   end)
 
   test("Roster target location requires existing unit and rejects secret map", function()
+    -- Rule 194: the marker compares instance IDs only. A secret target map,
+    -- a secret instance ID from GetMapUIInfo or a secret own instance ID
+    -- must leave the row unmarked, and no UiMapID is ever read.
     local secret = {}
-    WithGlobals({
-      issecretvalue = function(value)
-        return value == secret
-      end,
-      UnitExists = function()
-        return true
-      end,
-      C_Map = {
-        GetBestMapForUnit = function()
-          return secret
+    local mapLookups = 0
+    local function BuildGlobals(targetInstanceID, ownInstanceID)
+      return {
+        issecretvalue = function(value)
+          return value == secret
         end,
-      },
-    }, function()
+        UnitExists = function()
+          return true
+        end,
+        C_Map = {
+          GetBestMapForUnit = function()
+            mapLookups = mapLookups + 1
+            error("the at-dungeon marker must not read a UiMapID", 0)
+          end,
+        },
+        C_ChallengeMode = {
+          GetMapUIInfo = function(challengeMapID)
+            return "Dungeon", challengeMapID, 1800, nil, nil, targetInstanceID
+          end,
+        },
+        GetInstanceInfo = function()
+          return "Dungeon", "party", 8, "Mythic Keystone", 5, 0, false, ownInstanceID, 5, nil
+        end,
+      }
+    end
+
+    WithGlobals(BuildGlobals(2813, 2813), function()
       local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
-      Assert.False(
-        addon._RosterInternal.IsEntryAtTargetDungeon(123, { unit = "party1" }, {}),
-        "secret unit map must not mark a roster member at the target"
-      )
+      local isAt = addon._RosterInternal.IsEntryAtTargetDungeon
+      Assert.False(isAt(secret, { unit = "party1" }, { syncLocInstanceID = 2813 }), "secret target map")
+      Assert.False(isAt(secret, { unit = "player" }, {}), "secret target map on the own row")
+      Assert.True(isAt(587, { unit = "party1" }, { syncLocInstanceID = 2813 }), "synced instance matches")
+      Assert.True(isAt(587, { unit = "player" }, {}), "own instance matches")
     end)
 
-    WithGlobals({
-      UnitExists = function()
-        return false
-      end,
-      C_Map = {
-        GetBestMapForUnit = function()
-          error("missing unit must stop before map lookup", 0)
-        end,
-      },
-    }, function()
+    WithGlobals(BuildGlobals(secret, 2813), function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
+      local isAt = addon._RosterInternal.IsEntryAtTargetDungeon
+      Assert.False(isAt(587, { unit = "party1" }, { syncLocInstanceID = 2813 }), "secret target instance")
+      Assert.False(isAt(587, { unit = "player" }, {}), "secret target instance on the own row")
+    end)
+
+    WithGlobals(BuildGlobals(2813, secret), function()
       local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
       Assert.False(
-        addon._RosterInternal.IsEntryAtTargetDungeon(123, { unit = "party1" }, {}),
-        "missing unit must not mark a roster member at the target"
+        addon._RosterInternal.IsEntryAtTargetDungeon(587, { unit = "player" }, {}),
+        "secret own instance must not mark the own row"
       )
     end)
+    Assert.Equal(mapLookups, 0, "the at-dungeon marker never reads a UiMapID")
   end)
 
   test("VIP DK assist rejects secret specialization index", function()

@@ -445,14 +445,15 @@ return function(test, ctx)
     local consumers = {
       ["core/isiLive_validation_helpers.lua"] = {
         'rawget(_G, "GetInstanceInfo")',
+        'rawget(_G, "C_ChallengeMode")',
       },
+      -- Rule 193: both "player is inside the target dungeon" checks go through
+      -- the shared instance-ID helper instead of reading the player UiMapID.
       ["factory/isiLive_factory_secondary_runtime.lua"] = {
-        'rawget(_G, "C_Map")',
-        'rawget(_G, "UnitExists")',
+        "IsPlayerInChallengeMapInstance",
       },
       ["logic/isiLive_highlight.lua"] = {
-        'rawget(_G, "C_Map")',
-        'rawget(_G, "UnitExists")',
+        "IsPlayerInChallengeMapInstance",
       },
       ["logic/isiLive_keysync.lua"] = {
         "GetInstanceInfoSafe",

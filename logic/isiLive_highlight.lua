@@ -4,7 +4,8 @@ addonTable = addonTable or {}
 
 local Highlight = {}
 addonTable.Highlight = Highlight
-local IsSecretValue = addonTable.Validators.IsSecretValue
+local GetCurrentPartyInstanceID = addonTable.Validators.GetCurrentPartyInstanceID
+local IsPlayerInChallengeMapInstance = addonTable.Validators.IsPlayerInChallengeMapInstance
 
 local function TryGet(obj, key1, key2, key3)
   if not obj then
@@ -102,30 +103,16 @@ local function GetNormalizedActiveEntryInfo()
   return entry
 end
 
-local function IsExistingPlayerUnit()
-  local unitExists = rawget(_G, "UnitExists")
-  if type(unitExists) ~= "function" then
-    return false
-  end
-
-  local ok, exists = pcall(unitExists, "player")
-  return ok and not IsSecretValue(exists) and exists == true
-end
-
-local function ResolveCurrentMapID()
-  -- Only the live player map should suppress the highlight. The active
-  -- challenge map can become available before the player actually enters the
-  -- dungeon, which would otherwise clear the highlight too early.
-  local mapApi = rawget(_G, "C_Map")
-  local getBestMapForUnit = type(mapApi) == "table" and rawget(mapApi, "GetBestMapForUnit") or nil
-  if IsExistingPlayerUnit() and type(getBestMapForUnit) == "function" then
-    local ok, mapID = pcall(getBestMapForUnit, "player")
-    if ok and not IsSecretValue(mapID) and type(mapID) == "number" and mapID > 0 then
-      return mapID
-    end
-  end
-
-  return nil
+-- Only the player's live location should suppress the highlight. The active
+-- challenge map can become available before the player actually enters the
+-- dungeon, which would otherwise clear the highlight too early. The location
+-- is the player's party-instance ID (GetInstanceInfo), compared with the
+-- instance ID behind the target challenge map (C_ChallengeMode.GetMapUIInfo);
+-- the UiMapID from C_Map.GetBestMapForUnit is a different ID space and never
+-- matches a challenge map ID (rule 193). Missing or masked data fails closed:
+-- the highlight stays.
+local function IsPlayerInsideTargetDungeon(challengeMapID)
+  return IsPlayerInChallengeMapInstance(challengeMapID) == true
 end
 
 local function ResolveMapIDFromActivityID(deps, activityID)
@@ -220,11 +207,11 @@ end
 
 local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latestQueueActivityID, latestQueueMapID)
   local logf = deps.logRuntimeTracef
-  local currentMapID = ResolveCurrentMapID()
+  local currentInstanceID = GetCurrentPartyInstanceID()
   if logf then
     logf(
-      "[HIGHLIGHT] resolve_spell_id currentMapID=%s queueActivityID=%s queueMapID=%s",
-      tostring(currentMapID),
+      "[HIGHLIGHT] resolve_spell_id currentInstanceID=%s queueActivityID=%s queueMapID=%s",
+      tostring(currentInstanceID),
       tostring(latestQueueActivityID),
       tostring(latestQueueMapID)
     )
@@ -232,7 +219,7 @@ local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latest
 
   local activeTarget = getActiveListingTarget()
   if type(activeTarget) == "table" and activeTarget.mapID and activeTarget.spellID then
-    if not currentMapID or currentMapID ~= activeTarget.mapID then
+    if not IsPlayerInsideTargetDungeon(activeTarget.mapID) then
       if logf then
         logf(
           "[HIGHLIGHT] spell_from_active_target mapID=%s spellID=%s",
@@ -244,8 +231,8 @@ local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latest
     end
     if logf then
       logf(
-        "[HIGHLIGHT] blocked_already_in_dungeon currentMapID=%s targetMapID=%s",
-        tostring(currentMapID),
+        "[HIGHLIGHT] blocked_already_in_dungeon currentInstanceID=%s targetMapID=%s",
+        tostring(currentInstanceID),
         tostring(activeTarget.mapID)
       )
     end
@@ -278,11 +265,11 @@ local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latest
     return nil
   end
 
-  if currentMapID and currentMapID == queueMapID then
+  if IsPlayerInsideTargetDungeon(queueMapID) then
     if logf then
       logf(
-        "[HIGHLIGHT] blocked_already_in_dungeon currentMapID=%s queueMapID=%s",
-        tostring(currentMapID),
+        "[HIGHLIGHT] blocked_already_in_dungeon currentInstanceID=%s queueMapID=%s",
+        tostring(currentInstanceID),
         tostring(queueMapID)
       )
     end

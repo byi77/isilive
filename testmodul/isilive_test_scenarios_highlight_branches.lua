@@ -83,12 +83,12 @@ return function(test, ctx)
     end)
   end)
 
-  -- ResolveCurrentMapID: UnitExists not callable -------------------------------
+  -- Location lookup: no location API at all -----------------------------------
 
-  test("ResolveCurrentMapID treats missing UnitExists as no player unit", function()
-    -- Without UnitExists in _G the IsExistingPlayerUnit guard returns
-    -- false, so currentMapID stays nil and the queue path is allowed
-    -- to run (no in-dungeon block).
+  test("Highlight queue path resolves without any location API", function()
+    -- Without GetInstanceInfo / C_ChallengeMode in _G the "inside the target
+    -- dungeon" check fails closed, so the queue path is allowed to run (no
+    -- in-dungeon block).
     WithGlobals({}, function()
       local addon = LoadAddonModules({ "isiLive_highlight.lua" })
       local controller = addon.Highlight.CreateController({
@@ -103,20 +103,24 @@ return function(test, ctx)
         end,
       })
       -- Provide a queue activity id; resolver maps to mapID=5,
-      -- spellID=999. With currentMapID nil, the queue path returns
+      -- spellID=999. With no instance context, the queue path returns
       -- the spellID.
-      Assert.Equal(controller.ResolveActiveTeleportSpellID(123, nil), 999, "queue path must resolve without UnitExists")
+      Assert.Equal(
+        controller.ResolveActiveTeleportSpellID(123, nil),
+        999,
+        "queue path must resolve without location APIs"
+      )
     end)
   end)
 
-  test("ResolveCurrentMapID treats GetBestMapForUnit errors as unresolved", function()
+  test("Highlight treats GetInstanceInfo errors as outside the target dungeon", function()
     WithGlobals({
-      UnitExists = function()
-        return true
+      GetInstanceInfo = function()
+        error("instance lookup unavailable")
       end,
-      C_Map = {
-        GetBestMapForUnit = function()
-          error("map lookup unavailable")
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          return "Dungeon", 5, 1800, nil, nil, 2813
         end,
       },
     }, function()
@@ -139,7 +143,7 @@ return function(test, ctx)
       Assert.Equal(
         controller.ResolveActiveTeleportSpellID(123, nil),
         999,
-        "map lookup errors must not abort queue-based highlight resolution"
+        "instance lookup errors must not abort queue-based highlight resolution"
       )
     end)
   end)
@@ -201,14 +205,15 @@ return function(test, ctx)
   test("ResolveActiveTeleportSpellID logs every decision when logRuntimeTracef is set", function()
     local logCalls = {}
     local activeEntry = { active = true, mapID = 2442 }
-    local currentMapID = nil
+    local currentInstanceID = nil
+    local instanceByChallengeMapID = { [2442] = 2651, [2662] = 2660 }
     WithGlobals({
-      UnitExists = function()
-        return true
+      GetInstanceInfo = function()
+        return "Instance", currentInstanceID and "party" or "none", 0, "", 5, 0, false, currentInstanceID, 0, 0
       end,
-      C_Map = {
-        GetBestMapForUnit = function()
-          return currentMapID
+      C_ChallengeMode = {
+        GetMapUIInfo = function(challengeMapID)
+          return "Dungeon", challengeMapID, 1800, nil, nil, instanceByChallengeMapID[challengeMapID]
         end,
       },
       C_LFGList = {
@@ -242,17 +247,17 @@ return function(test, ctx)
         end,
       })
 
-      -- Case 1: active target with mapID, currentMap differs -> spell_from_active_target
-      currentMapID = 2441
+      -- Case 1: active target with mapID, player in another instance -> spell_from_active_target
+      currentInstanceID = 2649
       Assert.Equal(controller.ResolveActiveTeleportSpellID(nil, nil), 367416, "active target spell must resolve")
 
-      -- Case 2: active target, currentMapID matches -> blocked_already_in_dungeon
-      currentMapID = 2442
+      -- Case 2: active target, player inside its instance -> blocked_already_in_dungeon
+      currentInstanceID = 2651
       Assert.Nil(controller.ResolveActiveTeleportSpellID(nil, nil), "matching map must block highlight")
 
       -- Case 3: not active, not in group -> blocked_not_in_group
       activeEntry = nil
-      currentMapID = nil
+      currentInstanceID = nil
       local controllerNoGroup = addon.Highlight.CreateController({
         isInGroup = function()
           return false
@@ -266,12 +271,12 @@ return function(test, ctx)
       -- Case 4: in group, queue activity resolves to map -> spell_from_queue
       Assert.Equal(controller.ResolveActiveTeleportSpellID(1001, nil), 445414, "queue path must resolve to spell")
 
-      -- Case 5: in group, queue map matches current map -> blocked_already_in_dungeon
-      currentMapID = 2662
+      -- Case 5: in group, player inside the queue map instance -> blocked_already_in_dungeon
+      currentInstanceID = 2660
       Assert.Nil(controller.ResolveActiveTeleportSpellID(1001, nil), "queue map matches current map -> blocked")
 
       -- Case 6: in group, no queue map at all -> blocked_no_queue_map
-      currentMapID = nil
+      currentInstanceID = nil
       Assert.Nil(controller.ResolveActiveTeleportSpellID(nil, nil), "no queue map -> blocked")
     end)
 
@@ -282,7 +287,7 @@ return function(test, ctx)
       formats[call.format] = true
     end
     Assert.True(
-      formats["[HIGHLIGHT] resolve_spell_id currentMapID=%s queueActivityID=%s queueMapID=%s"] == true,
+      formats["[HIGHLIGHT] resolve_spell_id currentInstanceID=%s queueActivityID=%s queueMapID=%s"] == true,
       "resolve_spell_id trace must fire on every call"
     )
   end)

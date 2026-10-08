@@ -72,36 +72,28 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
       return
     end
 
-    local currentMapID = nil
-    local mapApi = rawget(_G, "C_Map")
-    local getBestMapForUnit = type(mapApi) == "table" and rawget(mapApi, "GetBestMapForUnit") or nil
-    local unitExists = rawget(_G, "UnitExists")
-    if type(getBestMapForUnit) == "function" and type(unitExists) == "function" then
-      local okUnit, playerExists = pcall(unitExists, "player")
-      if okUnit and not addonTable.Validators.IsSecretValue(playerExists) and playerExists == true then
-        local okMap, mapID = pcall(getBestMapForUnit, "player")
-        if okMap and not addonTable.Validators.IsSecretValue(mapID) and type(mapID) == "number" and mapID > 0 then
-          currentMapID = mapID
-        end
-      end
-    end
-    if not currentMapID then
+    -- targetMapID is a challenge-mode map ID; the player's UiMapID lives in a
+    -- different ID space and never equals it. Compare instance IDs instead
+    -- (rule 193); any missing or masked value fails closed.
+    local matched, currentInstanceID, targetInstanceID =
+      addonTable.Validators.IsPlayerInChallengeMapInstance(targetMapID)
+    if not currentInstanceID then
       return
     end
 
-    local matched = currentMapID == targetMapID
     local logTarget = matched and logFn or logDeepFn
     if logTarget then
       logTarget(
         string.format(
-          "[STATE] check_entered_target_dungeon targetMapID=%s currentMapID=%s match=%s",
+          "[STATE] check_entered_target_dungeon targetMapID=%s targetInstanceID=%s currentInstanceID=%s match=%s",
           tostring(targetMapID),
-          tostring(currentMapID),
+          tostring(targetInstanceID),
+          tostring(currentInstanceID),
           tostring(matched)
         )
       )
     end
-    if targetMapID and currentMapID == targetMapID then
+    if matched then
       local lfgDetect = addonTable.LFGDetect
       if type(lfgDetect) == "table" and type(lfgDetect.ClearAllState) == "function" then
         lfgDetect.ClearAllState()

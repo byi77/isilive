@@ -210,6 +210,7 @@ local MIRROR_ENTRY_FIELDS = {
   "keyLevel",
   "syncDps",
   "syncLocMapID",
+  "syncLocInstanceID",
   "syncTargetMapID",
   "syncTargetLevel",
 }
@@ -640,6 +641,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
       local localDpsFresh = existing and existing._localDpsFresh
       local syncDps = existing and existing.syncDps
       local syncLocMapID = existing and existing.syncLocMapID
+      local syncLocInstanceID = existing and existing.syncLocInstanceID
       local syncTargetMapID = existing and existing.syncTargetMapID
       local syncTargetLevel = existing and existing.syncTargetLevel
 
@@ -658,6 +660,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
         keyLevel = keyLevel,
         syncDps = syncDps,
         syncLocMapID = syncLocMapID,
+        syncLocInstanceID = syncLocInstanceID,
         syncTargetMapID = syncTargetMapID,
         syncTargetLevel = syncTargetLevel,
         isGhost = false,

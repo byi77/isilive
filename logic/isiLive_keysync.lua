@@ -8,6 +8,7 @@ addonTable.KeySync = KeySync
 local SeasonData = addonTable.SeasonData or {}
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
+local GetCurrentPartyInstanceID = addonTable.Validators.GetCurrentPartyInstanceID
 
 -- Module-level diagnostics counters. These are write-only from inside
 -- KeySync internals and read-only from outside via KeySync.GetDiagnostics().
@@ -313,6 +314,9 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
     })
   end
 
+  -- The UiMapID stays in the legacy field for clients up to 0.9.423; the
+  -- target-dungeon marker of current clients reads only the instance ID
+  -- (rules 193/194).
   local locMapID = GetOwnedLocMapID()
   sync.SendLoc({
     force = force,
@@ -320,6 +324,7 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
     allowHidden = allowHidden,
     onlyIfChanged = onlyIfChanged,
     mapID = locMapID,
+    instanceID = type(GetCurrentPartyInstanceID) == "function" and GetCurrentPartyInstanceID() or nil,
     source = source,
   })
 end
@@ -441,14 +446,20 @@ end
 local function BackfillLoc(sync, info)
   local locInfo = sync.GetPlayerLocInfo(info.name, info.realm)
   if type(locInfo) == "table" then
+    local changed = false
     if info.syncLocMapID ~= locInfo.mapID then
       info.syncLocMapID = locInfo.mapID
-      return true
+      changed = true
     end
-    return false
+    if info.syncLocInstanceID ~= locInfo.instanceID then
+      info.syncLocInstanceID = locInfo.instanceID
+      changed = true
+    end
+    return changed
   end
-  if info.syncLocMapID ~= nil and not info.isGhost then
+  if (info.syncLocMapID ~= nil or info.syncLocInstanceID ~= nil) and not info.isGhost then
     info.syncLocMapID = nil
+    info.syncLocInstanceID = nil
     return true
   end
   return false
@@ -736,6 +747,7 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster, opts)
       info.hasIsiLive = (unit == "player")
       info.syncDps = nil
       info.syncLocMapID = nil
+      info.syncLocInstanceID = nil
       if unit ~= "player" then
         info.keyMapID = nil
         info.keyLevel = nil

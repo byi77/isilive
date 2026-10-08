@@ -602,20 +602,29 @@ local function NormalizeDpsPayload(dps, capturedAt, source)
     normalizedSource
 end
 
-local function NormalizeLocPayload(mapID, capturedAt, source)
-  local numericMapID = ToFiniteNumber(mapID)
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  if not numericMapID or numericMapID <= 0 then
-    return string.format("LOC:0:%d:%s", normalizedCapturedAt, normalizedSource),
-      nil,
-      normalizedCapturedAt,
-      normalizedSource
+local function NormalizePositiveLocID(value)
+  local numeric = ToFiniteNumber(value)
+  if not numeric or numeric <= 0 then
+    return nil
   end
-  numericMapID = math.floor(numericMapID)
-  return string.format("LOC:%d:%d:%s", numericMapID, normalizedCapturedAt, normalizedSource),
-    numericMapID,
-    normalizedCapturedAt,
-    normalizedSource
+  return math.floor(numeric)
+end
+
+-- Wire format: LOC:<uiMapID>:<capturedAt>:<source>[:IN:<instanceID>]
+-- Field 2 keeps the legacy UiMapID (C_Map.GetBestMapForUnit) so clients up to
+-- 0.9.423, which read only fields 2-4, behave exactly as before. The party
+-- instance ID (8th return of GetInstanceInfo) rides in the tagged "IN" suffix
+-- (same extension style as the TARGET "LT" suffix). Every LOC-capable release
+-- splits on ":" into at most 10 fields and ignores fields 5+ (rule 194).
+local function NormalizeLocPayload(mapID, capturedAt, source, instanceID)
+  local numericMapID = NormalizePositiveLocID(mapID)
+  local numericInstanceID = NormalizePositiveLocID(instanceID)
+  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
+  local payload = string.format("LOC:%d:%d:%s", numericMapID or 0, normalizedCapturedAt, normalizedSource)
+  if numericInstanceID then
+    payload = payload .. ":IN:" .. numericInstanceID
+  end
+  return payload, numericMapID, normalizedCapturedAt, normalizedSource, numericInstanceID
 end
 
 local function NormalizeTargetLevelText(levelText, numericLevel)
@@ -1201,26 +1210,29 @@ end
 --- Stores a received location (map) payload for a peer. Clears the entry when mapID is invalid.
 -- @param name string Sender name.
 -- @param realm string|nil Sender realm.
--- @param mapID number|nil Current dungeon/zone map ID; nil or 0 clears the entry.
+-- @param mapID number|nil Legacy UiMapID (wire field 2); never used for the target-dungeon marker.
 -- @param capturedAt number|nil Timestamp from the payload.
 -- @param source string|nil Sync source label.
+-- @param instanceID number|nil Party instance ID from the "IN" suffix (rule 194).
+--   The entry is cleared only when both mapID and instanceID are nil or 0.
 -- @return boolean true if stored location changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source)
+function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source, instanceID)
   local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return false
   end
 
-  local _, numericMapID, normalizedCapturedAt, normalizedSource = NormalizeLocPayload(mapID, capturedAt, source)
+  local _, numericMapID, normalizedCapturedAt, normalizedSource, numericInstanceID =
+    NormalizeLocPayload(mapID, capturedAt, source, instanceID)
   local previous = locInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  if not numericMapID then
+  if not numericMapID and not numericInstanceID then
     local hadValue = type(locInfoByPlayerKey[key]) == "table"
     locInfoByPlayerKey[key] = nil
     return hadValue
   end
 
-  if previous and previous.mapID == numericMapID then
+  if previous and previous.mapID == numericMapID and previous.instanceID == numericInstanceID then
     previous.capturedAt = normalizedCapturedAt
     previous.source = normalizedSource
     previous.receivedAt = GetSyncTimestamp()
@@ -1230,6 +1242,7 @@ function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source)
 
   local nextValue = {
     mapID = numericMapID,
+    instanceID = numericInstanceID,
     capturedAt = normalizedCapturedAt,
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
@@ -1242,7 +1255,7 @@ end
 --- Returns stored location info for a peer, or nil if none received.
 -- @param name string Player name.
 -- @param realm string|nil Realm name.
--- @return table|nil {mapID, capturedAt, source, receivedAt, previousSyncStamp}
+-- @return table|nil {mapID, instanceID, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerLocInfo(name, realm)
   local key = ResolveLookupKey(locInfoByPlayerKey, name, realm)
   if StringUtils.IsBlank(key) then
@@ -1748,9 +1761,10 @@ function Sync.SendKick(opts)
   return sent == true
 end
 
---- Broadcasts the local player's current dungeon/zone map ID to the group.
+--- Broadcasts the local player's current location to the group: legacy
+-- UiMapID in field 2 plus the party instance ID in the "IN" suffix (rule 194).
 -- Deduplicated and rate-limited by ISILIVE_STATS_COOLDOWN (5 s).
--- @param opts table {mapID:number, capturedAt:number, source:string,
+-- @param opts table {mapID:number, instanceID:number, capturedAt:number, source:string,
 --   isVisible:boolean, allowHidden:boolean, force:boolean, onlyIfChanged:boolean}
 function Sync.SendLoc(opts)
   opts = opts or {}
@@ -1759,8 +1773,9 @@ function Sync.SendLoc(opts)
     return
   end
 
-  local payload, numericMapID = NormalizeLocPayload(opts.mapID, opts.capturedAt, opts.source)
-  local dedupePayload = string.format("LOC:%d", tonumber(numericMapID) or 0)
+  local payload, numericMapID, _, _, numericInstanceID =
+    NormalizeLocPayload(opts.mapID, opts.capturedAt, opts.source, opts.instanceID)
+  local dedupePayload = string.format("LOC:%d:IN:%d", numericMapID or 0, numericInstanceID or 0)
   local blocked, now =
     IsBlockedBySendGate(opts, lastLocPayloadSent, lastIsiLiveLocAt, dedupePayload, ISILIVE_STATS_COOLDOWN, nil)
   if blocked then
@@ -1772,7 +1787,14 @@ function Sync.SendLoc(opts)
     lastIsiLiveLocAt = now
     lastLocPayloadSent = dedupePayload
   end
-  SyncLog("send_loc", "mapID=%s channel=%s sent=%s", tostring(numericMapID), tostring(channel), tostring(sent))
+  SyncLog(
+    "send_loc",
+    "mapID=%s instanceID=%s channel=%s sent=%s",
+    tostring(numericMapID),
+    tostring(numericInstanceID),
+    tostring(channel),
+    tostring(sent)
+  )
 end
 
 --- Broadcasts the local player's target keystone (desired dungeon/level) to the group.

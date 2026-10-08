@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-08 - Version 0.9.424 (patch)
+
+- Target dungeon: "the player is inside the target dungeon" is decided by
+  instance IDs. The current party instance (8th return of `GetInstanceInfo`)
+  is compared with the 6th return of `C_ChallengeMode.GetMapUIInfo` for the
+  target challenge map; both the entered-target check (clears the queue target
+  and LFG state, updates the teleport button) and the teleport highlight
+  suppression compared the UiMapID from `C_Map.GetBestMapForUnit` with a
+  challenge-mode map ID and never matched. Verified in game on Murder Row:
+  challenge map 587, instance 2813, UiMapID 2433 (rule 193).
+- LOC sync: the payload gains a tagged instance-ID suffix,
+  `LOC:<uiMapID>:<capturedAt>:<source>[:IN:<instanceID>]`. Fields 1-4 stay
+  byte-identical, so clients up to 0.9.423 parse it exactly as before. The
+  roster portal marker compares only instance IDs: the own row through the
+  local instance, other rows through the synced `IN` value. Legacy payloads
+  without the suffix and members without isiLive are not marked (rule 194).
+
 ## 2026-10-08 - Version 0.9.423 (patch)
 
 - Stats box: Demon Hunter is a hybrid class; Havoc and Vengeance show

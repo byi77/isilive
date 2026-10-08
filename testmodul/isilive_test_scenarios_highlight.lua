@@ -28,79 +28,195 @@ local function BuildHighlightController(addon, overrides)
   })
 end
 
-local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Highlight keeps active listing for shared spell when map is different", function()
-    local currentMapID = nil
-    local activeEntry = nil
+-- Location mocks keep the three Blizzard ID spaces apart: challenge-mode map
+-- IDs (season data, activity resolver) resolve to instance IDs through the 6th
+-- return of C_ChallengeMode.GetMapUIInfo, the player location is the 8th return
+-- of GetInstanceInfo, and the UiMapID from C_Map.GetBestMapForUnit is a third
+-- space that must never decide the "already inside" suppression (rule 193).
+-- Ingame 2026-10-08, Murder Row: challenge 587 -> instance 2813, UiMapID 2433.
+local INSTANCE_ID_BY_CHALLENGE_MAP_ID = {
+  [587] = 2813,
+  [2441] = 2649,
+  [2442] = 2651,
+  [2662] = 2660,
+}
 
-    WithGlobals({
-      UnitExists = function(unit)
-        return unit == "player"
+local function BuildLocationGlobals(location, overrides)
+  local globals = {
+    UnitExists = function(unit)
+      return unit == "player"
+    end,
+    C_Map = {
+      GetBestMapForUnit = function(_unit)
+        return location.uiMapID
       end,
-      C_ChallengeMode = {
-        GetActiveChallengeMapID = function()
+    },
+    GetInstanceInfo = function()
+      return "Instance", location.instanceType or "none", 0, "", 5, 0, false, location.instanceID, 0, 0, nil, nil
+    end,
+    C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return location.activeChallengeMapID
+      end,
+      GetMapUIInfo = function(challengeMapID)
+        local instanceID = INSTANCE_ID_BY_CHALLENGE_MAP_ID[challengeMapID]
+        if not instanceID then
           return nil
-        end,
-      },
-      C_Map = {
-        GetBestMapForUnit = function(_unit)
-          return currentMapID
-        end,
-      },
-      C_LFGList = {
-        GetActiveEntryInfo = function()
-          return activeEntry
-        end,
-      },
-    }, function()
+        end
+        return "Dungeon", challengeMapID, 1800, nil, nil, instanceID
+      end,
+    },
+    C_LFGList = {
+      GetActiveEntryInfo = function()
+        return location.activeEntry
+      end,
+    },
+  }
+  for key, value in pairs(overrides or {}) do
+    globals[key] = value
+  end
+  return globals
+end
+
+local function MovePlayerInto(location, challengeMapID)
+  location.instanceType = "party"
+  location.instanceID = INSTANCE_ID_BY_CHALLENGE_MAP_ID[challengeMapID]
+end
+
+local function BuildMurderRowController(addon)
+  return BuildHighlightController(addon, {
+    resolveTeleportSpellIDByMapID = function(mapID)
+      return mapID == 587 and 1286809 or nil
+    end,
+    resolveMapIDByActivityID = function(activityID)
+      return activityID == 1950 and 587 or nil
+    end,
+  })
+end
+
+local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  test("Highlight keeps active listing for shared spell when map is different", function()
+    local location = { activeEntry = { active = true, mapID = 2442 } }
+
+    WithGlobals(BuildLocationGlobals(location), function()
       local addon = LoadAddonModules({ "isiLive_highlight.lua" })
       local controller = BuildHighlightController(addon)
-      activeEntry = { active = true, mapID = 2442 }
 
-      currentMapID = 2441
+      MovePlayerInto(location, 2441)
       local differentMapSpell = controller.ResolveActiveTeleportSpellID(nil, nil)
       Assert.Equal(differentMapSpell, 367416, "shared spell should stay highlighted on sibling map")
 
-      currentMapID = 2442
+      MovePlayerInto(location, 2442)
       local exactMapSpell = controller.ResolveActiveTeleportSpellID(nil, nil)
       Assert.Nil(exactMapSpell, "shared spell should clear on exact listing map")
     end)
   end)
 
   test("Highlight queue path uses exact-map suppression for shared spell", function()
-    local currentMapID = nil
+    local location = {}
 
-    WithGlobals({
-      UnitExists = function(unit)
-        return unit == "player"
-      end,
-      C_ChallengeMode = {
-        GetActiveChallengeMapID = function()
-          return nil
-        end,
-      },
-      C_Map = {
-        GetBestMapForUnit = function(_unit)
-          return currentMapID
-        end,
-      },
-      C_LFGList = {
-        GetActiveEntryInfo = function()
-          return nil
-        end,
-      },
-    }, function()
+    WithGlobals(BuildLocationGlobals(location), function()
       local addon = LoadAddonModules({ "isiLive_highlight.lua" })
       local controller = BuildHighlightController(addon)
 
-      currentMapID = 2441
+      MovePlayerInto(location, 2441)
       local differentMapSpell = controller.ResolveActiveTeleportSpellID(1001, nil)
       Assert.Equal(differentMapSpell, 367416, "queue shared spell should stay highlighted on sibling map")
 
-      currentMapID = 2442
+      MovePlayerInto(location, 2442)
       local exactMapSpell = controller.ResolveActiveTeleportSpellID(1001, nil)
       Assert.Nil(exactMapSpell, "queue shared spell should clear on exact target map")
     end)
+  end)
+
+  -- COMPONENT-ONLY: the highlight resolver is reached in production through
+  -- the teleport-button refresh of the frame bridge; the real Highlight
+  -- controller is driven here with the real Validators location helpers and
+  -- only the Blizzard globals mocked.
+  test("Highlight suppresses the Murder Row teleport only inside instance 2813", function()
+    local location = { instanceType = "none", uiMapID = 2393 }
+
+    WithGlobals(BuildLocationGlobals(location), function()
+      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+      local controller = BuildMurderRowController(addon)
+
+      Assert.Equal(controller.ResolveActiveTeleportSpellID(1950, nil), 1286809, "outside: queue teleport stays")
+
+      location.instanceType = "party"
+      location.instanceID = 2813
+      location.uiMapID = 2433
+      Assert.Nil(controller.ResolveActiveTeleportSpellID(1950, nil), "inside instance 2813: queue teleport clears")
+      location.activeEntry = { active = true, mapID = 587 }
+      Assert.Nil(controller.ResolveActiveTeleportSpellID(nil, nil), "inside instance 2813: listing teleport clears")
+
+      location.instanceType = "scenario"
+      Assert.Equal(
+        controller.ResolveActiveTeleportSpellID(nil, nil),
+        1286809,
+        "a non-party instance with the same instance ID must not suppress the teleport"
+      )
+    end)
+  end)
+
+  test("Highlight ignores a player UiMapID that collides with the target challenge map ID", function()
+    local location = { instanceType = "none", instanceID = 2552, uiMapID = 587 }
+
+    WithGlobals(BuildLocationGlobals(location), function()
+      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+      local controller = BuildMurderRowController(addon)
+
+      Assert.Equal(
+        controller.ResolveActiveTeleportSpellID(1950, nil),
+        1286809,
+        "a UiMapID equal to the challenge map ID must not suppress the queue teleport"
+      )
+      location.activeEntry = { active = true, mapID = 587 }
+      Assert.Equal(
+        controller.ResolveActiveTeleportSpellID(nil, nil),
+        1286809,
+        "a UiMapID equal to the challenge map ID must not suppress the listing teleport"
+      )
+    end)
+  end)
+
+  test("Highlight keeps the teleport when the instance APIs are missing or masked", function()
+    local secret, secretGlobals = Fixtures.MakeStrictSecret("number")
+
+    local function RunCase(overrides, reason)
+      local location = { uiMapID = 2433 }
+      MovePlayerInto(location, 587)
+      WithGlobals(BuildLocationGlobals(location, overrides), function()
+        local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+        local controller = BuildMurderRowController(addon)
+        Assert.Equal(controller.ResolveActiveTeleportSpellID(1950, nil), 1286809, reason)
+      end)
+    end
+
+    RunCase({ C_ChallengeMode = {} }, "missing GetMapUIInfo must keep the teleport")
+    RunCase({ GetInstanceInfo = false }, "missing GetInstanceInfo must keep the teleport")
+    RunCase({
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          error("map ui info unavailable")
+        end,
+      },
+    }, "a failing GetMapUIInfo must keep the teleport")
+    RunCase({
+      issecretvalue = secretGlobals.issecretvalue,
+      type = secretGlobals.type,
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          return "Murder Row", 587, 1800, nil, nil, secret
+        end,
+      },
+    }, "a masked challenge map instance ID must keep the teleport")
+    RunCase({
+      issecretvalue = secretGlobals.issecretvalue,
+      type = secretGlobals.type,
+      GetInstanceInfo = function()
+        return "Murder Row", "party", 8, "", 5, 0, false, secret, 0, 0, nil, nil
+      end,
+    }, "a masked player instance ID must keep the teleport")
   end)
 
   test("Highlight joined-key resolver requires activity-based map context", function()
@@ -205,66 +321,35 @@ local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
-  test("Highlight current map resolver skips player map lookup when player unit is missing", function()
+  test("Highlight never reads the player UiMapID", function()
     local mapCalls = 0
+    local location = { activeEntry = { active = true, mapID = 2442 } }
 
-    WithGlobals({
-      UnitExists = function(_unit)
-        return false
-      end,
-      C_ChallengeMode = {
-        GetActiveChallengeMapID = function()
-          return nil
-        end,
-      },
-      C_Map = {
-        GetBestMapForUnit = function(_unit)
-          mapCalls = mapCalls + 1
-          error("GetBestMapForUnit must not run when player unit is missing")
-        end,
-      },
-      C_LFGList = {
-        GetActiveEntryInfo = function()
-          return {
-            active = true,
-            mapID = 2442,
-          }
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
-      local controller = BuildHighlightController(addon)
+    WithGlobals(
+      BuildLocationGlobals(location, {
+        C_Map = {
+          GetBestMapForUnit = function(_unit)
+            mapCalls = mapCalls + 1
+            error("GetBestMapForUnit must not decide the highlight suppression")
+          end,
+        },
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+        local controller = BuildHighlightController(addon)
 
-      local spellID = controller.ResolveActiveTeleportSpellID(nil, nil)
-      Assert.Equal(spellID, 367416, "missing player unit must keep current-map context unresolved")
-    end)
+        local spellID = controller.ResolveActiveTeleportSpellID(nil, nil)
+        Assert.Equal(spellID, 367416, "outside an instance the listing teleport must stay")
+      end
+    )
 
-    Assert.Equal(mapCalls, 0, "highlight must not query player map when UnitExists is false")
+    Assert.Equal(mapCalls, 0, "highlight must not query the player UiMapID")
   end)
 
   test("Highlight queue path ignores active challenge map before actual dungeon entry", function()
-    local currentMapID = 2441
+    local location = { instanceType = "none", uiMapID = 2441, activeChallengeMapID = 2442 }
 
-    WithGlobals({
-      UnitExists = function(unit)
-        return unit == "player"
-      end,
-      C_ChallengeMode = {
-        GetActiveChallengeMapID = function()
-          return 2442
-        end,
-      },
-      C_Map = {
-        GetBestMapForUnit = function(_unit)
-          return currentMapID
-        end,
-      },
-      C_LFGList = {
-        GetActiveEntryInfo = function()
-          return nil
-        end,
-      },
-    }, function()
+    WithGlobals(BuildLocationGlobals(location), function()
       local addon = LoadAddonModules({ "isiLive_highlight.lua" })
       local controller = BuildHighlightController(addon)
 
@@ -349,8 +434,9 @@ return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
+  local Fixtures = ctx.fixtures
 
-  RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterHighlightNormalizationTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAddonModules)
 end

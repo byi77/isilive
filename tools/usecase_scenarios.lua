@@ -121,6 +121,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_teleport_branches.lua",
   "testmodul/isilive_test_scenarios_event_handlers_runtime_branches.lua",
   "testmodul/isilive_test_scenarios_highlight_branches.lua",
+  "testmodul/isilive_test_scenarios_loc_instance_sync.lua",
   "testmodul/isilive_test_scenarios_demo_branches.lua",
   "testmodul/isilive_test_scenarios_controller_wiring_keystone.lua",
   "testmodul/isilive_test_scenarios_lfg_flags_branches.lua",

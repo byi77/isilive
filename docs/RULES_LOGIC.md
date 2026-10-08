@@ -2802,3 +2802,33 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Menue-Frame und Vollbild-Klickfaenger des Settings-Dropdowns haengen an `UIParent` und werden daher nicht mit dem Settings-Canvas versteckt. Der Dropdown-Button haengt per `HookScript("OnHide", ...)` das Schliessen des Menues an; `OnHide` feuert laut warcraft.wiki.gg (UIHANDLER_OnHide) auch, wenn ein Elternframe versteckt wird. Nach ESC bzw. dem Schliessen der Settings sind Menue und Klickfaenger versteckt, sodass der naechste Weltklick nicht verschluckt wird.
 - Erforderliche Tests:
   - Settings dropdown menu and click catcher close when the dropdown is hidden
+
+### RULE-ZIELDUNGEON-UEBER-INSTANZ-ID
+- Regelnummer: 193
+- Status: aktiv
+- Zusammenfassung: Ob der Spieler im Zieldungeon steht, wird ausschliesslich ueber Instanz-IDs entschieden: `ctx.CheckIfEnteredTargetDungeon` (`factory/isiLive_factory_secondary_runtime.lua`) und die Teleport-Highlight-Unterdrueckung in `logic/isiLive_highlight.lua` rufen beide `Validators.IsPlayerInChallengeMapInstance` (`core/isiLive_validation_helpers.lua`) auf. Die aktuelle Instanz-ID ist die 8. Rueckgabe von `GetInstanceInfo` ueber `Validators.GetInstanceInfoSafe` und zaehlt nur bei `instanceType == "party"`; die Ziel-Instanz-ID ist die 6. Rueckgabe von `C_ChallengeMode.GetMapUIInfo(<Challenge-Map-ID>)` (rawget, Typpruefung, pcall, Secret-Pruefung vor jeder Operation nach Regel 181) und wird pro Challenge-Map-ID gecacht, Fehlschlaege nicht. Die UiMapID aus `C_Map.GetBestMapForUnit` ist ein dritter ID-Raum und entscheidet nicht mehr. Fehlt eine API, wirft sie oder ist ein Wert maskiert, nil oder nicht positiv, gilt der Spieler als nicht im Zieldungeon (kein Clear, Highlight bleibt). Ingame-Beleg 2026-10-08, Moerdergasse: Challenge-Map-ID 587, `select(8, GetInstanceInfo())` = 2813 = `select(6, C_ChallengeMode.GetMapUIInfo(587))`, `C_Map.GetBestMapForUnit("player")` = 2433; der fruehere Vergleich UiMapID gegen Challenge-Map-ID traf daher nie.
+- Erforderliche Tests:
+  - Factory target dungeon clear waits for actual player map entry
+  - Factory target dungeon clear fires on PLAYER_ENTERING_WORLD and CHALLENGE_MODE_START inside the dungeon
+  - Factory target dungeon check ignores a UiMapID that collides with the challenge map ID
+  - Factory target dungeon check requires a party instance
+  - Factory target dungeon check fails closed when the instance APIs are missing or masked
+  - Highlight suppresses the Murder Row teleport only inside instance 2813
+  - Highlight ignores a player UiMapID that collides with the target challenge map ID
+  - Highlight keeps the teleport when the instance APIs are missing or masked
+  - Highlight never reads the player UiMapID
+
+### RULE-LOC-SYNC-INSTANZ-ID
+- Regelnummer: 194
+- Status: aktiv
+- Zusammenfassung: Der `LOC`-Sync-Bucket transportiert die Instanz-ID des Senders als getaggtes Zusatzfeld: `LOC:<UiMapID>:<capturedAt>:<source>[:IN:<Instanz-ID>]`. Feld 2 bleibt die UiMapID aus `C_Map.GetBestMapForUnit("player")` (0 ausserhalb einer Party-Instanz), damit Clients bis 0.9.423 sich unveraendert verhalten; das Suffix `IN:<Instanz-ID>` traegt die 8. Rueckgabe von `GetInstanceInfo` ueber `Validators.GetCurrentPartyInstanceID` und fehlt ausserhalb einer Party-Instanz. Jede LOC-faehige Version (0.9.178 bis 0.9.423) zerlegt die Nachricht per `SplitPayload` in hoechstens 10 Felder und liest nur die Felder 2 bis 4; das Suffix wird dort ignoriert (gleiches Erweiterungsmuster wie das `LT`-Suffix von `TARGET` seit 0.9.249). Die Sende-Deduplizierung beruecksichtigt UiMapID und Instanz-ID. Der Empfaenger speichert die Instanz-ID nur aus einem gueltigen `IN`-Suffix (endliche positive Zahl); ein fehlendes oder fehlerhaftes Suffix speichert keine Instanz-ID, ohne die Nachricht zu verwerfen. Der Roster-Eintrag erhaelt sie als `syncLocInstanceID`. Die Zieldungeon-Markierung (`IsEntryAtTargetDungeon`, `ui/isiLive_roster_panel_render.lua`) vergleicht ausschliesslich Instanz-IDs: die eigene Zeile ueber `Validators.IsPlayerInChallengeMapInstance`, fremde Zeilen ueber `syncLocInstanceID` gegen `Validators.ResolveChallengeMapInstanceID(<Challenge-Map-ID>)`. Weder `C_Map.GetBestMapForUnit(<Einheit>)` noch das Legacy-Feld `syncLocMapID` entscheiden; ein Legacy-Payload ohne `IN`-Suffix markiert niemanden. Mitglieder ohne aktuellen isiLive-Client bleiben daher unmarkiert. Maskierte, fehlende oder nicht positive Werte bleiben unmarkiert (fail-closed). Ingame-Beleg der ID-Raeume siehe Regel 193 (Moerdergasse: Challenge 587, Instanz 2813, UiMapID 2433).
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-08): Regel 33 "spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert" wurde bisher ueber den Vergleich der UiMapID (`C_Map.GetBestMapForUnit` bzw. LOC-Feld 2) mit der Challenge-Map-ID umgesetzt, der nie korrekt traf. Die Erkennung laeuft jetzt ausschliesslich ueber Instanz-IDs; der Detailblock von Regel 33 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - LOC roundtrip marks a member who stands in the target dungeon instance
+  - LOC roundtrip leaves a member in another instance unmarked
+  - LOC roundtrip ignores a legacy payload without instance ID
+  - LOC roundtrip marks the own row only inside the target dungeon instance
+  - LOC sender omits the IN suffix outside a party instance
+  - LOC IN suffix keeps the legacy fields that older parsers read
+  - LOC receiver ignores a malformed IN suffix
+  - Roster target location requires existing unit and rejects secret map

@@ -161,6 +161,76 @@ function Validators.GetInstanceInfoSafe()
   return VerifyInstanceInfo(pcall(getInstanceInfo))
 end
 
+-- Blizzard uses three separate ID spaces for a dungeon. Ingame 2026-10-08,
+-- Murder Row: challenge-mode map ID 587 (season data, ResolveStatusTargetMapID),
+-- instance ID 2813 (8th return of GetInstanceInfo, 6th return of
+-- C_ChallengeMode.GetMapUIInfo(587)) and UiMapID 2433
+-- (C_Map.GetBestMapForUnit). Only the instance ID links the challenge map to
+-- the player's location. The challenge -> instance mapping is static, so a
+-- resolved pair is cached; failed lookups are not.
+local instanceIDByChallengeMapID = {}
+
+--- Resolves the instance ID behind a challenge-mode map ID.
+--- @param challengeMapID any
+--- @return number|nil -- nil when the API is missing, fails or returns a masked/unusable value
+function Validators.ResolveChallengeMapInstanceID(challengeMapID)
+  if Validators.IsSecretValue(challengeMapID) or type(challengeMapID) ~= "number" or challengeMapID <= 0 then
+    return nil
+  end
+  local cached = instanceIDByChallengeMapID[challengeMapID]
+  if cached then
+    return cached
+  end
+
+  local challengeModeApi = rawget(_G, "C_ChallengeMode")
+  if type(challengeModeApi) ~= "table" then
+    return nil
+  end
+  local getMapUIInfo = rawget(challengeModeApi, "GetMapUIInfo")
+  if type(getMapUIInfo) ~= "function" then
+    return nil
+  end
+  -- Returns name, id, timeLimit, texture, backgroundTexture, mapID; the 6th
+  -- value is the instance ID (verified ingame, see above).
+  local ok, _, _, _, _, _, instanceID = pcall(getMapUIInfo, challengeMapID)
+  if not ok or Validators.IsSecretValue(instanceID) or type(instanceID) ~= "number" or instanceID <= 0 then
+    return nil
+  end
+  instanceIDByChallengeMapID[challengeMapID] = instanceID
+  return instanceID
+end
+
+--- Instance ID of the player's current location, only inside a party
+--- (dungeon) instance.
+--- @return number|nil -- nil outside a party instance or when the data is missing/masked
+function Validators.GetCurrentPartyInstanceID()
+  local ok, instanceInfo = Validators.GetInstanceInfoSafe()
+  if not ok or type(instanceInfo) ~= "table" or instanceInfo.instanceType ~= "party" then
+    return nil
+  end
+  local instanceID = instanceInfo.instanceMapID
+  if type(instanceID) ~= "number" or instanceID <= 0 then
+    return nil
+  end
+  return instanceID
+end
+
+--- True only when the player stands inside the party instance that belongs to
+--- the given challenge-mode map ID. Every missing or masked input fails closed.
+--- @param challengeMapID any
+--- @return boolean, number|nil, number|nil -- matched, current instance ID, target instance ID
+function Validators.IsPlayerInChallengeMapInstance(challengeMapID)
+  local currentInstanceID = Validators.GetCurrentPartyInstanceID()
+  if not currentInstanceID then
+    return false, nil, nil
+  end
+  local targetInstanceID = Validators.ResolveChallengeMapInstanceID(challengeMapID)
+  if not targetInstanceID then
+    return false, currentInstanceID, nil
+  end
+  return currentInstanceID == targetInstanceID, currentInstanceID, targetInstanceID
+end
+
 --- Asserts that a value is a function and returns it.
 --- @param value any
 --- @param name string -- dependency name for error messages
