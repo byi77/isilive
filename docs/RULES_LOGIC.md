@@ -2725,3 +2725,80 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox stays shown and keeps collecting in a raid group
   - StatsBox receives UNIT_STATS only for the player unit
   - StatsBox disabled event bursts collect no stats and player updates avoid forced layout
+
+### RULE-STATS-BOX-DAEMONENJAEGER-HYBRID
+- Regelnummer: 184
+- Status: aktiv
+- Zusammenfassung: Der Daemonenjaeger ist seit Midnight mit der Spezialisierung Verschlinger (Devourer) eine Hybridklasse fuer den Primaerstat der Stats-Box und steht nicht mehr in der Klassentabelle `PRIMARY_BY_CLASS`. Die Spezialisierungstabelle fuehrt Verwuestung (577) und Rachsucht (581) als Beweglichkeit und Verschlinger (1480) als Intelligenz; ohne exakt gelesene Spezialisierungs-ID zeigt ein Daemonenjaeger keine Primaerstat-Zeile (Regel 65, Hybridklassen). Quellen: warcraft.wiki.gg/wiki/SpecializationID (577 Havoc, 581 Vengeance, 1480 Devourer), warcraft.wiki.gg/wiki/Agility (Daemonenjaeger: Havoc und Vengeance), warcraft.wiki.gg/wiki/Demon_hunter (Primaerattribut "Agility or Intellect"); Blizzards UI-Quelltext fuehrt 1480 als Devourer (`Blizzard_CooldownBroadcaster/TrackedCooldowns.lua`, `Blizzard_ClassSpecializationsFrame.lua`).
+- Erforderliche Tests:
+  - StatsBox resolves the Demon Hunter primary stat per specialization
+  - StatsBox resolves hybrid primary stat only from exact specialization
+
+### RULE-STATS-BOX-CHARAKTERBOGEN-PROZENTE
+- Regelnummer: 185
+- Status: aktiv
+- Zusammenfassung: Die Prozentwerte der Stats-Box folgen den Formeln des Blizzard-Charakterbogens (`Blizzard_UIPanels_Game/Mainline/PaperDollFrame.lua`, Branch live). Krit = Minimum von `GetSpellCritChance(2..7)` (Schule 1, physisch, wird uebersprungen), davon das Maximum mit `GetRangedCritChance()` und `GetCritChance()` (`PaperDollFrame_SetCritChance`). Vielseitigkeit = `GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) + GetVersatilityBonus(CR_VERSATILITY_DAMAGE_DONE)` (`PaperDollFrame_SetVersatility`). Lebensraub, Tempo-Bewegung (Speed) und Vermeidung kommen aus `GetLifesteal()`, `GetSpeed()` und `GetAvoidance()` statt aus `GetCombatRatingBonus`. Minimum, Maximum und Summe werden nur aus Klartextzahlen gebildet: ist eine Quelle maskiert (Secret Value), fehlt oder wirft sie, bleibt der Prozentwert der Zeile unsichtbar, statt ein Teilmaximum oder eine halbe Summe zu zeigen; die Rating-Zeile selbst bleibt sichtbar. Einzelwert-Prozente (Lebensraub, Speed, Vermeidung, Meisterschaft, Tempo) werden wie bisher maskiert nur per `string.format` dargestellt (Regel 65). Tempo bleibt bei `UnitSpellHaste("player")`, weil Regel 65 diese Quelle per Pflichttest festlegt; der Charakterbogen nutzt `GetHaste()`.
+- Erforderliche Tests:
+  - StatsBox crit percent follows the character sheet formula
+  - StatsBox versatility percent sums rating and flat bonus only when both are plain
+  - StatsBox leech and speed percentages come from the character sheet APIs
+  - StatsBox renders stamina durability and avoidance from direct APIs
+  - StatsBox formats secret API values without arithmetic
+
+### RULE-STATS-BOX-EVENTS-UEBER-TAKT
+- Regelnummer: 186
+- Status: aktiv
+- Zusammenfassung: Stat-Events der aktivierten Stats-Box (`UNIT_STATS`, `COMBAT_RATING_UPDATE`, `PLAYER_EQUIPMENT_CHANGED`, `ACTIVE_TALENT_GROUP_CHANGED`, `PLAYER_SPECIALIZATION_CHANGED`) sammeln und rendern nicht mehr synchron, sondern setzen nur den 1-s-Takt faellig (`state.elapsed = UPDATE_INTERVAL`); der naechste `OnUpdate` sammelt und rendert genau einmal, egal wie viele Events im selben Frame ankamen. `PLAYER_LOGIN`/`PLAYER_ENTERING_WORLD` wenden die Settings weiter sofort an. `PLAYER_SPECIALIZATION_CHANGED` wird wie `UNIT_STATS` per `RegisterUnitEvent(..., "player")` registriert, statisch beim Laden der Datei (nie aus einem protected Dispatch); ohne `RegisterUnitEvent` verwirft der Handler fremde und maskierte Units vor jedem Vergleich. Eine deaktivierte Box ignoriert die Events weiter vollstaendig. Regel 139 (Einblenden bei Wertwechsel) bleibt unveraendert, sie verlangt keine Reaktion im selben Frame.
+- Erforderliche Tests:
+  - StatsBox coalesces a stat event burst into one collect on the next tick
+  - StatsBox listens to specialization changes of the player only
+  - StatsBox disabled event bursts collect no stats and player updates avoid forced layout
+  - StatsBox stays shown and keeps collecting in a raid group
+
+### RULE-STATS-BOX-MASKIERT-EINZELWERT-FALLBACK
+- Regelnummer: 187
+- Status: aktiv
+- Zusammenfassung: Kann die Charakterbogen-Formel aus Regel 185 fuer Krit oder Vielseitigkeit nicht laufen, weil eine ihrer Quellen maskiert (Secret Value), fehlend oder unlesbar ist, zeigt die Stats-Box wie bis 0.9.422 den Einzelwert: Krit faellt auf `GetCritChance()` zurueck, Vielseitigkeit auf `GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE)`. Dieser Einzelwert wird bei Maskierung unveraendert durchgereicht und nur per `string.format` dargestellt (Regel 65). Ob alle Quellen plain sind, entscheidet ausschliesslich `Validators.IsSecretValue` ueber `ReadPlainNumber`, bevor irgendeine Operation auf einem Rueckgabewert laeuft (Regel 181); Minimum, Maximum und Summe entstehen nur aus Klartextzahlen. Ausserhalb von Restriktionen bleibt die Anzeige exakt beim Charakterbogen. Ziel: In Keys und Bosskaempfen bleiben Krit- und Vielseitigkeits-Prozent sichtbar. Begruendung: User-Entscheidung (2026-10-08).
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-08): Regel 185 "ist eine Quelle maskiert (Secret Value), fehlt oder wirft sie, bleibt der Prozentwert der Zeile unsichtbar, statt ein Teilmaximum oder eine halbe Summe zu zeigen". Fuer Krit und Vielseitigkeit greift jetzt der Einzelwert-Fallback; der Detailblock von Regel 185 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - StatsBox crit percent follows the character sheet formula
+  - StatsBox versatility percent sums rating and flat bonus only when both are plain
+
+### RULE-ROSTER-TOOLTIP-POSTCALL-OHNE-SHOW
+- Regelnummer: 188
+- Status: aktiv
+- Zusammenfassung: Die Sprachzeile, die `ui/isiLive_roster_tooltip.lua` ueber `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)` an den Blizzard-Unit-Tooltip haengt, ruft nach `AddLine` kein `tooltip:Show()` mehr auf. Blizzards `TooltipDataHandlerMixin:InternalProcessInfo` (`Blizzard_SharedXMLGame/Tooltip/TooltipDataHandler.lua`, Gethe/wow-ui-source Branch live, 12.1.0.69933) ruft `ProcessTooltipPostCalls(tooltipType, self, tooltipData)` und unmittelbar danach `self:Show()` auf; ein zusaetzliches `Show()` aus dem Post-Call loeste bei jedem Neuaufbau ein doppeltes Layout aus. Nur der Fallback ueber `hooksecurefunc(GameTooltip, "SetUnit", ...)`, der ohne `TooltipDataProcessor` greift, ruft `Show()` weiter selbst auf.
+- Erforderliche Tests:
+  - Blizzard GameTooltip post-call leaves Show to the tooltip data handler
+  - Blizzard GameTooltip shows server language name via TooltipDataProcessor for GUID hovers
+
+### RULE-ROSTER-TOOLTIP-UNBEKANNTE-SPRACHE-KEINE-ZEILE
+- Regelnummer: 189
+- Status: aktiv
+- Zusammenfassung: `Locale.GetUnitServerLanguage` und `Locale.LocaleToLanguageTag` liefern `"??"`, wenn Realm oder Realm-Locale unbekannt sind (etwa ohne Eintrag in den statischen Realmdaten und ohne LibRealmInfo). Der Blizzard-Unit-Tooltip behandelt `"??"` wie die LFG-Flaggen (Regel 68) als "kein Sprach-Tag": Der GUID-Pfad verwirft es, der Unit-Pfad haengt keine Zeile an und speichert keinen Dedup-Schluessel; statt "?? ??" erscheint keine Sprachzeile.
+- Erforderliche Tests:
+  - Blizzard GameTooltip post-call appends no line for an unknown realm language
+
+### RULE-LFG-FLAGGE-NUR-STABILE-ERGEBNISSE-CACHEN
+- Regelnummer: 190
+- Status: aktiv
+- Zusammenfassung: Der Flaggen-Cache der LFG-Suchergebnisse (`resultTagCache` in `ui/isiLive_lfg_flags.lua`) speichert nur stabile Antworten: ein aufgeloestes Sprach-Tag oder `false`, wenn der Leiter-Realm bekannt ist, aber keine Sprache liefert (`"??"`, leer oder kein String). Transiente Fehlschlaege werden nicht gecacht und beim naechsten Render erneut gelesen: fehlgeschlagener oder leerer `C_LFGList.GetSearchResultInfo`-Aufruf, maskierte Info (Secret Value), fehlender `leaderName`, nicht ermittelbarer Realm, fehlender Sprach-Resolver oder ein werfender Sprach-Resolver. Zusaetzlich verwirft der Hook auf `LFGListUtil_SetSearchEntryTooltip` den Cache-Eintrag des betroffenen Ergebnisses, bevor er Flagge und Bonus-Badge neu anwendet; `LFGListSearchPanel_DoSearch` leert den Cache weiter vollstaendig.
+- Erforderliche Tests:
+  - LFG search-result flag appears once a missing leaderName arrives
+  - LFG search-entry tooltip hook re-resolves the cached result flag
+  - LI.GetTagForResult uses cached value on repeated lookups
+
+### RULE-SETTINGS-DROPDOWN-ZEILEN-POOL
+- Regelnummer: 191
+- Status: aktiv
+- Zusammenfassung: Das Settings-Dropdown (`SettingsControls.CreateSettingsDropdownSelector`) haelt seine Menuezeilen in einem Pool: `ShowMenu` erzeugt nur Zeilen fuer Indizes, die noch nie existiert haben, zeigt die benoetigten und versteckt ueberzaehlige; `UpdateOptions` verwirft den Pool nicht mehr. `UpdateOptions` schliesst ein offenes Menue nur, wenn sich die Optionsliste tatsaechlich geaendert hat (Laenge oder `value`, `labelKey`, `fallback`, `previewFontPath` einer Zeile); ein Item-Event-Neuaufbau mit unveraenderter Ruhestein-Liste laesst das offene Menue offen.
+- Erforderliche Tests:
+  - Settings dropdown pools option rows and keeps an open menu across unchanged refreshes
+  - Settings item event bursts skip hidden panels and coalesce visible toy updates
+
+### RULE-SETTINGS-DROPDOWN-SCHLIESST-BEIM-AUSBLENDEN
+- Regelnummer: 192
+- Status: aktiv
+- Zusammenfassung: Menue-Frame und Vollbild-Klickfaenger des Settings-Dropdowns haengen an `UIParent` und werden daher nicht mit dem Settings-Canvas versteckt. Der Dropdown-Button haengt per `HookScript("OnHide", ...)` das Schliessen des Menues an; `OnHide` feuert laut warcraft.wiki.gg (UIHANDLER_OnHide) auch, wenn ein Elternframe versteckt wird. Nach ESC bzw. dem Schliessen der Settings sind Menue und Klickfaenger versteckt, sodass der naechste Weltklick nicht verschluckt wird.
+- Erforderliche Tests:
+  - Settings dropdown menu and click catcher close when the dropdown is hidden

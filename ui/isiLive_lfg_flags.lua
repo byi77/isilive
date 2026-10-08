@@ -100,7 +100,8 @@ local getFlagTexturePath
 local lfgFlagsEnabled = true
 local lfgGroupBonusesEnabled = true
 
--- resultID -> tag string|false cache; cleared on new search.
+-- resultID -> tag string|false cache; cleared on new search. Only stable answers
+-- (tag, or known realm without language) are cached; transient misses retry.
 local resultTagCache = {}
 local resultBonusBadgeCache = {}
 local resultMemberBonusCache = {}
@@ -136,17 +137,11 @@ local function GetTagForResult(resultID)
     return nil
   end
   local ok, info = pcall(C_LFGList_ref.GetSearchResultInfo, resultID)
-  if not ok or not info then
-    resultTagCache[resultID] = false
-    return nil
-  end
-  if IsSecretValue(info) then
-    resultTagCache[resultID] = false
+  if not ok or not info or IsSecretValue(info) then
     return nil
   end
   local leaderName = info.leaderName
   if not leaderName then
-    resultTagCache[resultID] = false
     return nil
   end
   local _, realm = SplitNameRealm(leaderName)
@@ -156,12 +151,16 @@ local function GetTagForResult(resultID)
       realm = getRealmName()
     end
   end
-  local tag
-  if type(getLanguageTag) == "function" and realm then
-    local tagOk, tagResult = pcall(getLanguageTag, realm)
-    if tagOk and type(tagResult) == "string" and tagResult ~= "" and tagResult ~= "??" then
-      tag = tagResult
-    end
+  if type(getLanguageTag) ~= "function" or not realm then
+    return nil
+  end
+  local tagOk, tagResult = pcall(getLanguageTag, realm)
+  if not tagOk then
+    return nil
+  end
+  local tag = nil
+  if type(tagResult) == "string" and tagResult ~= "" and tagResult ~= "??" then
+    tag = tagResult
   end
   resultTagCache[resultID] = tag or false
   return tag
@@ -1504,6 +1503,7 @@ ViewHooks.Configure({
     ClearSearchResultBonusCache()
   end,
   refreshSearchResultTooltip = function(resultID)
+    resultTagCache[resultID] = nil
     ClearSearchResultBonusCache(resultID)
     ViewHooks.ForEachSearchButton(function(button)
       if rawget(button, "resultID") == resultID then

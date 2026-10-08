@@ -647,7 +647,7 @@ local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, get
   end
 
   local languageTag = localeModule.LocaleToLanguageTag(realmLocale)
-  if type(languageTag) ~= "string" or languageTag == "" then
+  if type(languageTag) ~= "string" or languageTag == "" or languageTag == "??" then
     return nil, nil
   end
 
@@ -1056,7 +1056,8 @@ local function AppendBlizzardUnitLanguageLine(
     end
   end
 
-  if type(languageTag) ~= "string" or languageTag == "" then
+  -- "??" is the locale module's "no tag" answer (unknown realm): no line.
+  if type(languageTag) ~= "string" or languageTag == "" or languageTag == "??" then
     return false
   end
 
@@ -1097,10 +1098,9 @@ local function AppendBlizzardUnitLanguageLine(
   end
 
   languageFlagKeyByTooltip[tooltip] = languageKey
-  if languageMarkup then
-    tooltip:AddLine(languageMarkup, 0.9, 0.9, 0.9)
-  end
-  if type(tooltip.Show) == "function" then
+  tooltip:AddLine(languageMarkup, 0.9, 0.9, 0.9)
+  -- TooltipDataHandlerMixin:InternalProcessInfo shows the tooltip after its post-calls.
+  if not preferTooltipDataOnly and type(tooltip.Show) == "function" then
     tooltip:Show()
   end
   return true

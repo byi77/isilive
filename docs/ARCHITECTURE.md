@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.422`
+Versionsbasis: `0.9.423`
 Zuletzt aktualisiert: `2026-10-08`
 
 Solo-Leerlauf: Die Factory setzt die Inspect-Verarbeitung beim Show/Hide
@@ -335,7 +335,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.422                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.423                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -505,6 +505,10 @@ bindet und unter den bisherigen Namen `SettingsSections.BuildGeneralSection`,
 `BuildEscMenuSection`, `RefreshGeneralControls` und `RefreshEscMenuControls`
 re-exportiert, sodass `ui/isiLive_settings.lua` unveraendert bleibt; wie jedes
 Settings-Abschnittsmodul fuehrt es seine kleinen Beschreibungs-Helfer lokal.
+`ui/isiLive_stats_box.lua` steht seit den Charakterbogen-Prozentformeln
+(Regel 185) und dem Event-Takt (Regel 186) ueber der Warnschwelle auf der
+Watchlist; ein Split trennt spaeter die Live-API-Leser (Primaerstat,
+Ratings, Prozentformeln) von Frame, Layout und Event-Lifecycle.
 Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits

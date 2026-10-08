@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.422`
+Versionsbasis: `0.9.423`
 Zuletzt aktualisiert: `2026-10-08`
 
 Solo-Leerlauf bei Event-Schwaellen: Ohne normale oder automatische Instanzgruppe

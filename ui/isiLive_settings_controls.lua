@@ -867,6 +867,8 @@ function SettingsControls.CreateSettingsOptionSelector(
     yOffset - totalHeight
 end
 
+local OPTION_COMPARE_KEYS = { "value", "labelKey", "fallback", "previewFontPath" }
+
 -- Renders a dropdown entry in its own typeface when the option carries a
 -- `previewFontPath` (the font selector's options do). Text that needs Cyrillic
 -- glyphs keeps the baseline font, because several selectable fonts have none.
@@ -1113,8 +1115,11 @@ function SettingsControls.CreateSettingsDropdownSelector(
         RefreshDropdown()
         HideMenu()
       end)
-      optionButtons[index] = btn
+      btn:Show()
       menuHeight = menuHeight + buttonHeight
+    end
+    for index = #currentOptions + 1, #optionButtons do
+      optionButtons[index]:Hide()
     end
     menuFrame:SetHeight(menuHeight + 2)
     menuFrame:SetPoint("TOPLEFT", dropdownButton, "BOTTOMLEFT", 0, -2)
@@ -1130,6 +1135,9 @@ function SettingsControls.CreateSettingsDropdownSelector(
     end
   end)
 
+  -- Menu and click catcher live on UIParent; OnHide also fires when Settings closes.
+  dropdownButton:HookScript("OnHide", HideMenu)
+
   dropdownButton:SetScript("OnEnter", function(self)
     if type(self.SetBackdropColor) == "function" then
       self:SetBackdropColor(0.14, 0.14, 0.20, 0.92)
@@ -1142,16 +1150,31 @@ function SettingsControls.CreateSettingsDropdownSelector(
     end
   end)
 
-  local function UpdateOptions(newOptions)
-    for _, btn in ipairs(optionButtons) do
-      if type(btn) == "table" and type(btn.Hide) == "function" then
-        btn:Hide()
+  local function IsSameOptionList(a, b)
+    -- A length mismatch surfaces as a nil row on one side.
+    for index = 1, math.max(#a, #b) do
+      local x, y = a[index], b[index]
+      if type(x) ~= "table" or type(y) ~= "table" then
+        return false
+      end
+      for _, key in ipairs(OPTION_COMPARE_KEYS) do
+        if x[key] ~= y[key] then
+          return false
+        end
       end
     end
-    currentOptions = type(newOptions) == "table" and newOptions or {}
+    return true
+  end
+
+  -- Rows are pooled; an unchanged list (item-event rebuild) keeps an open menu open.
+  local function UpdateOptions(newOptions)
+    newOptions = type(newOptions) == "table" and newOptions or {}
+    local changed = not IsSameOptionList(currentOptions, newOptions)
+    currentOptions = newOptions
     dropdownButton._options = currentOptions
-    optionButtons = {}
-    HideMenu()
+    if changed then
+      HideMenu()
+    end
     RefreshDropdown()
   end
 

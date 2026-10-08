@@ -511,6 +511,90 @@ local function RegisterApplicantFallbackCoverageTests(test, Assert, LoadAddonMod
   end)
 end
 
+-- Search-result flag cache: transient misses must not pin a hidden flag until
+-- the next search. Rendering runs through the real HookButton/RefreshAll path
+-- and the real LFGListUtil_SetSearchEntryTooltip hook.
+local function RegisterSearchResultFlagCacheTests(test, Assert, LoadAddonModules, WithGlobals)
+  local function FlagGlobals(state, hookSecureCalls)
+    local globals = MinimalGlobals()
+    globals.C_LFGList = {
+      GetSearchResultInfo = function()
+        return { leaderName = state.leaderName }
+      end,
+    }
+    local scrollBox = {
+      GetFrames = function()
+        return {}
+      end,
+    }
+    globals.LFGListFrame = { SearchPanel = { ScrollBox = scrollBox } }
+    globals.ScrollBoxUtil = {
+      OnViewFramesChanged = function() end,
+      OnViewScrollChanged = function() end,
+    }
+    globals.hooksecurefunc = function(name, fn)
+      hookSecureCalls[name] = fn
+    end
+    return globals
+  end
+
+  local function RegisterFlags(addon, state)
+    addon.LFGFlags.Register({
+      localeModule = {
+        GetUnitServerLanguage = function(_unit, realm)
+          return state.languageByRealm[realm] or "??"
+        end,
+        GetLanguageFlagTexturePath = function(tag)
+          return "media/" .. tag
+        end,
+      },
+    })
+  end
+
+  test("LFG search-result flag appears once a missing leaderName arrives", function()
+    local state = { leaderName = nil, languageByRealm = { Hyjal = "FR" } }
+    local hookSecureCalls = {}
+    WithGlobals(FlagGlobals(state, hookSecureCalls), function()
+      local addon = LoadAddonModules({ "isiLive_lfg_flags.lua" })
+      RegisterFlags(addon, state)
+      local LI = addon._LFGFlagsInternal
+      local button = NewButtonStub({ resultID = 31 })
+      LI.HookButton(button)
+      local tex = button.GetCreatedTexture()
+      Assert.False(tex._shown, "no leaderName yet: the flag stays hidden")
+      Assert.Nil(LI.GetCacheForTests()[31], "a missing leaderName must not be cached")
+
+      state.leaderName = "Hero-Hyjal"
+      LI.RefreshAll()
+      Assert.True(tex._shown, "the flag must appear once the leaderName is delivered")
+      Assert.Equal(tex._texture, "media/FR", "the flag must use the leader realm language")
+    end)
+  end)
+
+  test("LFG search-entry tooltip hook re-resolves the cached result flag", function()
+    local state = { leaderName = "Hero-Hyjal", languageByRealm = {} }
+    local hookSecureCalls = {}
+    WithGlobals(FlagGlobals(state, hookSecureCalls), function()
+      local addon = LoadAddonModules({ "isiLive_lfg_flags.lua" })
+      RegisterFlags(addon, state)
+      local LI = addon._LFGFlagsInternal
+      addon.LFGFlags.HookSearchPanel()
+      local button = NewButtonStub({ resultID = 32 })
+      LI.HookButton(button)
+      local tex = button.GetCreatedTexture()
+      Assert.False(tex._shown, "an unknown realm language keeps the flag hidden")
+      Assert.Equal(LI.GetCacheForTests()[32], false, "a resolved realm without language is cached")
+
+      state.languageByRealm.Hyjal = "FR"
+      local tooltipHook =
+        Assert.NotNil(hookSecureCalls.LFGListUtil_SetSearchEntryTooltip, "search-entry tooltip hook must be registered")
+      tooltipHook(nil, 32)
+      Assert.True(tex._shown, "the tooltip refresh must drop the cached tag and show the flag")
+      Assert.Equal(tex._texture, "media/FR", "the refreshed flag must use the leader realm language")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -1971,4 +2055,5 @@ return function(test, ctx)
 
   RegisterApplicantFallbackCoverageTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
+  RegisterSearchResultFlagCacheTests(test, Assert, LoadAddonModules, WithGlobals)
 end

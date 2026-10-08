@@ -6,6 +6,308 @@ end
 local helpers = helpersChunk()
 local BuildCreateFrameStub = helpers.BuildCreateFrameStub
 
+-- Character-sheet percentages (rule 185), the Demon Hunter primary stat
+-- (rule 184) and the event coalescing (rule 186); kept in their own register
+-- function so the main scenario body stays under the function-length limit.
+local function RegisterStatsBoxSheetAndEventTests(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+  local Fixtures = ctx.fixtures
+
+  test("StatsBox resolves the Demon Hunter primary stat per specialization", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local StatsBox = addon.StatsBox
+      local function CollectFor(specID)
+        return StatsBox.CollectPlayerStats({
+          UnitStat = function(_unit, statIndex)
+            if statIndex == 2 then
+              return 0, 1500
+            end
+            if statIndex == 4 then
+              return 0, 2600
+            end
+            return nil
+          end,
+          UnitClass = function()
+            return "Demon Hunter", "DEMONHUNTER"
+          end,
+          GetSpecialization = function()
+            return specID and 1 or nil
+          end,
+          GetSpecializationInfo = function()
+            return specID
+          end,
+        })
+      end
+
+      local devourerRows = CollectFor(1480)
+      Assert.Equal(#devourerRows, 1, "Devourer should render one primary row")
+      Assert.Equal(devourerRows[1].key, "intellect", "Devourer is the Intellect spec")
+      Assert.Equal(devourerRows[1].value, 2600, "Devourer primary value should come from UnitStat(4)")
+
+      local havocRows = CollectFor(577)
+      Assert.Equal(havocRows[1].key, "agility", "Havoc stays on Agility")
+      Assert.Equal(havocRows[1].value, 1500, "Havoc primary value should come from UnitStat(2)")
+      Assert.Equal(CollectFor(581)[1].key, "agility", "Vengeance stays on Agility")
+
+      Assert.Equal(#CollectFor(nil), 0, "an unreadable Demon Hunter spec must not guess a primary stat")
+    end)
+  end)
+
+  -- Expected values follow PaperDollFrame_SetCritChance: the lowest crit over
+  -- spell schools 2..7, then the highest of spell, ranged and melee crit.
+  test("StatsBox crit percent follows the character sheet formula", function()
+    -- Sources that must not be passed through are strict secrets: any
+    -- comparison or arithmetic on them raises like on the client.
+    local strictSecret, secretGlobals = Fixtures.MakeStrictSecret()
+    -- The fallback value is passed through to string.format, which the strict
+    -- stand-in cannot model, so it is a value-matched secret number.
+    local maskedMelee = 27.31
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = BuildCreateFrameStub(),
+      type = secretGlobals.type,
+      issecretvalue = function(value)
+        return rawequal(value, strictSecret) or value == maskedMelee
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local schoolsRead = {}
+      local function Collect(rangedCrit, meleeCrit, maskSchool)
+        return addon.StatsBox.CollectPlayerStats({
+          GetCombatRating = function(ratingID)
+            return ratingID == 100 and 1200 or nil
+          end,
+          GetSpellCritChance = function(school)
+            schoolsRead[school] = true
+            if maskSchool and school == 5 then
+              return strictSecret
+            end
+            return school == 4 and 21.5 or 30
+          end,
+          GetRangedCritChance = function()
+            return rangedCrit
+          end,
+          GetCritChance = function()
+            return meleeCrit
+          end,
+          CR_CRIT_MELEE = 100,
+        })
+      end
+
+      local spellRows = Collect(18, 19)
+      Assert.Equal(spellRows[1].percent, 21.5, "the lowest spell-school crit wins when it is the highest source")
+      Assert.Nil(schoolsRead[1], "the physical school is skipped like on the character sheet")
+      for school = 2, 7 do
+        Assert.True(schoolsRead[school] == true, "spell school " .. school .. " must be read")
+      end
+      Assert.Equal(Collect(24, 19)[1].percent, 24, "ranged crit wins when it is the highest source")
+      Assert.Equal(Collect(18, 26.25)[1].percent, 26.25, "melee crit wins when it is the highest source")
+
+      local maskedRanged = Collect(strictSecret, 19)
+      Assert.Equal(maskedRanged[1].value, 1200, "a masked crit source keeps the rating row")
+      Assert.Equal(maskedRanged[1].percent, 19, "a masked ranged crit falls back to GetCritChance")
+      Assert.Equal(Collect(18, 19, true)[1].percent, 19, "a masked spell school falls back to GetCritChance")
+
+      local fullyMasked = Collect(strictSecret, maskedMelee, true)
+      Assert.True(rawequal(fullyMasked[1].percent, maskedMelee), "a masked fallback is passed through untouched")
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return fullyMasked
+        end,
+      })
+      Assert.Equal(box.lines[1].percent._text, "(27.31%)", "the masked fallback is formatted directly for SetText")
+    end)
+  end)
+
+  -- Expected values follow PaperDollFrame_SetVersatility: rating bonus plus
+  -- GetVersatilityBonus for CR_VERSATILITY_DAMAGE_DONE.
+  test("StatsBox versatility percent sums rating and flat bonus only when both are plain", function()
+    local strictSecret, secretGlobals = Fixtures.MakeStrictSecret()
+    local maskedRatingBonus = 4.75
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = BuildCreateFrameStub(),
+      type = secretGlobals.type,
+      issecretvalue = function(value)
+        return rawequal(value, strictSecret) or value == maskedRatingBonus
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local function Collect(ratingBonus, flatBonus, withFlatApi)
+        return addon.StatsBox.CollectPlayerStats({
+          GetCombatRating = function(ratingID)
+            return ratingID == 29 and 780 or nil
+          end,
+          GetCombatRatingBonus = function(ratingID)
+            Assert.Equal(ratingID, 29, "the rating bonus must be read for versatility damage done")
+            return ratingBonus
+          end,
+          GetVersatilityBonus = withFlatApi and function(ratingID)
+            Assert.Equal(ratingID, 29, "the flat bonus must be read for versatility damage done")
+            return flatBonus
+          end or nil,
+          CR_VERSATILITY_DAMAGE_DONE = 29,
+        })
+      end
+
+      Assert.Equal(Collect(4.5, 2, true)[1].percent, 6.5, "versatility percent must be rating bonus plus flat bonus")
+      local maskedFlat = Collect(4.5, strictSecret, true)
+      Assert.Equal(maskedFlat[1].value, 780, "a masked flat bonus keeps the rating row")
+      Assert.Equal(maskedFlat[1].percent, 4.5, "a masked flat bonus falls back to the rating bonus alone")
+      Assert.Equal(Collect(4.5, 2, false)[1].percent, 4.5, "a missing flat bonus API falls back to the rating bonus")
+
+      local fullyMasked = Collect(maskedRatingBonus, strictSecret, true)
+      Assert.True(rawequal(fullyMasked[1].percent, maskedRatingBonus), "a masked fallback is passed through untouched")
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return fullyMasked
+        end,
+      })
+      Assert.Equal(box.lines[1].percent._text, "(4.75%)", "the masked fallback is formatted directly for SetText")
+    end)
+  end)
+
+  test("StatsBox leech and speed percentages come from the character sheet APIs", function()
+    local maskedLeech = 6.66
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = BuildCreateFrameStub(),
+      issecretvalue = function(value)
+        return value == maskedLeech
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local function Collect(leech)
+        local rows = addon.StatsBox.CollectPlayerStats({
+          GetCombatRating = function(ratingID)
+            return ratingID * 100
+          end,
+          GetCombatRatingBonus = function()
+            return 1.11
+          end,
+          GetLifesteal = function()
+            return leech
+          end,
+          GetSpeed = function()
+            return 13.76
+          end,
+          CR_LIFESTEAL = 1,
+          CR_SPEED = 2,
+        })
+        local found = {}
+        for _, row in ipairs(rows) do
+          found[row.key] = row
+        end
+        return found
+      end
+
+      local found = Collect(3.4)
+      Assert.Equal(found.leech.percent, 3.4, "leech percent must come from GetLifesteal")
+      Assert.Equal(found.speed.percent, 13.76, "speed percent must come from GetSpeed")
+
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return { Collect(maskedLeech).leech }
+        end,
+      })
+      Assert.Equal(box.lines[1].percent._text, "(6.66%)", "a masked single-value percent is formatted directly")
+    end)
+  end)
+
+  test("StatsBox coalesces a stat event burst into one collect on the next tick", function()
+    local db, collections = { statsBoxEnabled = true }, 0
+    WithGlobals({ UIParent = {}, IsiLiveDB = db, CreateFrame = BuildCreateFrameStub() }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          collections = collections + 1
+          return { { key = "haste", label = "Haste", value = 100, percent = 1 } }
+        end,
+      })
+      local before = collections
+      for _ = 1, 25 do
+        box.frame:FireEvent("UNIT_STATS", "player")
+        box.frame:FireEvent("COMBAT_RATING_UPDATE")
+        box.frame:FireEvent("PLAYER_EQUIPMENT_CHANGED")
+        box.frame:FireEvent("ACTIVE_TALENT_GROUP_CHANGED")
+        box.frame:FireEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      end
+      Assert.Equal(collections - before, 0, "stat events must not collect synchronously")
+      box.frame._scripts.OnUpdate(box.frame, 0)
+      Assert.Equal(collections - before, 1, "a burst of 125 stat events must cost exactly one collect")
+      box.frame._scripts.OnUpdate(box.frame, 0)
+      Assert.Equal(collections - before, 1, "the tick must not collect again before the next interval")
+    end)
+  end)
+
+  test("StatsBox listens to specialization changes of the player only", function()
+    local baseCreateFrame = BuildCreateFrameStub()
+    local unitFilters = {}
+    -- Mirrors the client: a unit-filtered event only reaches OnEvent for a
+    -- registered unit.
+    local function CreateFrameWithUnitEvents(...)
+      local frame = baseCreateFrame(...)
+      frame.RegisterUnitEvent = function(self, event, ...)
+        unitFilters[event] = { ... }
+        self._events = self._events or {}
+        self._events[event] = true
+      end
+      local fireEvent = frame.FireEvent
+      frame.FireEvent = function(self, event, unit, ...)
+        local filter = unitFilters[event]
+        if filter and filter[1] ~= unit then
+          return
+        end
+        fireEvent(self, event, unit, ...)
+      end
+      return frame
+    end
+    local db, collections = { statsBoxEnabled = true }, 0
+    WithGlobals({ UIParent = {}, IsiLiveDB = db, CreateFrame = CreateFrameWithUnitEvents }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          collections = collections + 1
+          return {}
+        end,
+      })
+      local filter = Assert.NotNil(
+        unitFilters.PLAYER_SPECIALIZATION_CHANGED,
+        "PLAYER_SPECIALIZATION_CHANGED must be registered with a unit filter"
+      )
+      Assert.Equal(#filter, 1, "the filter names exactly one unit")
+      Assert.Equal(filter[1], "player", "the filter must be the player")
+
+      local before = collections
+      box.frame:FireEvent("PLAYER_SPECIALIZATION_CHANGED", "party2")
+      box.frame._scripts.OnUpdate(box.frame, 0)
+      Assert.Equal(collections - before, 0, "a party member's spec change must not collect stats")
+      -- Clients without RegisterUnitEvent deliver every unit; the handler
+      -- must drop those too.
+      box.frame._scripts.OnEvent(box.frame, "PLAYER_SPECIALIZATION_CHANGED", "raid7")
+      box.frame._scripts.OnUpdate(box.frame, 0)
+      Assert.Equal(collections - before, 0, "the handler must drop other units without the client filter")
+      box.frame:FireEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      box.frame._scripts.OnUpdate(box.frame, 0)
+      Assert.Equal(collections - before, 1, "the player's spec change must refresh the stats")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -37,6 +339,12 @@ return function(test, ctx)
           end
           return nil
         end,
+        GetSpellCritChance = function()
+          return 10
+        end,
+        GetRangedCritChance = function()
+          return 12
+        end,
         GetCritChance = function()
           return 25.48
         end,
@@ -50,7 +358,7 @@ return function(test, ctx)
       Assert.Equal(rows[1].label, "Agi", "hunter primary stat should use the short agility label")
       Assert.Equal(rows[1].value, 515, "primary stat value should come from UnitStat")
       Assert.Equal(rows[2].label, "Crit", "combat rating should render when its rating constant and value exist")
-      Assert.Equal(rows[2].percent, 25.48, "crit percent should come from GetCritChance")
+      Assert.Equal(rows[2].percent, 25.48, "crit percent should be the highest of spell, ranged and melee crit")
     end)
   end)
 
@@ -996,6 +1304,9 @@ return function(test, ctx)
           end
           return nil
         end,
+        GetAvoidance = function()
+          return 7.04
+        end,
         CR_AVOIDANCE = 40,
       })
 
@@ -1011,7 +1322,7 @@ return function(test, ctx)
         "durability percent must come from summed durability"
       )
       Assert.Equal(found.avoidance.value, 412, "avoidance value must come from GetCombatRating(CR_AVOIDANCE)")
-      Assert.Equal(found.avoidance.percent, 5.18, "avoidance percent must come from GetCombatRatingBonus(CR_AVOIDANCE)")
+      Assert.Equal(found.avoidance.percent, 7.04, "avoidance percent must come from GetAvoidance")
     end)
   end)
 
@@ -1213,10 +1524,10 @@ return function(test, ctx)
           end
           return nil
         end,
-        GetCritChance = function()
+        GetMasteryEffect = function()
           return secretPercent
         end,
-        CR_CRIT_MELEE = 100,
+        CR_MASTERY = 100,
       })
 
       Assert.True(ok, "secret stat API values must not throw from numeric conversion or rounding")
@@ -1280,8 +1591,10 @@ return function(test, ctx)
         originalSetSize(self, ...)
       end
       box.frame:FireEvent("UNIT_STATS", "party1")
+      box.frame._scripts.OnUpdate(box.frame, 0)
       Assert.Equal(collections, 1, "other units must not trigger player stat reads")
       box.frame:FireEvent("UNIT_STATS", "player")
+      box.frame._scripts.OnUpdate(box.frame, 0)
       Assert.Equal(collections, 2, "player stat events must remain active when enabled")
       Assert.Equal(layoutCalls, 0, "unchanged row structure must not force layout on stat events")
       box.SetEnabled(false)
@@ -1317,7 +1630,9 @@ return function(test, ctx)
       Assert.True(box.frame:IsShown(), "an enabled stats box must stay shown in a raid")
       local before = collections
       box.frame:FireEvent("UNIT_STATS", "player")
+      box.frame._scripts.OnUpdate(box.frame, 0)
       box.frame:FireEvent("PLAYER_EQUIPMENT_CHANGED")
+      box.frame._scripts.OnUpdate(box.frame, 0)
       Assert.Equal(collections - before, 2, "an enabled stats box must keep collecting player stats in a raid")
     end)
   end)
@@ -1343,4 +1658,6 @@ return function(test, ctx)
       Assert.Nil(box.frame._scripts.OnUpdate, "hidden statsbox must remove polling again")
     end)
   end)
+
+  RegisterStatsBoxSheetAndEventTests(test, ctx)
 end

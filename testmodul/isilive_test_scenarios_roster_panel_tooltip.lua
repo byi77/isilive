@@ -807,10 +807,145 @@ local function RegisterBlizzardUnitTooltipCreatureGuidSkipTest(test, Assert, Wit
   end)
 end
 
+-- Shared setup for the post-call contract tests: the real locale module
+-- resolves the language through the production tooltip post-call.
+local function RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, realm, tooltipData, onDone)
+  local tooltipLines = {}
+  local gameTooltip = MakeGameTooltip(tooltipLines)
+  local showCalls = 0
+  gameTooltip.Show = function()
+    showCalls = showCalls + 1
+  end
+  local postCallCallbacks = {}
+
+  WithGlobals({
+    GameTooltip = gameTooltip,
+    hooksecurefunc = function()
+      return nil
+    end,
+    TooltipDataProcessor = {
+      AddTooltipPostCall = function(_dataType, callback)
+        table.insert(postCallCallbacks, callback)
+      end,
+    },
+    Enum = { TooltipDataType = { Unit = 1 } },
+    UnitExists = function(unit)
+      return unit == "mouseover"
+    end,
+    UnitIsPlayer = function(unit)
+      return unit == "mouseover"
+    end,
+    UnitGUID = function()
+      return "Player-9999-0ABCDEF1"
+    end,
+    UnitIsUnit = function()
+      return false
+    end,
+    GetRealmName = function()
+      return "Home Realm"
+    end,
+    GetLocale = function()
+      return "enUS"
+    end,
+    RAID_CLASS_COLORS = {},
+  }, function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+    local getRealmInfoLib = function()
+      return nil
+    end
+    local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
+      getLanguageTooltipMarkup = addon.Locale.GetLanguageTooltipMarkup,
+      getUnitNameAndRealm = function()
+        return "Traveler", realm
+      end,
+      getUnitServerLanguage = function(unit, unitRealm)
+        return addon.Locale.GetUnitServerLanguage(unit, unitRealm, getRealmInfoLib)
+      end,
+      getRealmInfoLib = getRealmInfoLib,
+    })
+    for _, callback in ipairs(postCallCallbacks) do
+      callback(gameTooltip, tooltipData)
+    end
+    onDone(registered, tooltipLines, showCalls, #postCallCallbacks)
+  end)
+end
+
+local function RegisterBlizzardUnitTooltipPostCallContractTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Blizzard GameTooltip post-call leaves Show to the tooltip data handler", function()
+    -- Gethe/wow-ui-source live TooltipDataHandler.lua: InternalProcessInfo runs
+    -- ProcessTooltipPostCalls and then self:Show(), so the post-call must not.
+    local tooltipLines = {}
+    local gameTooltip = MakeGameTooltip(tooltipLines)
+    local showCalls = 0
+    gameTooltip.Show = function()
+      showCalls = showCalls + 1
+    end
+    local postCallCallbacks = {}
+    WithGlobals({
+      GameTooltip = gameTooltip,
+      hooksecurefunc = function()
+        return nil
+      end,
+      TooltipDataProcessor = {
+        AddTooltipPostCall = function(_dataType, callback)
+          table.insert(postCallCallbacks, callback)
+        end,
+      },
+      Enum = { TooltipDataType = { Unit = 1 } },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+      Assert.True(
+        addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
+          getLanguageTooltipMarkup = function()
+            return "|Tflag-fr:0|t French"
+          end,
+          getUnitNameAndRealm = function()
+            return "Traveler", "Argent Dawn"
+          end,
+          getUnitServerLanguage = function()
+            return "FR"
+          end,
+          getRealmInfoLib = function()
+            return {
+              GetRealmInfoByGUID = function()
+                return nil, nil, nil, nil, "frFR"
+              end,
+            }
+          end,
+        }),
+        "Blizzard tooltip language hook must register successfully"
+      )
+      for _, callback in ipairs(postCallCallbacks) do
+        callback(gameTooltip, { guid = "Player-3685-0ABCDEF1", isPlayer = true, dataInstanceID = 77 })
+      end
+    end)
+    Assert.Equal(#tooltipLines, 1, "the post-call must still append the language line")
+    Assert.Equal(showCalls, 0, "the post-call must not call Show on GameTooltip")
+  end)
+
+  test("Blizzard GameTooltip post-call appends no line for an unknown realm language", function()
+    RunUnitTooltipPostCall(WithGlobals, LoadAddonModules, "Unknownrealm", {
+      guid = "Player-9999-0ABCDEF1",
+      isPlayer = true,
+      unitToken = "mouseover",
+      dataInstanceID = 502,
+    }, function(registered, tooltipLines, _showCalls, postCallCount)
+      Assert.True(registered, "Blizzard tooltip language hook must register successfully")
+      Assert.Equal(postCallCount, 1, "TooltipDataProcessor must register exactly one unit post-call")
+      for _, line in ipairs(tooltipLines) do
+        Assert.False(line:find("??", 1, true) ~= nil, "an unknown realm must not render a ?? language line")
+      end
+      Assert.Equal(#tooltipLines, 0, "an unknown realm language must not append a tooltip line")
+    end)
+  end)
+end
+
 return function(test, ctx)
   RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipLanguageFlagTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipDataProcessorTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipCreatureGuidSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
+  RegisterBlizzardUnitTooltipPostCallContractTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
 end

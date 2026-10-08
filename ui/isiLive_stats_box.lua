@@ -40,6 +40,11 @@ local COLUMN_GAP = 8
 local VALUE_PERCENT_GAP = 6
 local VALUE_ONLY_RIGHT_OFFSET = -(RIGHT_PADDING + PERCENT_COLUMN_WIDTH + VALUE_PERCENT_GAP)
 local demoRows = nil
+-- Unit events the box only needs for the player itself.
+local PLAYER_UNIT_EVENTS = {
+  UNIT_STATS = true,
+  PLAYER_SPECIALIZATION_CHANGED = true,
+}
 
 local STAT_STRENGTH = 1
 local STAT_AGILITY = 2
@@ -47,7 +52,6 @@ local STAT_INTELLECT = 4
 
 local PRIMARY_BY_CLASS = {
   DEATHKNIGHT = "strength",
-  DEMONHUNTER = "agility",
   EVOKER = "intellect",
   HUNTER = "agility",
   MAGE = "intellect",
@@ -71,6 +75,14 @@ local PRIMARY_BY_SPEC_ID = {
   [268] = "agility", -- Monk: Brewmaster
   [269] = "agility", -- Monk: Windwalker
   [270] = "intellect", -- Monk: Mistweaver
+  -- Demon Hunter became a hybrid class with Devourer (Midnight): spec IDs per
+  -- warcraft.wiki.gg/wiki/SpecializationID (577 Havoc, 581 Vengeance, 1480
+  -- Devourer); Havoc and Vengeance use Agility (warcraft.wiki.gg/wiki/Agility),
+  -- the class infobox lists "Agility or Intellect" (warcraft.wiki.gg/wiki/Demon_hunter),
+  -- so Devourer is the Intellect spec. An unreadable spec shows no primary row.
+  [577] = "agility", -- Demon Hunter: Havoc
+  [581] = "agility", -- Demon Hunter: Vengeance
+  [1480] = "intellect", -- Demon Hunter: Devourer
 }
 
 local PRIMARY_STAT_INDEX = {
@@ -336,22 +348,6 @@ local function ReadUnitStat(statIndex, opts)
   return ReadDisplayNumber(effective, true)
 end
 
-local function ReadCombatRatingBonus(globalName, opts)
-  local ratingID = opts[globalName]
-  if ratingID == nil then
-    ratingID = rawget(_G, globalName)
-  end
-  local getCombatRatingBonus = opts.GetCombatRatingBonus or rawget(_G, "GetCombatRatingBonus")
-  if type(getCombatRatingBonus) ~= "function" or ratingID == nil then
-    return nil
-  end
-  local ok, value = pcall(getCombatRatingBonus, ratingID)
-  if not ok then
-    return nil
-  end
-  return ReadDisplayNumber(value, false)
-end
-
 local function ReadCombatRating(globalName, opts)
   local ratingID = opts[globalName]
   if ratingID == nil then
@@ -374,6 +370,101 @@ local function ReadNoArgNumber(fnName, opts)
     return nil
   end
   local ok, value = pcall(fn)
+  if not ok then
+    return nil
+  end
+  return ReadDisplayNumber(value, false)
+end
+
+-- Reads one stat API return as a plain number for Lua-side arithmetic. A
+-- missing API, a raising call or a masked return all yield nil; the secret
+-- check runs inside ReadPlainNumber before any other operation (rule 181).
+local function ReadPlainCall(fnName, opts, ...)
+  local fn = opts[fnName] or rawget(_G, fnName)
+  if type(fn) ~= "function" then
+    return nil
+  end
+  local ok, value = pcall(fn, ...)
+  if not ok then
+    return nil
+  end
+  return ReadPlainNumber(value)
+end
+
+local function ResolveRatingID(globalName, opts)
+  local ratingID = opts[globalName]
+  if ratingID == nil then
+    ratingID = rawget(_G, globalName)
+  end
+  return ratingID
+end
+
+-- Spell schools scanned by the character sheet: 2 (holy) through
+-- MAX_SPELL_SCHOOLS = 7; school 1 (physical) is skipped.
+local CRIT_FIRST_SPELL_SCHOOL = 2
+local CRIT_LAST_SPELL_SCHOOL = 7
+
+-- Mirrors PaperDollFrame_SetCritChance (Blizzard_UIPanels_Game/Mainline/
+-- PaperDollFrame.lua): the lowest spell-school crit, then the highest of
+-- spell, ranged and melee crit. Picking a maximum needs comparisons, so every
+-- source must be a plain number; one masked or unreadable source returns nil.
+local function ReadSheetCritPercent(opts)
+  local spellCrit = nil
+  for school = CRIT_FIRST_SPELL_SCHOOL, CRIT_LAST_SPELL_SCHOOL do
+    local schoolCrit = ReadPlainCall("GetSpellCritChance", opts, school)
+    if schoolCrit == nil then
+      return nil
+    end
+    spellCrit = spellCrit and math.min(spellCrit, schoolCrit) or schoolCrit
+  end
+  local rangedCrit = ReadPlainCall("GetRangedCritChance", opts)
+  local meleeCrit = ReadPlainCall("GetCritChance", opts)
+  if rangedCrit == nil or meleeCrit == nil then
+    return nil
+  end
+  return math.max(spellCrit, rangedCrit, meleeCrit)
+end
+
+-- Mirrors PaperDollFrame_SetVersatility: the rating bonus plus the flat
+-- versatility bonus for damage done. The sum is only formed from two plain
+-- numbers; a masked or unreadable term returns nil.
+local function ReadSheetVersatilityPercent(opts)
+  local ratingID = ResolveRatingID("CR_VERSATILITY_DAMAGE_DONE", opts)
+  if ratingID == nil then
+    return nil
+  end
+  local ratingBonus = ReadPlainCall("GetCombatRatingBonus", opts, ratingID)
+  local flatBonus = ReadPlainCall("GetVersatilityBonus", opts, ratingID)
+  if ratingBonus == nil or flatBonus == nil then
+    return nil
+  end
+  return ratingBonus + flatBonus
+end
+
+-- Restricted content masks the stat APIs, so the character-sheet formula
+-- cannot run there. Instead of hiding the percentage, the box then falls back
+-- to the single value it showed up to 0.9.422 (user decision 2026-10-08): melee
+-- crit from GetCritChance and the rating share of versatility. That value is
+-- passed through untouched and only formatted for display (rule 65).
+local function ReadCritPercent(opts)
+  local sheetPercent = ReadSheetCritPercent(opts)
+  if sheetPercent ~= nil then
+    return sheetPercent
+  end
+  return ReadNoArgNumber("GetCritChance", opts)
+end
+
+local function ReadVersatilityPercent(opts)
+  local sheetPercent = ReadSheetVersatilityPercent(opts)
+  if sheetPercent ~= nil then
+    return sheetPercent
+  end
+  local ratingID = ResolveRatingID("CR_VERSATILITY_DAMAGE_DONE", opts)
+  local getCombatRatingBonus = opts.GetCombatRatingBonus or rawget(_G, "GetCombatRatingBonus")
+  if ratingID == nil or type(getCombatRatingBonus) ~= "function" then
+    return nil
+  end
+  local ok, value = pcall(getCombatRatingBonus, ratingID)
   if not ok then
     return nil
   end
@@ -531,7 +622,7 @@ function StatsBox.CollectPlayerStats(opts)
       key = "crit",
       label = resolveLabel("crit"),
       value = ReadCombatRating("CR_CRIT_MELEE", opts),
-      percent = ReadNoArgNumber("GetCritChance", opts),
+      percent = ReadCritPercent(opts),
     },
     {
       key = "haste",
@@ -549,19 +640,23 @@ function StatsBox.CollectPlayerStats(opts)
       key = "versatility",
       label = resolveLabel("versatility"),
       value = ReadCombatRating("CR_VERSATILITY_DAMAGE_DONE", opts),
-      percent = ReadCombatRatingBonus("CR_VERSATILITY_DAMAGE_DONE", opts),
+      percent = ReadVersatilityPercent(opts),
     },
+    -- Leech, Speed and Avoidance percentages come from GetLifesteal,
+    -- GetSpeed and GetAvoidance, the same single-value APIs the character
+    -- sheet uses (PaperDollFrame_SetLifesteal / _SetSpeed / _SetAvoidance);
+    -- GetCombatRatingBonus covers only the share that comes from rating.
     {
       key = "leech",
       label = resolveLabel("leech"),
       value = ResolveOptionalRowEnabled("leech") and ReadCombatRating("CR_LIFESTEAL", opts) or nil,
-      percent = ResolveOptionalRowEnabled("leech") and ReadCombatRatingBonus("CR_LIFESTEAL", opts) or nil,
+      percent = ResolveOptionalRowEnabled("leech") and ReadNoArgNumber("GetLifesteal", opts) or nil,
     },
     {
       key = "speed",
       label = resolveLabel("speed"),
       value = ResolveOptionalRowEnabled("speed") and ReadCombatRating("CR_SPEED", opts) or nil,
-      percent = ResolveOptionalRowEnabled("speed") and ReadCombatRatingBonus("CR_SPEED", opts) or nil,
+      percent = ResolveOptionalRowEnabled("speed") and ReadNoArgNumber("GetSpeed", opts) or nil,
     },
   }
 
@@ -581,7 +676,7 @@ function StatsBox.CollectPlayerStats(opts)
         key = "avoidance",
         label = resolveLabel("avoidance"),
         value = avoidanceValue,
-        percent = ReadCombatRatingBonus("CR_AVOIDANCE", opts),
+        percent = ReadNoArgNumber("GetAvoidance", opts),
       }
     end
   end
@@ -1071,15 +1166,20 @@ function StatsBox.Create(opts)
       ApplySettings()
       return
     end
-    if not ResolveEnabled() or (event == "UNIT_STATS" and unit ~= "player") then
+    if not ResolveEnabled() then
+      return
+    end
+    if PLAYER_UNIT_EVENTS[event] and (IsSecretValue(unit) or unit ~= "player") then
       return
     end
     if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
       ApplySettings()
       return
     end
-    -- Live stat changes do not change display settings or require a forced layout.
-    Refresh()
+    -- Live stat changes do not change display settings or require a forced
+    -- layout. They only make the 1s tick due, so a burst of stat events in
+    -- one frame costs a single collect and render on the next OnUpdate.
+    state.elapsed = UPDATE_INTERVAL
   end)
   for _, event in ipairs({
     "ADDON_LOADED",
@@ -1088,17 +1188,20 @@ function StatsBox.Create(opts)
     "COMBAT_RATING_UPDATE",
     "PLAYER_EQUIPMENT_CHANGED",
     "ACTIVE_TALENT_GROUP_CHANGED",
-    "PLAYER_SPECIALIZATION_CHANGED",
   }) do
     frame:RegisterEvent(event)
   end
-  -- Only the player's stats are shown. The unit filter keeps raid members'
-  -- UNIT_STATS out of Lua entirely; the handler still checks the unit for
-  -- clients without RegisterUnitEvent.
-  if type(frame.RegisterUnitEvent) == "function" then
-    frame:RegisterUnitEvent("UNIT_STATS", "player")
-  else
-    frame:RegisterEvent("UNIT_STATS")
+  -- Only the player's stats are shown. The unit filter keeps other units'
+  -- UNIT_STATS and PLAYER_SPECIALIZATION_CHANGED out of Lua entirely; the
+  -- handler still checks the unit for clients without RegisterUnitEvent.
+  -- Registered statically while the file loads, never from a protected
+  -- dispatch.
+  for event in pairs(PLAYER_UNIT_EVENTS) do
+    if type(frame.RegisterUnitEvent) == "function" then
+      frame:RegisterUnitEvent(event, "player")
+    else
+      frame:RegisterEvent(event)
+    end
   end
 
   function state.SetEnabled(enabled)

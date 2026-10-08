@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-08 - Version 0.9.423 (patch)
+
+- Stats box: Demon Hunter is a hybrid class; Havoc and Vengeance show
+  Agility, Devourer (spec 1480) shows Intellect (rule 184). Crit,
+  Versatility, Leech, Speed and Avoidance percentages follow the character
+  sheet (`PaperDollFrame.lua`): crit is the highest of spell, ranged and melee
+  crit, versatility adds `GetVersatilityBonus`, and leech, speed and avoidance
+  come from `GetLifesteal`, `GetSpeed` and `GetAvoidance` (rule 185). When a
+  source is masked, crit and versatility fall back to the single value shown
+  up to 0.9.422, passed through for display only (rule 187). Haste stays on
+  `UnitSpellHaste`.
+- Stats box: stat events only mark the next one-second tick due instead of
+  rendering at once, and the specialization and stats events are registered
+  for the player only (rule 186).
+- Roster tooltip: the Blizzard tooltip post-call no longer calls `Show()`,
+  which the tooltip data handler does right after its post-calls (rule 188),
+  and an unknown realm language (`"??"`) adds no language line (rule 189).
+- LFG flags: only stable realm-language answers are cached, so a flag appears
+  once a missing leader name arrives, and the tooltip refresh re-resolves it
+  (rule 190).
+- Settings dropdowns reuse their option rows instead of creating new frames on
+  every refresh, keep an open menu open while the option list is unchanged
+  (rule 191), and close the menu and its click catcher when the dropdown is
+  hidden (rule 192).
+
 ## 2026-10-08 - Version 0.9.422 (patch)
 
 - Secret values: every possibly masked value is rejected as secret before any
