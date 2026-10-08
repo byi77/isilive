@@ -665,7 +665,16 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
     mainFrame = ctx.mainFrame,
     mainUI = ctx.mainUI,
     panelUI = ctx.panelUI,
-    settingsPanel = ctx.settingsPanel,
+    -- Resolved per call: ApplyLocalizationToUI creates the ESC panel on
+    -- ADDON_LOADED, after this context is built, so a captured ctx.panelUI is nil.
+    getPanelUI = function()
+      return ctx.panelUI
+    end,
+    -- Resolved per call: FinalizeFactorySettings creates the settings panel
+    -- after this context is built, so a captured ctx.settingsPanel is nil.
+    getSettingsPanel = function()
+      return ctx.settingsPanel
+    end,
     updateLeaderButtons = ctx.UpdateLeaderButtons,
     isPlayerLeader = ctx.IsPlayerLeader,
     setLanguage = ctx.SetLanguage,

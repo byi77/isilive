@@ -61,16 +61,72 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
   -- Rule 168: the inspect OnUpdate is attached only while processing is wanted
   -- (shown, grouped, no raid) AND the inspect controller holds work. An empty
   -- queue costs no per-frame call; EnqueueInspect re-attaches it.
+  -- Deferred retries alone (members offline or out of range) do not keep the
+  -- per-frame loop attached: the loop detaches and a one-shot timer re-attaches
+  -- it when the earliest retry is due. Without a timer API the loop stays
+  -- attached while retries wait, as before.
   local inspectLoopWanted = false
   local inspectLoopAttached = false
+  local inspectWakeTimer = nil
+  local inspectWakeAt = nil
+  local inspectWakeGeneration = 0
+  local RefreshInspectLoop
+  local function CancelInspectWake()
+    inspectWakeGeneration = inspectWakeGeneration + 1
+    if inspectWakeTimer ~= nil and type(inspectWakeTimer.Cancel) == "function" then
+      inspectWakeTimer:Cancel()
+    end
+    inspectWakeTimer = nil
+    inspectWakeAt = nil
+  end
+  local function ScheduleInspectWake(delay)
+    local timerApi = rawget(_G, "C_Timer")
+    if type(timerApi) ~= "table" then
+      return false
+    end
+    local getTimeFn = rawget(_G, "GetTime")
+    local wakeAt = (type(getTimeFn) == "function" and tonumber(getTimeFn()) or 0) + delay
+    if inspectWakeAt ~= nil and inspectWakeAt <= wakeAt then
+      return true
+    end
+    CancelInspectWake()
+    local generation = inspectWakeGeneration
+    local function Wake()
+      if generation ~= inspectWakeGeneration then
+        return
+      end
+      inspectWakeTimer = nil
+      inspectWakeAt = nil
+      RefreshInspectLoop()
+    end
+    if type(timerApi.NewTimer) == "function" then
+      inspectWakeTimer = timerApi.NewTimer(delay, Wake)
+    elseif type(timerApi.After) == "function" then
+      timerApi.After(delay, Wake)
+    else
+      return false
+    end
+    inspectWakeAt = wakeAt
+    return true
+  end
   local function HasInspectWork()
     local controller = ctx.inspectController
     if type(controller) ~= "table" or type(controller.HasPendingWork) ~= "function" then
       return true
     end
-    return controller.HasPendingWork() == true
+    if controller.HasPendingWork() ~= true then
+      return false
+    end
+    if type(controller.HasDueWork) ~= "function" or type(controller.GetNextRetryDelay) ~= "function" then
+      return true
+    end
+    if controller.HasDueWork() == true then
+      return true
+    end
+    local delay = controller.GetNextRetryDelay()
+    return delay == nil or not ScheduleInspectWake(delay)
   end
-  local function RefreshInspectLoop()
+  RefreshInspectLoop = function()
     local attach = inspectLoopWanted and HasInspectWork()
     if attach == inspectLoopAttached then
       return
@@ -93,6 +149,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
 
     inspectLoopWanted = false
     inspectLoopAttached = false
+    CancelInspectWake()
     ctx.mainFrame:SetScript("OnUpdate", nil)
     ctx.inspectController.ResetQueues()
   end

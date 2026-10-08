@@ -602,17 +602,94 @@ return function(test, ctx, fixtures)
       Assert.True(roster.party1.hasIsiLive == true, "a known peer must keep its isiLive marker after the key")
 
       local refreshWire = HelloWire("refresh")
+      sender.Sync.SendRefreshRequest({ force = true })
+      local reqsyncWire = session.messages[#session.messages]
+      Assert.Equal(reqsyncWire.payload, "REQSYNC", "wire bytes must come from the production REQSYNC sender")
       local mark = #session.messages
+      -- Every peer's post-run refresh sends its HELLO and its REQSYNC together.
       for _, peer in ipairs(peers) do
         session.Dispatch("CHAT_MSG_ADDON", refreshWire.prefix, refreshWire.payload, refreshWire.channel, peer)
+        session.Dispatch("CHAT_MSG_ADDON", reqsyncWire.prefix, reqsyncWire.payload, reqsyncWire.channel, peer)
       end
       Assert.True(FanOutsSince(mark) <= 1, "four post-run hellos from known peers draw at most one fan-out")
+      local reqsyncFanOuts = 0
+      for n = mark + 1, #session.messages do
+        if session.messages[n].payload:find("^HELLO:") and session.messages[n].payload:find(":reqsync%-ack") then
+          reqsyncFanOuts = reqsyncFanOuts + 1
+        end
+      end
+      Assert.True(
+        FanOutsSince(mark) + reqsyncFanOuts <= 1,
+        "four post-run hello and REQSYNC pairs from known peers draw at most one fan-out in total"
+      )
 
       -- The manual refresh still starts from a clean slate.
       session.Advance(11)
       Assert.True(session.runtime.refreshController.RunFullRefresh(), "the manual refresh must run")
       Assert.False(sync.IsUserKnown("Peer1-Realm"), "a manual refresh still forgets known peers")
       Assert.False(roster.party1.hasIsiLive == true, "a manual refresh still clears the isiLive markers")
+    end)
+  end)
+
+  test("Mplus stress: a peer reloading through another peer's fan-out still gets the state on its REQSYNC", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local sender = ctx.load_modules({ "isiLive_sync.lua" })
+      local function Wire(send)
+        send()
+        return session.messages[#session.messages]
+      end
+      local groupWire = Wire(function()
+        sender.Sync.SendHello({ force = true, isVisible = true, version = "0.9.1", source = "group" })
+      end)
+      local reqsyncWire = Wire(function()
+        sender.Sync.SendRefreshRequest({ force = true })
+      end)
+      Assert.Equal(reqsyncWire.payload, "REQSYNC", "wire bytes must come from the production REQSYNC sender")
+      local function Deliver(wire, peer)
+        session.Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.payload, wire.channel, peer)
+      end
+      local function FanOutsSince(index)
+        local count = 0
+        for n = index + 1, #session.messages do
+          local payload = session.messages[n].payload
+          if payload:find("^HELLO:") and (payload:find(":hello%-ack") or payload:find(":reqsync%-ack")) then
+            count = count + 1
+          end
+        end
+        return count
+      end
+
+      Deliver(groupWire, "Peer2-Realm")
+      Deliver(groupWire, "Peer3-Realm")
+      session.Advance(20)
+
+      -- Peer2 reloads. While it sits on the loading screen, a new peer joins
+      -- and this client fans out to the group -- Peer2 cannot receive that.
+      local mark = #session.messages
+      Deliver(groupWire, "Peer5-Realm")
+      Assert.Equal(FanOutsSince(mark), 1, "the joining peer must get a fan-out")
+
+      session.Advance(1)
+      mark = #session.messages
+      Deliver(groupWire, "Peer2-Realm")
+      Assert.Equal(FanOutsSince(mark), 0, "the reloaded known peer's hello stays inside the known-peer window")
+      session.Advance(0.5)
+      Deliver(reqsyncWire, "Peer2-Realm")
+      Assert.Equal(FanOutsSince(mark), 1, "the reloaded peer's REQSYNC must be answered: it missed the last fan-out")
+
+      -- The mid-key reload path sends a second REQSYNC; the answer above served it.
+      mark = #session.messages
+      Deliver(reqsyncWire, "Peer2-Realm")
+      Deliver(reqsyncWire, "Peer3-Realm")
+      Assert.Equal(FanOutsSince(mark), 0, "REQSYNCs right after the answering fan-out must stay throttled")
+
+      -- A peer that was online for the fan-out keeps the plain 3-second window.
+      session.Advance(1)
+      mark = #session.messages
+      Deliver(groupWire, "Peer3-Realm")
+      session.Advance(0.5)
+      Deliver(reqsyncWire, "Peer3-Realm")
+      Assert.Equal(FanOutsSince(mark), 0, "a peer seen after the last fan-out must not bypass the window")
     end)
   end)
 
@@ -986,12 +1063,81 @@ return function(test, ctx, fixtures)
         Assert.True(#notified > notifiedBefore, "the woken loop must dispatch the new inspect")
         RunFrames(40)
         Assert.True(#notified >= notifiedBefore + 2, "an unanswered inspect must time out and be retried")
-        Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "pending retries must keep the loop attached")
 
         -- Hiding stops processing as before.
         frame:Hide()
         Assert.Nil(frame:GetScript("OnUpdate"), "hiding must detach the loop")
         Assert.False(HasPendingWork(), "hiding must clear the inspect work")
+      end)
+      _G.UnitIsVisible, _G.CanInspect, _G.NotifyInspect = nil, nil, nil
+      assert(ok, err)
+    end)
+  end)
+
+  test("Mplus stress: deferred inspect retries detach the loop and still reach a returning member", function()
+    Stress.WithKey(ctx, fixtures, function(session)
+      local frame = session.runtime.mainFrame
+      local notified = {}
+      local outOfRange = { party2 = true }
+      _G.UnitIsVisible = function(unit)
+        return not outOfRange[unit]
+      end
+      _G.CanInspect = function()
+        return true
+      end
+      _G.NotifyInspect = function(unit)
+        notified[#notified + 1] = unit
+      end
+      -- One rendered frame: 0.3 s passes the 0.25 s loop throttle. The WoW
+      -- client calls the frame's current OnUpdate script, nothing else.
+      local handlerCalls = 0
+      local function RunFrames(count)
+        for _ = 1, count do
+          session.Advance(0.3)
+          local onUpdate = frame:GetScript("OnUpdate")
+          if onUpdate then
+            handlerCalls = handlerCalls + 1
+            local before = #notified
+            onUpdate(frame, 0.3)
+            if #notified > before then
+              session.Dispatch("INSPECT_READY", _G.UnitGUID(notified[#notified]))
+            end
+          end
+        end
+      end
+      local function WasInspected(unit)
+        for _, notifiedUnit in ipairs(notified) do
+          if notifiedUnit == unit then
+            return true
+          end
+        end
+        return false
+      end
+      local ok, err = pcall(function()
+        Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "queued inspect work must attach the loop")
+        RunFrames(100)
+        Assert.True(#notified >= 1, "the reachable members must be inspected")
+        Assert.False(WasInspected("party2"), "an out-of-range member cannot be inspected")
+        Assert.True(
+          #session.runtime.inspectController.retryQueue > 0,
+          "the out-of-range member must wait in the retry queue"
+        )
+
+        -- 180 seconds with one member out of range: one retry check per
+        -- 5-second retry interval instead of one handler call per frame.
+        local before = handlerCalls
+        RunFrames(600)
+        local idleCalls = handlerCalls - before
+        io.write(
+          string.format("[STRESS] inspect loop: handler calls in 600 frames with a deferred retry=%d\n", idleCalls)
+        )
+        Assert.True(idleCalls <= 80, "deferred retries alone must not run the inspect loop on every frame")
+        Assert.Nil(frame:GetScript("OnUpdate"), "between retries the per-frame loop must stay detached")
+
+        -- The member comes back into range: the next due retry inspects it.
+        outOfRange.party2 = nil
+        RunFrames(30)
+        Assert.True(WasInspected("party2"), "a member back in range must still be inspected")
       end)
       _G.UnitIsVisible, _G.CanInspect, _G.NotifyInspect = nil, nil, nil
       assert(ok, err)

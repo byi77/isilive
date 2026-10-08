@@ -444,6 +444,12 @@ end
 --     last PEER_FAN_OUT_KNOWN_PEER_SECONDS.
 --   * REQSYNC: skipped when this client fanned out within the last
 --     PEER_FAN_OUT_REQSYNC_SECONDS (typically the joiner's own HELLO).
+--     Exception: a known peer whose join/reload HELLO (source "group") was
+--     skipped, and that sent nothing between the last fan-out and that HELLO,
+--     may have been on a loading screen when the fan-out went out (the window
+--     is global, so another peer's join can have triggered it). Its REQSYNC
+--     is answered once; any fan-out clears the exception for every peer,
+--     because a peer that is online receives the broadcast.
 -- LibKeystone "R" requests are answered with a group broadcast too, so one
 -- reply per LIBKEYSTONE_REPLY_MIN_INTERVAL_SECONDS serves every requester.
 -- Without a time source every request is answered as before.
@@ -463,7 +469,17 @@ local function BuildSyncReplyThrottles(ctx)
     return window ~= nil and lastAt ~= nil and now >= lastAt and now - lastAt < window
   end
 
-  local function ShouldSendPeerFanOut(kind, senderWasKnown)
+  -- Arrival time of the last isiLive message per sender, and the peers whose
+  -- skipped join/reload HELLO makes their next REQSYNC bypass the window.
+  local lastSeenAtBySender = {}
+  local missedFanOutBySender = {}
+
+  local function MayHaveMissedLastFanOut(sender)
+    local lastSeenAt = lastSeenAtBySender[sender]
+    return lastPeerFanOutAt ~= nil and (lastSeenAt == nil or lastSeenAt < lastPeerFanOutAt)
+  end
+
+  local function ShouldSendPeerFanOut(kind, senderWasKnown, sender, peerSource)
     local now = Now()
     if not now then
       return true
@@ -471,14 +487,32 @@ local function BuildSyncReplyThrottles(ctx)
     local window = nil
     if kind == "reqsync" then
       window = PEER_FAN_OUT_REQSYNC_SECONDS
+      if sender ~= nil and missedFanOutBySender[sender] == true then
+        window = nil
+      end
     elseif senderWasKnown then
       window = PEER_FAN_OUT_KNOWN_PEER_SECONDS
     end
     if IsInsideWindow(lastPeerFanOutAt, now, window) then
+      if kind == "hello" and sender ~= nil then
+        if peerSource == "group" then
+          missedFanOutBySender[sender] = missedFanOutBySender[sender] == true or MayHaveMissedLastFanOut(sender)
+        else
+          missedFanOutBySender[sender] = nil
+        end
+      end
       return false
     end
     lastPeerFanOutAt = now
+    missedFanOutBySender = {}
     return true
+  end
+
+  local function NotePeerMessage(sender)
+    local now = Now()
+    if now and type(sender) == "string" then
+      lastSeenAtBySender[sender] = now
+    end
   end
 
   local function ShouldReplyLibKeystone()
@@ -493,7 +527,7 @@ local function BuildSyncReplyThrottles(ctx)
     return true
   end
 
-  return ShouldSendPeerFanOut, ShouldReplyLibKeystone
+  return ShouldSendPeerFanOut, ShouldReplyLibKeystone, NotePeerMessage
 end
 
 -- A running peer kick cooldown changes the roster on every packet (and on
@@ -986,7 +1020,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
   end
 
-  local ShouldSendPeerFanOut, ShouldReplyLibKeystone = BuildSyncReplyThrottles(ctx)
+  local ShouldSendPeerFanOut, ShouldReplyLibKeystone, NotePeerMessage = BuildSyncReplyThrottles(ctx)
 
   local function HandleChatMsgAddonEvent(_self, prefix, message, channel, sender)
     -- Boss mods, meters and WeakAuras share the group addon channel; their
@@ -1008,13 +1042,14 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
       -- New peer detected: send the full own-state fan-out immediately.
-      if ShouldSendPeerFanOut("hello", syncResult.senderWasKnown == true) then
+      if ShouldSendPeerFanOut("hello", syncResult.senderWasKnown == true, sender, syncResult.peerSource) then
         SendPeerStateFanOut(ctx, "hello-ack", "hello")
       end
     end
-    if syncResult.shouldRequestRefresh and ShouldSendPeerFanOut("reqsync", false) then
+    if syncResult.shouldRequestRefresh and ShouldSendPeerFanOut("reqsync", false, sender) then
       SendPeerStateFanOut(ctx, "reqsync-ack", "reqsync")
     end
+    NotePeerMessage(sender)
     if syncResult.shouldShareKeys then
       HandleShareKeysRequest(ctx, syncResult, sender)
     end

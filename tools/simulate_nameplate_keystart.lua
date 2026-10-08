@@ -402,6 +402,11 @@ local function RunScenario(name, opts)
     local snap1 = PrintSnapshot(addon, "1. ADDON_LOADED / ApplyDBSettings applied")
     Dispatch("NAME_PLATE_UNIT_ADDED", "nameplate1")
     local snap2 = PrintSnapshot(addon, "2. nameplate exists before key start")
+    -- activeAtStart: the active-key API already reports true when the event
+    -- fires, so the immediate pass has everything it needs.
+    if opts and opts.activeAtStart == true then
+      state.challengeActive = true
+    end
     Dispatch("CHALLENGE_MODE_START")
     local snap3 = PrintSnapshot(addon, "3. CHALLENGE_MODE_START immediate refresh")
     state.challengeActive = true
@@ -416,10 +421,25 @@ local function RunScenario(name, opts)
     end
     Check(snap1.frameShown == false, "overlay is not visible directly after ApplyDBSettings")
     Check(snap2.frameShown == false, "overlay is not visible before challenge mode is active")
-    Check(
-      snap3.frameShown == false,
-      "immediate CHALLENGE_MODE_START refresh still fails closed while API reports inactive"
-    )
+    -- Contract of the immediate pass (the RefreshAll() in the
+    -- CHALLENGE_MODE_START branch, before the 0.25 s / 1 s delayed passes):
+    -- it renders the overlay at once when the active-key API is already true,
+    -- and fails closed while the API still reports inactive -- the delayed
+    -- passes exist only for that late-API case.
+    if opts and opts.activeAtStart == true then
+      Check(
+        snap3.frameShown == expectedFinalShown,
+        "immediate CHALLENGE_MODE_START refresh renders without waiting for the delayed passes"
+      )
+      if type(opts.expectedFinalText) == "string" then
+        Check(snap3.renderedText == opts.expectedFinalText, "immediate refresh renders the expected text")
+      end
+    else
+      Check(
+        snap3.frameShown == false,
+        "immediate CHALLENGE_MODE_START refresh still fails closed while API reports inactive"
+      )
+    end
     Check(snap4.frameShown == expectedFinalShown, "delayed key-start refresh matches expected visibility")
     Check(snap5.frameShown == expectedFinalShown, "one-second safety refresh keeps expected visibility")
 
@@ -496,6 +516,23 @@ local scenarios = {
       expectedFinalText = "1.99%",
     })
   end,
+  active_at_start = function()
+    -- The active-key API is already true when CHALLENGE_MODE_START fires: the
+    -- immediate pass must paint the plate before any delayed pass runs.
+    RunScenario("active key at start: immediate refresh renders the DB percent", {
+      activeAtStart = true,
+      expectedFinalShown = true,
+      expectedFinalText = "1.16%",
+    })
+  end,
+  active_at_start_friendly = function()
+    -- Same timing, but a friendly unit: the immediate pass must not paint it.
+    RunScenario("active key at start, friendly unit: immediate refresh stays closed", {
+      activeAtStart = true,
+      unitReaction = 5,
+      expectedFinalShown = false,
+    })
+  end,
   format_no_percent = function()
     -- showPercent=false collapses BuildText to nil even when both percent
     -- sources are populated. The overlay must stay hidden.
@@ -517,13 +554,15 @@ if mode == "all" then
   scenarios.api_only()
   scenarios.secret_mapid()
   scenarios.format_no_percent()
+  scenarios.active_at_start()
+  scenarios.active_at_start_friendly()
 else
   local scenario = scenarios[mode]
   if not scenario then
     print("Unknown mode: " .. tostring(mode))
     print(
       "Available modes: all, happy, disabled, friendly, db_mismatch, no_sources, "
-        .. "secret_guid, api_only, secret_mapid, format_no_percent"
+        .. "secret_guid, api_only, secret_mapid, format_no_percent, active_at_start, active_at_start_friendly"
     )
     os.exit(1)
   end

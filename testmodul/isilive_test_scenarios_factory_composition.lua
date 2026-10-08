@@ -1179,6 +1179,199 @@ return function(test, ctx)
     end)
   end)
 
+  test("factory composition root: every settings open path builds the deferred panel on its first display", function()
+    -- Rule 169, end to end with deferBuild = true as in production: the panel
+    -- is touched by the background paths first (reset, language, alpha, toy
+    -- and CVar events) and then opened through the real slash command, the
+    -- main-frame settings button and the minimap right-click.
+    -- COMPONENT-ONLY (Blizzard side): Settings.OpenToCategory emulates
+    -- Blizzard_SettingsPanel.lua DisplayLayout -- canvas:Show() including its
+    -- hooked OnShow scripts, then canvas:OnRefresh() -- because the Blizzard
+    -- settings frame has no addon-side event path. Hook errors are collected,
+    -- not swallowed, so a raising build fails the test.
+    local globals, db = BuildGlobals()
+    local baseCreateFrame = globals.CreateFrame
+    local created = {}
+    local namedFrames = {}
+    globals.CreateFrame = function(frameType, name, ...)
+      local frame = baseCreateFrame(frameType, name, ...)
+      created[#created + 1] = frame
+      if name ~= nil then
+        namedFrames[name] = frame
+      end
+      return frame
+    end
+    local hookErrors = {}
+    local categories = {}
+    local openCalls = 0
+    local function Collect(ok, err)
+      if not ok then
+        hookErrors[#hookErrors + 1] = tostring(err)
+      end
+    end
+    globals.Settings = {
+      RegisterAddOnCategory = function() end,
+      RegisterCanvasLayoutCategory = function(canvas, _name)
+        local category = { ID = "isiLive-settings", canvas = canvas }
+        categories[category.ID] = category
+        canvas._showHooks = {}
+        canvas.HookScript = function(self, script, fn)
+          if script == "OnShow" then
+            self._showHooks[#self._showHooks + 1] = fn
+          end
+        end
+        return category
+      end,
+      OpenToCategory = function(categoryID)
+        openCalls = openCalls + 1
+        local category = categories[categoryID]
+        if not category then
+          return
+        end
+        local canvas = category.canvas
+        if canvas:IsShown() then
+          return
+        end
+        canvas:Show()
+        for _, hook in ipairs(canvas._showHooks) do
+          Collect(xpcall(function()
+            hook(canvas)
+          end, debug.traceback))
+        end
+        Collect(xpcall(function()
+          canvas:OnRefresh()
+        end, debug.traceback))
+      end,
+    }
+    local function FontStringTexts()
+      local texts = {}
+      for _, frame in ipairs(created) do
+        for _, fs in ipairs(frame._fontStrings or {}) do
+          if type(fs._text) == "string" and fs._text ~= "" then
+            texts[fs._text] = true
+          end
+        end
+      end
+      return texts
+    end
+
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+    end)
+
+    WithGlobals(globals, function()
+      local ctxRuntime
+      local ok, err = xpcall(function()
+        ctxRuntime = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must run without raising: " .. tostring(err))
+      local panel = Assert.NotNil(ctxRuntime.settingsPanel, "the composition root must create the settings panel")
+      Assert.False(panel.IsBuilt(), "addon init must not build the settings sections")
+
+      -- Background paths before the first open: none may raise or build.
+      local itemFrame, cvarFrames = nil, {}
+      for _, frame in ipairs(created) do
+        local events = frame._registeredEvents or {}
+        if events.TOYS_UPDATED and events.GET_ITEM_INFO_RECEIVED then
+          itemFrame = frame
+        end
+        if events.CVAR_UPDATE then
+          cvarFrames[#cvarFrames + 1] = frame
+        end
+      end
+      itemFrame = Assert.NotNil(itemFrame, "the settings item-event frame must exist before the first open")
+      Assert.True(#cvarFrames >= 1, "the CVAR_UPDATE watcher must be registered at load")
+      local backgroundOk, backgroundErr = xpcall(function()
+        globals.SlashCmdList.ISILIVE("resetui")
+        ctxRuntime.SetLanguage("deDE")
+        ctxRuntime.RestoreBgAlpha(0.3)
+        itemFrame:GetScript("OnEvent")(itemFrame, "TOYS_UPDATED")
+        itemFrame:GetScript("OnEvent")(itemFrame, "GET_ITEM_INFO_RECEIVED", 6948)
+        for _, frame in ipairs(cvarFrames) do
+          frame:GetScript("OnEvent")(frame, "CVAR_UPDATE", "advancedCombatLogging", "1")
+        end
+      end, debug.traceback)
+      Assert.Equal(
+        backgroundOk,
+        true,
+        "background paths before the first open must not raise: " .. tostring(backgroundErr)
+      )
+      Assert.False(panel.IsBuilt(), "background paths must not build the settings sections")
+      Assert.Nil(panel.navigation, "background paths must not build the section navigation")
+      Assert.Equal(db.locale, "deDE", "the language switch must persist before the first open")
+
+      -- First open: /isilive settings.
+      globals.SlashCmdList.ISILIVE("settings")
+      Assert.Equal(openCalls, 1, "/isilive settings must open the registered category")
+      Assert.Equal(#hookErrors, 0, "the first display must build without errors: " .. table.concat(hookErrors, "\n"))
+      Assert.True(panel.IsBuilt(), "/isilive settings must build the deferred sections")
+      Assert.NotNil(panel.navigation, "the first open must build the section navigation")
+      Assert.True(FontStringTexts()["Anzeige"] == true, "the build must read the language chosen before the first open")
+      Assert.Equal(panel.canvas._backdropColor[4], 0.3, "the build must keep the alpha applied before the first open")
+      local framesAfterBuild = #created
+
+      -- Re-open through the other entry points: no second build.
+      panel.canvas:Hide()
+      local mainUI = Assert.NotNil(ctxRuntime.mainUI, "the main UI must exist")
+      local settingsButton = Assert.NotNil(mainUI.settingsButton, "the main frame must carry the settings button")
+      settingsButton:GetScript("OnClick")(settingsButton, "LeftButton")
+      Assert.Equal(openCalls, 2, "the main-frame settings button must open the category")
+      Assert.True(panel.canvas:IsShown(), "the settings button must display the canvas")
+
+      panel.canvas:Hide()
+      local minimapButton = Assert.NotNil(namedFrames.isiLiveMinimapButton, "the minimap button must exist")
+      minimapButton:GetScript("OnClick")(minimapButton, "RightButton")
+      Assert.Equal(openCalls, 3, "a minimap right-click must open the category")
+      Assert.True(panel.canvas:IsShown(), "the minimap right-click must display the canvas")
+      Assert.Equal(#created, framesAfterBuild, "re-opening through other paths must not rebuild the sections")
+      Assert.Equal(#hookErrors, 0, "re-opening must not raise: " .. table.concat(hookErrors, "\n"))
+
+      -- Background paths after the build repaint without raising.
+      local afterOk, afterErr = xpcall(function()
+        ctxRuntime.SetLanguage("enUS")
+        itemFrame:GetScript("OnEvent")(itemFrame, "TOYS_UPDATED")
+      end, debug.traceback)
+      Assert.Equal(afterOk, true, "refresh paths after the build must not raise: " .. tostring(afterErr))
+      Assert.True(FontStringTexts()["Display"] == true, "a language switch after the build must repaint the labels")
+    end)
+  end)
+
+  test("factory composition root: /isilive resetui repaints the ESC panel created after the slash context", function()
+    -- Rule 180: the ESC panel (ctx.panelUI) is created by ApplyLocalizationToUI
+    -- on ADDON_LOADED, after the slash-command context is built. The real
+    -- factory, the real ADDON_LOADED dispatch and the real slash command are
+    -- used. Harness trade-off: the stub client has no GameMenuFrame, so a bare
+    -- frame is installed for EnsurePanelUI to mount the panel on.
+    local globals, db = BuildGlobals()
+    globals.GameMenuFrame = globals.CreateFrame("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+    end)
+
+    WithGlobals(globals, function()
+      local ctxRuntime = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      Assert.Nil(ctxRuntime.panelUI, "the ESC panel must not exist before ADDON_LOADED")
+      local onEvent = Assert.NotNil(ctxRuntime.eventFrame._scripts.OnEvent, "the gated OnEvent handler must exist")
+      onEvent(ctxRuntime.eventFrame, "ADDON_LOADED", "isiLive")
+      local panelUI = Assert.NotNil(ctxRuntime.panelUI, "ADDON_LOADED must create the ESC panel")
+      local panelFrame = Assert.NotNil(panelUI.panelFrame, "the ESC panel must expose its frame")
+
+      panelFrame:SetBackdropColor(0.9, 0.9, 0.9, 0.9)
+      db.bgAlpha = 0.9
+      globals.SlashCmdList.ISILIVE("resetui")
+
+      local bg = addon.UICommon.Colors.BG_PRIMARY
+      local color = panelFrame._backdropColor
+      Assert.Equal(color[1], bg[1], "resetui must restore the default ESC panel red channel")
+      Assert.Equal(color[2], bg[2], "resetui must restore the default ESC panel green channel")
+      Assert.Equal(color[3], bg[3], "resetui must restore the default ESC panel blue channel")
+      Assert.Equal(color[4], addon.UICommon.DEFAULT_BG_ALPHA, "resetui must restore the default ESC panel alpha")
+    end)
+  end)
+
   test("factory composition root: legacy nameplate remaining default migrates to opt-in", function()
     local globals, db = BuildGlobals()
     db.mobNameplateShowRemaining = true

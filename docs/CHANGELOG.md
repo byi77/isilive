@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-08 - Version 0.9.421 (patch)
+
+- Sync: a known peer whose join or reload hello falls into the fan-out window
+  of a broadcast it may have missed on a loading screen gets its next REQSYNC
+  answered once; the post-run storm still draws at most one fan-out (rule 176).
+- Inspect: while only deferred retries wait (members offline or out of range)
+  the per-frame inspect loop detaches and a one-shot timer re-attaches it when
+  the earliest retry is due (rule 177).
+- Mob nameplates: the scenario API percent is handed to the renderer without
+  any comparison, so a secret value is never evaluated in Lua (rule 178).
+- Slash commands: `/isilive settings` opened nothing and `/isilive resetui`
+  missed the settings canvas and the ESC panel, because the slash-command
+  context captured both panels before they existed; they are now resolved per
+  call (rules 179 and 180).
+- Tests: the immediate nameplate pass at key start and every deferred settings
+  open path are now covered end to end.
+
 ## 2026-10-07 - Version 0.9.420 (patch)
 
 - Raid: a raid that shrinks to five or fewer members still counts as a raid.

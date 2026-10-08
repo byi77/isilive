@@ -112,6 +112,29 @@ end
 function ConfigBuilders.BuildSlashCommandsOpts(ctx)
   local uiCommon = addonTable.UICommon
   local defaultBgAlpha = uiCommon and uiCommon.DEFAULT_BG_ALPHA or 0.50
+  -- The settings panel is created after the slash-command context; read it
+  -- per call through getSettingsPanel (a plain settingsPanel field still works).
+  local function ResolveSettingsPanel()
+    if ctx.settingsPanel then
+      return ctx.settingsPanel
+    end
+    if type(ctx.getSettingsPanel) == "function" then
+      return ctx.getSettingsPanel()
+    end
+    return nil
+  end
+
+  -- Same for the ESC panel: it is created on ADDON_LOADED, after the slash
+  -- context exists (a plain panelUI field still works).
+  local function ResolvePanelUI()
+    if ctx.panelUI then
+      return ctx.panelUI
+    end
+    if type(ctx.getPanelUI) == "function" then
+      return ctx.getPanelUI()
+    end
+    return nil
+  end
 
   return {
     commands = ctx.commands,
@@ -182,18 +205,16 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       end
 
       local bg = colors and colors.BG_PRIMARY or { 0.08, 0.08, 0.12, defaultBgAlpha }
-      if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
-        ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+      local panelUI = ResolvePanelUI()
+      if panelUI and panelUI.panelFrame and type(panelUI.panelFrame.SetBackdropColor) == "function" then
+        panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
       end
-      if
-        ctx.settingsPanel
-        and ctx.settingsPanel.canvas
-        and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
-      then
-        ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+      local settingsPanel = ResolveSettingsPanel()
+      if settingsPanel and settingsPanel.canvas and type(settingsPanel.canvas.SetBackdropColor) == "function" then
+        settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
       end
-      if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
-        ctx.settingsPanel.Refresh()
+      if settingsPanel and type(settingsPanel.Refresh) == "function" then
+        settingsPanel.Refresh()
       end
     end,
     updateLeaderButtons = ctx.updateLeaderButtons,
@@ -253,8 +274,9 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       if type(blizzardSettings) ~= "table" or type(blizzardSettings.OpenToCategory) ~= "function" then
         return false
       end
-      if ctx.settingsPanel and ctx.settingsPanel.category then
-        blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
+      local settingsPanel = ResolveSettingsPanel()
+      if settingsPanel and settingsPanel.category then
+        blizzardSettings.OpenToCategory(settingsPanel.category.ID)
         return true
       end
       return false

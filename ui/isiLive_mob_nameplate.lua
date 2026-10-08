@@ -774,10 +774,11 @@ local function UpdateNameplate(unit)
     percentString = ResolveMobContributionFromDB(unit, activeMapID, forcesDB)
     if not percentString and HasProgressAPI() then
       local api = rawget(_G, "C_ScenarioInfo")
+      -- Assigned unconditionally: even `~= nil` is an operation on a possible
+      -- Secret Value. percentString is nil (or false) here anyway, so a nil
+      -- API result changes nothing, and BuildText only asks type() of it.
       local _, _, apiPercent = SafeCall(api.GetUnitCriteriaProgressValues, unit)
-      if apiPercent ~= nil then
-        percentString = apiPercent
-      end
+      percentString = apiPercent
     end
   end
 

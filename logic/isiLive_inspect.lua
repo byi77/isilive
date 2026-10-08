@@ -397,6 +397,44 @@ function Inspect.CreateController(config)
     return controller.isInspecting ~= nil or #controller.inspectQueue > 0 or #controller.retryQueue > 0
   end
 
+  -- Deferred retries (offline or out-of-range members) wait in the retry
+  -- queue for retryInterval seconds. They are due within a small tolerance so
+  -- a wake timer firing a frame early does not reschedule itself in a loop.
+  local RETRY_DUE_TOLERANCE_SECONDS = 0.05
+  local function CurrentTime()
+    local getTimeFn = rawget(_G, "GetTime")
+    return type(getTimeFn) == "function" and tonumber(getTimeFn()) or 0
+  end
+
+  -- True while OnUpdate has something to do right now: a queued unit, an
+  -- in-flight inspect (timeout check) or a retry whose time has come.
+  function controller.HasDueWork()
+    if controller.isInspecting ~= nil or #controller.inspectQueue > 0 then
+      return true
+    end
+    local now = CurrentTime()
+    for _, entry in ipairs(controller.retryQueue) do
+      if entry.nextRetry - now <= RETRY_DUE_TOLERANCE_SECONDS then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Seconds until the earliest deferred retry is due, or nil without retries.
+  function controller.GetNextRetryDelay()
+    local earliest = nil
+    for _, entry in ipairs(controller.retryQueue) do
+      if earliest == nil or entry.nextRetry < earliest then
+        earliest = entry.nextRetry
+      end
+    end
+    if earliest == nil then
+      return nil
+    end
+    return math.max(earliest - CurrentTime(), RETRY_DUE_TOLERANCE_SECONDS)
+  end
+
   function controller.ResetAll()
     controller.ResetQueues()
     controller.ilvlCache = {}

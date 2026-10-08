@@ -253,6 +253,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 173. Der verzoegerte Post-Run-Refresh unterliegt nicht der Klick-Entprellung des Refreshs; ein Re-Sync-Klick kurz nach Key-Ende blockiert ihn nicht mehr.
 174. Ein Roster-Render unter Kampfsperre hinterlaesst eine Veraltet-Markierung, damit die dabei ausgelassenen Secure-Makros der Rollen-Buttons beim naechsten Render ausserhalb des Kampfes oder beim naechsten Einblenden neu geschrieben werden.
 175. Das `IDLE`-Profil schliesst genau die an das volle Profil gebundenen Funktionen; Funktionen ohne Profil-Gate wie Power Infusion, die Bloodlust-Button-Warnung und der Portal-Navigator laufen auch in `IDLE`.
+176. Ein REQSYNC eines bekannten Peers, dessen Beitritts- oder Reload-HELLO nach dem letzten Fan-out im Known-Peer-Fenster verworfen wurde und der seit diesem Fan-out vorher nichts gesendet hatte, wird trotz des Drei-Sekunden-Fensters beantwortet.
+177. Warten in der Inspect-Retry-Queue nur noch zurueckgestellte Retries, haengt sich die Inspect-Schleife ab; ein einmaliger Timer haengt sie zum fruehesten Retry-Zeitpunkt wieder ein.
+178. Der Prozentwert aus `C_ScenarioInfo.GetUnitCriteriaProgressValues` wird im Nameplate-Overlay ohne jede Pruefung, auch ohne `~= nil`, an `BuildText` durchgereicht.
+179. Die Slash-Befehle lesen das Settings-Panel bei jedem Aufruf aus dem Factory-Kontext; `/isilive settings` oeffnet die Kategorie und `/isilive resetui` erreicht den Settings-Canvas, obwohl das Panel erst nach dem Slash-Kontext entsteht.
 
 ## Regelbloecke
 
@@ -2646,3 +2650,46 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - PiTracker announces verified Power Infusion on player from UNIT_AURA addedAuras
   - BloodlustButtonWarning shows a cross on a Bloodlust button while debuffed when enabled
   - Portal navigator shows the five portal positions only in the Timeways room
+
+### RULE-PEER-FANOUT-VERPASST-NACH-RELOAD
+- Regelnummer: 176
+- Status: aktiv
+- Zusammenfassung: Das Fan-out-Fenster aus Regel 159 ist global: ein Fan-out, den der Beitritt eines anderen Peers ausloest, sperrt auch die Anfrage eines Peers, der ihn gar nicht empfangen konnte. Laedt Peer B neu, waehrend dieser Client einen Fan-out sendet, faellt Bs Reload-HELLO (Quelle `group`, B bleibt bekannt) ins Zehn-Sekunden-Fenster und Bs REQSYNC 0,5 s spaeter ins Drei-Sekunden-Fenster; B erhielt Ziel, Kick, SKCD und DPS dann erst mit der naechsten Aenderung. Jetzt merkt sich der Empfaenger je Absender die Ankunftszeit der letzten isiLive-Nachricht. Wird ein HELLO mit Quelle `group` eines bekannten Peers im Fenster verworfen und kam von diesem Peer seit dem letzten Fan-out vorher keine Nachricht (oder noch nie eine), umgeht sein naechstes REQSYNC das Drei-Sekunden-Fenster einmal. Jeder gesendete Fan-out loescht diese Ausnahme fuer alle Peers, weil ihn jeder online befindliche Peer empfaengt; ein HELLO mit anderer Quelle (z. B. `refresh` des Post-Run-Refreshs aus Regel 167) loescht sie fuer seinen Absender. Der Post-Run-Sturm (HELLO `refresh` plus REQSYNC je Peer) zieht damit weiterhin hoechstens einen Fan-out nach sich; Known-Peer-Fenster, LibKeystone-Drossel und die Antwort ohne Zeitquelle bleiben unveraendert.
+- Ersetzte Festlegung (Audit, 2026-10-08): Regel 159 "Ein REQSYNC loest den Fan-out nur aus, wenn der letzte Fan-out mindestens drei Sekunden zurueckliegt." Ausgenommen ist jetzt das REQSYNC eines Peers, der den letzten Fan-out wegen eines Reloads oder Ladebildschirms verpasst haben kann; der Detailblock von Regel 159 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - Mplus stress: a peer reloading through another peer's fan-out still gets the state on its REQSYNC
+  - Mplus stress: the post-run refresh keeps known peers and answers their hellos once
+  - Mplus stress: peer state fan-outs answer new peers but not every repeated hello
+
+### RULE-INSPECT-RETRY-OHNE-FRAME-ARBEIT
+- Regelnummer: 177
+- Status: aktiv
+- Zusammenfassung: Retry-Eintraege der Inspect-Queue (Mitglied offline, ausser Reichweite oder ohne INSPECT_READY) werden nie verworfen, sondern nur um `retryInterval` (5 s) verschoben; weil `HasPendingWork` sie mitzaehlt, blieb der `OnUpdate` aus Regel 168 dauerhaft eingehaengt, solange ein Mitglied nicht inspizierbar war. Jetzt fragt `RefreshInspectLoop` zusaetzlich `HasDueWork` des Inspect-Controllers ab (Einheit in der Queue, laufendes Inspect oder Retry, dessen Zeitpunkt mit 0,05 s Toleranz erreicht ist). Haelt der Controller nur zurueckgestellte Retries, wird der `OnUpdate` abgehaengt und ein einmaliger `C_Timer.NewTimer` (Rueckfall `C_Timer.After` mit Generationszaehler) zum fruehesten Retry-Zeitpunkt (`GetNextRetryDelay`) haengt ihn wieder ein; ein frueherer Zeitpunkt ersetzt einen spaeteren Timer, `SetProcessingActive(false)` bricht ihn ab. Die Retry-Pruefung selbst (`ProcessRetryQueue`: inspizierbar wird vorne eingereiht, sonst um 5 s verschoben), Timeout, Inspect-Abstand, Kampfpause und `HasPendingWork` bleiben unveraendert; ein Mitglied, das wieder in Reichweite kommt, wird beim naechsten faelligen Retry inspiziert. Ohne Timer-API bleibt die Schleife wie bisher eingehaengt, solange Retries warten.
+- Ersetzte Festlegung (Audit, 2026-10-08): Regel 168 "wenn die Verarbeitung erlaubt ist (...) und der Inspect-Controller Arbeit haelt (`HasPendingWork`: Einheit in der Queue, laufendes Inspect oder Retry-Eintrag)". Ein noch nicht faelliger Retry-Eintrag haelt die Schleife nicht mehr eingehaengt; der Detailblock von Regel 168 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - Mplus stress: deferred inspect retries detach the loop and still reach a returning member
+  - Mplus stress: the inspect loop detaches once its queue drains and wakes on new work
+
+### RULE-NAMEPLATE-API-PROZENT-UNGEPRUEFT
+- Regelnummer: 178
+- Status: aktiv
+- Zusammenfassung: `UpdateNameplate` in `ui/isiLive_mob_nameplate.lua` weist den dritten Rueckgabewert von `C_ScenarioInfo.GetUnitCriteriaProgressValues` (im M+-Kontext moeglicherweise ein Secret Value) ohne Bedingung `percentString` zu, wenn die Forces-DB keinen Beitrag liefert. Die fruehere Abfrage `apiPercent ~= nil` ausserhalb von `pcall` war eine Operation auf dem moeglichen Secret Value, deren Zulaessigkeit nicht belegt ist; sie war zudem ueberfluessig, weil `percentString` an dieser Stelle bereits leer ist und `BuildText` nur `type()` des Wertes prueft und ihn unter `pcall` verkettet. Damit gilt die Render-Ausnahme aus Regel 102 auch fuer diesen Zwischenschritt: zwischen API-Aufruf und `BuildText` wird der Wert nur zugewiesen, nie verglichen, negiert, auf Wahrheit geprueft oder verrechnet. Darstellung und Ausblenden ohne API-Wert bleiben unveraendert.
+- Erforderliche Tests:
+  - MobNameplate never compares the API percent before handing it to the renderer
+  - MobNameplate renders Secret-Valued percentString through to the FontString
+  - MobNameplate hands the Secret percent to the FontString unchanged apart from the rendered suffix
+
+### RULE-SLASH-SETTINGS-PANEL-SPAET-AUFGELOEST
+- Regelnummer: 179
+- Status: aktiv
+- Zusammenfassung: `BuildRuntimeSetupSlashCommandsContext` in `factory/isiLive_factory.lua` kopierte `ctx.settingsPanel` in den Slash-Kontext, bevor `FinalizeFactorySettings` das Panel erzeugt; der Kontext hielt deshalb `nil`, `/isilive settings` blieb ohne Wirkung und `/isilive resetui` erreichte weder Hintergrundfarbe noch `Refresh` des Settings-Canvas. Der Slash-Kontext traegt jetzt `getSettingsPanel`, das `ctx.settingsPanel` bei jedem Aufruf liest; `ConfigBuilders.BuildSlashCommandsOpts` loest das Panel ueber `ResolveSettingsPanel` auf (ein direkt gesetztes `settingsPanel` hat Vorrang). Die Reihenfolge der Factory-Initialisierung, die verzoegerte Erstellung aus Regel 169 und die uebrigen Oeffnungswege (Main-Frame-Button, Minimap-Rechtsklick, ESC-Panel), die `ctx.settingsPanel` bereits zur Aufrufzeit lesen, bleiben unveraendert.
+- Erforderliche Tests:
+  - factory composition root: every settings open path builds the deferred panel on its first display
+  - factory composition root: settings content and simulation tablet build on first open
+
+### RULE-SLASH-ESC-PANEL-SPAET-AUFGELOEST
+- Regelnummer: 180
+- Status: aktiv
+- Zusammenfassung: Ergaenzung zu Regel 179 fuer das ESC-Panel. `BuildRuntimeSetupSlashCommandsContext` in `factory/isiLive_factory.lua` kopierte auch `ctx.panelUI` in den Slash-Kontext, obwohl `ApplyLocalizationToUI` das Panel erst im `ADDON_LOADED`-Handler erzeugt, also nach dem Bau des Kontexts; der Kontext hielt deshalb `nil`, und `/isilive resetui` setzte die Hintergrundfarbe des ESC-Panel-Frames (`panelFrame:SetBackdropColor`) nie zurueck. Der Slash-Kontext traegt jetzt zusaetzlich `getPanelUI`, das `ctx.panelUI` bei jedem Aufruf liest; `ConfigBuilders.BuildSlashCommandsOpts` loest das Panel ueber `ResolvePanelUI` auf (ein direkt gesetztes `panelUI` hat Vorrang). Das Feld `panelUI` bleibt erhalten; Erstellungsreihenfolge und uebrige Nutzer von `ctx.panelUI` (Aufrufzeit-Lesezugriffe) bleiben unveraendert.
+- Erforderliche Tests:
+  - factory composition root: /isilive resetui repaints the ESC panel created after the slash context

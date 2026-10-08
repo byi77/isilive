@@ -3,15 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.420`.
+Current version: `0.9.421`.
 
-Version 0.9.420: The window comes back after a raid that shrank, Refresh always reads your current key, and the RIO change shows after an early Re-Sync.
+Version 0.9.421: `/isilive settings` opens the settings again, `/isilive resetui` resets every panel, and a group member who reloads gets your data right away.
 
-<!-- highlights-reviewed-for: 0.9.420 -->
+<!-- highlights-reviewed-for: 0.9.421 -->
 
 Highlights:
+- **Slash commands fixed.** `/isilive settings` opens the settings panel again, and `/isilive resetui` also resets the settings and ESC panel backgrounds.
 - **Reliable after raids and keys.** Leaving a raid that had shrunk to five players reopens the window again, Refresh picks up a key swapped mid-fight, and clicking Re-Sync right after a key no longer hides the RIO change.
-- **Quieter when idle.** isiLive stops its per-frame and timer work while there is nothing to do, and the first death in a key no longer builds the alert window mid-fight.
+- **Quieter when idle.** isiLive stops its per-frame and timer work while there is nothing to do, also while a group member is out of inspect range, and the first death in a key no longer builds the alert window mid-fight.
 - **No flicker after a key.** Group members no longer briefly show as "no isiLive" when a key ends, and the group exchanges far fewer messages at that moment.
-- **Fresh enemy-forces data.** Mob percentages stay available with an updated database.
 - **Mythic 0 support is back.** In a mythic dungeon before the key is inserted, the BR/Bloodlust display, the tank and healer death alerts and the BR/Bloodlust announces had silently stayed off since 0.9.340; they work again.

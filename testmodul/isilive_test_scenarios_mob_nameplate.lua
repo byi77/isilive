@@ -1916,6 +1916,78 @@ local function RegisterDiagnosticsModuleTests(test, Assert, WithGlobals, LoadAdd
   end)
 end
 
+local function RegisterSecretPassThroughTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("MobNameplate never compares the API percent before handing it to the renderer", function()
+    -- STATIC + RUNTIME: `value ~= nil` cannot be intercepted by a Lua stub --
+    -- equality against nil never reaches a metamethod -- so a Secret-Value
+    -- stub cannot make the old `apiPercent ~= nil` guard raise. The static
+    -- half pins the contract on the source between the API call and
+    -- BuildText: the returned variable is only assigned, never compared,
+    -- negated, tested or used in arithmetic (rule 102, render-only exception).
+    local handle = assert(io.open("ui/isiLive_mob_nameplate.lua", "r"))
+    local source = handle:read("*a")
+    handle:close()
+    local callStart = source:find("GetUnitCriteriaProgressValues, unit)", 1, true)
+    callStart = Assert.NotNil(callStart, "UpdateNameplate must read the API percent")
+    local lineStart = source:sub(1, callStart):match(".*()\n") or 1
+    local callLine = source:sub(lineStart, source:find("\n", callStart, true))
+    local variable = callLine:match("local%s+[%w_]+%s*,%s*[%w_]+%s*,%s*([%w_]+)%s*=")
+    variable = Assert.NotNil(variable, "the third API return must be captured in a local")
+    local buildAt = source:find("BuildText(", callStart, true)
+    buildAt = Assert.NotNil(buildAt, "BuildText must follow the API read")
+    local window = source:sub(callStart + #"GetUnitCriteriaProgressValues, unit)", buildAt)
+    local uses = 0
+    for line in window:gmatch("[^\n]+") do
+      local code = line:gsub("%-%-.*$", "")
+      for before, after in code:gmatch("(.?.?.?.?)%f[%w_]" .. variable .. "%f[^%w_](.?.?.?)") do
+        uses = uses + 1
+        Assert.True(
+          after:match("^%s*[=~<>]=") == nil and after:match("^%s*[<>%+%-%*/%%%^]") == nil,
+          "the API percent must not be compared or used in arithmetic: " .. line
+        )
+        Assert.True(
+          before:match("[=~<>]=%s*$") == nil and before:match("[<>%+%-%*/%%%^]%s*$") == nil,
+          "the API percent must not be the right operand of a comparison: " .. line
+        )
+        Assert.True(
+          before:match("not%s+$") == nil and before:match("if%s+$") == nil,
+          "the API percent must not be tested for truth: " .. line
+        )
+      end
+    end
+    Assert.True(uses >= 1, "the API percent must still be handed on to the renderer")
+
+    -- Runtime half: a Secret percent and an absent percent both reach BuildText
+    -- unchanged -- the masked one renders, the absent one leaves no plate.
+    local secret = "__ISILIVE_TEST_SECRET_PERCENT__"
+    local globals, state = BuildEnv({
+      units = {
+        nameplate1 = { guid = "Creature-0-3889-161-99999-99999-0", reaction = 2 },
+        nameplate2 = { guid = "Creature-0-3889-161-99999-99998-0", reaction = 2 },
+      },
+      nameplates = { nameplate1 = MakeFrame(), nameplate2 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = secret } },
+      issecretvalue = function(v)
+        return v == secret
+      end,
+    })
+    state.progressValues.nameplate2 = nil
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      addon.MobNameplate._Test_UpdateNameplate("nameplate2")
+      local frames = addon.MobNameplate._Test_GetFrames()
+      local frame = Assert.NotNil(frames.nameplate1, "a Secret percent must still render")
+      Assert.Equal(frame.text._setTextArg, secret .. "%", "the Secret percent must reach the renderer verbatim")
+      Assert.True(
+        frames.nameplate2 == nil or frames.nameplate2._shown ~= true,
+        "an absent API percent must leave the plate hidden"
+      )
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -1929,4 +2001,5 @@ return function(test, ctx)
   RegisterDebugSurfaceTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDiagnosticsModuleTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSecretPassThroughTests(test, Assert, WithGlobals, LoadAddonModules)
 end
