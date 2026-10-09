@@ -41,6 +41,7 @@ function CdTracker.CreateController(opts)
   local lustRemain = nil
   local lustDuration = nil
   local lustIcon = nil
+  local lustScanResolved = false
 
   -- GetSpellCharges may hand back Secret Values in restricted content, both as
   -- the flat multi-return and as fields of the ChargeInfo struct. Every value
@@ -117,47 +118,39 @@ function CdTracker.CreateController(opts)
   end
 
   local function ScanLust()
-    local C_UnitAuras_ref = rawget(_G, "C_UnitAuras")
-    local getAuraDataByIndex = type(C_UnitAuras_ref) == "table" and rawget(C_UnitAuras_ref, "GetAuraDataByIndex") or nil
-    if type(getAuraDataByIndex) ~= "function" then
-      lustRemain = nil
-      lustIcon = nil
+    local previouslyObserved = lustRemain ~= nil
+    lustScanResolved = false
+    lustRemain, lustDuration, lustIcon = nil, nil, nil
+    local api = rawget(_G, "C_UnitAuras")
+    local readAura = type(api) == "table" and rawget(api, "GetAuraDataByIndex") or nil
+    if type(readAura) ~= "function" then
       return
     end
-    -- Query each aura slot for a known Sated/Exhaustion debuff.
-    -- WoW aura objects contain "secret" values that look like numbers to type()
-    -- but throw "table index is secret" when used as table keys, and raise on
-    -- every comparison or calculation. Validators.ReadPlain* rejects a masked
-    -- field before it is ever used, so both the table lookup below and the
-    -- expiry arithmetic only ever see plain values.
-    local found = false
+    -- Absence requires a readable list ending; skipped secret/error slots
+    -- cannot prove readiness. A verified active match still resolves directly.
+    local complete = true
     for index = 1, 40 do
-      local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
-      local plainAura = ok and not IsSecretValue(aura)
-      if plainAura and aura == nil then
-        break
+      local ok, aura = pcall(readAura, "player", index, "HARMFUL")
+      local plain = ok and not IsSecretValue(aura)
+      if plain and aura == nil then
+        lustScanResolved = complete
+        return
       end
-      if plainAura and type(aura) == "table" then
-        local spellID = ReadPlainNumber(aura, "spellId")
-        if spellID and LUST_SATED_IDS[spellID] then
-          local expiry = ReadPlainNumber(aura, "expirationTime")
-          local remain = expiry and math.max(0, expiry - getTime()) or 0
-          if remain > 0 then
-            lustRemain = remain
-          elseif lustRemain ~= nil then
-            lustRemain = 0
-          end
-          lustIcon = ReadPlainField(aura, "icon")
+      local spellID = plain and type(aura) == "table" and ReadPlainNumber(aura, "spellId") or nil
+      if spellID and LUST_SATED_IDS[spellID] then
+        local expiry = ReadPlainNumber(aura, "expirationTime")
+        if expiry then
+          lustScanResolved = true
+          local remain = math.max(0, expiry - getTime())
+          lustRemain = (remain > 0 or previouslyObserved) and remain or nil
           lustDuration = ReadPlainNumber(aura, "duration")
-          found = true
-          break
+          lustIcon = ReadPlainField(aura, "icon")
         end
+        return
       end
-    end
-    if not found then
-      lustRemain = nil
-      lustDuration = nil
-      lustIcon = nil
+      if not spellID then
+        complete = false
+      end
     end
   end
 
@@ -181,6 +174,7 @@ function CdTracker.CreateController(opts)
     lustRemain = nil
     lustDuration = nil
     lustIcon = nil
+    lustScanResolved = false
   end
 
   function controller.GetBResInfo()
@@ -196,6 +190,10 @@ function CdTracker.CreateController(opts)
       cooldownRemain = bresCooldownRemain,
       cooldownDuration = bresCooldownDuration,
     }
+  end
+
+  function controller.IsLustScanResolved()
+    return demoOverride ~= nil or lustScanResolved
   end
 
   function controller.GetLustInfo()

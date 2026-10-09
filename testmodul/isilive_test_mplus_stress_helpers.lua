@@ -90,27 +90,33 @@ function Helpers.BuildGlobals(buildGlobals)
   -- an event receives it through its own OnEvent script, exactly as in WoW.
   session.frames = {}
   local createFrame = globals.CreateFrame
-  local parents = {}
   globals.CreateFrame = function(frameType, name, parent, ...)
     local frame = createFrame(frameType, name, parent, ...)
     session.frames[#session.frames + 1] = frame
-    parents[frame] = parent
     return frame
   end
-  -- The frame stub fires only its own OnShow; the client also fires OnShow on
-  -- the shown children of a frame that becomes visible.
+  -- Reconcile effective visibility without replaying callbacks on hidden or
+  -- already-visible children.
   function session.FireChildrenOnShow(parent)
-    for _, frame in ipairs(session.frames) do
-      local onShow = parents[frame] == parent and frame:GetScript("OnShow")
-      if onShow then
-        onShow(frame)
-      end
-    end
+    parent:RefreshVisibility()
   end
   function session.DispatchToFrames(event, ...)
     local delivered = 0
-    for _, frame in ipairs(session.frames) do
+    local unit = select(1, ...)
+    local frameCount = #session.frames
+    for index = 1, frameCount do
+      local frame = session.frames[index]
       local registered = type(frame._registeredEvents) == "table" and frame._registeredEvents[event]
+      if type(registered) == "table" then
+        local matches = false
+        for _, registeredUnit in ipairs(registered) do
+          if registeredUnit == unit then
+            matches = true
+            break
+          end
+        end
+        registered = matches
+      end
       local onEvent = registered and frame:GetScript("OnEvent")
       if onEvent then
         delivered = delivered + 1

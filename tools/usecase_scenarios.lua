@@ -1,4 +1,6 @@
 local scenarioFiles = {
+  "testmodul/isilive_test_scenarios_audit_r6.lua",
+  "testmodul/isilive_test_scenarios_mplus_regression.lua",
   "testmodul/isilive_test_scenarios_architecture.lua",
   "testmodul/isilive_test_scenarios_architecture_audio_kick.lua",
   "testmodul/isilive_test_scenarios_ui_visual_contracts.lua",

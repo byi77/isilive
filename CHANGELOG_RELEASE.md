@@ -3,16 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.426`.
+Current version: `0.9.427`.
 
-Version 0.9.426: live LFG bonus-heart updates, client-localized Augmentation
-recognition and settings layout refresh after language changes.
+Version 0.9.427: verified Bloodlust readiness and season-backed portal resolution.
 
-<!-- highlights-reviewed-for: 0.9.426 -->
+<!-- highlights-reviewed-for: 0.9.427 -->
 
 Highlights:
-- **Current LFG bonus hearts.** Search-result and player specialization changes refresh existing hearts. Re-enabling bonus markers also refreshes applicant hearts immediately.
-- **Lighter applicant rows.** Flags and hearts share one verified member read per row, reuse Blizzard's member updates and skip applicant reads for unowned tooltips.
-- **Augmentation in every client language.** Spec text is matched against Blizzard's verified localized name; unreadable results remain unresolved.
-- **Settings follow language changes.** Existing controls, navigation targets and scroll bounds are remeasured without rebuilding the panel.
-- **Safer previews and lighter scans.** Demo exit preserves the preview during combat; request exit again outside combat. Exhaustion scans stop at confirmed empty slots, and non-NPC mob tooltips skip Forces database lookups.
+- **Reliable Bloodlust-ready cues.** Unreadable exhaustion data stays unresolved and cannot trigger ready sounds, reminders or a ready display.
+- **Verified activity portals.** Known season activities resolve their portals even when live LFG data is unavailable; cached portals cannot outlive their season mapping.
+- **Stronger regression checks.** Visible and hidden Mythic+ workloads enforce API, frame, render and retained-memory budgets, with parent visibility modeled in the shared test fixture.

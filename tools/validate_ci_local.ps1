@@ -211,6 +211,7 @@ try {
   Invoke-CheckedCommand "Version-Skew Simulator" "lua tools/simulate_version_skew.lua"
   Invoke-CheckedCommand "Combat-Lockdown Defer-and-Replay Simulator" "lua tools/simulate_combat_lockdown_settings.lua"
   Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
+  Invoke-CheckedCommand "M+ Regression Budget Simulator" "lua tools/simulate_mplus_regression.lua"
   Invoke-CheckedCommand "M+ Timer Lifecycle Simulator" "lua tools/simulate_mplus_timer_lifecycle.lua"
   # Twelve simulators used to exist without any pipeline calling them, and five
   # of those were failing unnoticed -- three since 2026-07-23, broken by a

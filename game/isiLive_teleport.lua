@@ -15,9 +15,9 @@ local function GetMapToTeleport()
   return SeasonData.MAP_TO_TELEPORT or {}
 end
 
--- Cache: ActivityID -> SpellID / MapID
-local ACTIVITY_TO_TELEPORT_CACHE = {}
+-- Cache successful API map resolutions within the active season.
 local ACTIVITY_TO_MAP_CACHE = {}
+local activityCacheSeason = nil
 
 local pendingCombatUpdates = {}
 
@@ -126,6 +126,17 @@ function Teleport.ResolveMapIDByActivityID(activityID)
     return nil
   end
 
+  local season = SeasonData.ACTIVE_SEASON_ID
+  if activityCacheSeason ~= season then
+    ACTIVITY_TO_MAP_CACHE = {}
+    activityCacheSeason = season
+  end
+  if type(SeasonData.GetMapIDByActivityID) == "function" then
+    local verified = SeasonData.GetMapIDByActivityID(numericActivityID)
+    if verified then
+      return verified
+    end
+  end
   local cached = ACTIVITY_TO_MAP_CACHE[numericActivityID]
   if type(cached) == "number" and cached > 0 then
     return cached
@@ -156,12 +167,6 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     return nil
   end
 
-  -- Cache successful resolutions only. Unresolved lookups must be retryable.
-  local cached = ACTIVITY_TO_TELEPORT_CACHE[numericActivityID]
-  if type(cached) == "number" and cached > 0 then
-    return cached
-  end
-
   local mapID = Teleport.ResolveMapIDByActivityID(numericActivityID)
   if not mapID then
     return nil
@@ -172,7 +177,6 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     return nil
   end
 
-  ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = spellID
   return spellID
 end
 

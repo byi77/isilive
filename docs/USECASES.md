@@ -1,7 +1,25 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.426`
+Versionsbasis: `0.9.427`
 Zuletzt aktualisiert: `2026-10-09`
+
+Audit-Runde 6 (0.9.427): Lust-Scans liefern einen expliziten Aufloesungsstatus.
+Maskierte Felder, API-Fehler und ein Scan ohne bestaetigtes Listenende beweisen
+keine Abwesenheit; Ready-Klang, Erinnerung und Anzeige bleiben dabei aus.
+Ein zuvor beobachteter aktiver Zyklus bleibt fuer eine spaetere bestaetigte
+Entfernung erhalten. Verifizierte Activity-Zuordnungen der aktuellen Season
+haben im Teleport-Resolver Vorrang; Map-Caches werden beim Season-Wechsel
+verworfen und Portal-Spells jeweils aktuell aufgeloest. Die gemeinsame Fixture
+pflegt Parent-Beziehungen und effektive Sichtbarkeit mit idempotenten,
+rekursiven Show-/Hide-Uebergaengen.
+
+Audit-Runde 5 (0.9.427): Der gemeinsame
+Regressions-Runner verbindet Aura-/Health-Flut, vier KICK-Peers,
+Nameplate-Pooling, Wipe und Completion ueber echte Factory-/Frame-Dispatcher.
+Phasenbudgets begrenzen geschuetzte Aufrufe, Frame-Erzeugungen, Render- und
+API-Arbeit; normale Laeufe pruefen zusaetzlich Retained-Heap nach GC.
+Usecases und beide CI-Einstiege nutzen denselben Runner. Umfang, Baseline,
+Grenzen und Findings: `docs/AUDIT_RUNDE_5.md`. Ingame-Messungen bleiben offen.
 
 Audit-Runde 4, D5/E6/E8 (0.9.426): `ExitTestMode` kehrt bei
 Kampf-Lockdown vor jedem State- oder UI-Callback zurueck; Demo-Flags, Roster,

@@ -270,6 +270,9 @@ local function BuildControllerContext(state, addon, initial)
             GetBResInfo = function()
               return state.bresInfo
             end,
+            IsLustScanResolved = function()
+              return true
+            end,
             GetLustInfo = function()
               return state.lustInfo
             end,
@@ -1676,6 +1679,9 @@ return function(test, ctx)
               Scan = function() end,
               GetBResInfo = function()
                 return nil
+              end,
+              IsLustScanResolved = function()
+                return true
               end,
               GetLustInfo = function()
                 return lustInfo

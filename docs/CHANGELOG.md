@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-09 - Version 0.9.427 (patch)
+
+- Audit round 5: add a production-wired Mythic+ regression simulator covering
+  visible and hidden aura/health bursts, four KICK peers, pooled nameplate
+  churn, five-death wipe recovery and completion with pending callbacks.
+  Protected-call, frame, render, API and retained-heap budgets fail the gate;
+  deliberate frame and protected-call amplification proves the gate trips.
+- Run the same scenarios from deterministic usecases and both CI paths.
+  Share the existing factory fixture; correct its owned-keystone API name,
+  unregister behavior and unit-filtered auxiliary event delivery.
+- Audit round 6: distinguish verified exhaustion expiry/removal from unknown
+  aura data. Unknown scans suppress Bloodlust-ready sounds, reminders and
+  ready display while retaining an observed cycle for later verified removal.
+- Resolve activity portals from the current verified season manifest before
+  API/cache lookup; invalidate map caches on season change and resolve portal
+  spells from current mappings rather than retaining a cross-season spell.
+- Model parent visibility, reparenting and effective OnShow/OnHide transitions
+  in the shared factory fixture. Rerun R5 without increasing any budget.
+
 ## 2026-10-09 - Version 0.9.426 (patch)
 
 - Audit round 4, C2: search-result updates invalidate only their bonus caches

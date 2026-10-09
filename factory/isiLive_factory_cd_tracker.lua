@@ -306,6 +306,13 @@ local function InitializeFactorySecondaryCdTracker(
         and ctx.cdTrackerController.GetLustInfo()
       or nil
     local lustRemain = type(lustInfo) == "table" and tonumber(lustInfo.remain) or nil
+    local lustResolved = ctx.cdTrackerController
+      and type(ctx.cdTrackerController.IsLustScanResolved) == "function"
+      and ctx.cdTrackerController.IsLustScanResolved() == true
+    if not lustResolved then
+      lustReadyDisplayActive = false
+      lastLustReadySoundAt = nil
+    end
     local lustTimerDisplayed = lustRemain ~= nil and lustRemain > 0
     if lustTimerDisplayed then
       lastLustReadySoundAt = nil
@@ -323,13 +330,20 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBloodlust()
     end
-    if readySoundContextActive and lastLustDisplayedTimer and not lustTimerDisplayed and not suppressLustReadySound then
+    if
+      readySoundContextActive
+      and lustResolved
+      and lastLustDisplayedTimer
+      and not lustTimerDisplayed
+      and not suppressLustReadySound
+    then
       if PlayBloodlustReadySound() then
         lastLustReadySoundAt = getTime()
         lustReadyDisplayActive = true
       end
     elseif
       readySoundContextActive
+      and lustResolved
       and not lustTimerDisplayed
       and not suppressLustReadySound
       and lastLustReadySoundAt ~= nil
@@ -344,7 +358,7 @@ local function InitializeFactorySecondaryCdTracker(
       lastLustDisplayedTimer = false
       lustReadyDisplayActive = false
       lastLustReadySoundAt = nil
-    else
+    elseif lustResolved then
       lastLustDisplayedTimer = lustTimerDisplayed
     end
     if
