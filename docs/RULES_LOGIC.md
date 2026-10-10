@@ -1559,6 +1559,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - DeathAlert renders big red death text and restarts animation on repeated show
   - Settings panel exposes ready-check-complete sound toggle and preview
   - Settings section navigation keeps a fixed-width tab per section and jumps within the scroll frame
+  - Settings panel exposes sound toggles with the intended defaults
   - Settings display preview follows live values and reset restores display defaults only
 
 ### RULE-INCOMING-SUMMON-SOUND-LOOP

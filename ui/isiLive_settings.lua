@@ -303,7 +303,7 @@ end
 local function BuildSettingsContent(canvas, scrollFrame, content, config, controls)
   local nav = CreateSectionNavigation(canvas, scrollFrame, config.getL)
   if type(scrollFrame.SetScript) == "function" then
-    scrollFrame:SetScript("OnVerticalScroll", function()
+    scrollFrame:HookScript("OnVerticalScroll", function()
       nav.UpdateFromScroll()
     end)
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)

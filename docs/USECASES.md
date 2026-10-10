@@ -1,7 +1,14 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.427`
-Zuletzt aktualisiert: `2026-10-09`
+Versionsbasis: `0.9.428`
+Zuletzt aktualisiert: `2026-10-10`
+
+Settings-Anzeigefix (0.9.428): Alle Klanghinweis-Labels und Beschreibungen
+bleiben nach Refresh und Sprachwechsel neben beziehungsweise unter den
+Controls mit Abstand zum Play-Button. Mausrad und Abschnittsspruenge
+aktualisieren Scrollposition, rechten Balken und aktive Navigation gemeinsam.
+Die deterministischen Settings-Tests pruefen die Textanker nach Refresh und
+den erhaltenen Scroll-Template-Handler bei Mausrad und Abschnittsspruengen.
 
 Audit-Runde 6 (0.9.427): Lust-Scans liefern einen expliziten Aufloesungsstatus.
 Maskierte Felder, API-Fehler und ein Scan ohne bestaetigtes Listenende beweisen

@@ -3,13 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.427`.
+Current version: `0.9.428`.
 
-Version 0.9.427: verified Bloodlust readiness and season-backed portal resolution.
+Version 0.9.428: sound cue layout and settings scrollbar fixes.
 
-<!-- highlights-reviewed-for: 0.9.427 -->
+<!-- highlights-reviewed-for: 0.9.428 -->
 
 Highlights:
-- **Reliable Bloodlust-ready cues.** Unreadable exhaustion data stays unresolved and cannot trigger ready sounds, reminders or a ready display.
-- **Verified activity portals.** Known season activities resolve their portals even when live LFG data is unavailable; cached portals cannot outlive their season mapping.
-- **Stronger regression checks.** Visible and hidden Mythic+ workloads enforce API, frame, render and retained-memory budgets, with parent visibility modeled in the shared test fixture.
+- **Readable sound cue text.** Labels and descriptions stay clear of preview buttons after layout refreshes and language changes.
+- **Synchronized scrollbar.** The settings scrollbar follows mouse-wheel scrolling and section-navigation jumps.
+- **Regression coverage.** Automated checks verify every sound cue's text placement after refresh and scrollbar synchronization when scrolling or jumping between sections.

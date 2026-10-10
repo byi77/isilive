@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-10 - Version 0.9.428 (patch)
+
+- Keep every sound cue label and description clear of its inline preview
+  button after layout refreshes and language changes.
+- Preserve the Blizzard vertical-scroll handler so the scrollbar follows
+  mouse-wheel scrolling and section-navigation jumps.
+
 ## 2026-10-09 - Version 0.9.427 (patch)
 
 - Audit round 5: add a production-wired Mythic+ regression simulator covering

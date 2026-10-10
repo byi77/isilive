@@ -114,7 +114,8 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
-  label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+  local labelOffsetX = tonumber(options.labelOffsetX) or 4
+  label:SetPoint("LEFT", check, "RIGHT", labelOffsetX, 0)
   local labelWidth = tonumber(options.width) or CHECKBOX_LABEL_WIDTH
   ConfigureWrappingText(label, labelWidth, options.wordWrap ~= false)
   if type(options.justifyH) == "string" and type(label.SetJustifyH) == "function" then
@@ -132,7 +133,8 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
       or math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2))
     ConfigureWrappingText(description, descriptionWidth, options.descriptionWordWrap ~= false)
     description:SetText(descriptionText)
-    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 24))
+    local descriptionX = PADDING_X + (tonumber(options.descriptionOffsetX) or 0)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", descriptionX, GetDescriptionTopYOffset(yOffset, label, 24))
     check.description = description
   end
   if type(getter) == "function" then
@@ -147,9 +149,9 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
     Position(check, parent, ReadAnchorX(check, PADDING_X), y)
     label:ClearAllPoints()
     if GetTextBlockHeight(label, 0) > 24 then
-      label:SetPoint("TOPLEFT", check, "TOPRIGHT", 4, -4)
+      label:SetPoint("TOPLEFT", check, "TOPRIGHT", labelOffsetX, -4)
     else
-      label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+      label:SetPoint("LEFT", check, "RIGHT", labelOffsetX, 0)
     end
     if description then
       Position(description, parent, ReadAnchorX(description, PADDING_X), GetDescriptionTopYOffset(y, label, 24))

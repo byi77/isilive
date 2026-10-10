@@ -376,11 +376,6 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
     end
   end)
 
-  if checkbox.label and type(checkbox.label.ClearAllPoints) == "function" then
-    checkbox.label:ClearAllPoints()
-    checkbox.label:SetPoint("LEFT", button, "RIGHT", 4, 0)
-  end
-
   button:SetScript("OnClick", function()
     local soundUtils = addonTable.SoundUtils
     if type(soundUtils) == "table" and type(soundUtils.PlayPreviewKey) == "function" then
@@ -561,6 +556,12 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
   end
 
   for _, entry in ipairs(SettingsSound.GetSoundSettingEntries()) do
+    -- Reserve the inline preview column for both text regions on every reflow.
+    local options = DescriptionOptions(labels[entry.descKey] or entry.descFallback)
+    options.labelOffsetX = PREVIEW_BUTTON_WIDTH + 8
+    options.descriptionOffsetX = 24 + options.labelOffsetX
+    options.width = DESCRIPTION_WIDTH - PREVIEW_BUTTON_WIDTH - 4
+    options.descriptionWidth = options.width
     local checkbox, nextY = CreateSettingsCheckbox(
       canvas,
       yOffset,
@@ -584,7 +585,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
         end
       end,
       entry.labelKey,
-      DescriptionOptions(labels[entry.descKey] or entry.descFallback)
+      options
     )
 
     if checkbox and checkbox.check then

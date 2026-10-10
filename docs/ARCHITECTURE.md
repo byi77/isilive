@@ -1,7 +1,12 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.427`
-Zuletzt aktualisiert: `2026-10-09`
+Versionsbasis: `0.9.428`
+Zuletzt aktualisiert: `2026-10-10`
+
+Settings-Anzeigefix (0.9.428): Sound-Checkboxen reservieren die Preview-Spalte
+ueber Label- und Beschreibungs-Offsets sowie begrenzte Textbreiten, auch beim
+Relayout. Die Navigation haengt sich per `HookScript` an `OnVerticalScroll`,
+sodass der Scroll-Template-Handler fuer den rechten Balken erhalten bleibt.
 
 Audit-Runde 6 (0.9.427): Lust-Scans liefern einen expliziten Aufloesungsstatus.
 Maskierte Felder, API-Fehler und ein Scan ohne bestaetigtes Listenende beweisen
@@ -401,7 +406,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.427                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.428                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

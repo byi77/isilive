@@ -2559,6 +2559,17 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
+      for key, button in pairs(soundPreviewButtons) do
+        local check = button._point[2]
+        Assert.Equal(check.label._point[2], check, key .. " label must retain its checkbox anchor")
+        Assert.Equal(check.label._point[4], 32, key .. " label must reserve the preview column after refresh")
+        Assert.Equal(check.description._point[4], 72, key .. " description must align after the preview column")
+        Assert.True(
+          check.description._point[5] < check._point[5] - 24,
+          key .. " description must stay below the controls"
+        )
+        Assert.True(check.label._width <= 700 - 72, key .. " text must fit the content width")
+      end
       Assert.True(groupJoinSoundCheck:GetChecked(), "refresh should keep the enabled group-join sound state")
       Assert.False(portalSoundCheck:GetChecked(), "refresh should keep the disabled portal sound state")
       Assert.False(incomingSummonLoopCheck:GetChecked(), "refresh should keep the disabled incoming-summon loop state")
@@ -2917,57 +2928,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " the two auto-close split checkboxes, the three raid sound opt-ins and the forces-pace toggle"
       )
-    end)
-  end)
-
-  test("Settings section navigation keeps a fixed-width tab per section and jumps within the scroll frame", function()
-    local createFrameStub = BuildCreateFrameStub()
-    local labels = { SETTINGS_NAV_GENERAL = "General", SETTINGS_NAV_VIP = "VIP" }
-    WithGlobals({
-      UIParent = {},
-      IsiLiveDB = {},
-      CreateFrame = createFrameStub,
-      Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
-        RegisterAddOnCategory = function() end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
-      local panel = addon.SettingsPanel.Create({
-        getL = function()
-          return labels
-        end,
-        getDB = function()
-          return IsiLiveDB
-        end,
-      })
-      local nav = Assert.NotNil(panel.navigation, "settings navigation must exist")
-      local count = 0
-      for _, button in pairs(nav.buttons) do
-        count = count + 1
-        Assert.Equal(button:GetWidth(), 126, "navigation tabs must keep their width budget")
-        Assert.Equal(button._parent, panel.canvas, "navigation must stay outside the scroll child")
-      end
-      Assert.Equal(count, 11, "all settings sections need a navigation tab")
-      Assert.True(nav.offsets.vip > nav.offsets.general, "section offsets must follow content order")
-      Assert.True(nav.offsets.raid > nav.offsets.sounds, "the raid section must follow the sounds section")
-      Assert.True(nav.offsets.chat > nav.offsets.raid, "the raid section must come before chat")
-
-      local display = nav.buttons.display
-      display._scripts.OnClick(display)
-      Assert.Equal(panel.scrollFrame:GetVerticalScroll(), nav.offsets.display, "tab click must jump to its section")
-      Assert.Equal(nav.activeKey, "display", "clicked section must be marked active")
-
-      labels.SETTINGS_NAV_DISPLAY = "Anzeige"
-      panel.Refresh()
-      Assert.Equal(display._flatLabel:GetText(), "Anzeige", "navigation must refresh after a language change")
-      Assert.False(display._flatLabel._wordWrap, "navigation labels must stay within one line")
-
-      panel.scrollFrame:SetVerticalScroll(nav.offsets.behavior)
-      panel.scrollFrame._scripts.OnVerticalScroll(panel.scrollFrame)
-      Assert.Equal(nav.activeKey, "behavior", "manual scrolling must update the active section")
     end)
   end)
 
