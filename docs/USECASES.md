@@ -1,7 +1,14 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.428`
+Versionsbasis: `0.9.429`
 Zuletzt aktualisiert: `2026-10-10`
+
+Seelenernter-Warnung (0.9.429): Mit aktivierter VIP-Option erscheint das
+Kreuz direkt nach DT fuer sieben Sekunden und erneut in den letzten sieben
+Sekunden bis zur naechsten DT-Bereitschaft. Bei einem 45-Sekunden-Cooldown
+bleibt Seelenernter zwischen Sekunde 7 und 38 ohne Kreuz; Putrefys Kreuz
+erscheint wie bisher ab Sekunde 30. Recasts ersetzen die alten Timer;
+Refreshs verlaengern keine Frist und jede Warnphase endet unabhaengig.
 
 Settings-Anzeigefix (0.9.428): Alle Klanghinweis-Labels und Beschreibungen
 bleiben nach Refresh und Sprachwechsel neben beziehungsweise unter den

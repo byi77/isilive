@@ -258,6 +258,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 178. Der Prozentwert aus `C_ScenarioInfo.GetUnitCriteriaProgressValues` wird im Nameplate-Overlay ohne jede Pruefung, auch ohne `~= nil`, an `BuildText` durchgereicht.
 179. Die Slash-Befehle lesen das Settings-Panel bei jedem Aufruf aus dem Factory-Kontext; `/isilive settings` oeffnet die Kategorie und `/isilive resetui` erreicht den Settings-Canvas, obwohl das Panel erst nach dem Slash-Kontext entsteht.
 
+195. Die optionale Seelenernter-Warnung gilt sieben Sekunden nach dem DT-Cast und in den letzten sieben Sekunden vor der naechsten DT-Bereitschaft; Putrefy behaelt sein getrenntes 15-Sekunden-Fenster.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -1638,6 +1640,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - VipDkAssist warns Putrefy while a single charge is left
   - VipDkAssist keeps the Putrefy warning when charges are unreadable
   - VipDkAssist charge guard leaves the Soul Reaper warning untouched
+  - VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen
+  - VipDkAssist replaces the opening hold on recast and preserves an overlapping cooldown warning
   - VipDkAssist default charge reader unpacks the GetSpellCharges struct return
   - VipDkAssist anchors the warning window to the live Dark Transformation cooldown
   - VipDkAssist falls back to the fixed delay for untrusted cooldown reads
@@ -2493,6 +2497,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Die VIP-DK-Warnung erzeugt fuer jeden gefundenen Aktionsbutton hoechstens ein Overlay und verwendet es bei jeder weiteren Warnung erneut; neu gefundene Buttons erhalten ihr eigenes Overlay, und die Anzeige- und Ausblendlogik aus Regel 90 bleibt unveraendert.
 - Erforderliche Tests:
   - VipDkAssist reuses one overlay per action button across Dark Transformations
+  - VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen
   - VipDkAssist starts Soul Reaper warning after Dark Transformation
 
 ### RULE-KEYSTONE-SCAN-CACHE-UND-SPARSAME-SNAPSHOTS
@@ -2866,3 +2871,16 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LOC IN suffix keeps the legacy fields that older parsers read
   - LOC receiver ignores a malformed IN suffix
   - Roster target location requires existing unit and rejects secret map
+
+### RULE-VIP-DK-SEELENERNTER-SIEBEN-SEKUNDEN
+- Regelnummer: 195
+- Status: aktiv
+- Zusammenfassung: Bei aktivierter Seelenernter-VIP-Option und verifiziertem lokalen Unholy-DK-Cast von DT (1233448) zeigt der Seelenernter-Button direkt nach dem Cast fuer sieben Sekunden ein Kreuz. Seine Warnung vor der naechsten DT-Bereitschaft beginnt sieben Sekunden vor dieser Bereitschaft statt bisher 15 Sekunden; bei lesbarer Restcooldownzeit wird die Verzoegerung als Maximum von 0 und Restzeit minus 7 berechnet, bei dem bereits festgelegten unlesbaren beziehungsweise ungueltigen Cooldown gilt der 45-Sekunden-Ersatzzyklus mit 38 Sekunden Verzoegerung. Putrefy behaelt seinen getrennten 15-Sekunden-Zyklus und Ladungsguard. Die beiden Seelenernter-Phasen und Putrefy besitzen unabhaengige Endtimer; endet eine Phase, bleibt das Kreuz fuer andere aktive Phasen erhalten. Ein neuer DT-Cast ersetzt alle alten Warntimer; abgebrochene alte Callbacks veraendern keinen neuen Warnzustand. Settings-Refreshs aktualisieren die Overlays, ohne Warnfristen zu verschieben. Die bereits bestehenden Klassen-, Spec-, Options-, Button- und Raid-Gates, Overlay-Wiederverwendung, das Schliessen sichtbarer Warnungen bei Kampfende und die 15-Sekunden-Demovorschau bleiben erhalten.
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-10): Regel 90 "Beide Warnfenster sind die letzten 15 Sekunden vor DT" gilt nur noch fuer Putrefy; Seelenernter verwendet die zwei beschriebenen Sieben-Sekunden-Phasen. Regel 156 verweist fuer Anzeige und Ausblenden nun auch auf Regel 195. Die alten Detailbloecke bleiben append-only erhalten.
+- Erforderliche Tests:
+  - VipDkAssist starts Soul Reaper warning after Dark Transformation
+  - VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen
+  - VipDkAssist replaces the opening hold on recast and preserves an overlapping cooldown warning
+  - VipDkAssist reuses one overlay per action button across Dark Transformations
+  - VipDkAssist keeps pending warning timer across regen and stops on spec change
+  - VipDkAssist preview shows the warning without waiting for the cooldown

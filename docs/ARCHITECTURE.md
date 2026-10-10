@@ -1,7 +1,13 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.428`
+Versionsbasis: `0.9.429`
 Zuletzt aktualisiert: `2026-10-10`
+
+Seelenernter-Warnung (0.9.429): Getrennte Timer halten Seelenernter fuer
+sieben Sekunden nach dem DT-Cast sowie sieben Sekunden vor der naechsten
+DT-Bereitschaft. Putrefy behaelt seinen 15-Sekunden-Zyklus. Gepoolte Overlays
+zeigen die Vereinigung der aktiven Warnphasen; Refreshs verschieben keine
+Fristen. Generationen pro Timer verwerfen abgebrochene alte Callbacks.
 
 Settings-Anzeigefix (0.9.428): Sound-Checkboxen reservieren die Preview-Spalte
 ueber Label- und Beschreibungs-Offsets sowie begrenzte Textbreiten, auch beim
@@ -406,7 +412,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.428                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.429                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

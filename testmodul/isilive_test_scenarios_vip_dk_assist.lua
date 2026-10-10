@@ -9,6 +9,8 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     overrides = overrides or {}
     local scheduled = {}
     local overlays = {}
+    local soulButtons = overrides.buttons or { { id = "soul-reaper-button" } }
+    local putrefyButtons = overrides.putrefyButtons or { { id = "putrefy-button" } }
     local db = overrides.db or { vipDkSoulReaperWarningEnabled = true }
     local controller = LoadController().CreateController({
       getDB = function()
@@ -18,10 +20,10 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
         return overrides.isUnholy ~= false
       end,
       scanSoulReaperButtons = function()
-        return overrides.buttons or { { id = "soul-reaper-button" } }
+        return soulButtons
       end,
       scanPutrefyButtons = function()
-        return overrides.putrefyButtons or { { id = "putrefy-button" } }
+        return putrefyButtons
       end,
       getPutrefyCharges = function()
         return overrides.putrefyCharges
@@ -66,17 +68,28 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
 
       controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
 
-      Assert.Equal(#scheduled, 1, "Dark Transformation should schedule the warning delay")
-      Assert.Equal(scheduled[1].delay, 30, "warning delay should be 30 seconds")
+      Assert.Equal(#scheduled, 2, "Dark Transformation should schedule the cooldown warning and opening release")
+      Assert.Equal(
+        scheduled[1].delay,
+        38,
+        "a 45-second fallback cooldown must hold Soul Reaper only in its last seven seconds"
+      )
+      Assert.True(overlays[1].shown, "Soul Reaper must be held immediately after DT")
+      Assert.Equal(scheduled[2].delay, 7, "Soul Reaper must be released seven seconds after the DT cast")
+      controller.Refresh()
+      Assert.Equal(#scheduled, 2, "refresh must not extend the opening hold")
+      scheduled[2].callback()
+      Assert.False(overlays[1].shown, "Soul Reaper must be released at seven seconds")
+      Assert.False(controller.IsWarningActive(), "opening warning must clear before the cooldown hold")
       scheduled[1].callback()
 
       Assert.True(controller.IsWarningActive(), "warning should be active after the delay")
       Assert.Equal(#overlays, 1, "one Soul Reaper overlay should be created")
       Assert.True(overlays[1].shown, "Soul Reaper overlay should be shown")
-      Assert.Equal(#scheduled, 2, "warning should schedule its hide timer")
-      Assert.Equal(scheduled[2].delay, 15, "warning duration should be 15 seconds")
+      Assert.Equal(#scheduled, 3, "cooldown warning should schedule its own hide timer")
+      Assert.Equal(scheduled[3].delay, 7, "Soul Reaper cooldown warning should last seven seconds")
 
-      scheduled[2].callback()
+      scheduled[3].callback()
       Assert.False(controller.IsWarningActive(), "warning should stop after the duration")
       Assert.False(overlays[1].shown, "Soul Reaper overlay should be hidden after the duration")
     end)
@@ -87,8 +100,10 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       local soulReaperButton = { id = "soul-reaper-button" }
       local controller, scheduled, overlays = BuildHarness({ buttons = { soulReaperButton } })
       for _ = 1, 20 do
+        local delayedIndex = #scheduled + 1
         controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-        scheduled[#scheduled].callback()
+        scheduled[delayedIndex + 1].callback()
+        scheduled[delayedIndex].callback()
         Assert.True(controller.IsWarningActive(), "every Dark Transformation must raise the warning again")
         scheduled[#scheduled].callback()
       end
@@ -131,11 +146,61 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       })
 
       controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(#overlays, 1, "the opening hold must warn only on Soul Reaper")
+      Assert.Equal(scheduled[2].delay, 7, "the opening hold must last seven seconds")
       scheduled[1].callback()
+      scheduled[3].callback()
 
       Assert.Equal(#overlays, 2, "both enabled VIP DK warnings should create overlays")
       Assert.Equal(overlays[1].button.id, "soul-reaper-button", "Soul Reaper overlay should be created first")
       Assert.Equal(overlays[2].button.id, "putrefy-button", "Putrefy overlay should be created second")
+    end)
+  end)
+
+  test("VipDkAssist replaces the opening hold on recast and preserves an overlapping cooldown warning", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness({ cooldownRemaining = 12 })
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      local oldOpening = scheduled[2]
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.True(oldOpening.canceled, "recast must cancel the old seven-second release")
+      oldOpening.callback()
+      Assert.True(overlays[1].shown, "stale release must not hide the new opening hold")
+      local newOpening = scheduled[4]
+      scheduled[3].callback()
+      Assert.False(newOpening.canceled, "overlapping holds must retain their independent deadlines")
+      newOpening.callback()
+      Assert.True(overlays[1].shown, "opening release must not hide the last-seven-second cooldown warning")
+      controller.Refresh()
+      Assert.Equal(#scheduled, 5, "refresh must preserve the existing warning deadline")
+      scheduled[5].callback()
+      Assert.False(overlays[1].shown, "the cooldown hold must end at its own deadline")
+    end)
+  end)
+
+  test("VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen", function()
+    WithGlobals({}, function()
+      local controller, scheduled, overlays = BuildHarness({
+        cooldownRemaining = 45,
+        db = { vipDkSoulReaperWarningEnabled = true, vipDkPutrefyWarningEnabled = true },
+        putrefyCharges = 1,
+      })
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      Assert.Equal(scheduled[1].delay, 38, "Soul Reaper must start at seven seconds until DT readiness")
+      Assert.Equal(scheduled[3].delay, 30, "Putrefy must still start at fifteen seconds until DT readiness")
+      scheduled[2].callback()
+      Assert.False(overlays[1].shown, "Soul Reaper must be usable after the opening hold")
+      scheduled[3].callback()
+      Assert.False(overlays[1].shown, "the fifteen-second Putrefy window must not hold Soul Reaper")
+      Assert.True(overlays[2].shown, "Putrefy must keep its original hold window")
+      scheduled[1].callback()
+      Assert.True(overlays[1].shown, "Soul Reaper must be held during the final seven seconds")
+      Assert.Equal(scheduled[5].delay, 7, "Soul Reaper must release at DT readiness")
+      scheduled[5].callback()
+      Assert.False(overlays[1].shown, "Soul Reaper must release independently of Putrefy")
+      Assert.True(overlays[2].shown, "Soul Reaper release must not clear Putrefy's overlay")
+      scheduled[4].callback()
+      Assert.False(controller.IsWarningActive(), "both completed warnings must clear the active state")
     end)
   end)
 
@@ -210,13 +275,13 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     WithGlobals({}, function()
       local controller, scheduled = BuildHarness({ cooldownRemaining = 60 })
       controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-      Assert.Equal(scheduled[1].delay, 45, "a 60s cooldown should warn during its last 15 seconds")
+      Assert.Equal(scheduled[1].delay, 53, "a 60s cooldown should hold Soul Reaper during its last seven seconds")
 
       local shortened, shortenedScheduled = BuildHarness({ cooldownRemaining = 20 })
       shortened.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-      Assert.Equal(shortenedScheduled[1].delay, 5, "a shortened cooldown must move the window with it")
+      Assert.Equal(shortenedScheduled[1].delay, 13, "a shortened cooldown must move the seven-second window with it")
 
-      local immediate, immediateScheduled = BuildHarness({ cooldownRemaining = 12 })
+      local immediate, immediateScheduled = BuildHarness({ cooldownRemaining = 6 })
       immediate.HandleUnitSpellcastSucceeded("player", nil, 1233448)
       Assert.Equal(immediateScheduled[1].delay, 0, "a cooldown below the window length must warn immediately")
     end)
@@ -227,12 +292,20 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       for _, remaining in ipairs({ 1.5, 400 }) do
         local controller, scheduled = BuildHarness({ cooldownRemaining = remaining })
         controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-        Assert.Equal(scheduled[1].delay, 30, "a GCD-sized or absurd cooldown read must fall back to 30 seconds")
+        Assert.Equal(
+          scheduled[1].delay,
+          38,
+          "untrusted reads must use the specified 45-second cooldown minus seven seconds"
+        )
       end
 
       local unreadable, unreadableScheduled = BuildHarness({ cooldownRemaining = nil })
       unreadable.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-      Assert.Equal(unreadableScheduled[1].delay, 30, "an unreadable cooldown must fall back to 30 seconds")
+      Assert.Equal(
+        unreadableScheduled[1].delay,
+        38,
+        "an unreadable cooldown must use the specified seven-second hold window"
+      )
     end)
   end)
 
@@ -276,7 +349,7 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       local controller, scheduled = BuildHarness()
 
       controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-      Assert.Equal(#scheduled, 1, "the cast should schedule the delayed warning")
+      Assert.Equal(#scheduled, 2, "the cast should schedule the delayed warning and opening release")
 
       controller.ShowWarningPreview()
       Assert.True(scheduled[1].canceled, "the preview must cancel the pending delayed warning")
@@ -372,8 +445,8 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
 
       VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
 
-      Assert.Equal(#scheduled, 1, "central HandleEvent should route player casts to the controller")
-      Assert.Equal(scheduled[1].delay, 30, "central HandleEvent should preserve the warning delay")
+      Assert.Equal(#scheduled, 2, "central HandleEvent should route player casts to both Soul Reaper hold windows")
+      Assert.Equal(scheduled[1].delay, 38, "central HandleEvent should preserve the seven-second cooldown hold")
     end)
   end)
 
@@ -513,8 +586,10 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       local controller = LoadController().CreateController()
 
       controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
-      Assert.Equal(#scheduled, 1, "default timer should use C_Timer.NewTimer")
+      Assert.Equal(#scheduled, 3, "default timers should cover both spell windows and the opening release")
+      scheduled[2].callback()
       scheduled[1].callback()
+      scheduled[3].callback()
 
       Assert.True(controller.IsWarningActive(), "default controller should show warnings")
       Assert.Equal(#overlays, 2, "default scanners should find both configured buttons")
@@ -523,7 +598,8 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.True(overlays[1].shown, "first overlay should be shown")
       Assert.True(overlays[2].shown, "second overlay should be shown")
 
-      scheduled[2].callback()
+      scheduled[4].callback()
+      scheduled[5].callback()
       Assert.False(controller.IsWarningActive(), "hide timer should clear active state")
       Assert.False(overlays[1].shown, "hide timer should hide the overlay")
     end)
@@ -695,9 +771,9 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
 
       VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
       VipDkAssist.HandleEvent("PLAYER_REGEN_ENABLED")
-      Assert.Equal(stopped, 0, "regen must not cancel the pending Dark Transformation warning timer")
+      Assert.Equal(stopped, 1, "regen must close only the opening hold, preserving the cooldown timer")
       scheduled[1].callback()
-      Assert.Equal(#scheduled, 2, "pending warning should still show and schedule its hide timer after regen")
+      Assert.Equal(#scheduled, 3, "pending warning should still show and schedule its hide timer after regen")
 
       VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
       VipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -705,7 +781,7 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
 
       Assert.Equal(
         stopped,
-        2,
+        4,
         "a new cast should cancel the old hide timer and spec changes should stop pending timers"
       )
     end)

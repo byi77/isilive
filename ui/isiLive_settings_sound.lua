@@ -236,7 +236,8 @@ local VIP_SOUND_DESCRIPTIONS = {
   },
   SETTINGS_VIP_DK_SOUL_REAPER_WARNING = {
     descKey = "SETTINGS_VIP_DK_SOUL_REAPER_WARNING_DESC",
-    fallback = "Shows a red warning on Soul Reaper when Dark Transformation is nearly ready.",
+    fallback = "Shows a red cross on Soul Reaper for seven seconds after Dark Transformation"
+      .. " and seven seconds before it is ready again.",
   },
   SETTINGS_VIP_DK_PUTREFY_WARNING = {
     descKey = "SETTINGS_VIP_DK_PUTREFY_WARNING_DESC",
@@ -1005,7 +1006,10 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
     SetDescription(
       controls.vipDkSoulReaperWarning,
       labels.SETTINGS_VIP_DK_SOUL_REAPER_WARNING_DESC
-        or "Shows a red warning on Soul Reaper when Dark Transformation is nearly ready."
+        or (
+          "Shows a red cross on Soul Reaper for seven seconds after Dark Transformation"
+          .. " and seven seconds before it is ready again."
+        )
     )
     controls.vipDkSoulReaperWarning.check:SetChecked(db.vipDkSoulReaperWarningEnabled == true)
   end

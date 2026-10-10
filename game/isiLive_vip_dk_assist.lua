@@ -14,6 +14,7 @@ local UNHOLY_DEATH_KNIGHT_SPEC_ID = 252
 -- tooltip cooldown (45s) minus the warning window, i.e. the pre-12.1 constant.
 local FALLBACK_WARNING_DELAY_SECONDS = 30
 local WARNING_DURATION_SECONDS = 15
+local SOUL_REAPER_OPENING_HOLD_SECONDS = 7
 -- A cooldown read right after the cast can still report the GCD or a not yet
 -- registered cooldown. Anything outside this band is treated as unreadable.
 local MIN_TRUSTED_COOLDOWN_SECONDS = 5
@@ -294,10 +295,13 @@ function VipDkAssist.CreateController(opts)
     or DefaultGetPutrefyCharges
 
   local controller = {}
-  local warningTimer = nil
-  local hideTimer = nil
+  local timers = {}
+  local timerGenerations = {}
   local overlays = {}
   local warningActive = false
+  local soulOpening = false
+  local soulCooldown = false
+  local putrefyCooldown = false
   local ghoulReminderFrame = nil
   local ghoulReminderDriverActive = false
   local pendingGhoulReminderApply = false
@@ -306,6 +310,24 @@ function VipDkAssist.CreateController(opts)
     if timer and type(timer.Cancel) == "function" then
       timer:Cancel()
     end
+  end
+
+  local function CancelNamedTimer(key)
+    CancelTimer(timers[key])
+    timers[key] = nil
+    timerGenerations[key] = (timerGenerations[key] or 0) + 1
+  end
+
+  local function Schedule(key, delay, callback)
+    CancelNamedTimer(key)
+    local generation = timerGenerations[key]
+    timers[key] = timerAfter(delay, function()
+      if generation ~= timerGenerations[key] then
+        return
+      end
+      timers[key] = nil
+      callback()
+    end)
   end
 
   local function IsEnabled()
@@ -334,27 +356,27 @@ function VipDkAssist.CreateController(opts)
   local function GetEnabledScanners()
     local db = getDB() or {}
     local scanners = {}
-    if db.vipDkSoulReaperWarningEnabled == true then
+    if (soulOpening or soulCooldown) and db.vipDkSoulReaperWarningEnabled == true then
       scanners[#scanners + 1] = scanSoulReaperButtons
     end
-    if db.vipDkPutrefyWarningEnabled == true and ShouldWarnPutrefy() then
+    if putrefyCooldown and db.vipDkPutrefyWarningEnabled == true and ShouldWarnPutrefy() then
       scanners[#scanners + 1] = scanPutrefyButtons
     end
     return scanners
   end
 
-  -- Anchor the window to the live cooldown so it always covers the last
-  -- WARNING_DURATION_SECONDS before Dark Transformation is actually ready.
-  local function ResolveWarningDelay()
+  -- Anchor each spell's warning window to the live cooldown so it covers
+  -- its configured duration before Dark Transformation is actually ready.
+  local function ResolveWarningDelay(duration)
     local remaining = getDarkTransformationCooldownRemaining()
     if
       type(remaining) ~= "number"
       or remaining < MIN_TRUSTED_COOLDOWN_SECONDS
       or remaining > MAX_TRUSTED_COOLDOWN_SECONDS
     then
-      return FALLBACK_WARNING_DELAY_SECONDS
+      return FALLBACK_WARNING_DELAY_SECONDS + WARNING_DURATION_SECONDS - duration
     end
-    local delay = remaining - WARNING_DURATION_SECONDS
+    local delay = remaining - duration
     if delay < 0 then
       return 0
     end
@@ -395,8 +417,7 @@ function VipDkAssist.CreateController(opts)
     end
   end
 
-  local function ShowWarning()
-    hideTimer = nil
+  local function RenderWarning()
     if not IsEnabled() then
       HideWarning()
       return
@@ -409,11 +430,32 @@ function VipDkAssist.CreateController(opts)
         overlay:Show()
       end
     end
+  end
 
-    hideTimer = timerAfter(WARNING_DURATION_SECONDS, function()
-      hideTimer = nil
-      HideWarning()
+  local function StartSoulCooldownWarning()
+    soulCooldown = true
+    RenderWarning()
+    Schedule("soulEnd", SOUL_REAPER_OPENING_HOLD_SECONDS, function()
+      soulCooldown = false
+      RenderWarning()
     end)
+  end
+
+  local function StartPutrefyWarning()
+    putrefyCooldown = true
+    RenderWarning()
+    Schedule("putrefyEnd", WARNING_DURATION_SECONDS, function()
+      putrefyCooldown = false
+      RenderWarning()
+    end)
+  end
+
+  function controller.Stop()
+    for _, key in ipairs({ "soulStart", "soulOpeningEnd", "soulEnd", "putrefyStart", "putrefyEnd" }) do
+      CancelNamedTimer(key)
+    end
+    soulOpening, soulCooldown, putrefyCooldown = false, false, false
+    HideWarning()
   end
 
   function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)
@@ -428,41 +470,39 @@ function VipDkAssist.CreateController(opts)
       return
     end
 
-    CancelTimer(warningTimer)
-    CancelTimer(hideTimer)
-    warningTimer = nil
-    hideTimer = nil
-    HideWarning()
+    controller.Stop()
 
     if not IsEnabled() then
       return
     end
 
-    warningTimer = timerAfter(ResolveWarningDelay(), function()
-      warningTimer = nil
-      ShowWarning()
-    end)
+    local db = getDB() or {}
+    if db.vipDkSoulReaperWarningEnabled == true then
+      Schedule("soulStart", ResolveWarningDelay(SOUL_REAPER_OPENING_HOLD_SECONDS), StartSoulCooldownWarning)
+      soulOpening = true
+      RenderWarning()
+      Schedule("soulOpeningEnd", SOUL_REAPER_OPENING_HOLD_SECONDS, function()
+        soulOpening = false
+        RenderWarning()
+      end)
+    end
+    if db.vipDkPutrefyWarningEnabled == true then
+      Schedule("putrefyStart", ResolveWarningDelay(WARNING_DURATION_SECONDS), StartPutrefyWarning)
+    end
   end
 
   function controller.Refresh()
-    if warningActive then
-      HideWarning()
-      ShowWarning()
+    if soulOpening or soulCooldown or putrefyCooldown then
+      RenderWarning()
     end
     controller.ApplyGhoulReminder()
   end
 
-  function controller.Stop()
-    CancelTimer(warningTimer)
-    CancelTimer(hideTimer)
-    warningTimer = nil
-    hideTimer = nil
-    HideWarning()
-  end
-
   function controller.HandlePlayerRegenEnabled()
-    CancelTimer(hideTimer)
-    hideTimer = nil
+    for _, key in ipairs({ "soulOpeningEnd", "soulEnd", "putrefyEnd" }) do
+      CancelNamedTimer(key)
+    end
+    soulOpening, soulCooldown, putrefyCooldown = false, false, false
     HideWarning()
     controller.ApplyPendingGhoulReminder()
   end
@@ -476,11 +516,17 @@ function VipDkAssist.CreateController(opts)
   -- still run, so the preview shows what a real Dark Transformation would.
   -- Returns whether the warning actually became visible.
   function controller.ShowWarningPreview()
-    CancelTimer(warningTimer)
-    CancelTimer(hideTimer)
-    warningTimer = nil
-    hideTimer = nil
-    ShowWarning()
+    controller.Stop()
+    if not IsEnabled() then
+      return false
+    end
+    -- Preview retains the existing 15-second combined warning display.
+    soulCooldown, putrefyCooldown = true, true
+    RenderWarning()
+    Schedule("soulEnd", WARNING_DURATION_SECONDS, function()
+      soulCooldown, putrefyCooldown = false, false
+      RenderWarning()
+    end)
     return warningActive
   end
 

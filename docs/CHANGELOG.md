@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-10 - Version 0.9.429 (patch)
+
+- The optional Unholy DK Soul Reaper warning now shows its red cross for
+  seven seconds immediately after Dark Transformation. The existing warning
+  before the next Transformation now starts seven seconds before it is ready,
+  instead of 15 seconds. Putrefy keeps its separate 15-second warning.
+- Refreshes preserve warning deadlines; recasts replace the opening hold,
+  and stale release callbacks cannot clear a newer cooldown warning.
+
 ## 2026-10-10 - Version 0.9.428 (patch)
 
 - Keep every sound cue label and description clear of its inline preview
