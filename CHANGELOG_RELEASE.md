@@ -3,14 +3,17 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.429`.
+Current version: `0.9.430`.
 
-Version 0.9.429: separate Soul Reaper warning windows around Dark Transformation.
+Version 0.9.430: DK helpers move to isiBlightfallTracker.
 
-<!-- highlights-reviewed-for: 0.9.429 -->
+<!-- highlights-reviewed-for: 0.9.430 -->
 
 Highlights:
-- **Soul Reaper timing.** The optional red cross lasts seven seconds after Dark Transformation and returns seven seconds before it is ready again. Putrefy's warning keeps its separate 15-second window.
-- **Independent Putrefy warning.** Putrefy retains its 15-second warning and charge guard while Soul Reaper uses its own timers.
-- **Stable deadlines.** Refreshes keep warning deadlines, and callbacks from an earlier cast cannot clear a newer warning.
-- **Regression coverage.** Automated checks cover both Soul Reaper windows, independent Putrefy timing, recasts, overlapping phases and overlay reuse.
+- **DK button warnings.** Configure Soul Reaper and Putrefy crosses in
+  isiBlightfallTracker; isiLive no longer draws a second warning.
+- **Ghoul and horse helpers.** The missing-ghoul reminder and Riders of the
+  Apocalypse horse-sound muting are also configured in isiBlightfallTracker.
+- **Settings preserved.** isiLive keeps the old implementation and saved values,
+  but disables its runtime and controls to prevent duplicate effects. The tracker
+  imports existing choices and the ghoul position once when isiLive is loaded.

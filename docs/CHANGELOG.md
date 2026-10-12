@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-12 - Version 0.9.430 (patch)
+
+- Move all four DK VIP helpers to isiBlightfallTracker. Retain their isiLive
+  implementations and saved settings, but disable the old runtime and controls
+  to prevent duplicate crosses, ghoul reminders and horse-sound ownership.
+
 ## 2026-10-10 - Version 0.9.429 (patch)
 
 - The optional Unholy DK Soul Reaper warning now shows its red cross for

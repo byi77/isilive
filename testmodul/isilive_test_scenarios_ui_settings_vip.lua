@@ -107,8 +107,12 @@ return function(test, ctx)
         Assert.NotNil(bloodlustDebuffCheck, "settings panel should create the VIP Bloodlust debuff checkbox")
       dkSeparator = Assert.NotNil(dkSeparator, "settings panel should create the blue VIP DK separator")
       dkHorseCheck = Assert.NotNil(dkHorseCheck, "settings panel should create the VIP DK horse-sound child checkbox")
+      Assert.True(soulReaperCheck._disabled, "migrated Soul Reaper control must be disabled")
+      Assert.True(putrefyCheck._disabled, "migrated Putrefy control must be disabled")
+      Assert.True(dkHorseCheck._disabled, "migrated horse-sound control must be disabled")
       ghoulReminderCheck =
         Assert.NotNil(ghoulReminderCheck, "settings panel should create the VIP DK ghoul-reminder child checkbox")
+      Assert.True(ghoulReminderCheck._disabled, "migrated ghoul-reminder control must be disabled")
 
       local _, _, _, bloodlustX = bloodlustDebuffCheck:GetPoint()
       local _, _, _, dkHorseX = dkHorseCheck:GetPoint()
@@ -200,8 +204,7 @@ return function(test, ctx)
       dkHorseCheck:SetChecked(true)
       dkHorseOnClick(dkHorseCheck)
       Assert.True(db.vipDkApocalypseHorseSoundMuted, "checking DK horse sound should persist muted=true")
-      Assert.Equal(#muted, 3, "checking DK horse sound should mute the three known horse summon files")
-      Assert.Equal(muted[1], 987917, "DK horse muting should include the first known horse summon file")
+      Assert.Equal(#muted, 0, "retained DK horse setting must not mute sounds owned by isiBlightfallTracker")
 
       local ghoulReminderOnClick = Assert.NotNil(
         ghoulReminderCheck._scripts and ghoulReminderCheck._scripts.OnClick or nil,

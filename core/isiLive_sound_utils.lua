@@ -1112,7 +1112,12 @@ function SoundUtils.ApplyGildedBrutosaurSoundSetting(muted)
   return ApplyVIPMountSoundSetting("gilded_brutosaur", muted)
 end
 
+-- Kept for reference; horse-sound ownership moved to isiBlightfallTracker.
+SoundUtils.DK_VIP_MOVED_TO_BLIGHTFALL_TRACKER = true
 function SoundUtils.ApplyDkApocalypseHorseSoundSetting(muted)
+  if SoundUtils.DK_VIP_MOVED_TO_BLIGHTFALL_TRACKER then
+    return false
+  end
   return ApplyVIPMountSoundSetting("dk_apocalypse_horse", muted)
 end
 

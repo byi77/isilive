@@ -501,6 +501,7 @@ addonTable.TextsLocales.ptBR = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Mostra uma cruz vermelha no seu botao Bloodlust enquanto voce tem um debuff Sated/Exhaustion.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Silenciar sons dos cavalos dos Cavaleiros do Apocalipse",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Silencia os sons de invocacao dos cavalos dos Cavaleiros do Apocalipse.",
+  SETTINGS_VIP_DK_MOVED = "Configure no isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Mostrar aviso de ghoul ausente",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Mostra um aviso movivel quando seu ghoul Profano esta ausente.",
   VIP_DK_GHOUL_REMINDER_TEXT = "INVOCAR GHOUL",

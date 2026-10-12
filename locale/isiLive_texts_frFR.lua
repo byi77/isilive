@@ -501,6 +501,7 @@ addonTable.TextsLocales.frFR = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Affiche une croix rouge sur votre bouton Bloodlust pendant un debuff Sated/Exhaustion.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Couper les sons de chevaux des Cavaliers de l'Apocalypse",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Coupe les sons d'invocation des chevaux des Cavaliers de l'Apocalypse.",
+  SETTINGS_VIP_DK_MOVED = "Configurer dans isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Afficher le rappel de goule manquante",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Affiche une alerte deplacable quand votre goule Impie manque.",
   VIP_DK_GHOUL_REMINDER_TEXT = "INVOQUER GOULE",

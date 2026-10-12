@@ -2,6 +2,8 @@
 local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModules)
   local function LoadController()
     local addon = LoadAddonModules({ "isiLive_action_button_overlay.lua", "isiLive_vip_dk_assist.lua" })
+    -- Exercise the retained implementation explicitly; production stays disabled.
+    addon.VipDkAssist.MOVED_TO_BLIGHTFALL_TRACKER = false
     return addon.VipDkAssist
   end
 
@@ -1008,6 +1010,63 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.Equal(db.vipDkGhoulReminderPosition.point, "BOTTOMLEFT", "drag stop should save ghoul reminder point")
       Assert.Equal(db.vipDkGhoulReminderPosition.x, 22, "drag stop should save ghoul reminder x")
       Assert.Equal(db.vipDkGhoulReminderPosition.y, 33, "drag stop should save ghoul reminder y")
+    end)
+  end)
+  test("VipDkAssist migration disables all DK VIP helpers without deleting them", function()
+    local scheduled, frames, mutes = 0, 0, 0
+    WithGlobals({
+      IsiLiveDB = {
+        vipDkSoulReaperWarningEnabled = true,
+        vipDkPutrefyWarningEnabled = true,
+        vipDkGhoulReminderEnabled = true,
+        vipDkApocalypseHorseSoundMuted = true,
+      },
+      UnitExists = function()
+        return true
+      end,
+      UnitClass = function()
+        return "Death Knight", "DEATHKNIGHT"
+      end,
+      GetSpecialization = function()
+        return 3
+      end,
+      GetSpecializationInfo = function()
+        return 252
+      end,
+      InCombatLockdown = function()
+        return false
+      end,
+      C_Timer = {
+        NewTimer = function()
+          scheduled = scheduled + 1
+        end,
+      },
+      CreateFrame = function()
+        frames = frames + 1
+      end,
+      MuteSoundFile = function()
+        mutes = mutes + 1
+      end,
+      UnmuteSoundFile = function()
+        mutes = mutes + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_vip_dk_assist.lua", "isiLive_sound_utils.lua" })
+      Assert.True(addon.VipDkAssist.MOVED_TO_BLIGHTFALL_TRACKER, "production owner must be disabled")
+      addon.VipDkAssist.SetDependencies({})
+      addon.VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
+      addon.VipDkAssist.HandleEvent("PLAYER_LOGIN")
+      addon.VipDkAssist.HandleEvent("UNIT_PET", "player")
+      Assert.False(addon.VipDkAssist.ShowWarningPreview(), "legacy preview must remain disabled")
+      Assert.False(addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(true), "legacy horse mute must stay disabled")
+      Assert.False(
+        addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(false),
+        "legacy owner must not undo the tracker mute"
+      )
+      Assert.Equal(scheduled, 0, "legacy DK helpers must schedule no timers")
+      Assert.Equal(frames, 0, "legacy DK helpers must create no frames")
+      Assert.Equal(mutes, 0, "legacy DK helpers must not touch horse sounds")
+      Assert.NotNil(addon.VipDkAssist.CreateController, "implementation must remain available")
     end)
   end)
 end

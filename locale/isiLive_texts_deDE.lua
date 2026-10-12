@@ -501,6 +501,7 @@ addonTable.TextsLocales.deDE = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Zeigt ein rotes Kreuz auf deinem Bloodlust-Button, solange du einen Erschöpfungs-/Satt-Debuff hast.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Pferdeklang der Reiter der Apokalypse stummschalten",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Stummt die Pferde-Beschwörungsklänge der Reiter der Apokalypse.",
+  SETTINGS_VIP_DK_MOVED = "Einstellungen jetzt in isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Fehlenden Ghul anzeigen",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Zeigt eine verschiebbare Warnung, wenn dein Unholy-Ghul fehlt.",
   VIP_DK_GHOUL_REMINDER_TEXT = "Ghoul beschwören",

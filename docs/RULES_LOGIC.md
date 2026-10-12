@@ -260,6 +260,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 195. Die optionale Seelenernter-Warnung gilt sieben Sekunden nach dem DT-Cast und in den letzten sieben Sekunden vor der naechsten DT-Bereitschaft; Putrefy behaelt sein getrenntes 15-Sekunden-Fenster.
 
+196. Alle vier DK-VIP-Hilfen werden in isiLive erhalten, aber zugunsten von isiBlightfallTracker deaktiviert.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2884,3 +2886,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - VipDkAssist reuses one overlay per action button across Dark Transformations
   - VipDkAssist keeps pending warning timer across regen and stops on spec change
   - VipDkAssist preview shows the warning without waiting for the cooldown
+
+
+### RULE-DK-VIP-MIGRATION-BLIGHTFALL-TRACKER
+- Regelnummer: 196
+- Status: aktiv
+- Zusammenfassung: Die Seelenernter- und Putrefy-Kreuzwarnungen, die DK-Pferdeklang-Stummschaltung und der Ghoul-Reminder werden in isiLive nicht geloescht, sondern mit einem Umzugskommentar deaktiviert. Auch bei gespeicherten aktiven Optionen erzeugt isiLive dafuer keine Timer, Overlays, Ghoul-Frames, Vorschau oder Sound-Mute-/Unmute-Aufrufe. Die bisherigen vier Einstellungen und gespeicherten Werte bleiben fuer die einmalige Uebernahme durch isiBlightfallTracker erhalten; ihre isiLive-Controls sind deaktiviert und zeigen den neuen Einstellungsort an. Nicht-DK-VIP-Funktionen bleiben unveraendert. Die erhaltene DK-Implementierung bleibt explizit durch Regressionstests pruefbar.
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-12): Die aktive Runtime-Zustaendigkeit von isiLive aus Regeln 90, 156 und 195 wird durch isiBlightfallTracker abgeloest; die dort dokumentierten Fachregeln und der Code bleiben erhalten.
+- Erforderliche Tests:
+  - VipDkAssist migration disables all DK VIP helpers without deleting them
+  - VipDkAssist starts Soul Reaper warning after Dark Transformation
+  - VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen
+  - Settings panel exposes VIP guest sound toggle and applies astral aurochs muting

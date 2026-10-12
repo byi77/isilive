@@ -1,7 +1,13 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.429`
-Zuletzt aktualisiert: `2026-10-10`
+Versionsbasis: `0.9.430`
+Zuletzt aktualisiert: `2026-10-12`
+
+DK-VIP-Umzug (0.9.430, Regel 196): Seelenernter-/Putrefy-Kreuze,
+Pferdeklang-Mute und Ghoul-Reminder gehoeren jetzt isiBlightfallTracker.
+isiLive behaelt die bisherigen Module, Schnittstellen und SavedVariables,
+deaktiviert aber diese vier Runtime-Pfade und ihre Settings-Controls mit
+einem Hinweis auf den Tracker. Bloodlust- und andere VIP-Hilfen bleiben aktiv.
 
 Seelenernter-Warnung (0.9.429): Getrennte Timer halten Seelenernter fuer
 sieben Sekunden nach dem DT-Cast sowie sieben Sekunden vor der naechsten
@@ -412,7 +418,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.429                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.430                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

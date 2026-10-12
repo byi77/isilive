@@ -3,6 +3,9 @@ addonTable = addonTable or {}
 
 local VipDkAssist = {}
 addonTable.VipDkAssist = VipDkAssist
+-- Retained for reference and regression tests. All DK VIP helpers moved to
+-- isiBlightfallTracker on 2026-10-12; isiLive must not run a second owner.
+VipDkAssist.MOVED_TO_BLIGHTFALL_TRACKER = true
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
@@ -331,12 +334,18 @@ function VipDkAssist.CreateController(opts)
   end
 
   local function IsEnabled()
+    if VipDkAssist.MOVED_TO_BLIGHTFALL_TRACKER then
+      return false
+    end
     local db = getDB() or {}
     return (db.vipDkSoulReaperWarningEnabled == true or db.vipDkPutrefyWarningEnabled == true)
       and isLocalUnholyDeathKnight() == true
   end
 
   local function IsGhoulReminderEnabled()
+    if VipDkAssist.MOVED_TO_BLIGHTFALL_TRACKER then
+      return false
+    end
     local db = getDB() or {}
     return db.vipDkGhoulReminderEnabled == true and isLocalUnholyDeathKnight() == true
   end

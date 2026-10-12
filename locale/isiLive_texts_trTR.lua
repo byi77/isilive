@@ -501,6 +501,7 @@ addonTable.TextsLocales.trTR = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Sated/Exhaustion debuff'in varken Bloodlust dugmende kirmizi carpi gosterir.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Mahserin Atlilari at seslerini sustur",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Mahserin Atlilari at cagirma seslerini susturur.",
+  SETTINGS_VIP_DK_MOVED = "Artık isiBlightfallTracker üzerinden ayarlayın.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Eksik ghoul hatirlaticisini goster",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Unholy ghoul eksikken tasinabilir bir uyari gosterir.",
   VIP_DK_GHOUL_REMINDER_TEXT = "GHOUL CAGIR",

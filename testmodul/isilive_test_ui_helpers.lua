@@ -347,7 +347,12 @@ local function ApplyFrameMethods(frame)
   frame.GetAttribute = function(self, key)
     return self._attrs[key]
   end
-  frame.Enable = function() end
+  frame.Enable = function(self)
+    self._disabled = false
+  end
+  frame.Disable = function(self)
+    self._disabled = true
+  end
   frame.SetFrameStrata = function(self, value)
     self._frameStrata = value
   end

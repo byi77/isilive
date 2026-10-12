@@ -561,6 +561,8 @@ return function(test, ctx)
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      -- Exercise the retained DK sound implementation explicitly.
+      addon.SoundUtils.DK_VIP_MOVED_TO_BLIGHTFALL_TRACKER = false
       Assert.True(addon.SoundUtils.ApplyAstralAurochsSoundSetting(true), "C_Sound mute API should be accepted")
       Assert.Equal(muted[1], 7340960, "C_Sound mute API should receive astral aurochs file IDs")
       Assert.True(addon.SoundUtils.ApplyAstralAurochsSoundSetting(false), "C_Sound unmute API should be accepted")

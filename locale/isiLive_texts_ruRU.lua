@@ -502,6 +502,7 @@ addonTable.TextsLocales.ruRU = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Показывает красный крест на кнопке Bloodlust, пока у вас есть дебафф Sated/Exhaustion.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Отключить звуки коней Всадников Апокалипсиса",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Отключает звуки призыва коней Всадников Апокалипсиса.",
+  SETTINGS_VIP_DK_MOVED = "Настройки теперь в isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Показывать напоминание о гуле",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Показывает перемещаемое предупреждение, когда нет гуля Анхоли.",
   VIP_DK_GHOUL_REMINDER_TEXT = "ПРИЗОВИ ГУЛЯ",

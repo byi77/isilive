@@ -501,6 +501,7 @@ addonTable.TextsLocales.enUS = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Shows a red cross on your Bloodlust button while you have a Sated/Exhaustion debuff.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Mute Riders of the Apocalypse horse sounds",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Mutes the horse summon sounds from Riders of the Apocalypse.",
+  SETTINGS_VIP_DK_MOVED = "Configure in isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Show missing-ghoul reminder",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Shows a movable warning when your Unholy ghoul is missing.",
   VIP_DK_GHOUL_REMINDER_TEXT = "SUMMON GHOUL",

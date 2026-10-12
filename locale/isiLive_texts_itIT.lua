@@ -501,6 +501,7 @@ addonTable.TextsLocales.itIT = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Mostra una croce rossa sul tuo pulsante Bloodlust mentre hai un debuff Sated/Exhaustion.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Silenzia i suoni dei cavalli dei Cavalieri dell'Apocalisse",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Silenzia i suoni di evocazione dei cavalli dei Cavalieri dell'Apocalisse.",
+  SETTINGS_VIP_DK_MOVED = "Configura in isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Mostra promemoria ghoul assente",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Mostra un avviso spostabile quando manca il tuo ghoul Empio.",
   VIP_DK_GHOUL_REMINDER_TEXT = "EVOCA GHOUL",

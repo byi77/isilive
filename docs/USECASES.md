@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.429`
-Zuletzt aktualisiert: `2026-10-10`
+Versionsbasis: `0.9.430`
+Zuletzt aktualisiert: `2026-10-12`
 
 Seelenernter-Warnung (0.9.429): Mit aktivierter VIP-Option erscheint das
 Kreuz direkt nach DT fuer sieben Sekunden und erneut in den letzten sieben
@@ -528,6 +528,8 @@ Ziel: Der Spieler wird im laufenden M+-Run und in einem verifizierten Non-Challe
 10. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
 
 ## UC-25 VIP-DK-Hilfen
+
+Stand 12.10.2026: Regel 196 deaktiviert alle vier DK-VIP-Hilfen in isiLive zugunsten von isiBlightfallTracker. Code, Schalter und gespeicherte Werte bleiben erhalten; die Schalter sind deaktiviert und nennen den neuen Einstellungsort. Der folgende Ablauf beschreibt die erhaltene Implementierung, die weiterhin explizit getestet wird. Der Tracker uebernimmt die Einstellungen und Ghoul-Position einmalig, sofern isiLive geladen ist; bestehende Tracker-Werte haben Vorrang.
 
 Ziel: Optionale VIP-Schalter bieten lokale Unholy-Death-Knight-Hilfen fuer Seelenernter, Putrefy, DK-Pferdeklang und fehlenden Ghoul, ohne auf unverifizierte Daten auszuweichen.
 

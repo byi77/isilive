@@ -501,6 +501,7 @@ addonTable.TextsLocales.esES = {
   SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC = "Muestra una cruz roja en tu boton Bloodlust mientras tengas un perjuicio de Sated/Exhaustion.",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Silenciar sonidos de caballos de Jinetes del Apocalipsis",
   SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC = "Silencia los sonidos de invocacion de caballos de Jinetes del Apocalipsis.",
+  SETTINGS_VIP_DK_MOVED = "Configurar en isiBlightfallTracker.",
   SETTINGS_VIP_DK_GHOUL_REMINDER = "Mostrar aviso de ghoul ausente",
   SETTINGS_VIP_DK_GHOUL_REMINDER_DESC = "Muestra un aviso movible cuando falta tu ghoul Profano.",
   VIP_DK_GHOUL_REMINDER_TEXT = "INVOCAR GHOUL",

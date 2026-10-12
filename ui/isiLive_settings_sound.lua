@@ -866,6 +866,22 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "vipDkGhoulReminderEnabled"
   )
 
+  -- Retained controls: all four DK helpers are now configured in the tracker.
+  for _, key in ipairs({
+    "vipDkSoulReaperWarning",
+    "vipDkPutrefyWarning",
+    "vipDkApocalypseHorseSound",
+    "vipDkGhoulReminder",
+  }) do
+    local control = controls[key]
+    if control and control.check and type(control.check.Disable) == "function" then
+      control.check:Disable()
+    end
+    if control and control.description and type(control.description.SetText) == "function" then
+      control.description:SetText(labels.SETTINGS_VIP_DK_MOVED or "Configure in isiBlightfallTracker.")
+    end
+  end
+
   return yOffset
 end
 
@@ -1053,5 +1069,16 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
       labels.SETTINGS_VIP_DK_GHOUL_REMINDER_DESC or "Shows a movable warning when your Unholy ghoul is missing."
     )
     controls.vipDkGhoulReminder.check:SetChecked(db.vipDkGhoulReminderEnabled == true)
+  end
+  -- Preserve the retained controls, but keep their migration notice on refresh.
+  for _, key in ipairs({
+    "vipDkSoulReaperWarning",
+    "vipDkPutrefyWarning",
+    "vipDkApocalypseHorseSound",
+    "vipDkGhoulReminder",
+  }) do
+    if controls[key] then
+      SetDescription(controls[key], labels.SETTINGS_VIP_DK_MOVED or "Configure in isiBlightfallTracker.")
+    end
   end
 end
