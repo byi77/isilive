@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-14 - Version 0.9.431 (patch)
+
+- Declare WoW Retail 12.1.5 (TOC interface `120105`) as the supported client patch.
+
 ## 2026-10-12 - Version 0.9.430 (patch)
 
 - Move all four DK VIP helpers to isiBlightfallTracker. Retain their isiLive

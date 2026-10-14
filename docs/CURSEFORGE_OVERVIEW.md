@@ -39,7 +39,7 @@ Empfohlene Medienpositionen im CurseForge-Editor:
 isiLive
 The colorful Mythic+ command center for World of Warcraft.
 
-🟦 WoW 12.1.0 Midnight Retail
+🟦 WoW 12.1.5 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
 🟪 Version 0.9.369

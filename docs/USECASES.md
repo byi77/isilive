@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.430`
-Zuletzt aktualisiert: `2026-10-12`
+Versionsbasis: `0.9.431`
+Zuletzt aktualisiert: `2026-10-14`
 
 Seelenernter-Warnung (0.9.429): Mit aktivierter VIP-Option erscheint das
 Kreuz direkt nach DT fuer sieben Sekunden und erneut in den letzten sieben
