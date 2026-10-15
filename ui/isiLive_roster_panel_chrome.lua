@@ -720,7 +720,7 @@ local function ApplyPanelButtonLocalization(ui, L)
   local countdownButton = ui.countdownButton
   local countdownCancelButton = ui.countdownCancelButton
   local shareKeysButton = ui.shareKeysButton
-  local refreshButton = ui.refreshButton
+  local markRolesButton = ui.markRolesButton
 
   readyCheckButton._fullText = L.BTN_READYCHECK
   readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT or readyCheckButton._compactFallbackText
@@ -729,7 +729,7 @@ local function ApplyPanelButtonLocalization(ui, L)
   countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
   countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT or countdownCancelButton._compactFallbackText
   shareKeysButton._fullText = L.BTN_SHARE_KEYS
-  refreshButton._fullText = L.BTN_REFRESH
+  markRolesButton._fullText = L.BTN_MARK_ROLES
 
   local normalizedLayoutMode = NormalizeLayoutMode(ui and ui.layoutMode)
   local useShortManagementLabels = normalizedLayoutMode == LAYOUT_MODE_COMPACT_VERTICAL
@@ -746,7 +746,7 @@ local function ApplyPanelButtonLocalization(ui, L)
     countdownCancelButton,
     useShortManagementLabels and countdownCancelButton._hModeText or countdownCancelButton._fullText
   )
-  SetFlatButtonText(refreshButton, refreshButton._fullText)
+  SetFlatButtonText(markRolesButton, markRolesButton._fullText)
   if type(shareKeysButton.RefreshDisplayText) == "function" then
     shareKeysButton.RefreshDisplayText()
   else

@@ -64,6 +64,10 @@ local MINI_VERTICAL_FRAME_HEIGHT = 128
 local MINI_HORIZONTAL_FRAME_WIDTH = 212
 local MINI_MAIN_HORIZONTAL_FRAME_WIDTH = 500
 local MANAGEMENT_COLUMN_X = -145
+-- Title-bar Re-Sync button: placed in the slot left of the settings button
+-- (-46); the M+ / H / V mode buttons shift one 22 px slot left while it shows.
+local TITLE_RESYNC_X = -68
+local TITLE_RESYNC_SHIFT = -22
 local MANAGEMENT_COLUMN_X_MINI = -70
 local MANAGEMENT_COLUMN_X_VERTICAL_MINI = -82
 local HELPER_COLUMN_X = -111
@@ -195,6 +199,7 @@ local UI_VISIBILITY_RULES = {
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
   { "shareKeysButton", true, false, false, true },
+  { "markRolesButton", true, false, false, true },
   { "refreshButton", true, false, false, true },
   { "leadOptionsHeader", true, false, false, false },
   { "tankHeader", true, false, false, false },
@@ -769,9 +774,19 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     button:SetPoint(point or "TOPRIGHT", relativeTo or mainFrame, relativePoint or "TOPRIGHT", x or 0, titleButtonY)
   end
 
+  -- The title-bar Re-Sync button sits where the V button used to be; while
+  -- it is visible (M / M+) the mode buttons move one slot to the left.
+  local showTitleResync = not isCollapsed or isMainHorizontal
+  local modeButtonShift = showTitleResync and ui.refreshButton and TITLE_RESYNC_SHIFT or 0
   for _, btn in ipairs(ui.modeButtons or {}) do
-    ReanchorTitleButton(btn)
+    if tonumber(btn._titleBaseX) and btn.ClearAllPoints and btn.SetPoint then
+      btn:ClearAllPoints()
+      btn:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", btn._titleBaseX + modeButtonShift, titleButtonY)
+    else
+      ReanchorTitleButton(btn)
+    end
   end
+  ReanchorTitleButton(ui.refreshButton)
   for _, btn in ipairs(mainFrame._isiLiveTitleBarButtons or {}) do
     ReanchorTitleButton(btn)
   end
@@ -896,8 +911,8 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       SetVisible(row.dps, show)
       SetVisible(row.kick, show)
       SetVisible(row.realm, show)
-      if row.roleButton and not IsCombatLockdownActive() then
-        SetVisible(row.roleButton, show and row.unit ~= nil)
+      if row.roleIcon then
+        SetVisible(row.roleIcon, show and row.unit ~= nil)
       end
       if row.hoverFrame then
         if row.hoverFrame.EnableMouse then
@@ -938,6 +953,7 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
   local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
   btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
+  btn._titleBaseX = xOffset
   -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
@@ -978,3 +994,86 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
   return btn
 end
 RI.CreateModeButton = CreateModeButton
+
+-- Small 20 px Re-Sync icon button for the title bar, between the V mode
+-- button and the settings button. During the Re-Sync cooldown the icon gives
+-- way to the remaining seconds (ShowCooldownRemaining, driven by
+-- isiLive_factory_refresh.lua).
+local function CreateTitleResyncButton(mainFrame)
+  local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
+  btn:SetSize(20, 20)
+  btn:SetPoint("TOPRIGHT", TITLE_RESYNC_X, -2)
+  -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
+  if btn.SetFrameLevel and mainFrame.GetFrameLevel then
+    btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
+  end
+  if ApplyBackdrop then
+    ApplyBackdrop(btn, "TITLE_BUTTON")
+  end
+  if ApplyActionButtonVisual then
+    ApplyActionButtonVisual(btn, "title", "default")
+  end
+  if type(btn.CreateTexture) == "function" then
+    local icon = btn:CreateTexture(nil, "OVERLAY")
+    SetFrameSizeSafe(icon, 14, 14)
+    if type(icon.SetPoint) == "function" then
+      icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    end
+    local appliedStateIcon = type(UICommon.ApplyStateIcon) == "function" and UICommon.ApplyStateIcon(icon, "refresh")
+    if not appliedStateIcon and type(icon.SetTexture) == "function" then
+      icon:SetTexture("Interface\\Buttons\\UI-RefreshButton")
+    end
+    btn.icon = icon
+  end
+  if type(btn.CreateFontString) == "function" then
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("CENTER", 0, 0)
+    if label.SetTextColor then
+      label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.MUTED_GOLD_PCT_TEXT) or { 0.85, 0.7, 0.3 }))
+    end
+    if label.SetShadowOffset then
+      label:SetShadowOffset(1, -1)
+    end
+    label:Hide()
+    btn.label = label
+  end
+
+  -- remaining > 0 shows the seconds instead of the icon; nil / 0 restores it.
+  function btn.ShowCooldownRemaining(remaining)
+    local seconds = tonumber(remaining)
+    local onCooldown = seconds ~= nil and seconds > 0
+    if btn.label then
+      if onCooldown then
+        btn.label:SetText(tostring(seconds))
+        btn.label:Show()
+      else
+        btn.label:SetText("")
+        btn.label:Hide()
+      end
+    end
+    if btn.icon then
+      if onCooldown then
+        btn.icon:Hide()
+      else
+        btn.icon:Show()
+      end
+    end
+  end
+
+  -- Tooltip helpers replace OnEnter/OnLeave via SetScript, so the title-bar
+  -- hover surface is hooked on after the tooltip is attached.
+  function btn.HookTitleHoverVisual()
+    if type(btn.HookScript) ~= "function" or not ApplyActionButtonVisual then
+      return
+    end
+    btn:HookScript("OnEnter", function(self)
+      ApplyActionButtonVisual(self, "title", "hover")
+    end)
+    btn:HookScript("OnLeave", function(self)
+      ApplyActionButtonVisual(self, "title", "default")
+    end)
+  end
+
+  return btn
+end
+RI.CreateTitleResyncButton = CreateTitleResyncButton

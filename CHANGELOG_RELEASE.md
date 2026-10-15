@@ -3,18 +3,19 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.431`.
+Current version: `0.9.432`.
 
-Version 0.9.431: WoW Retail 12.1.5 compatibility metadata.
+Version 0.9.432: one-click tank and healer markers, Re-Sync moved to the title bar.
 
-<!-- highlights-reviewed-for: 0.9.431 -->
+<!-- highlights-reviewed-for: 0.9.432 -->
 
 Highlights:
-- **WoW Retail 12.1.5.** The addon now declares TOC interface `120105`.
-- **DK button warnings.** Configure Soul Reaper and Putrefy crosses in
-  isiBlightfallTracker; isiLive no longer draws a second warning.
-- **Ghoul and horse helpers.** The missing-ghoul reminder and Riders of the
-  Apocalypse horse-sound muting are also configured in isiBlightfallTracker.
-- **Settings preserved.** isiLive keeps the old implementation and saved values,
-  but disables its runtime and controls to prevent duplicate effects. The tracker
-  imports existing choices and the ghoul position once when isiLive is loaded.
+- **Mark-T/H button.** One click marks the tank (Blue Square) and the healer
+  (Green Triangle); right-click clears both. A missing role is simply skipped.
+- **Re-Sync in the title bar.** Re-Sync is now a small icon button between the
+  V and settings buttons (M and M+ layouts) and counts down its cooldown.
+- **Calmer roster rows.** Role icons in the rows are display-only, so the row
+  tooltip and right-click whisper also work on top of the icon.
+- **WoW Retail 12.1.5.** The addon declares TOC interface `120105`.
+- **DK helpers in isiBlightfallTracker.** Soul Reaper/Putrefy crosses, the ghoul
+  reminder and horse-sound muting are configured there; isiLive keeps them off.

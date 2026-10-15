@@ -647,6 +647,7 @@ UICommon.StateIcons = {
     texCoord = { 0.046875, 0.453125, 0.046875, 0.46875 },
   },
   settings = { path = "Interface\\WorldMap\\GEAR_64GREY" },
+  refresh = { path = "Interface\\Buttons\\UI-RefreshButton" },
 }
 
 -- Puts a named state icon onto a texture; `nil` clears and hides it.

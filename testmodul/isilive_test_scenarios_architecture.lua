@@ -533,7 +533,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       },
       ["ui/isiLive_roster_panel_render.lua"] = {
         "IsCombatLockdownActive",
-        "row.roleButton:SetAttribute",
+        "UpdateMarkRolesButton",
       },
       ["ui/isiLive_ui_game_menu.lua"] = {
         "IsPanelUISecureUpdateBlocked",
@@ -1262,7 +1262,7 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      "(frameWidth or FULL_FRAME_WIDTH) - 160",
+      "(frameWidth or FULL_FRAME_WIDTH) - 182",
       "RosterPanel title budget must reserve space for the right-side mode and toolbar buttons"
     )
     AssertContains(

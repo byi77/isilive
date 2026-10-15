@@ -33,9 +33,6 @@ local DisableFontStringWrapping = RI.DisableFontStringWrapping or function(_fs) 
 local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function(...)
   local _ = ...
 end
-local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip or function(...)
-  local _ = ...
-end
 local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber or function(n)
   return tostring(n or 0)
 end
@@ -93,21 +90,63 @@ local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 local ROW_RIGHT_INSET = 4
 
 -- Raid-target marker per role: 6 = Blue Square (Tank), 4 = Green Triangle (Healer).
--- Right-click clears via marker 0.
+-- Right-click on the Mark-T/H button clears via marker 0.
 local ROLE_MARKER = { TANK = 6, HEALER = 4 }
 local CLEAR_MARKER = 0
 
--- Role-marker macro, target by character name (see CLAUDE.md "Role-marker
--- click feature"). /cleartarget + /stopmacro [noexists] make a failed /target
--- a no-op: during combat lockdown the button keeps the macro of the previous
--- render, and when that player has left the group /target finds nobody. Without
--- the guard the previous target would survive and /tm would mark it instead.
-local function BuildRoleMarkerMacro(target, marker)
-  return "/cleartarget\n/target "
-    .. target
-    .. "\n/stopmacro [noexists]\n/tm "
-    .. tostring(marker)
-    .. "\n/targetlasttarget"
+-- Mark-T/H macro, target by character name (see CLAUDE.md "Role-marker
+-- click feature"). One block per marked player:
+--   /cleartarget        -> a failed /target leaves no target behind
+--   /target <name>
+--   /tm [exists] <n>    -> no-op when /target found nobody
+--   /targetlasttarget   -> restore the player's own target
+-- The [exists] guard replaces the single-target /stopmacro [noexists]: a
+-- missing tank must not stop the healer block. During combat lockdown the
+-- button keeps the macro of the previous render, so a player who left the
+-- group is simply not found instead of the current target getting marked.
+-- markTargets: ordered list of { target = "<name[-realm]>", marker = n }.
+local function BuildMarkRolesMacro(markTargets, clearMarkers)
+  local lines = {}
+  for _, entry in ipairs(markTargets) do
+    lines[#lines + 1] = "/cleartarget"
+    lines[#lines + 1] = "/target " .. entry.target
+    lines[#lines + 1] = "/tm [exists] " .. tostring(clearMarkers and CLEAR_MARKER or entry.marker)
+    lines[#lines + 1] = "/targetlasttarget"
+  end
+  if #lines == 0 then
+    return nil
+  end
+  return table.concat(lines, "\n")
+end
+
+-- Writes the Mark-T/H secure macros. Out of combat only: SetAttribute on a
+-- secure button is blocked during combat lockdown (ADDON_ACTION_BLOCKED), and
+-- the out-of-combat re-render (PLAYER_REGEN_ENABLED runs ctx.updateUI)
+-- rewrites a macro that went stale in combat.
+local function UpdateMarkRolesButton(button, markTargets)
+  if type(button) ~= "table" or type(button.SetAttribute) ~= "function" then
+    return
+  end
+  if IsCombatLockdownActive() then
+    return
+  end
+  local macroText1 = BuildMarkRolesMacro(markTargets or {}, false)
+  local macroText2 = BuildMarkRolesMacro(markTargets or {}, true)
+  -- Compare against what was actually written, so a macro that went stale
+  -- during combat lockdown is still rewritten on the next render.
+  if
+    button._isiLiveMacroWritten ~= true
+    or button._isiLiveMacroText1 ~= macroText1
+    or button._isiLiveMacroText2 ~= macroText2
+  then
+    button:SetAttribute("type1", "macro")
+    button:SetAttribute("type2", "macro")
+    button:SetAttribute("macrotext1", macroText1)
+    button:SetAttribute("macrotext2", macroText2)
+    button._isiLiveMacroText1 = macroText1
+    button._isiLiveMacroText2 = macroText2
+    button._isiLiveMacroWritten = true
+  end
 end
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -144,7 +183,7 @@ local function CreateHoldCountdownAnimation(bar)
   return { group = group, shrink = shrink }
 end
 
-local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
+local function CreateMemberRow(mainFrame, index, rosterTooltip)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
 
@@ -245,39 +284,20 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
     HideRosterHoverTooltip(rosterTooltip)
   end)
 
-  row.roleButton = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
-  row.roleButton:SetSize(14, 14)
-  row.roleButton:SetPoint("TOPLEFT", ROLE_BUTTON_X, yOffset - 1)
-  -- Lift the secure button above the row's hoverFrame: both are siblings of
-  -- mainFrame with default level; at equal strata + level, hit-test tie-break
-  -- is unstable on 12.0+, and the hoverFrame's RightButton-only OnMouseUp
-  -- silently swallows LeftButton clicks if it ever wins.
-  row.roleButton:SetFrameLevel((mainFrame:GetFrameLevel() or 1) + 10)
-  row.roleButton:RegisterForClicks("AnyUp", "AnyDown")
-  row.roleButton.icon = row.roleButton:CreateTexture(nil, "ARTWORK")
-  row.roleButton.icon:SetAllPoints()
-  row.roleButton.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
-  row.roleButton:SetScript("OnEnter", function(self)
-    local tooltip = AnchorRosterHoverTooltip(rosterTooltip, self)
-    if type(tooltip) == "table" and type(tooltip.SetText) == "function" then
-      local L = type(getL) == "function" and getL() or {}
-      local title = type(L.TOOLTIP_ROLE_MARKER_TITLE) == "string" and L.TOOLTIP_ROLE_MARKER_TITLE or "Role Marker"
-      local hint = type(L.TOOLTIP_ROLE_MARKER_HINT) == "string" and L.TOOLTIP_ROLE_MARKER_HINT or "Click to mark unit"
-      local tank = type(L.TOOLTIP_ROLE_MARKER_TANK) == "string" and L.TOOLTIP_ROLE_MARKER_TANK or "Tank: Blue Square"
-      local healer = type(L.TOOLTIP_ROLE_MARKER_HEALER) == "string" and L.TOOLTIP_ROLE_MARKER_HEALER
-        or "Healer: Green Triangle"
-      tooltip:SetText(title, 1, 1, 1)
-      if type(tooltip.AddLine) == "function" then
-        tooltip:AddLine(hint, 1, 1, 1, true)
-        tooltip:AddLine(tank, 0.2, 0.4, 1, true)
-        tooltip:AddLine(healer, 0.2, 1, 0.2, true)
-      end
-      tooltip:Show()
-    end
-  end)
-  row.roleButton:SetScript("OnLeave", function()
-    HideRosterHoverTooltip(rosterTooltip)
-  end)
+  -- Display-only role icon (Tank / Healer / DPS). Marking moved to the
+  -- Mark-T/H panel button, so the icon takes no mouse input and the row's
+  -- hoverFrame (tooltip, right-click whisper) handles the whole row.
+  row.roleIcon = CreateFrame("Frame", nil, mainFrame)
+  row.roleIcon:SetSize(14, 14)
+  row.roleIcon:SetPoint("TOPLEFT", ROLE_BUTTON_X, yOffset - 1)
+  -- Above the row's hoverFrame so its row tint never covers the icon.
+  row.roleIcon:SetFrameLevel((mainFrame:GetFrameLevel() or 1) + 10)
+  if type(row.roleIcon.EnableMouse) == "function" then
+    row.roleIcon:EnableMouse(false)
+  end
+  row.roleIcon.icon = row.roleIcon:CreateTexture(nil, "ARTWORK")
+  row.roleIcon.icon:SetAllPoints()
+  row.roleIcon.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
@@ -676,13 +696,8 @@ local function RenderRosterImpl(state, roster)
     if row.readyCheckBackground then
       row.readyCheckBackground:Hide()
     end
-    -- The role button is a SecureActionButtonTemplate frame. Show(), Hide(),
-    -- SetAttribute() and re-anchoring of a protected frame are all blocked for
-    -- addon code during combat lockdown (ADDON_ACTION_BLOCKED, the call does
-    -- not run). A vacated row therefore keeps its button until the
-    -- out-of-combat re-render (PLAYER_REGEN_ENABLED runs ctx.updateUI).
-    if row.roleButton and not IsCombatLockdownActive() then
-      row.roleButton:Hide()
+    if row.roleIcon then
+      row.roleIcon:Hide()
     end
   end
 
@@ -697,6 +712,7 @@ local function RenderRosterImpl(state, roster)
     if raidNoticeLabel then
       raidNoticeLabel:Hide()
     end
+    UpdateMarkRolesButton(state.uiRef and state.uiRef.markRolesButton, nil)
     return
   end
 
@@ -758,6 +774,8 @@ local function RenderRosterImpl(state, roster)
   local targetMapID = resolveTargetMapID and resolveTargetMapID() or nil
   local hasAnyKey = false
   local createdMemberRow = false
+  local markTargets = {}
+  local markedRoles = {}
 
   for _, entry in ipairs(orderedRoster) do
     if index > 5 then
@@ -771,77 +789,48 @@ local function RenderRosterImpl(state, roster)
 
     local row = memberRows[index]
     if not row then
-      row = CreateMemberRow(mainFrame, index, rosterTooltip, state.getL)
+      row = CreateMemberRow(mainFrame, index, rosterTooltip)
       memberRows[index] = row
       createdMemberRow = true
     end
 
-    if row.roleButton then
+    if row.roleIcon then
       local role = info.role
-      local icon = row.roleButton.icon
-      local showButton = false
+      local icon = row.roleIcon.icon
+      local showIcon = false
 
       if role == "TANK" then
         icon:SetTexCoord(0, 19 / 64, 22 / 64, 41 / 64)
-        showButton = true
+        showIcon = true
       elseif role == "HEALER" then
         icon:SetTexCoord(20 / 64, 39 / 64, 1 / 64, 20 / 64)
-        showButton = true
+        showIcon = true
       elseif role == "DAMAGER" then
         icon:SetTexCoord(20 / 64, 39 / 64, 22 / 64, 41 / 64)
-        showButton = true
+        showIcon = true
       end
 
       if info.isGhost then
-        showButton = false
+        showIcon = false
       end
 
-      -- Target by character name, never by unit token (12.0.5 secret-token
-      -- regression). See CLAUDE.md "Role-marker click feature: target by
-      -- character name".
+      if showIcon and not isCollapsed then
+        row.roleIcon:Show()
+      else
+        row.roleIcon:Hide()
+      end
+    end
+
+    -- Mark-T/H: first living tank and first living healer, targeted by
+    -- character name, never by unit token (12.0.5 secret-token regression).
+    -- See CLAUDE.md "Role-marker click feature: target by character name".
+    local marker = ROLE_MARKER[info.role]
+    if marker and not info.isGhost and not markedRoles[info.role] then
       local target = addonTable.StringUtils.BuildSlashTargetName(info.name, info.realm)
-      local marker = target and ROLE_MARKER[role]
-      local macroText1 = marker and BuildRoleMarkerMacro(target, marker) or nil
-      local macroText2 = marker and BuildRoleMarkerMacro(target, CLEAR_MARKER) or nil
-
-      if not IsCombatLockdownActive() then
-        if showButton and not isCollapsed then
-          row.roleButton:Show()
-          -- Only TANK and HEALER carry a marker macro. A DAMAGER row still
-          -- shows the role icon, but the secure button must not take mouse
-          -- input there: it sits above the row's hoverFrame (frameLevel + 10),
-          -- so with mouse enabled it swallows every click in its 14x14 px --
-          -- including the right-click whisper that works everywhere else in
-          -- the row -- while its own empty macro does nothing.
-          if type(row.roleButton.EnableMouse) == "function" then
-            row.roleButton:EnableMouse(marker ~= nil)
-          end
-          -- Write the secure attributes only when the macro differs from the
-          -- one last written. The comparison runs against what was actually
-          -- written, so a macro that went stale during combat lockdown (no
-          -- write possible) is still rewritten on the next out-of-combat render.
-          if
-            row.roleButton._isiLiveMacroWritten ~= true
-            or row.roleButton._isiLiveMacroText1 ~= macroText1
-            or row.roleButton._isiLiveMacroText2 ~= macroText2
-          then
-            row.roleButton:SetAttribute("type1", "macro")
-            row.roleButton:SetAttribute("type2", "macro")
-            row.roleButton:SetAttribute("macrotext1", macroText1)
-            row.roleButton:SetAttribute("macrotext2", macroText2)
-            row.roleButton._isiLiveMacroText1 = macroText1
-            row.roleButton._isiLiveMacroText2 = macroText2
-            row.roleButton._isiLiveMacroWritten = true
-          end
-        else
-          row.roleButton:Hide()
-        end
+      if target then
+        markedRoles[info.role] = true
+        markTargets[#markTargets + 1] = { role = info.role, target = target, marker = marker }
       end
-      -- Combat lockdown: the secure role button is left untouched. SetAttribute,
-      -- Show and Hide on a protected frame are all blocked for addon code in
-      -- combat (ADDON_ACTION_BLOCKED; the blocked call does not run), so hiding
-      -- a button whose macro went stale is not possible here. The out-of-combat
-      -- re-render (PLAYER_REGEN_ENABLED runs ctx.updateUI) rewrites the macro.
     end
 
     local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)
@@ -913,6 +902,11 @@ local function RenderRosterImpl(state, roster)
       ClearMemberRow(staleRow)
     end
   end
+
+  table.sort(markTargets, function(a, b)
+    return a.marker > b.marker
+  end)
+  UpdateMarkRolesButton(state.uiRef and state.uiRef.markRolesButton, markTargets)
 
   if not hasAnyKey and getOwnedKeystoneSnapshot then
     local ownKeyMapID, ownKeyLevel = getOwnedKeystoneSnapshot()
@@ -986,6 +980,7 @@ RI.HasReadyCheckHoldInRoster = HasReadyCheckHoldInRoster
 RI.SetKickCellText = SetKickCellText
 RI.ResolveReadyCheckActive = ResolveReadyCheckActive
 RI.RenderRosterImpl = RenderRosterImpl
+RI.BuildMarkRolesMacro = BuildMarkRolesMacro
 RI.RefreshReadyCheckStateImpl = function(state, roster)
   return RefreshReadyCheckStateImpl(state, roster)
 end

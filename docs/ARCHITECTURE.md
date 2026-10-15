@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.431`
-Zuletzt aktualisiert: `2026-10-14`
+Versionsbasis: `0.9.432`
+Zuletzt aktualisiert: `2026-10-15`
 
 DK-VIP-Umzug (0.9.430, Regel 196): Seelenernter-/Putrefy-Kreuze,
 Pferdeklang-Mute und Ghoul-Reminder gehoeren jetzt isiBlightfallTracker.
@@ -418,7 +418,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.431                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.432                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

@@ -60,7 +60,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 5 zeichen mit hunter-kurzlabels `MM`/`BM`, sprache nur flagge, key-code max 4 zeichen und kein numerischer mapID-Fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
-39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
+39. Der Panel-Button `Mark-T/H` markiert per Klick Tank (Blau) und Heiler (Gruen) gemeinsam, Rechtsklick entfernt beide Marker; die Rollensymbole in den Roster-Zeilen sind reine Anzeige.
 40. (veraltet — Duplikat zu Regel 11) Raid-Gruppen: UI aus, keine Raid-Notice, keine H-Mode-Erzwingung, kein Hintergrund-Sync.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 42. Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig aus; nur wenn sie aktiv ist, darf die Main-UI bei Key-Start und beim Solo-Uebergang automatisch schliessen.
@@ -154,7 +154,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 122. Ein PI-Empfaengername mit `|`, Steuerzeichen oder mehr als 96 Byte verwirft die gesamte PI-Ansage.
 
-123. Das Rollen-Marker-Makro schuetzt das Namensziel mit `/cleartarget` und `/stopmacro [noexists]`; im Kampf wird der geschuetzte Rollen-Button nicht angefasst.
+123. Das Mark-T/H-Makro schuetzt jedes Namensziel mit `/cleartarget` und `/tm [exists]`; im Kampf wird der geschuetzte Mark-T/H-Button nicht angefasst.
 
 124. Meldet der Client per `UI_ERROR_MESSAGE` exakt den lokalisierten Text `ERR_PET_SPELL_NOPATH`, spielt ausserhalb des Raids sofort die statische Pet-Stuck-Sprachansage (`deDE` deutsch, sonst englisch), hoechstens einmal pro 5 Sekunden und per Settings abschaltbar (Default an).
 
@@ -261,6 +261,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 195. Die optionale Seelenernter-Warnung gilt sieben Sekunden nach dem DT-Cast und in den letzten sieben Sekunden vor der naechsten DT-Bereitschaft; Putrefy behaelt sein getrenntes 15-Sekunden-Fenster.
 
 196. Alle vier DK-VIP-Hilfen werden in isiLive erhalten, aber zugunsten von isiBlightfallTracker deaktiviert.
+
+197. Re-Sync ist ein kleiner Icon-Button in der Titelleiste zwischen V und Einstellungen, sichtbar nur in M und M+; dort ruecken M+/H/V einen Platz nach links.
 
 ## Regelbloecke
 
@@ -719,12 +721,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-AUTO-MARKER
 - Regelnummer: 39
 - Status: aktiv
-- Zusammenfassung: Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
+- Zusammenfassung: Der sichere Panel-Button `Mark-T/H` (frueher Platz des Re-Sync-Buttons, sichtbar in M und M+) markiert per Linksklick den ersten lebenden Tank mit Blauem Quadrat (6) und den ersten lebenden Heiler mit Gruenem Dreieck (4); Rechtsklick entfernt beide Marker (0). Fehlt eine Rolle, entfaellt nur deren Block; ohne Tank und Heiler (oder im Raid) traegt der Button kein Makro. Die Rollensymbole in den Roster-Zeilen sind reine Anzeige ohne Secure-Template und ohne Mausaufnahme, damit Tooltip und Rechtsklick-Fluestern der Zeile greifen.
+- Ersetzte Festlegung (User-Entscheidung, 2026-10-15): Das Markieren per Klick auf das Rollensymbol der jeweiligen Zeile entfaellt zugunsten des gemeinsamen Mark-T/H-Buttons.
 - Erforderliche Tests:
-  - Roster role icon is a secure action button
-  - Roster Tank role button targets by character name (not unit token)
-  - Roster Healer role button targets by character name with cross-realm suffix
-  - Roster DPS role icon does not take mouse input
+  - Mark-T/H button is a secure macro action
+  - Mark-T/H marks tank and healer by character name (not unit token)
+  - Mark-T/H skips a missing role and drops the macro without tank or healer
+  - Roster role icons are display-only and take no mouse input
 
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40
@@ -2127,10 +2130,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROLLEN-MARKER-MAKRO-SCHUTZ
 - Regelnummer: 123
 - Status: aktiv
-- Zusammenfassung: Das Rollen-Marker-Makro zielt per Charaktername und umschliesst das Ziel mit `/cleartarget` und `/stopmacro [noexists]`: `/cleartarget`, `/target <Name[-Realm]>`, `/stopmacro [noexists]`, `/tm <n>`, `/targetlasttarget`. Weil der geschuetzte Rollen-Button im Kampf-Lockdown weder umgeschrieben noch ausgeblendet werden kann, kann er bis Kampfende ein Makro fuer einen Spieler tragen, der die Gruppe verlassen hat; der Schutz sorgt dafuer, dass ein fehlschlagendes `/target` dann kein anderes Ziel markiert. Der Renderer ruft im Kampf keine geschuetzte Methode (`Show`, `Hide`, `SetAttribute`, `EnableMouse`) am Rollen-Button auf.
+- Zusammenfassung: Das Mark-T/H-Makro zielt per Charaktername und schuetzt jedes Ziel einzeln, Tank-Block vor Heiler-Block: `/cleartarget`, `/target <Name[-Realm]>`, `/tm [exists] <n>`, `/targetlasttarget`. `/tm [exists]` ersetzt das fruehere `/stopmacro [noexists]`, damit ein fehlender Tank den Heiler-Block nicht abbricht. Weil der geschuetzte Button im Kampf-Lockdown nicht umgeschrieben werden kann, kann er bis Kampfende ein Makro fuer einen Spieler tragen, der die Gruppe verlassen hat; der Schutz sorgt dafuer, dass ein fehlschlagendes `/target` dann kein anderes Ziel markiert. Der Renderer ruft im Kampf kein `SetAttribute` am Mark-T/H-Button auf; das naechste Rendern ausserhalb des Kampfes schreibt ein veraltetes Makro neu.
 - Erforderliche Tests:
-  - Roster Tank role button targets by character name (not unit token)
-  - Roster Healer role button targets by character name with cross-realm suffix
+  - Mark-T/H marks tank and healer by character name (not unit token)
+  - Mark-T/H skips a missing role and drops the macro without tank or healer
 
 ### RULE-PET-STUCK-SPRACHANSAGE
 - Regelnummer: 124
@@ -2898,3 +2901,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - VipDkAssist starts Soul Reaper warning after Dark Transformation
   - VipDkAssist holds Soul Reaper for seven seconds before DT and keeps Putrefy at fifteen
   - Settings panel exposes VIP guest sound toggle and applies astral aurochs muting
+
+### RULE-RESYNC-TITELLEISTE
+- Regelnummer: 197
+- Status: aktiv
+- Zusammenfassung: Re-Sync ist ein 20-Pixel-Icon-Button (`UI-RefreshButton`) in der Titelleiste direkt links neben dem Einstellungsbutton (x = -68). Er ist nur in M und M+ sichtbar; dort ruecken die Modus-Buttons M+/H/V um 22 Pixel nach links (-134/-112/-90). In H und V bleibt er ausgeblendet und die Modus-Buttons behalten ihre Plaetze (-112/-90/-68), weil die V-Breite von 150 Pixeln keinen weiteren Titel-Button traegt. Waehrend der 10-Sekunden-Sperre zeigt der Button die Restsekunden anstelle des Icons. Das Titel-Textbudget reserviert 182 statt 160 Pixel fuer die rechten Titel-Buttons.
+- Erforderliche Tests:
+  - Horizontal mini mode arranges management buttons and helper icons in slim rows
+  - Architecture main-frame title bar applies a toolbar-safe text budget

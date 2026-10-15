@@ -610,8 +610,8 @@ return function(test, ctx)
       "Share Keys must remain a secondary main-frame action"
     )
     Assert.True(
-      rosterPanel:find('refreshButton:SetSemanticRole("secondary")', 1, true) ~= nil,
-      "Refresh must remain a secondary main-frame action"
+      rosterPanel:find('markRolesButton:SetSemanticRole("secondary")', 1, true) ~= nil,
+      "Mark-T/H must remain a secondary main-frame action"
     )
   end)
 end

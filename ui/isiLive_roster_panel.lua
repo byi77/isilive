@@ -107,6 +107,7 @@ local UpdateCollapseState = RI.UpdateCollapseState
 local NotifyCollapseChanged = RI.NotifyCollapseChanged
 local NotifyLayoutChanged = RI.NotifyLayoutChanged or function(_ui, _layoutMode) end
 local CreateModeButton = RI.CreateModeButton
+local CreateTitleResyncButton = RI.CreateTitleResyncButton
 local ApplyFontStringSize = RI.ApplyFontStringSize
 local CreateCdTrackerRow = RI.CreateCdTrackerRow
 local UpdateCdTrackerRow = RI.UpdateCdTrackerRow
@@ -442,13 +443,26 @@ local function CreatePanelButtons(mainFrame, deps)
   end)
   AttachPanelButtonTooltip(deps.tooltipFrame, countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
-  local refreshButton = CreateFlatButton(mainFrame, 120, 24)
-  if type(refreshButton.SetSemanticRole) == "function" then
-    refreshButton:SetSemanticRole("secondary")
+  -- Marks the group's tank and healer in one click (right-click clears both).
+  -- The secure macro is written by the roster render from the current tank /
+  -- healer names; see BuildMarkRolesMacro in isiLive_roster_panel_render.lua.
+  local markRolesButton = CreateFlatButton(mainFrame, 120, 24, "SecureActionButtonTemplate,BackdropTemplate")
+  if type(markRolesButton.SetSemanticRole) == "function" then
+    markRolesButton:SetSemanticRole("secondary")
   end
-  refreshButton:SetPoint("TOPRIGHT", -10, -180)
-  refreshButton._verticalY = -180
-  AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
+  markRolesButton:SetPoint("TOPRIGHT", -10, -180)
+  markRolesButton._verticalY = -180
+  if type(markRolesButton.RegisterForClicks) == "function" then
+    markRolesButton:RegisterForClicks("AnyUp", "AnyDown")
+  end
+  if type(markRolesButton.HookScript) == "function" then
+    markRolesButton:HookScript("OnClick", function()
+      if type(deps.logRuntimeTrace) == "function" then
+        deps.logRuntimeTrace("[UI] btn_click name=mark_roles")
+      end
+    end)
+  end
+  AttachPanelButtonTooltip(deps.tooltipFrame, markRolesButton, getL, "BTN_MARK_ROLES", "TOOLTIP_MARK_ROLES", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
   if type(shareKeysButton.SetSemanticRole) == "function" then
@@ -474,7 +488,7 @@ local function CreatePanelButtons(mainFrame, deps)
   return {
     readyCheckButton = readyCheckButton,
     countdownButton = countdownButton,
-    refreshButton = refreshButton,
+    markRolesButton = markRolesButton,
     shareKeysButton = shareKeysButton,
     countdownCancelButton = countdownCancelButton,
   }
@@ -538,7 +552,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local function ApplyTitleBudget()
     local frameWidth = type(mainFrame.GetWidth) == "function" and tonumber(mainFrame:GetWidth()) or FULL_FRAME_WIDTH
-    local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 160)
+    local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 182)
     local measureWidth = type(UICommon.MeasureFontStringWidthSafe) == "function" and UICommon.MeasureFontStringWidthSafe
       or nil
     local titleWidth = math.max(56, (measureWidth and measureWidth(title)) or 56)
@@ -644,15 +658,22 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   -- Buttons that always stay anchored at leadX (not visible in H mode)
   ui.columnButtons = {
     ui.shareKeysButton,
-    ui.refreshButton,
+    ui.markRolesButton,
   }
   ui.toolbarButtons = {
     ui.readyCheckButton,
     ui.countdownButton,
     ui.countdownCancelButton,
     ui.shareKeysButton,
-    ui.refreshButton,
+    ui.markRolesButton,
   }
+
+  -- Small Re-Sync icon button in the title bar, between the mode buttons and
+  -- the settings button. Only shown in M and M+ (UI_VISIBILITY_RULES); the
+  -- mode buttons shift left by TITLE_RESYNC_SHIFT while it is visible.
+  ui.refreshButton = CreateTitleResyncButton(mainFrame)
+  AttachPanelButtonTooltip(panelTooltip, ui.refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
+  ui.refreshButton.HookTitleHoverVisual()
 
   -- Three static mode buttons [M+][H][V] laid out left-to-right at the top-right.
   -- Each button sets the mode directly; the active mode is highlighted gold.

@@ -462,14 +462,14 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules, overrid
   return controller, createdFrames, stubs, mainFrame, addon
 end
 
--- Locate a SecureActionButtonTemplate frame whose macrotext1 contains
--- "/target <targetName>". The role-marker macro targets by character name
--- (with optional "-Realm" suffix), never by unit token — see CLAUDE.md
--- "Role-marker click feature: target by character name". Pass nil to grab
--- any secure action button (used in tests that only render a single row).
+-- Locate the secure Mark-T/H button by a "/target <targetName>" line in its
+-- macrotext1. The role-marker macro targets by character name (with optional
+-- "-Realm" suffix), never by unit token — see CLAUDE.md "Role-marker click
+-- feature: target by character name". Pass nil to grab any secure action
+-- button.
 local function FindSecureRoleButton(createdFrames, targetName)
   for _, frame in ipairs(createdFrames) do
-    if frame._template == "SecureActionButtonTemplate" then
+    if type(frame._template) == "string" and frame._template:find("SecureActionButtonTemplate", 1, true) then
       local macrotext1 = frame:GetAttribute("macrotext1")
       if
         targetName == nil
@@ -720,7 +720,7 @@ local function RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonMo
 end
 
 local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster role icon is a secure action button", function()
+  test("Mark-T/H button is a secure macro action", function()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
     WithGlobals(stubs, function()
@@ -729,15 +729,18 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
       })
     end)
 
-    local roleButton = FindSecureRoleButton(createdFrames, "Tank")
-    Assert.NotNil(roleButton, "tank row should create a role button")
-    roleButton = RequireNonNil(roleButton, "tank row should create a role button")
-    Assert.Equal(roleButton._template, "SecureActionButtonTemplate", "role icon must use a secure action button")
-    Assert.Equal(roleButton:GetAttribute("type1"), "macro", "left click must be wired as a secure macro action")
-    Assert.Equal(roleButton:GetAttribute("type2"), "macro", "right click must be wired as a secure macro action")
+    local markButton = FindSecureRoleButton(createdFrames, "Tank")
+    Assert.NotNil(markButton, "Mark-T/H button should carry the tank macro")
+    markButton = RequireNonNil(markButton, "Mark-T/H button should carry the tank macro")
+    Assert.True(
+      markButton._template:find("SecureActionButtonTemplate", 1, true) ~= nil,
+      "Mark-T/H must use a secure action button"
+    )
+    Assert.Equal(markButton:GetAttribute("type1"), "macro", "left click must be wired as a secure macro action")
+    Assert.Equal(markButton:GetAttribute("type2"), "macro", "right click must be wired as a secure macro action")
   end)
 
-  test("Roster DPS role icon does not take mouse input", function()
+  test("Roster role icons are display-only and take no mouse input", function()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
     WithGlobals(stubs, function()
@@ -747,68 +750,24 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
       })
     end)
 
-    local tankButton = FindSecureRoleButton(createdFrames, "Tank")
-    Assert.NotNil(tankButton, "tank row should create a role button")
-    tankButton = RequireNonNil(tankButton, "tank row should create a role button")
-    Assert.True(tankButton._mouseEnabled == true, "tank role button must keep mouse input for its marker macro")
-
-    -- The DPS button carries no macro (ROLE_MARKER has no DAMAGER entry), so it
-    -- cannot be found by target name. It is the secure button that was wired as
-    -- a macro action (type1) yet has no macrotext. The type1 term matters:
-    -- unoccupied rows are only hidden and never receive SetAttribute at all,
-    -- so matching on a nil macrotext alone picks up an empty row instead.
-    local dpsButton = nil
+    local roleIcons = {}
     for _, frame in ipairs(createdFrames) do
-      if
-        frame._template == "SecureActionButtonTemplate"
-        and frame:GetAttribute("type1") == "macro"
-        and frame:GetAttribute("macrotext1") == nil
-      then
-        dpsButton = frame
-        break
+      local texture = type(frame._textures) == "table" and frame._textures[1] or nil
+      if texture and texture.texture == "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES" then
+        table.insert(roleIcons, frame)
       end
     end
-    Assert.NotNil(dpsButton, "damager row should create a role button without a marker macro")
-    dpsButton = RequireNonNil(dpsButton, "damager row should create a role button without a marker macro")
-    -- It sits at frameLevel + 10 above the row's hoverFrame, so leaving mouse
-    -- input on would swallow the row's right-click whisper while doing nothing.
-    Assert.True(
-      dpsButton._mouseEnabled == false,
-      "damager role button must release mouse input so the row's right-click whisper still reaches the hover frame"
-    )
+    Assert.True(#roleIcons >= 2, "tank and damager rows should both create a role icon")
+    for _, icon in ipairs(roleIcons) do
+      Assert.True(icon._template == nil, "row role icon must not be a secure action button")
+      -- It sits at frameLevel + 10 above the row's hoverFrame, so mouse input
+      -- would swallow the row's tooltip and right-click whisper.
+      Assert.True(icon._mouseEnabled == false, "row role icon must release mouse input to the row's hover frame")
+      Assert.Nil(icon:GetAttribute("macrotext1"), "row role icon must not carry a marker macro")
+    end
   end)
 
-  test("Roster Tank role button targets by character name (not unit token)", function()
-    local cleanupTraps = RegisterProtectedApiTraps()
-    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
-
-    local ok, err = pcall(function()
-      WithGlobals(stubs, function()
-        controller.RenderRoster({
-          player = { name = "Felix", realm = "", role = "TANK", class = "WARRIOR" },
-        })
-      end)
-    end)
-
-    cleanupTraps()
-
-    Assert.True(ok, "tank render crashed or hit a taint trap: " .. tostring(err))
-    local roleButton = FindSecureRoleButton(createdFrames, "Felix")
-    Assert.NotNil(roleButton, "tank row should create a role button")
-    roleButton = RequireNonNil(roleButton, "tank row should create a role button")
-    Assert.Equal(
-      roleButton:GetAttribute("macrotext1"),
-      "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-      "tank role button must target by character name (not party-token; 12.0.5 secret-token regression)"
-    )
-    Assert.Equal(
-      roleButton:GetAttribute("macrotext2"),
-      "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
-      "tank role button right click must clear marker on the same character name"
-    )
-  end)
-
-  test("Roster Healer role button targets by character name with cross-realm suffix", function()
+  test("Mark-T/H marks tank and healer by character name (not unit token)", function()
     local cleanupTraps = RegisterProtectedApiTraps()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
@@ -816,26 +775,62 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
       WithGlobals(stubs, function()
         controller.RenderRoster({
           party1 = { name = "Anna", realm = "Tichondrius", role = "HEALER", class = "PRIEST" },
+          player = { name = "Felix", realm = "", role = "TANK", class = "WARRIOR" },
+          party2 = { name = "Dealer", realm = "", role = "DAMAGER", class = "MAGE" },
         })
       end)
     end)
 
     cleanupTraps()
 
-    Assert.True(ok, "healer render crashed or hit a taint trap: " .. tostring(err))
-    local roleButton = FindSecureRoleButton(createdFrames, "Anna-Tichondrius")
-    Assert.NotNil(roleButton, "healer row should create a role button")
-    roleButton = RequireNonNil(roleButton, "healer row should create a role button")
+    Assert.True(ok, "render crashed or hit a taint trap: " .. tostring(err))
+    local markButton = FindSecureRoleButton(createdFrames, "Felix")
+    Assert.NotNil(markButton, "Mark-T/H button should carry the tank macro")
+    markButton = RequireNonNil(markButton, "Mark-T/H button should carry the tank macro")
     Assert.Equal(
-      roleButton:GetAttribute("macrotext1"),
-      "/cleartarget\n/target Anna-Tichondrius\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-      "cross-realm healer role button must include '-Realm' suffix in the target"
+      markButton:GetAttribute("macrotext1"),
+      "/cleartarget\n/target Felix\n/tm [exists] 6\n/targetlasttarget\n"
+        .. "/cleartarget\n/target Anna-Tichondrius\n/tm [exists] 4\n/targetlasttarget",
+      "Mark-T/H must target tank then cross-realm healer by name (12.0.5 secret-token regression)"
     )
     Assert.Equal(
-      roleButton:GetAttribute("macrotext2"),
-      "/cleartarget\n/target Anna-Tichondrius\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
-      "cross-realm healer right click must clear marker on the same name-realm"
+      markButton:GetAttribute("macrotext2"),
+      "/cleartarget\n/target Felix\n/tm [exists] 0\n/targetlasttarget\n"
+        .. "/cleartarget\n/target Anna-Tichondrius\n/tm [exists] 0\n/targetlasttarget",
+      "Mark-T/H right click must clear both markers on the same names"
     )
+    for _, token in ipairs({ "player", "party1", "party2" }) do
+      Assert.True(
+        markButton:GetAttribute("macrotext1"):find(token, 1, true) == nil,
+        "Mark-T/H macro must not contain unit token " .. token
+      )
+    end
+  end)
+
+  test("Mark-T/H skips a missing role and drops the macro without tank or healer", function()
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster({
+        party1 = { name = "Anna", realm = "", role = "HEALER", class = "PRIEST" },
+      })
+    end)
+
+    local markButton = FindSecureRoleButton(createdFrames, "Anna")
+    markButton = RequireNonNil(markButton, "Mark-T/H button should carry the healer macro")
+    Assert.Equal(
+      markButton:GetAttribute("macrotext1"),
+      "/cleartarget\n/target Anna\n/tm [exists] 4\n/targetlasttarget",
+      "without a tank only the healer block is written"
+    )
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster({
+        player = { name = "Dealer", realm = "", role = "DAMAGER", class = "MAGE" },
+      })
+    end)
+    Assert.Nil(markButton:GetAttribute("macrotext1"), "without tank and healer the left-click macro is dropped")
+    Assert.Nil(markButton:GetAttribute("macrotext2"), "without tank and healer the right-click macro is dropped")
   end)
 end
 
@@ -962,6 +957,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     for _, frame in ipairs(createdFrames) do
       if
         frame.OnEnter ~= nil
+        and frame.ShowCooldownRemaining == nil
         and readyCheckHoverFrame == nil
         and type(frame._textures) == "table"
         and frame._textures[1] ~= nil

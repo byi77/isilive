@@ -1,4 +1,4 @@
--- Standalone CLI tool: regression pin for the tank/healer role-icon macro.
+-- Standalone CLI tool: regression pin for the Mark-T/H role-marker macro.
 --
 -- Hard contract enforced by this simulator (see CLAUDE.md "Role-marker click
 -- feature: target by character name"):
@@ -11,11 +11,16 @@
 --   * UTF-8 character names are passed through byte-for-byte. WoW's slash-
 --     command parser handles Müller / Sébastien / Юрий / José / Çağrı /
 --     Lucía / Aleksandr natively. We must NOT normalize or transliterate.
---   * If info.name is missing/empty, no macro is set (no partial macro).
+--   * One guarded block per role, tank before healer:
+--     /cleartarget, /target <name>, /tm [exists] <n>, /targetlasttarget.
+--   * A member without a name is skipped (no partial block); without tank and
+--     healer the button carries no macro at all.
+--   * The row role icons are display-only: no secure template, no mouse.
 --
 -- This drives the real RenderRosterImpl from roster_panel_render.lua against
--- frame mocks that capture every SetAttribute call. The roster mixes locales
--- and same-realm/cross-realm to catch any byte mangling or token regression.
+-- frame mocks that capture every SetAttribute call on the Mark-T/H button.
+-- The roster mixes locales and same-realm/cross-realm to catch any byte
+-- mangling or token regression.
 --
 -- End-to-end discipline (CLAUDE.md "Tests & simulators: end-to-end by default"):
 -- the real RenderRosterImpl is loaded; frame mocks record SetAttribute. Same
@@ -51,12 +56,23 @@ local function Check(condition, message)
   print("  [CHECK FAIL] " .. message)
 end
 
+-- Expected macro for an ordered list of { name, marker } blocks.
+local function Macro(blocks)
+  local lines = {}
+  for _, block in ipairs(blocks) do
+    lines[#lines + 1] = "/cleartarget"
+    lines[#lines + 1] = "/target " .. block[1]
+    lines[#lines + 1] = "/tm [exists] " .. tostring(block[2])
+    lines[#lines + 1] = "/targetlasttarget"
+  end
+  return table.concat(lines, "\n")
+end
+
 -- ----------------------------------------------------------------------
--- Sim-local mocks. The role button is created with SecureActionButtonTemplate;
--- production calls SetAttribute("type1"|"type2"|"macrotext1"|"macrotext2"|...).
--- We capture each attribute keyed by the unit so the roster-name assertions
--- can look up per row. Frame + font-string mocks come from the shared
--- testmodul/isilive_test_render_roster_mocks.lua helper.
+-- Sim-local mocks. The Mark-T/H button is created with
+-- SecureActionButtonTemplate; production calls
+-- SetAttribute("type1"|"type2"|"macrotext1"|"macrotext2"). Frame + font-string
+-- mocks come from the shared testmodul/isilive_test_render_roster_mocks.lua.
 -- ----------------------------------------------------------------------
 local MakeFrameMock = RosterMocks.MakeFrameMock
 local MakeFontStringMock = RosterMocks.MakeFontStringMock
@@ -69,30 +85,18 @@ local function SetCombat(active)
   inCombat = active and true or false
 end
 
--- The role button is a SecureActionButtonTemplate frame, i.e. protected. The
--- real client refuses Show / Hide / SetAttribute / EnableMouse / re-anchoring
--- on it from addon code during combat lockdown: the call does not run and
--- ADDON_ACTION_BLOCKED fires. The mock reproduces both halves -- no state
--- change, and a recorded violation -- so a production path that relies on a
--- blocked call cannot pass here while failing in game.
-local function MakeRoleButtonMock()
-  local icon = {
-    SetAllPoints = NoOp,
-    SetTexture = NoOp,
-    SetTexCoord = NoOp,
-    SetVertexColor = NoOp,
-    SetDesaturated = NoOp,
-    Show = NoOp,
-    Hide = NoOp,
-  }
+-- The Mark-T/H button is a SecureActionButtonTemplate frame, i.e. protected.
+-- The real client refuses Show / Hide / SetAttribute / EnableMouse /
+-- re-anchoring on it from addon code during combat lockdown: the call does not
+-- run and ADDON_ACTION_BLOCKED fires. The mock reproduces both halves -- no
+-- state change, and a recorded violation -- so a production path that relies
+-- on a blocked call cannot pass here while failing in game.
+local function MakeMarkButtonMock()
   local mock = {
     _attributes = {},
-    _shown = false,
+    _shown = true,
     _blockedCalls = 0,
-    -- Mirrors the real Button default: mouse input is on until the renderer
-    -- turns it off for a row that carries no marker macro.
-    _mouseEnabled = true,
-    icon = icon,
+    _attributeWrites = 0,
   }
   local function Blocked(self)
     if inCombat then
@@ -101,33 +105,28 @@ local function MakeRoleButtonMock()
     end
     return false
   end
-  function mock:EnableMouse(flag)
-    if Blocked(self) then
-      return
-    end
-    self._mouseEnabled = flag and true or false
-  end
   function mock:SetAttribute(key, value)
     if Blocked(self) then
       return
     end
-    self._attributeWrites = (self._attributeWrites or 0) + 1
+    self._attributeWrites = self._attributeWrites + 1
     self._attributes[key] = value
   end
   function mock:GetAttribute(key)
     return self._attributes[key]
   end
   function mock:Show()
-    if Blocked(self) then
-      return
+    if not Blocked(self) then
+      self._shown = true
     end
-    self._shown = true
   end
   function mock:Hide()
-    if Blocked(self) then
-      return
+    if not Blocked(self) then
+      self._shown = false
     end
-    self._shown = false
+  end
+  function mock:EnableMouse()
+    Blocked(self)
   end
   function mock:SetSize()
     Blocked(self)
@@ -135,10 +134,29 @@ local function MakeRoleButtonMock()
   function mock:SetPoint()
     Blocked(self)
   end
-  mock.SetFrameLevel = NoOp
-  mock.RegisterForClicks = NoOp
-  mock.SetScript = NoOp
-  mock.HookScript = NoOp
+  return mock
+end
+
+-- Display-only row role icon: a plain frame, free to Show/Hide in combat.
+local function MakeRoleIconMock()
+  local mock = {
+    _shown = false,
+    _mouseEnabled = false,
+    icon = {
+      SetAllPoints = NoOp,
+      SetTexture = NoOp,
+      SetTexCoord = NoOp,
+    },
+  }
+  function mock:Show()
+    self._shown = true
+  end
+  function mock:Hide()
+    self._shown = false
+  end
+  function mock:EnableMouse(flag)
+    self._mouseEnabled = flag and true or false
+  end
   return mock
 end
 
@@ -161,7 +179,7 @@ local function BuildMemberRows()
   local rows = {}
   for i = 1, 5 do
     rows[i] = {
-      roleButton = MakeRoleButtonMock(),
+      roleIcon = MakeRoleIconMock(),
       readyCheckBackground = MakeBackgroundMock(),
       hoverFrame = MakeFrameMock(),
       spec = MakeFontStringMock(),
@@ -177,8 +195,13 @@ local function BuildMemberRows()
   return rows
 end
 
+-- Returns the render state plus the Mark-T/H button mock it renders into.
 local function BuildState(memberRows, addonRoster)
-  return RosterMocks.BuildDefaultRenderState(memberRows, addonRoster)
+  local state = RosterMocks.BuildDefaultRenderState(memberRows, addonRoster)
+  local markButton = MakeMarkButtonMock()
+  state.uiRef = state.uiRef or {}
+  state.uiRef.markRolesButton = markButton
+  return state, markButton
 end
 
 local function FindRowForUnit(memberRows, unit)
@@ -190,35 +213,20 @@ local function FindRowForUnit(memberRows, unit)
   return nil
 end
 
-local function CountBlockedCalls(memberRows)
-  local total = 0
-  for i = 1, #memberRows do
-    total = total + memberRows[i].roleButton._blockedCalls
-  end
-  return total
-end
-
--- Scenarios 9 and 10 live in their own function: folded into the WithGlobals
+-- Scenarios 9 to 11 live in their own functions: folded into the WithGlobals
 -- callback they pushed it past the 420-line hard metrics gate.
 local function RunAttributeWriteScenario(RI, addon)
   -- ----------------------------------------------------------------------
   -- Scenario 11: unchanged renders write no secure attributes.
   --
   -- Every sync packet, roster update and CD pass re-renders the roster. The
-  -- role button only needs a write when its macro changes; the comparison
+  -- Mark-T/H button only needs a write when its macro changes; the comparison
   -- runs against the last macro actually written, so a change still lands.
   -- ----------------------------------------------------------------------
   print("\n========== Scenario 11: unchanged renders skip the secure attribute writes ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local function CountWrites()
-      local total = 0
-      for _, row in ipairs(memberRows) do
-        total = total + (row.roleButton._attributeWrites or 0)
-      end
-      return total
-    end
+    local state, markButton = BuildState(memberRows, addon)
     local roster = {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
@@ -226,41 +234,34 @@ local function RunAttributeWriteScenario(RI, addon)
 
     SetCombat(false)
     RI.RenderRosterImpl(state, roster)
-    local firstWrites = CountWrites()
-    Check(firstWrites > 0, "first render: the role buttons receive their macros")
+    local firstWrites = markButton._attributeWrites
+    Check(firstWrites > 0, "first render: the Mark-T/H button receives its macros")
     for _ = 1, 50 do
       RI.RenderRosterImpl(state, roster)
     end
-    Check(CountWrites() == firstWrites, "50 unchanged renders: no further SetAttribute call on any role button")
+    Check(markButton._attributeWrites == firstWrites, "50 unchanged renders: no further SetAttribute call")
 
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
     })
-    local healRow = FindRowForUnit(memberRows, "party1")
-    Check(CountWrites() > firstWrites, "a new occupant must rewrite the macro")
+    Check(markButton._attributeWrites > firstWrites, "a new healer must rewrite the macro")
     Check(
-      healRow ~= nil
-        and healRow.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Zara\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-      "the rewritten macro targets the new occupant"
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 }, { "Zara", 4 } }),
+      "the rewritten macro targets the new healer"
     )
   end
 end
 
-local function RunMouseInputScenarios(RI, addon)
+local function RunRoleIconScenarios(RI, addon)
   -- ----------------------------------------------------------------------
-  -- Scenario 9: a row without a marker macro must release the row's mouse input.
+  -- Scenario 9: row role icons are display-only.
   --
-  -- The roleButton is a sibling of mainFrame lifted to frameLevel + 10 so it
-  -- wins the hit test over the row's hoverFrame. TANK and HEALER earn that:
-  -- they carry a real macro. DAMAGER does not — ROLE_MARKER has no DAMAGER
-  -- entry, so macrotext1/2 come out nil. With mouse input still enabled the
-  -- button would swallow every click inside its 14x14 px while doing nothing
-  -- itself, killing the right-click whisper that works everywhere else in the
-  -- row.
+  -- The icon sits at frameLevel + 10 above the row's hoverFrame. With mouse
+  -- input it would swallow the row's tooltip and right-click whisper, and it
+  -- carries no macro since marking moved to the Mark-T/H button.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 9: rows without a marker macro release mouse input ==========")
+  print("\n========== Scenario 9: row role icons are display-only ==========")
   do
     local memberRows = BuildMemberRows()
     local state = BuildState(memberRows, addon)
@@ -272,82 +273,55 @@ local function RunMouseInputScenarios(RI, addon)
       party2 = { name = "Bob", realm = "", class = "MAGE", role = "DAMAGER" },
     })
 
-    local tank = FindRowForUnit(memberRows, "player")
-    if tank then
-      Check(tank.roleButton._mouseEnabled == true, "TANK row keeps mouse input for its marker macro")
-    end
-
-    local heal = FindRowForUnit(memberRows, "party1")
-    if heal then
-      Check(heal.roleButton._mouseEnabled == true, "HEALER row keeps mouse input for its marker macro")
-    end
-
-    local dps = FindRowForUnit(memberRows, "party2")
-    Check(dps ~= nil, "DAMAGER row rendered")
-    if dps then
-      Check(dps.roleButton:GetAttribute("macrotext1") == nil, "DAMAGER row carries no marker macro")
-      Check(dps.roleButton._shown == true, "DAMAGER row still shows the role icon")
-      Check(
-        dps.roleButton._mouseEnabled == false,
-        "DAMAGER row releases mouse input so the row's right-click whisper still works"
-      )
+    for _, unit in ipairs({ "player", "party1", "party2" }) do
+      local row = FindRowForUnit(memberRows, unit)
+      Check(row ~= nil, unit .. " row rendered")
+      if row then
+        Check(row.roleIcon._shown == true, unit .. " row shows its role icon")
+        Check(row.roleIcon._mouseEnabled == false, unit .. " role icon takes no mouse input")
+      end
     end
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 10: a member who turns into a ghost in combat loses the role
-  -- button once combat ends.
+  -- Scenario 10: a healer who turns into a ghost in combat drops out of the
+  -- Mark-T/H macro once combat ends.
   --
-  -- In combat the protected button cannot be hidden (Hide is blocked), so the
-  -- renderer must not even try; the out-of-combat re-render hides it.
+  -- In combat the protected button cannot be rewritten (SetAttribute is
+  -- blocked), so the renderer must not even try; the display-only icon may
+  -- hide right away. The out-of-combat re-render removes the healer block.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 10: ghost state hides the role button after combat ==========")
+  print("\n========== Scenario 10: ghost healer leaves the macro after combat ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
+    local state, markButton = BuildState(memberRows, addon)
 
     SetCombat(false)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
     })
+    local macroBefore = markButton:GetAttribute("macrotext1")
+    Check(macroBefore == Macro({ { "Felix", 6 }, { "Anna", 4 } }), "pre-combat baseline: tank and healer marked")
 
-    local healBefore = FindRowForUnit(memberRows, "party1")
-    Check(healBefore ~= nil, "pre-combat baseline: healer occupies a row")
-    Check(
-      healBefore ~= nil and healBefore.roleButton._shown == true,
-      "pre-combat baseline: healer role button is shown"
-    )
-    local macroBefore = healBefore and healBefore.roleButton:GetAttribute("macrotext1") or nil
-
-    -- Same player, same name -> identical macro text; only isGhost flips.
     SetCombat(true)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER", isGhost = true },
     })
-
-    local healAfter = FindRowForUnit(memberRows, "party1")
-    if healAfter then
-      Check(
-        healAfter.roleButton:GetAttribute("macrotext1") == macroBefore,
-        "in combat: the ghost row's macro is unchanged (SetAttribute stays forbidden)"
-      )
-      Check(
-        healAfter.roleButton._blockedCalls == 0,
-        "in combat: no protected call is attempted on the ghost row's role button"
-      )
-    end
+    Check(markButton:GetAttribute("macrotext1") == macroBefore, "in combat: the macro is unchanged")
+    Check(markButton._blockedCalls == 0, "in combat: no protected call is attempted on the Mark-T/H button")
+    local healRow = FindRowForUnit(memberRows, "party1")
+    Check(healRow ~= nil and healRow.roleIcon._shown == false, "in combat: the ghost's display icon hides")
 
     SetCombat(false)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER", isGhost = true },
     })
-    local healPost = FindRowForUnit(memberRows, "party1")
     Check(
-      healPost ~= nil and healPost.roleButton._shown == false,
-      "post-combat: a ghost member's role button is hidden"
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 } }),
+      "post-combat: the ghost healer is no longer marked"
     )
   end
 end
@@ -441,7 +415,7 @@ local function RunStaleCombatRenderScenario()
 
     SetCombat(false)
     controller.RenderRoster(roster)
-    Check(CountRoleButtonsTargeting("Anna") == 1, "pre-combat baseline: the healer row targets Anna")
+    Check(CountRoleButtonsTargeting("Anna") == 1, "pre-combat baseline: the Mark-T/H macro targets Anna")
 
     -- Combat: Anna leaves, Zara takes the healer slot; the window is still open.
     SetCombat(true)
@@ -459,8 +433,11 @@ local function RunStaleCombatRenderScenario()
     -- Reopened with skipShowCallbacks: OnShow runs only the hidden-render flush.
     shownState.value = true
     controller.FlushHiddenRender()
-    Check(CountRoleButtonsTargeting("Anna") == 0, "after reopen: no role button still targets the departed Anna")
-    Check(CountRoleButtonsTargeting("Zara") == 1, "after reopen: the healer row targets its current occupant Zara")
+    Check(
+      CountRoleButtonsTargeting("Anna") == 0,
+      "after reopen: the Mark-T/H macro no longer targets the departed Anna"
+    )
+    Check(CountRoleButtonsTargeting("Zara") == 1, "after reopen: the Mark-T/H macro targets the current healer Zara")
   end)
   SetCombat(false)
 end
@@ -513,10 +490,8 @@ Harness.WithGlobals({
   -- isiLive_roster_layout.lua is loaded for its real IsCombatLockdownActive.
   -- roster_panel_render.lua captures `RI.IsCombatLockdownActive or <false stub>`
   -- into a local at load time, so without the layout module every scenario
-  -- would silently run the not-in-combat branch — which is exactly how the
-  -- combat-lockdown staleness bug (scenario 7) stayed invisible here. The real
-  -- helper re-reads the InCombatLockdown global on every call, so scenarios can
-  -- flip combat state at will via Harness.WithGlobals below.
+  -- would silently run the not-in-combat branch. The real helper re-reads the
+  -- InCombatLockdown global on every call, so scenarios can flip combat state.
   local addon = Harness.LoadAddonModules({
     "isiLive_roster.lua",
     "isiLive_roster_layout.lua",
@@ -539,49 +514,28 @@ Harness.WithGlobals({
   print("\n========== Scenario 1: same-realm baseline (no realm suffix) ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
       party2 = { name = "Bob", realm = "", class = "MAGE", role = "DAMAGER" },
       party3 = { name = "Carl", realm = "", class = "ROGUE", role = "DAMAGER" },
       party4 = { name = "Dave", realm = "", class = "WARLOCK", role = "DAMAGER" },
-    }
-    RI.RenderRosterImpl(state, roster)
+    })
 
-    local tank = FindRowForUnit(memberRows, "player")
-    Check(tank ~= nil, "TANK row rendered")
-    if tank then
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 }, { "Anna", 4 } }),
+      "macrotext1 marks bare 'Felix' (6) then bare 'Anna' (4) behind the [exists] guard"
+    )
+    Check(
+      markButton:GetAttribute("macrotext2") == Macro({ { "Felix", 0 }, { "Anna", 0 } }),
+      "macrotext2 clears both markers on the same names"
+    )
+    for _, dpsName in ipairs({ "Bob", "Carl", "Dave" }) do
       Check(
-        tank.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-        "TANK macrotext1 targets bare 'Felix' behind the /stopmacro guard (no realm, no token)"
+        markButton:GetAttribute("macrotext1"):find("/target " .. dpsName, 1, true) == nil,
+        "DAMAGER " .. dpsName .. " is not part of the macro"
       )
-      Check(
-        tank.roleButton:GetAttribute("macrotext2")
-          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
-        "TANK macrotext2 (clear) = '/cleartarget\\n/target Felix\\n/stopmacro [noexists]\\n/tm 0\\n/targetlasttarget'"
-      )
-    end
-
-    local heal = FindRowForUnit(memberRows, "party1")
-    Check(heal ~= nil, "HEALER row rendered")
-    if heal then
-      Check(
-        heal.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Anna\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-        "HEALER macrotext1 = '/cleartarget\\n/target Anna\\n/stopmacro [noexists]\\n/tm 4\\n/targetlasttarget'"
-      )
-    end
-
-    for _, unit in ipairs({ "party2", "party3", "party4" }) do
-      local dps = FindRowForUnit(memberRows, unit)
-      if dps then
-        Check(
-          dps.roleButton:GetAttribute("macrotext1") == nil,
-          "DAMAGER " .. unit .. " macrotext1 is nil (no marker for DPS)"
-        )
-      end
     end
   end
 
@@ -591,30 +545,15 @@ Harness.WithGlobals({
   print("\n========== Scenario 2: cross-realm name-realm suffix ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "Tichondrius", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "TwistingNether", class = "PRIEST", role = "HEALER" },
-    }
-    RI.RenderRosterImpl(state, roster)
-
-    local tank = FindRowForUnit(memberRows, "player")
-    if tank then
-      Check(
-        tank.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Felix-Tichondrius\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-        "TANK cross-realm macrotext1 has '-Tichondrius' suffix"
-      )
-    end
-
-    local heal = FindRowForUnit(memberRows, "party1")
-    if heal then
-      Check(
-        heal.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Anna-TwistingNether\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-        "HEALER cross-realm macrotext1 has '-TwistingNether' suffix"
-      )
-    end
+    })
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix-Tichondrius", 6 }, { "Anna-TwistingNether", 4 } }),
+      "cross-realm macrotext1 keeps the '-Tichondrius' and '-TwistingNether' suffixes"
+    )
   end
 
   -- ----------------------------------------------------------------------
@@ -625,71 +564,49 @@ Harness.WithGlobals({
   print("\n========== Scenario 3: UTF-8 multi-byte names pass through unchanged ==========")
   do
     local cases = {
-      -- { locale, tank, healer, expectedTankFragment, expectedHealerFragment }
+      -- { locale, tank, healer }
       -- Decimal escapes (\DDD) are Lua 5.1 compatible; \xHH would only work on 5.2+.
       -- ü=\195\188, ä=\195\164, é=\195\169, î=\195\174, í=\195\173,
       -- ã=\195\163, ç=\195\167, ò=\195\178, ì=\195\172, Ç=\195\135,
       -- ğ=\196\159, ı=\196\177, İ=\196\176
-      { "deDE", "M\195\188ller", "Sch\195\164fer", "M\195\188ller", "Sch\195\164fer" },
-      { "frFR", "S\195\169bastien", "Beno\195\174t", "S\195\169bastien", "Beno\195\174t" },
-      { "esES", "Luc\195\173a", "Jos\195\169", "Luc\195\173a", "Jos\195\169" },
-      { "ptBR", "Jo\195\163o", "Concei\195\167\195\163o", "Jo\195\163o", "Concei\195\167\195\163o" },
-      { "itIT", "Niccol\195\178", "Beatr\195\172ce", "Niccol\195\178", "Beatr\195\172ce" },
+      { "deDE", "M\195\188ller", "Sch\195\164fer" },
+      { "frFR", "S\195\169bastien", "Beno\195\174t" },
+      { "esES", "Luc\195\173a", "Jos\195\169" },
+      { "ptBR", "Jo\195\163o", "Concei\195\167\195\163o" },
+      { "itIT", "Niccol\195\178", "Beatr\195\172ce" },
       -- Cyrillic Юрий = \208\174\209\128\208\184\208\185, Алекс = \208\144\208\187\208\181\208\186\209\129
-      {
-        "ruRU",
-        "\208\174\209\128\208\184\208\185",
-        "\208\144\208\187\208\181\208\186\209\129",
-        "\208\174\209\128\208\184\208\185",
-        "\208\144\208\187\208\181\208\186\209\129",
-      },
+      { "ruRU", "\208\174\209\128\208\184\208\185", "\208\144\208\187\208\181\208\186\209\129" },
       -- Turkish Çağrı = \195\135a\196\159r\196\177, İlhan = \196\176lhan
-      { "trTR", "\195\135a\196\159r\196\177", "\196\176lhan", "\195\135a\196\159r\196\177", "\196\176lhan" },
+      { "trTR", "\195\135a\196\159r\196\177", "\196\176lhan" },
     }
     for _, case in ipairs(cases) do
-      local locale, tankName, healerName, tankExpect, healerExpect = case[1], case[2], case[3], case[4], case[5]
+      local locale, tankName, healerName = case[1], case[2], case[3]
       local memberRows = BuildMemberRows()
-      local state = BuildState(memberRows, addon)
-      local roster = {
+      local state, markButton = BuildState(memberRows, addon)
+      RI.RenderRosterImpl(state, {
         player = { name = tankName, realm = "", class = "WARRIOR", role = "TANK" },
         party1 = { name = healerName, realm = "", class = "PRIEST", role = "HEALER" },
-      }
-      RI.RenderRosterImpl(state, roster)
-
-      local tank = FindRowForUnit(memberRows, "player")
-      if tank then
-        local m1 = tank.roleButton:GetAttribute("macrotext1") or ""
-        Check(
-          m1 == "/cleartarget\n/target " .. tankExpect .. "\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-          locale .. ": TANK macrotext1 has UTF-8 name byte-for-byte (" .. tankExpect .. ")"
-        )
-      end
-
-      local heal = FindRowForUnit(memberRows, "party1")
-      if heal then
-        local m1 = heal.roleButton:GetAttribute("macrotext1") or ""
-        Check(
-          m1 == "/cleartarget\n/target " .. healerExpect .. "\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-          locale .. ": HEALER macrotext1 has UTF-8 name byte-for-byte (" .. healerExpect .. ")"
-        )
-      end
+      })
+      Check(
+        markButton:GetAttribute("macrotext1") == Macro({ { tankName, 6 }, { healerName, 4 } }),
+        locale .. ": macrotext1 carries both UTF-8 names byte-for-byte (" .. tankName .. ", " .. healerName .. ")"
+      )
     end
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 4: hard ban on unit tokens. No macrotext anywhere may contain
-  -- partyN / raidN / target / focus / boss / nameplate — those are the
-  -- secret-unit-token forms that 12.0.5 silently breaks.
+  -- Scenario 4: hard ban on unit tokens. No macrotext may contain partyN /
+  -- raidN / target / focus / boss / nameplate — those are the secret-unit-token
+  -- forms that 12.0.5 silently breaks.
   -- ----------------------------------------------------------------------
   print("\n========== Scenario 4: no macrotext contains a unit token ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "Tichondrius", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "Tichondrius", class = "PRIEST", role = "HEALER" },
-    }
-    RI.RenderRosterImpl(state, roster)
+    })
 
     local TOKEN_PATTERNS = {
       "/target party",
@@ -699,45 +616,43 @@ Harness.WithGlobals({
       "/target boss",
       "/target nameplate",
       "/target arena",
+      "/target player",
     }
-    for i = 1, #memberRows do
-      for _, attr in ipairs({ "macrotext1", "macrotext2" }) do
-        local m = memberRows[i].roleButton:GetAttribute(attr)
-        if type(m) == "string" then
-          for _, bad in ipairs(TOKEN_PATTERNS) do
-            Check(m:find(bad, 1, true) == nil, string.format("row %d %s does NOT contain '%s'", i, attr, bad))
-          end
+    for _, attr in ipairs({ "macrotext1", "macrotext2" }) do
+      local m = markButton:GetAttribute(attr)
+      Check(type(m) == "string", attr .. " is written")
+      if type(m) == "string" then
+        for _, bad in ipairs(TOKEN_PATTERNS) do
+          Check(m:find(bad, 1, true) == nil, string.format("%s does NOT contain '%s'", attr, bad))
         end
       end
     end
   end
 
   -- ----------------------------------------------------------------------
-  -- Scenario 5: defensive — empty / nil name drops the macro entirely.
-  -- Rather than emit a partial "/target \n/tm 6\n..." which would target
-  -- nothing and mark the previous target.
+  -- Scenario 5: defensive — empty / nil names are skipped entirely. Rather
+  -- than emit a partial "/target \n/tm 6" which would target nothing; with
+  -- neither name usable the button carries no macro at all.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 5: missing name => no macro at all ==========")
+  print("\n========== Scenario 5: missing name => no macro block ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { class = "PRIEST", role = "HEALER" },
-    }
-    RI.RenderRosterImpl(state, roster)
+    })
+    Check(markButton:GetAttribute("macrotext1") == nil, "nameless tank and healer: macrotext1 is nil")
+    Check(markButton:GetAttribute("macrotext2") == nil, "nameless tank and healer: macrotext2 is nil")
 
-    local tank = FindRowForUnit(memberRows, "player")
-    if tank then
-      Check(tank.roleButton:GetAttribute("macrotext1") == nil, "empty-name TANK: macrotext1 is nil")
-      Check(tank.roleButton:GetAttribute("macrotext2") == nil, "empty-name TANK: macrotext2 is nil")
-    end
-
-    local heal = FindRowForUnit(memberRows, "party1")
-    if heal then
-      Check(heal.roleButton:GetAttribute("macrotext1") == nil, "missing-name HEALER: macrotext1 is nil")
-      Check(heal.roleButton:GetAttribute("macrotext2") == nil, "missing-name HEALER: macrotext2 is nil")
-    end
+    RI.RenderRosterImpl(state, {
+      player = { name = "", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+    })
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Anna", 4 } }),
+      "nameless tank: only the healer block is written"
+    )
   end
 
   -- ----------------------------------------------------------------------
@@ -751,134 +666,90 @@ Harness.WithGlobals({
   print("\n========== Scenario 6b: home-realm matches => strip realm suffix ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "Pinto", realm = "Stormrage", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Cross", realm = "Tichondrius", class = "PRIEST", role = "HEALER" },
-    }
-    RI.RenderRosterImpl(state, roster)
-
-    local tank = FindRowForUnit(memberRows, "player")
-    if tank then
-      Check(
-        tank.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Pinto\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-        "TANK home-realm match: macrotext1 must drop the '-Stormrage' suffix"
-      )
-      Check(
-        tank.roleButton:GetAttribute("macrotext2")
-          == "/cleartarget\n/target Pinto\n/stopmacro [noexists]\n/tm 0\n/targetlasttarget",
-        "TANK home-realm match: macrotext2 must drop the '-Stormrage' suffix"
-      )
-    end
-
-    local heal = FindRowForUnit(memberRows, "party1")
-    if heal then
-      Check(
-        heal.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Cross-Tichondrius\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-        "HEALER cross-realm: macrotext1 must keep the '-Tichondrius' suffix"
-      )
-    end
+    })
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Pinto", 6 }, { "Cross-Tichondrius", 4 } }),
+      "home-realm tank drops '-Stormrage', cross-realm healer keeps '-Tichondrius'"
+    )
+    Check(
+      markButton:GetAttribute("macrotext2") == Macro({ { "Pinto", 0 }, { "Cross-Tichondrius", 0 } }),
+      "the clear macro uses the same stripped names"
+    )
   end
 
   -- ----------------------------------------------------------------------
   -- Scenario 6: type1/type2 are wired so the secure handler routes the
   -- click to the macro. Without these, the macrotext is dead weight.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 6: type1/type2 = 'macro' for active rows ==========")
+  print("\n========== Scenario 6: type1/type2 = 'macro' ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
-    local roster = {
+    local state, markButton = BuildState(memberRows, addon)
+    RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
-    }
-    RI.RenderRosterImpl(state, roster)
-
-    local tank = FindRowForUnit(memberRows, "player")
-    if tank then
-      Check(tank.roleButton:GetAttribute("type1") == "macro", "TANK type1 = 'macro'")
-      Check(tank.roleButton:GetAttribute("type2") == "macro", "TANK type2 = 'macro'")
-    end
-    local heal = FindRowForUnit(memberRows, "party1")
-    if heal then
-      Check(heal.roleButton:GetAttribute("type1") == "macro", "HEALER type1 = 'macro'")
-      Check(heal.roleButton:GetAttribute("type2") == "macro", "HEALER type2 = 'macro'")
-    end
+    })
+    Check(markButton:GetAttribute("type1") == "macro", "type1 = 'macro'")
+    Check(markButton:GetAttribute("type2") == "macro", "type2 = 'macro'")
   end
 
   -- ----------------------------------------------------------------------
   -- Scenario 7: roster churn during combat lockdown.
   --
-  -- SetAttribute, Show and Hide on the protected role button are all blocked
-  -- for addon code in combat (ADDON_ACTION_BLOCKED). The renderer must not
-  -- attempt any of them -- a blocked call changes nothing and only raises the
-  -- "interface action failed" error. The button keeps the macro of the
-  -- previous render until combat ends; the PLAYER_REGEN_ENABLED re-render must
-  -- then reconcile it with the current occupant.
+  -- SetAttribute on the protected Mark-T/H button is blocked for addon code in
+  -- combat (ADDON_ACTION_BLOCKED). The renderer must not attempt it -- a blocked
+  -- call changes nothing and only raises the "interface action failed" error.
+  -- The button keeps the macro of the previous render until combat ends; the
+  -- PLAYER_REGEN_ENABLED re-render must then reconcile it with the group.
   -- ----------------------------------------------------------------------
   print("\n========== Scenario 7: combat churn attempts no protected call ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
+    local state, markButton = BuildState(memberRows, addon)
 
-    -- Render A, out of combat: Felix tanks, Anna heals.
     SetCombat(false)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
     })
-
-    local tankRowBefore = FindRowForUnit(memberRows, "player")
     Check(
-      tankRowBefore ~= nil
-        and tankRowBefore.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Felix\n/stopmacro [noexists]\n/tm 6\n/targetlasttarget",
-      "pre-combat baseline: TANK row macro targets Felix"
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 }, { "Anna", 4 } }),
+      "pre-combat baseline: macro marks Felix and Anna"
     )
 
-    -- Combat starts. Anna leaves the group and Zara joins as healer; the roster
-    -- rebuilds and party1 is now a different character. Production cannot
-    -- rewrite macrotext here.
+    -- Combat starts. Anna leaves the group and Zara joins as healer.
     SetCombat(true)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
     })
+    Check(markButton._blockedCalls == 0, "in combat: no protected call is attempted on the Mark-T/H button")
 
-    Check(CountBlockedCalls(memberRows) == 0, "in combat: no protected call is attempted on any role button")
-
-    -- Combat ends: the deferred render must reconcile the button with reality.
     SetCombat(false)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
     })
-
-    local healAfter = FindRowForUnit(memberRows, "party1")
-    if healAfter then
-      Check(
-        healAfter.roleButton:GetAttribute("macrotext1")
-          == "/cleartarget\n/target Zara\n/stopmacro [noexists]\n/tm 4\n/targetlasttarget",
-        "post-combat: healer row macro targets the current occupant (Zara)"
-      )
-      Check(healAfter.roleButton._shown == true, "post-combat: healer role button is shown again")
-    end
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 }, { "Zara", 4 } }),
+      "post-combat: the macro marks the current healer (Zara)"
+    )
   end
 
   -- ----------------------------------------------------------------------
   -- Scenario 8: group SHRINK during combat.
   --
-  -- Same contract as scenario 7 through the other code path: vacated rows go
-  -- through ClearMemberRow instead of the per-member render loop. In combat
-  -- the protected button must not be touched; after combat the vacated row's
-  -- button must be hidden.
+  -- The healer leaves mid-pull. In combat the protected button must not be
+  -- touched; after combat the healer block must be gone.
   -- ----------------------------------------------------------------------
-  print("\n========== Scenario 8: combat group shrink, vacated marker hidden after combat ==========")
+  print("\n========== Scenario 8: combat group shrink, healer block dropped after combat ==========")
   do
     local memberRows = BuildMemberRows()
-    local state = BuildState(memberRows, addon)
+    local state, markButton = BuildState(memberRows, addon)
 
     SetCombat(false)
     RI.RenderRosterImpl(state, {
@@ -886,37 +757,25 @@ Harness.WithGlobals({
       party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
     })
 
-    local healerRowIndex
-    for i = 1, #memberRows do
-      if memberRows[i].unit == "party1" then
-        healerRowIndex = i
-      end
-    end
-    Check(healerRowIndex ~= nil, "pre-shrink baseline: healer occupies a row")
-
-    -- Anna leaves mid-pull; only the tank remains. The healer's row is cleared.
     SetCombat(true)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
     })
-
-    Check(CountBlockedCalls(memberRows) == 0, "in combat: clearing a row attempts no protected call")
+    Check(markButton._blockedCalls == 0, "in combat: a group shrink attempts no protected call")
 
     SetCombat(false)
     RI.RenderRosterImpl(state, {
       player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
     })
-    if healerRowIndex then
-      Check(
-        memberRows[healerRowIndex].roleButton._shown == false,
-        "post-combat: the vacated row's role button is hidden"
-      )
-    end
+    Check(
+      markButton:GetAttribute("macrotext1") == Macro({ { "Felix", 6 } }),
+      "post-combat: only the tank block remains"
+    )
   end
 
   RunAttributeWriteScenario(RI, addon)
 
-  RunMouseInputScenarios(RI, addon)
+  RunRoleIconScenarios(RI, addon)
 end)
 
 RunStaleCombatRenderScenario()

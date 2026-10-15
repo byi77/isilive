@@ -742,9 +742,19 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       addon.UICommon.CreateCompactLayoutChrome,
       "compact layouts should not add boxed inner backgrounds around actions or markers"
     )
-    Assert.Equal(m2Button.pointX, -112, "M+ mode button should sit directly left of the H/V title-bar controls")
-    Assert.Equal(horizontalButton.pointX, -90, "H mode button should sit between M+ and V in the title-bar group")
-    Assert.Equal(collapseButton.pointX, -68, "V mode button should sit directly left of the settings button")
+    -- M layout: the Re-Sync title button takes the slot left of settings and
+    -- the mode buttons move one 22 px slot to the left.
+    local resyncTitleButton = nil
+    for _, frame in ipairs(createdFrames) do
+      if type(frame.ShowCooldownRemaining) == "function" then
+        resyncTitleButton = frame
+      end
+    end
+    resyncTitleButton = Assert.NotNil(resyncTitleButton, "Re-Sync title button should exist")
+    Assert.Equal(resyncTitleButton.pointX, -68, "Re-Sync button should sit directly left of the settings button")
+    Assert.Equal(m2Button.pointX, -134, "M+ mode button should sit directly left of the H/V title-bar controls")
+    Assert.Equal(horizontalButton.pointX, -112, "H mode button should sit between M+ and V in the title-bar group")
+    Assert.Equal(collapseButton.pointX, -90, "V mode button should sit directly left of the Re-Sync button")
     Assert.Equal(m2Button._template, "BackdropTemplate", "M+ mode button should use title-bar button chrome")
     Assert.Equal(horizontalButton._template, "BackdropTemplate", "H mode button should use title-bar button chrome")
     Assert.Equal(collapseButton._template, "BackdropTemplate", "V mode button should use title-bar button chrome")
@@ -786,6 +796,8 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       return a.pointX < b.pointX
     end)
     Assert.Equal(mainFrame.width, 212, "Horizontal mini mode should use only the minimal toolbar width")
+    Assert.Equal(collapseButton.pointX, -68, "H mode hides Re-Sync, so V moves back next to settings")
+    Assert.Equal(m2Button.pointX, -112, "H mode keeps the mode buttons in their unshifted slots")
     Assert.Equal(mainFrame.height, 94, "Horizontal mini mode should shrink the frame height")
     Assert.Equal(helperButtons[1].width, 18, "M+Marker icons should keep their size")
     Assert.Equal(helperButtons[1].height, 18, "M+Marker icons should keep the square size")

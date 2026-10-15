@@ -73,9 +73,16 @@ local function InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
     local getTimeFn = rawget(_G, "GetTime")
     local now = type(getTimeFn) == "function" and getTimeFn() or 0
     local remaining = math.ceil(resyncCooldownEnd - now)
+    -- The title-bar icon button shows the remaining seconds in place of its
+    -- icon; a text button appends them to its label.
+    local showCooldown = type(btn.ShowCooldownRemaining) == "function" and btn.ShowCooldownRemaining or nil
     if remaining > 0 then
       btn:SetEnabled(false)
       btn:SetAlpha(0.5)
+      if showCooldown then
+        showCooldown(remaining)
+        return
+      end
       local label = btn._baseText or btn._fullText or "Re-Sync"
       btn._baseText = label
       local cooldownText = string.format("%s (%ds)", label, remaining)
@@ -84,12 +91,16 @@ local function InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
     else
       btn:SetEnabled(true)
       btn:SetAlpha(1.0)
-      if btn._baseText then
-        btn._fullText = btn._baseText
-        btn._baseText = nil
+      if showCooldown then
+        showCooldown(nil)
+      else
+        if btn._baseText then
+          btn._fullText = btn._baseText
+          btn._baseText = nil
+        end
+        local label = btn._fullText or "Re-Sync"
+        setFlatButtonText(btn, label)
       end
-      local label = btn._fullText or "Re-Sync"
-      setFlatButtonText(btn, label)
       if resyncTicker then
         resyncTicker:Cancel()
         resyncTicker = nil

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-15 - Version 0.9.432 (patch)
+
+- Add the Mark-T/H button in place of the old Re-Sync button. Left-click marks
+  the first living tank with the Blue Square and the first living healer with
+  the Green Triangle; right-click clears both. Players are targeted by
+  character name; each block is guarded by `/tm [exists]`, so a missing tank
+  no longer stops the healer mark.
+- Move Re-Sync to a small icon button in the title bar between V and settings
+  (M and M+ layouts only; the mode buttons shift one slot left there). The
+  cooldown shows as remaining seconds in place of the icon.
+- Role icons in the roster rows are display-only and no longer catch clicks,
+  so the row tooltip and right-click whisper work on the icon too.
+
 ## 2026-10-14 - Version 0.9.431 (patch)
 
 - Declare WoW Retail 12.1.5 (TOC interface `120105`) as the supported client patch.
