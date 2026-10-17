@@ -252,6 +252,72 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Inspect re-inspects a party member whose spec changed instead of reusing the cached spec", function()
+    WithGlobals({
+      GetTime = function()
+        return 10
+      end,
+      UnitExists = function(unit)
+        return unit == "party1" or unit == "player"
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. tostring(unit)
+      end,
+      C_PaperDollInfo = {
+        GetInspectItemLevel = function(_unit)
+          return 615
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({})
+      local roster = { party1 = { name = "Druid", realm = "Realm", role = "HEALER" } }
+      local inspectedSpec, inspectedRole = "Restoration", "HEALER"
+      local function Inspect()
+        controller.isInspecting = "party1"
+        return controller.OnInspectReady(
+          "guid-party1",
+          roster,
+          function(_unit)
+            return 3000
+          end,
+          function(_unit)
+            return inspectedSpec
+          end,
+          nil,
+          nil,
+          function(_unit)
+            return inspectedRole
+          end
+        )
+      end
+      Inspect()
+      Assert.Equal(roster.party1.spec, "Restoration", "first inspect writes the spec")
+      Assert.Equal(controller.GetInspectedSpecRole("party1"), "HEALER", "the inspected spec role is cached")
+
+      controller.inspectQueue = {}
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(#controller.inspectQueue, 0, "a fully cached member is not inspected again")
+
+      -- The healer switches to Balance but keeps the assigned HEALER role.
+      inspectedSpec, inspectedRole = "Balance", "DAMAGER"
+      Assert.True(controller.InvalidateMember("party1", roster), "a live member is invalidated")
+      Assert.Nil(controller.GetInspectedSpecRole("party1"), "the stale spec role is dropped")
+      Assert.Equal(#controller.inspectQueue, 1, "the member is queued for a new inspect")
+      Assert.True(roster.party1._refreshQueued, "the member stays pending until the inspect returns")
+      Inspect()
+      Assert.Equal(roster.party1.spec, "Balance", "the new spec replaces the cached one")
+      Assert.Equal(roster.party1.role, "DAMAGER", "the inspected spec role replaces the assigned role")
+
+      -- A roster rebuild writes the stale assigned role again; the cache wins.
+      roster.party1 = { name = "Druid", realm = "Realm", role = "HEALER" }
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(roster.party1.role, "DAMAGER", "a roster rebuild keeps the inspected spec role")
+      Assert.Equal(roster.party1.spec, "Balance", "a roster rebuild keeps the inspected spec")
+      Assert.False(controller.InvalidateMember("party2", roster), "an unknown slot is ignored")
+    end)
+  end)
+
   test("Inspect triggers sendOwnKeySnapshot on player data change", function()
     local sentSnapshot = false
     WithGlobals({

@@ -132,6 +132,63 @@ local function NewCtx(overrides)
   return ctx
 end
 
+-- Party role and spec switches (kept outside the main register function,
+-- which sits at the function-length limit).
+local function RegisterPartyRoleSwitchTests(test, Assert, LoadHandlers)
+  test("Party role and spec switches re-inspect only the affected member", function()
+    local roster = {
+      player = { name = "Alpha", role = "DAMAGER" },
+      party1 = { name = "Beta", role = "HEALER" },
+      party2 = { name = "Gamma", role = "DAMAGER" },
+    }
+    local roleByUnit = { player = "DAMAGER", party1 = "TANK", party2 = "DAMAGER" }
+    local invalidated = {}
+    local inspectedRoles = {}
+    local uiCalls = 0
+    local handlers = LoadHandlers({
+      getRoster = function()
+        return roster
+      end,
+      getUnitRole = function(unit)
+        return roleByUnit[unit]
+      end,
+      updateUI = function()
+        uiCalls = uiCalls + 1
+      end,
+      updateLeaderButtons = function() end,
+      invalidateMemberInspect = function(unit)
+        invalidated[#invalidated + 1] = unit
+      end,
+      getInspectedSpecRole = function(unit)
+        return inspectedRoles[unit]
+      end,
+    })
+    handlers.PLAYER_ROLES_ASSIGNED(nil)
+    Assert.Equal(roster.party1.role, "TANK", "the healer who switched to tank shows the new role")
+    Assert.Equal(table.concat(invalidated, ","), "party1", "only the switched member is re-inspected")
+    Assert.Equal(uiCalls, 1, "the role switch re-renders once (Mark-T/H follows the new tank)")
+
+    -- Once inspected as Guardian, a later role event with a stale assigned
+    -- role keeps the spec role and does not inspect again.
+    invalidated = {}
+    uiCalls = 0
+    inspectedRoles.party1 = "TANK"
+    roleByUnit.party1 = "HEALER"
+    handlers.PLAYER_ROLES_ASSIGNED(nil)
+    Assert.Equal(roster.party1.role, "TANK", "the inspected spec role wins over a stale group role")
+    Assert.Equal(#invalidated, 0, "an inspected member is not inspected again on a role event")
+    Assert.Equal(uiCalls, 0, "an unchanged effective role does not re-render")
+
+    invalidated = {}
+    handlers.PLAYER_SPECIALIZATION_CHANGED(nil, "party2")
+    Assert.Equal(table.concat(invalidated, ","), "party2", "a party spec switch re-inspects that member")
+    invalidated = {}
+    handlers.PLAYER_SPECIALIZATION_CHANGED(nil, "nameplate3")
+    handlers.PLAYER_SPECIALIZATION_CHANGED(nil, "raid7")
+    Assert.Equal(#invalidated, 0, "non-party units never trigger an inspect")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -145,6 +202,8 @@ return function(test, ctx)
     local stub = NewCtx(ctxOverrides)
     return addon.EventHandlersRuntimeLifecycle.BuildHandlers(stub), stub
   end
+
+  RegisterPartyRoleSwitchTests(test, Assert, LoadHandlers)
 
   -- HandleUpdateBindingsEvent --------------------------------------------------
 

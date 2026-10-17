@@ -174,6 +174,12 @@ local function BuildContext(opts)
   ctx.notifyPostChallengeSync = RequireFunction(opts.notifyPostChallengeSync, "notifyPostChallengeSync")
   ctx.isMainFrameShown = RequireFunction(opts.isMainFrameShown, "isMainFrameShown")
   ctx.onInspectReady = RequireFunction(opts.onInspectReady, "onInspectReady")
+  ctx.invalidateMemberInspect = OptionalFunction(opts.invalidateMemberInspect, function(_unit)
+    return false
+  end)
+  ctx.getInspectedSpecRole = OptionalFunction(opts.getInspectedSpecRole, function(_unit)
+    return nil
+  end)
 
   ctx.processAddonMessage = RequireFunction(opts.processAddonMessage, "processAddonMessage")
   ctx.sendAck = RequireFunction(opts.sendAck, "sendAck")

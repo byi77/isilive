@@ -24,6 +24,7 @@ local INSTANCE_ID_BY_CHALLENGE_MAP_ID = {
 }
 
 local function LoadRosterMocks()
+  ---@diagnostic disable-next-line: undefined-global
   local chunk = assert(loadfile("testmodul/isilive_test_render_roster_mocks.lua"))
   return chunk()
 end

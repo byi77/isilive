@@ -362,6 +362,7 @@ return function(test, ctx, fixtures)
     Stress.WithKey(ctx, fixtures, function(session)
       local raidChecks, nameReads = 0, 0
       local originalIsInRaid, originalUnitFullName = _G.IsInRaid, _G.UnitFullName
+      ---@diagnostic disable-next-line: duplicate-set-field
       _G.IsInRaid = function(...)
         raidChecks = raidChecks + 1
         return originalIsInRaid(...)

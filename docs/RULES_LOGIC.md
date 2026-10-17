@@ -272,6 +272,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 201. Die LFG-Ansichts-Hooks registrieren ihre Events einmalig statisch im Main Chunk; `HookSearchPanel` und der Blizzard_LFGList-Ladepfad registrieren keine Events.
 
+202. Wechselt ein Mitspieler Spec oder Rolle, wird nur er neu inspiziert; die Rolle seiner inspizierten Spec hat Vorrang vor der zugewiesenen Gruppenrolle, auch nach jedem Roster-Neuaufbau.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -2961,3 +2963,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - LFG view hooks register every event statically at load and never again on hook
   - LFGFlags.Register defers HookSearchPanel until Blizzard_LFGList loads
+
+### RULE-MITSPIELER-SPEC-ROLLENWECHSEL
+- Regelnummer: 202
+- Status: aktiv
+- Zusammenfassung: `PLAYER_SPECIALIZATION_CHANGED` fuer `party1` bis `party4` verwirft den Spec- und Spec-Rollen-Cache dieses Mitspielers (`Inspect.InvalidateMember`) und inspiziert nur ihn erneut; andere Unit-Tokens loesen nichts aus. Die Rolle aus der zuletzt inspizierten Spec wird pro GUID gecacht und hat Vorrang vor `UnitGroupRolesAssigned`: Der Roster-Neuaufbau bei `GROUP_ROSTER_UPDATE` und `PLAYER_ROLES_ASSIGNED`/`ROLE_CHANGED_INFORM` behalten sie, damit ein Heiler, der ohne neue Gruppenrolle in eine Schadens-Spec wechselt, als DD gilt und Mark-T/H ihn nicht als Heiler markiert. Ohne inspizierte Spec gilt die zugewiesene Gruppenrolle; aendert sie sich, wird der Mitspieler neu inspiziert. Fuer den lokalen Spieler bleibt die eigene Spec-Rolle massgeblich.
+- Erforderliche Tests:
+  - Inspect re-inspects a party member whose spec changed instead of reusing the cached spec
+  - Party role and spec switches re-inspect only the affected member

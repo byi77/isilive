@@ -66,6 +66,12 @@ local function EnqueueInspect(controller, unit, roster)
       rosterEntry.rio = controller.rioCache[guid]
       rosterEntry._localRioFresh = true
     end
+    -- The inspected spec role wins over the assigned group role: a healer who
+    -- switched to a damage spec without re-setting the group role is a DPS.
+    -- The roster rebuild writes the assigned role first, so re-apply it here.
+    if controller.specRoleCache[guid] then
+      rosterEntry.role = controller.specRoleCache[guid]
+    end
     if controller.specCache[guid] then
       rosterEntry.spec = controller.specCache[guid]
       rosterEntry._localSpecFresh = true
@@ -110,6 +116,7 @@ local function QueueForceRefreshData(controller, roster)
           controller.ilvlCache[guid] = nil
           controller.rioCache[guid] = nil
           controller.specCache[guid] = nil
+          controller.specRoleCache[guid] = nil
         end
         info.spec = nil
         info.ilvl = nil
@@ -124,6 +131,24 @@ local function QueueForceRefreshData(controller, roster)
       end
     end
   end
+end
+
+-- A party member switched spec (or role): the per-GUID spec cache would keep
+-- the old spec for the whole session, so drop it and inspect that member again.
+local function InvalidateMember(controller, unit, roster)
+  local info = type(roster) == "table" and roster[unit] or nil
+  if type(info) ~= "table" or info.isGhost or IsGhostRosterUnit(unit, roster) or not IsExistingUnit(unit) then
+    return false
+  end
+  local guid = GetUnitGUIDSafe(unit)
+  if guid then
+    controller.specCache[guid] = nil
+    controller.specRoleCache[guid] = nil
+  end
+  info._localSpecFresh = nil
+  info._refreshQueued = true
+  EnqueueInspect(controller, unit, roster)
+  return true
 end
 
 local function OnInspectReady(
@@ -209,6 +234,9 @@ local function OnInspectReady(
   end
 
   local specRole = type(getInspectSpecRole) == "function" and getInspectSpecRole(inspectedUnit) or nil
+  if specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER" then
+    controller.specRoleCache[guid] = specRole
+  end
   local roleChanged = false
   if
     roster[inspectedUnit]
@@ -384,6 +412,7 @@ function Inspect.CreateController(config)
   controller.ilvlCache = {}
   controller.rioCache = {}
   controller.specCache = {}
+  controller.specRoleCache = {}
 
   function controller.ResetQueues()
     controller.inspectQueue = {}
@@ -440,6 +469,7 @@ function Inspect.CreateController(config)
     controller.ilvlCache = {}
     controller.rioCache = {}
     controller.specCache = {}
+    controller.specRoleCache = {}
   end
 
   function controller.QueueForceRefreshData(roster)
@@ -448,6 +478,16 @@ function Inspect.CreateController(config)
 
   function controller.EnqueueInspect(unit, roster)
     EnqueueInspect(controller, unit, roster)
+  end
+
+  function controller.InvalidateMember(unit, roster)
+    return InvalidateMember(controller, unit, roster)
+  end
+
+  -- Role of the member's last inspected spec, or nil before an inspect.
+  function controller.GetInspectedSpecRole(unit)
+    local guid = GetUnitGUIDSafe(unit)
+    return guid and controller.specRoleCache[guid] or nil
   end
 
   function controller.OnInspectReady(

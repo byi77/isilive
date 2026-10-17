@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-17 - Version 0.9.435 (patch)
+
+- A party member's spec switch (`PLAYER_SPECIALIZATION_CHANGED` for
+  `party1`-`party4`) now re-inspects only that member. Before, the per-player
+  spec cache kept the old spec for the whole session.
+- The role of a member's inspected spec is cached and wins over the assigned
+  group role, also across roster rebuilds and role events: a healer who
+  switches to a damage spec without re-setting the group role counts as DPS,
+  and Mark-T/H no longer marks them as healer. Without an inspect the assigned
+  role applies; a change of it triggers a new inspect.
+- Editor diagnostics: targeted LuaLS directives for the intentional
+  `loadfile` and `_G.IsInRaid` overrides in two test files.
+
 ## 2026-10-17 - Version 0.9.434 (patch)
 
 - Mark-T/H targets players with `/targetexact`, so a macro left stale in combat

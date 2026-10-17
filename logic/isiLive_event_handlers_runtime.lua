@@ -304,6 +304,12 @@ local function SanitizeDBAndInstallErrorLog(ctx)
   end
 end
 
+local function InvalidateMemberInspect(ctx, unit)
+  if type(ctx.invalidateMemberInspect) == "function" then
+    ctx.invalidateMemberInspect(unit)
+  end
+end
+
 -- Re-poll cached roster.role for player + party slots from the live API.
 -- Shared by PLAYER_ROLES_ASSIGNED, ROLE_CHANGED_INFORM and the spec-change
 -- chain (Units.GetUnitRole prefers spec role for "player").
@@ -321,10 +327,20 @@ local function RefreshRosterRoles(ctx)
   local changed = false
   for unit, info in pairs(roster) do
     if type(info) == "table" and not info.isGhost and (unit == "player" or string.find(unit, "^party") ~= nil) then
-      local role = ctx.getUnitRole(unit)
+      -- A party member's inspected spec role wins over the assigned group
+      -- role; spec switches reach it through PLAYER_SPECIALIZATION_CHANGED.
+      local inspectedRole = unit ~= "player"
+          and type(ctx.getInspectedSpecRole) == "function"
+          and ctx.getInspectedSpecRole(unit)
+        or nil
+      local role = inspectedRole or ctx.getUnitRole(unit)
       if (role == "TANK" or role == "HEALER" or role == "DAMAGER" or role == "NONE") and role ~= info.role then
         info.role = role
         changed = true
+        -- Without an inspected spec yet, a role switch may hide a spec switch.
+        if unit ~= "player" and not inspectedRole then
+          InvalidateMemberInspect(ctx, unit)
+        end
       end
     end
   end
@@ -977,10 +993,20 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerSpecializationChangedEvent(_self, unit)
-    if unit ~= nil and unit ~= "player" then
+    if IsSecretValue(unit) then
       return
     end
     if IsRaidModeActive(ctx) then
+      return
+    end
+    -- A party member's spec switch: re-inspect that member (spec column, kick
+    -- tracker) and pick up a role that came with it.
+    if type(unit) == "string" and string.find(unit, "^party%d$") ~= nil then
+      InvalidateMemberInspect(ctx, unit)
+      RefreshRosterRoles(ctx)
+      return
+    end
+    if unit ~= nil and unit ~= "player" then
       return
     end
     ctx.handleKickTrackerEvent("PLAYER_SPECIALIZATION_CHANGED", unit)

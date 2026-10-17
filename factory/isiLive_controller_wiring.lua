@@ -508,6 +508,18 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     local mainFrame = type(config.getMainFrame) == "function" and config.getMainFrame() or nil
     return mainFrame and type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true
   end
+  config.invalidateMemberInspect = function(unit)
+    if controllers.inspect and type(controllers.inspect.InvalidateMember) == "function" then
+      return controllers.inspect.InvalidateMember(unit, state.getRoster())
+    end
+    return false
+  end
+  config.getInspectedSpecRole = function(unit)
+    if controllers.inspect and type(controllers.inspect.GetInspectedSpecRole) == "function" then
+      return controllers.inspect.GetInspectedSpecRole(unit)
+    end
+    return nil
+  end
   config.onInspectReady = function(guid)
     if not controllers.inspect then
       return
