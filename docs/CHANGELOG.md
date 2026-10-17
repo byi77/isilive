@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-17 - Version 0.9.433 (patch)
+
+- Defer Mark-T/H visibility, size and anchor changes during combat and apply
+  the latest requested layout on the next visible render outside combat,
+  including reopening a window that was hidden when combat ended.
+- Restore the M+ timer after a mid-key reload from verified live challenge,
+  elapsed-time and death APIs. Completed or reset runs stay cleared even if
+  the challenge API temporarily retains the previous map.
+
 ## 2026-10-15 - Version 0.9.432 (patch)
 
 - Add the Mark-T/H button in place of the old Re-Sync button. Left-click marks

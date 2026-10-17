@@ -264,6 +264,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 197. Re-Sync ist ein kleiner Icon-Button in der Titelleiste zwischen V und Einstellungen, sichtbar nur in M und M+; dort ruecken M+/H/V einen Platz nach links.
 
+198. Nach einem Reload im laufenden Key stellt der M+-Timer seinen Zustand ausschliesslich aus lesbaren Live-APIs wieder her; ein bereits beendeter oder zurueckgesetzter Run bleibt geloescht.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -361,6 +363,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Secure-Button-Updates und Layout-Mutationen an Secure-Buttons duerfen im Kampf nicht direkt ausgefuehrt werden; direkte Main-UI-Sichtbarkeitswechsel werden bei Kampf-Lockdown gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 - Erforderliche Tests:
+  - TAINT: Mark roles layout defers protected mutations and drains the latest mode after combat
   - TestMode exit in combat preserves the entire preview without cleanup callbacks
   - Teleport secure button updates are deferred during combat and applied after regen
   - UI game-menu secure button updates are deferred during combat and applied after regen
@@ -795,6 +798,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
 - Erforderliche Tests:
+  - TAINT: Mark roles layout defers protected mutations and drains the latest mode after combat
   - TAINT: Collapse click switches layout during combat while secure roster buttons exist
   - TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist
   - Event handlers rerender visible UI on regen after combat-safe layout changes
@@ -1077,6 +1081,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` muessen den M+-Timer-Snapshot sofort vollstaendig wegraeumen (`completed=false`, `timer=0`, `timeLimit=0`, `keyLevel=0`, `deaths=0`) und die CD-Tracker-Zeile neu rendern, damit die Timer-Box nach abgeschlossenem oder abgebrochenem Key nicht mit veralteten Werten stehen bleibt. Derselbe Lifecycle-Refresh muss die sichtbaren Battle-Res- und Bloodlust-CD-Timer aus dem CD-Tracker-Runtimezustand loeschen; solange kein M+-Timer laeuft oder keine aktive Gruppe vorhanden ist, duerfen sichtbare CD-Tracker-Rescans diese BR-/BL-Timer nicht aus Live-API-Daten wiederherstellen. `PLAYER_ENTERING_WORLD` waehrend eines aktiv laufenden Keys (`running=true`) darf den Timer nicht stoppen und keine Zeitstaende zuruecksetzen; ein spaeteres `PLAYER_ENTERING_WORLD` nach bereits geloeschtem Snapshot bleibt wirkungslos. Ein `PLAYER_ENTERING_WORLD`-Uebergang von ausserhalb in eine Party-Instanz ohne aktiven Challenge-Kontext muss stale Challenge-, Battle-Res- und Bloodlust-Timer mit unterdrueckten Ready-Klaengen wegraeumen; derselbe Uebergang mit aktivem Challenge-Kontext darf keinen Reset synthetisieren.
 - Erforderliche Tests:
+  - mplus_timer: world entry never resurrects a completed or reset run from stale APIs
   - Mplus stress: pending cooldown burst stays cleared after key reset and group exit
   - Mplus stress: pending cooldown burst stays cleared after key completion and group exit
   - mplus_timer: CHALLENGE_MODE_COMPLETED wipes timer, deaths, and time limits
@@ -2909,3 +2914,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Horizontal mini mode arranges management buttons and helper icons in slim rows
   - Architecture main-frame title bar applies a toolbar-safe text budget
+
+### RULE-MPLUS-TIMER-RELOAD-RECOVERY
+- Regelnummer: 198
+- Status: aktiv
+- Zusammenfassung: Ein frisch geladener M+-Timer prueft bei `PLAYER_ENTERING_WORLD` die aktive ChallengeMapID ueber die Live-API. Nur eine lesbare positive ganzzahlige MapID startet die Wiederherstellung von Keylevel, Zeitlimit, verstrichener Zeit und Todesdaten aus den jeweiligen Live-APIs. Fehlende, fehlerhafte, maskierte oder ungueltige Daten bleiben unresolved; eine spaetere Weltbetretung darf die Map-Aufloesung erneut versuchen. Ein bereits laufender Timer wird dabei nicht neu gestartet. Nach `CHALLENGE_MODE_COMPLETED` oder `CHALLENGE_MODE_RESET` bleibt die Wiederherstellung fuer die laufende Sitzung gesperrt; ein neues `CHALLENGE_MODE_START` startet weiterhin einen neuen Run.
+- Erforderliche Tests:
+  - mplus_timer: reload restores an active key from live APIs without a start event
+  - mplus_timer: reload recovery rejects unresolved active maps and retries on later world entry
+  - mplus_timer: reload recovery keeps masked and invalid timer fields unresolved
+  - mplus_timer: world entry never resurrects a completed or reset run from stale APIs
+  - mplus_timer: PLAYER_ENTERING_WORLD is a no-op while the key is still running
+  - mplus_timer: IsRunning follows the key lifecycle without sampling the elapsed time

@@ -369,6 +369,7 @@ return function(test, ctx)
 
   test("mplus_timer: PLAYER_ENTERING_WORLD before any key is a no-op", function()
     local globals, _state, frames = BuildEnv()
+    _state.mapID = nil
     local addon
     WithGlobals(globals, function()
       addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
@@ -402,6 +403,93 @@ return function(test, ctx)
     Assert.Equal(data.deaths, 0)
     Assert.Equal(data.deathTimeLost, 0)
     Assert.Equal(data.timeRemaining1, 0, "RESET must zero all cutoffs")
+  end)
+
+  test("mplus_timer: reload restores an active key from live APIs without a start event", function()
+    local globals = BuildEnv({ keyLevel = 10, timeLimit = 1800, worldElapsed = 420, deaths = 3, deathTimeLost = 45 })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+      local data = addon.MplusTimer.GetTimerData()
+      Assert.True(data.running, "a live active key must resume after reload")
+      Assert.Equal(data.keyLevel, 10)
+      Assert.Equal(data.timer, 420)
+      Assert.Equal(data.timeLimit, 1800)
+      Assert.Equal(data.timeRemaining1, 1380)
+      Assert.Equal(data.deaths, 3)
+      Assert.Equal(data.deathTimeLost, 45)
+    end)
+  end)
+
+  test("mplus_timer: world entry never resurrects a completed or reset run from stale APIs", function()
+    for _, event in ipairs({ "CHALLENGE_MODE_COMPLETED", "CHALLENGE_MODE_RESET" }) do
+      local globals = BuildEnv({ worldElapsed = 420 })
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+        addon.MplusTimer.HandleEvent(event)
+        addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+        Assert.False(addon.MplusTimer.IsRunning(), event .. " must suppress reload recovery")
+        Assert.Equal(addon.MplusTimer.GetTimerData().timer, 0)
+      end)
+    end
+  end)
+
+  test("mplus_timer: reload recovery rejects unresolved active maps and retries on later world entry", function()
+    local invalidMaps = { false, 0, -1, 1.5, math.huge, 0 / 0, "525", 999 }
+    for _, mapID in ipairs(invalidMaps) do
+      local globals, state = BuildEnv()
+      state.mapID = mapID
+      globals.issecretvalue = function(value)
+        return value == 999
+      end
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+        addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+        Assert.False(addon.MplusTimer.IsRunning(), "unverified map must not create a running timer")
+        state.mapID = 525
+        addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+        Assert.True(addon.MplusTimer.IsRunning(), "later verified live data must allow recovery")
+      end)
+    end
+    for _, api in ipairs({
+      {},
+      {
+        GetActiveChallengeMapID = function()
+          error("unavailable")
+        end,
+      },
+    }) do
+      local globals = BuildEnv({ C_ChallengeMode = api })
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+        addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+        Assert.False(addon.MplusTimer.IsRunning(), "missing or failed API must stay unresolved")
+      end)
+    end
+  end)
+
+  test("mplus_timer: reload recovery keeps masked and invalid timer fields unresolved", function()
+    for _, value in ipairs({ 999, math.huge, 0 / 0, -1 }) do
+      local globals = BuildEnv({
+        keyLevel = value,
+        timeLimit = value,
+        deaths = value,
+        deathTimeLost = value,
+      })
+      globals.issecretvalue = function(candidate)
+        return candidate == 999
+      end
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+        addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+        local data = addon.MplusTimer.GetTimerData()
+        Assert.True(data.running, "the verified active map still proves a running key")
+        Assert.Equal(data.keyLevel, 0, "unreadable level must remain unresolved")
+        Assert.Equal(data.timeLimit, 0, "unreadable limit must remain unresolved")
+        Assert.Equal(data.deaths, 0, "unreadable deaths must not enter the snapshot")
+        Assert.Equal(data.deathTimeLost, 0, "unreadable penalty must not enter the snapshot")
+      end)
+    end
   end)
 
   test("mplus_timer: GetActiveChallengeMapID pcall failure falls back to zero limits", function()

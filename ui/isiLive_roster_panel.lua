@@ -1039,6 +1039,9 @@ function RosterPanel.CreateController(opts)
       return
     end
     hiddenRenderPending = false
+    if ui.pendingSecureLayout and not IsInCombatLockdown() then
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+    end
     MaybeRescanCdTrackerForVisibleRender()
     if logRuntimeTraceDeep then
       renderTraceRoster = roster

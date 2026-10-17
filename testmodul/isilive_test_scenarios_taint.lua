@@ -202,7 +202,7 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
   end
 
   function frame:IsProtected()
-    return self._template == "SecureActionButtonTemplate"
+    return type(self._template) == "string" and self._template:find("SecureActionButtonTemplate", 1, true) ~= nil
   end
 
   function frame:RegisterEvent(event)
@@ -1207,6 +1207,75 @@ local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, Lo
   end)
 end
 
+local function RegisterDeferredMarkRolesLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TAINT: Mark roles layout defers protected mutations and drains the latest mode after combat", function()
+    local controller, frames, stubs, mainFrame = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+    local roster = { player = { name = "Tank", role = "TANK", class = "WARRIOR" } }
+    local inCombat = false
+    stubs.InCombatLockdown = function()
+      return inCombat
+    end
+    WithGlobals(stubs, function()
+      controller.RenderRoster(roster)
+      local markButton = RequireNonNil(FindSecureRoleButton(frames, "Tank"), "Mark-T/H must exist")
+      function markButton:GetPoint()
+        return (rawget(_G, "unpack") or rawget(table, "unpack"))(self.point)
+      end
+      local mutationCount = 0
+      for _, method in ipairs({ "Show", "Hide", "SetShown", "SetSize", "ClearAllPoints", "SetPoint" }) do
+        local original = markButton[method]
+        markButton[method] = function(self, ...)
+          Assert.False(inCombat, "protected " .. method .. " must wait for combat end")
+          mutationCount = mutationCount + 1
+          if original then
+            return original(self, ...)
+          end
+          if method == "SetShown" then
+            self._shown = ...
+          end
+        end
+      end
+      inCombat = true
+      local vertical = RequireNonNil(FindCollapseButton(frames), "V button must exist")
+      local horizontal = RequireNonNil(FindHorizontalCollapseButton(frames), "H button must exist")
+      vertical.OnClick(vertical)
+      horizontal.OnClick(horizontal)
+      controller.RenderRoster(roster)
+      Assert.Equal(mutationCount, 0, "combat clicks and renders must leave the secure button untouched")
+      Assert.True(markButton:IsShown(), "visibility must remain unchanged during combat")
+      inCombat = false
+      controller.RenderRoster(roster)
+      Assert.True(mutationCount > 0, "the post-combat render must apply pending secure layout")
+      Assert.False(markButton:IsShown(), "the latest H request must hide Mark-T/H after combat")
+      Assert.Equal(controller.GetLayoutMode(), "compact_horizontal")
+      Assert.Equal(markButton.width, 120, "post-combat layout must restore the column button size")
+      Assert.Equal(markButton.point[1], "TOPRIGHT", "post-combat layout must restore the column anchor")
+      local mainHorizontal
+      for _, frame in ipairs(frames) do
+        if frame._modeTarget == "compact_main_horizontal" then
+          mainHorizontal = frame
+        end
+      end
+      mainHorizontal = RequireNonNil(mainHorizontal, "M+ button must exist")
+      inCombat = true
+      mainHorizontal.OnClick(mainHorizontal)
+      mainFrame:Hide()
+      inCombat = false
+      local beforeHiddenRender = mutationCount
+      controller.RenderRoster(roster)
+      Assert.Equal(mutationCount, beforeHiddenRender, "hidden renders must retain pending layout")
+      mainFrame:Show()
+      Assert.True(controller.FlushHiddenRender(), "reopen must drain the hidden render")
+      Assert.True(markButton:IsShown(), "reopen must apply the pending M+ visibility")
+      Assert.Equal(markButton.width, 92, "reopen must apply the pending M+ button size")
+      Assert.Equal(markButton.point[1], "BOTTOMLEFT", "reopen must apply the pending M+ anchor")
+      local afterDrain = mutationCount
+      controller.RenderRoster(roster)
+      Assert.Equal(mutationCount, afterDrain, "ordinary renders must not replay an already drained layout")
+    end)
+  end)
+end
+
 local function RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TAINT: Center notice teleport button stays insecure and avoids secure apply while in combat", function()
     local createdFrames = {}
@@ -1306,5 +1375,6 @@ return function(test, ctx)
   RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterDeferredMarkRolesLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModules)
 end

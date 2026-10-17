@@ -1,7 +1,15 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.432`
-Zuletzt aktualisiert: `2026-10-15`
+Versionsbasis: `0.9.433`
+Zuletzt aktualisiert: `2026-10-17`
+
+Review-Fixes (2026-10-17): Layoutklicks im Kampf uebernehmen weiterhin den
+gewuenschten Modus. Mark-T/H behaelt dabei seine sichere Sichtbarkeit,
+Groesse und Verankerung bis zum naechsten sichtbaren Render ausserhalb des
+Kampfs; bei verborgenem Fenster erfolgt dies beim Wiedereroeffnen. Ein
+Reload im laufenden Key stellt den Timer samt Level, Zeitlimit und Toden
+aus lesbaren Live-APIs wieder her. Unaufgeloeste Daten erzeugen keinen
+geratenen Zustand; ein bereits beendeter oder zurueckgesetzter Run bleibt aus.
 
 Seelenernter-Warnung (0.9.429): Mit aktivierter VIP-Option erscheint das
 Kreuz direkt nach DT fuer sieben Sekunden und erneut in den letzten sieben

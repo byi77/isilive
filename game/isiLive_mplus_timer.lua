@@ -5,6 +5,13 @@ addonTable = addonTable or {}
 local MplusTimer = {}
 addonTable.MplusTimer = MplusTimer
 local IsSecretValue = addonTable.Validators.IsSecretValue
+-- Recovery is only for a freshly loaded runtime. Completion/reset must not
+-- resurrect a cleared run even if Blizzard still reports its previous map.
+local canRestoreActiveRun = true
+
+local function IsFiniteNumber(value)
+  return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
 
 -- Internal state
 local state = {
@@ -48,7 +55,7 @@ local function LoadKeyTimeLimits(mapId)
     return
   end
   local ok, _, _, timeLimit = pcall(challengeMode.GetMapUIInfo, mapId)
-  if not ok or type(timeLimit) ~= "number" or timeLimit <= 0 then
+  if not ok or IsSecretValue(timeLimit) or not IsFiniteNumber(timeLimit) or timeLimit <= 0 then
     return
   end
   state.timeLimit = timeLimit
@@ -63,23 +70,33 @@ end
 -- Death time penalties only apply at key level 4 and above.
 local DEATH_PENALTY_MIN_LEVEL = 4
 
-local function StartTimer()
+local function ReadActiveChallengeMapID()
+  local api = rawget(_G, "C_ChallengeMode")
+  if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
+    return nil
+  end
+  local ok, mapID = pcall(api.GetActiveChallengeMapID)
+  if not ok or IsSecretValue(mapID) or not IsFiniteNumber(mapID) then
+    return nil
+  end
+  if mapID <= 0 or mapID % 1 ~= 0 then
+    return nil
+  end
+  return mapID
+end
+
+local function StartTimer(verifiedMapID)
+  canRestoreActiveRun = false
   local challengeMode = rawget(_G, "C_ChallengeMode")
   local hasChallengeAPI = type(challengeMode) == "table"
 
-  local mapId
-  if hasChallengeAPI and type(challengeMode.GetActiveChallengeMapID) == "function" then
-    local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and not IsSecretValue(id) and type(id) == "number" then
-      mapId = id
-    end
-  end
+  local mapId = verifiedMapID or ReadActiveChallengeMapID()
   LoadKeyTimeLimits(mapId)
 
   local keyLevel = 0
   if hasChallengeAPI and type(challengeMode.GetActiveKeystoneInfo) == "function" then
     local ok, level = pcall(challengeMode.GetActiveKeystoneInfo)
-    if ok and not IsSecretValue(level) and type(level) == "number" then
+    if ok and not IsSecretValue(level) and IsFiniteNumber(level) and level > 0 and level % 1 == 0 then
       keyLevel = level
     end
   end
@@ -99,6 +116,7 @@ local function StopTimer(completed)
 end
 
 local function ResetTimerState()
+  canRestoreActiveRun = false
   StopTimer(false)
   state.timer = 0
   state.deaths = 0
@@ -116,13 +134,13 @@ local function UpdateDeaths()
   end
   local ok, count, timeLost = pcall(challengeMode.GetDeathCount)
   if ok then
-    if type(count) == "number" then
+    if not IsSecretValue(count) and IsFiniteNumber(count) and count >= 0 then
       state.deaths = count
     end
     -- Keep previous timeLost when the API momentarily returns nil (secret-value
     -- masking in tainted mid-key contexts). Without this guard the UI flickers
     -- 75s -> 0 -> 75s on every transient mask.
-    if type(timeLost) == "number" then
+    if not IsSecretValue(timeLost) and IsFiniteNumber(timeLost) and timeLost >= 0 then
       state.deathTimeLost = timeLost
     end
   end
@@ -192,6 +210,13 @@ function MplusTimer.HandleEvent(event)
   elseif event == "PLAYER_ENTERING_WORLD" then
     if state.completed and not state.running then
       ResetTimerState()
+    elseif canRestoreActiveRun and not state.running then
+      local mapID = ReadActiveChallengeMapID()
+      if mapID then
+        StartTimer(mapID)
+        UpdateDeaths()
+        RefreshElapsedTime()
+      end
     end
   end
 end

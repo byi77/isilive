@@ -614,18 +614,22 @@ local function GetVerticalHelperButtonPoint(markerIndex)
 end
 RI.GetVerticalHelperButtonPoint = GetVerticalHelperButtonPoint
 
-local function ReanchorFrame(frame, point, x, y)
-  if not (frame and frame.SetPoint) then
-    return
-  end
+local function IsProtectedFrame(frame)
   local isProtected = false
   if type(frame.IsProtected) == "function" then
     local okProtected, protected = pcall(frame.IsProtected, frame)
     isProtected = okProtected and protected == true
-  elseif frame._template == "SecureActionButtonTemplate" then
-    isProtected = true
+  elseif type(frame._template) == "string" then
+    isProtected = frame._template:find("SecureActionButtonTemplate", 1, true) ~= nil
   end
-  if isProtected and IsCombatLockdownActive() then
+  return isProtected
+end
+
+local function ReanchorFrame(frame, point, x, y)
+  if not (frame and frame.SetPoint) then
+    return
+  end
+  if IsProtectedFrame(frame) and IsCombatLockdownActive() then
     return
   end
   if frame.ClearAllPoints then
@@ -638,14 +642,7 @@ local function SetFrameSizeSafe(frame, width, height)
   if not (frame and frame.SetSize) then
     return
   end
-  local isProtected = false
-  if type(frame.IsProtected) == "function" then
-    local okProtected, protected = pcall(frame.IsProtected, frame)
-    isProtected = okProtected and protected == true
-  elseif frame._template == "SecureActionButtonTemplate" then
-    isProtected = true
-  end
-  if isProtected and IsCombatLockdownActive() then
+  if IsProtectedFrame(frame) and IsCombatLockdownActive() then
     return
   end
   frame:SetSize(width, height)
@@ -749,6 +746,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   if type(ui) == "table" then
     ui.layoutMode = layoutMode
     ui.isCollapsed = isCollapsed
+    -- The visible post-combat render (or the next OnShow while hidden) must
+    -- replay size, anchors and visibility skipped for secure children.
+    ui.pendingSecureLayout = IsCombatLockdownActive()
   end
 
   if type(ui) == "table" and type(ui.setMainFrameWidthSafe) == "function" then
@@ -869,6 +869,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   end
 
   local function SetVisible(obj, show)
+    if obj and IsProtectedFrame(obj) and IsCombatLockdownActive() then
+      return
+    end
     if obj and obj.SetShown then
       obj:SetShown(show)
     elseif obj and show and obj.Show then
