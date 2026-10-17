@@ -1162,6 +1162,68 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox widens the percent column for a mastery above 100 percent instead of clipping it", function()
+    local fontStrings = {}
+    local createFrameStub = BuildCreateFrameStub()
+    local createFrame = function(...)
+      local frame = createFrameStub(...)
+      local originalCreateFontString = frame.CreateFontString
+      frame.CreateFontString = function(self, ...)
+        local fontString = originalCreateFontString(self, ...)
+        -- 10 px per character: "(122.23%)" needs 90 px, more than the 70 px
+        -- default percent column.
+        local function fullWidth(widthSelf)
+          return #tostring(widthSelf._text or "") * 10
+        end
+        -- Like the client: the bounded measurement is clipped to SetWidth.
+        fontString.GetUnboundedStringWidth = fullWidth
+        fontString.GetStringWidth = function(widthSelf)
+          local width = tonumber(widthSelf._width)
+          local full = fullWidth(widthSelf)
+          return width and width > 0 and math.min(full, width) or full
+        end
+        fontStrings[#fontStrings + 1] = fontString
+        return fontString
+      end
+      return frame
+    end
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = createFrame,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local mastery = 50.05
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "crit", label = "Krit", value = 678, percent = 26.74 },
+            { key = "mastery", label = "Meist", value = 1007, percent = mastery },
+          }
+        end,
+      })
+      local widthBefore = box.frame._width
+      mastery = 122.23
+      box.frame._scripts.OnUpdate(box.frame, 1.0)
+
+      local masteryPercent
+      for _, fontString in ipairs(fontStrings) do
+        if fontString._text == "(122.23%)" then
+          masteryPercent = fontString
+        end
+        Assert.True(fontString._wordWrap ~= true, "stat texts must stay on one line")
+      end
+      Assert.NotNil(masteryPercent, "the mastery percent must render in full")
+      Assert.True(
+        masteryPercent ~= nil and masteryPercent._width >= masteryPercent:GetUnboundedStringWidth(),
+        "the percent column must fit the full mastery text"
+      )
+      Assert.True(box.frame._width > widthBefore, "the box widens for the longer percent")
+    end)
+  end)
+
   test("StatsBox ignores secret text width measurements", function()
     local secretWidth = {}
     local secretWidths = false

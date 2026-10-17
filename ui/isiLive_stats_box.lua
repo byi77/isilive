@@ -701,11 +701,22 @@ local function FormatRow(row)
   return valueText, percentText
 end
 
+-- GetStringWidth on a FontString with a fixed SetWidth reports the clipped
+-- width, so a column could never grow past its current size (a mastery of
+-- "(122.23%)" was cut to "(122.23..."). GetUnboundedStringWidth measures the
+-- full text; GetStringWidth stays as fallback for clients without it.
 local function MeasureFontStringWidth(fontString)
-  if type(fontString) ~= "table" or type(fontString.GetStringWidth) ~= "function" then
+  if type(fontString) ~= "table" then
     return nil
   end
-  local ok, width = pcall(fontString.GetStringWidth, fontString)
+  local measure = fontString.GetUnboundedStringWidth
+  if type(measure) ~= "function" then
+    measure = fontString.GetStringWidth
+  end
+  if type(measure) ~= "function" then
+    return nil
+  end
+  local ok, width = pcall(measure, fontString)
   if not ok or IsSecretValue(width) or width == nil then
     return nil
   end
@@ -1065,18 +1076,30 @@ function StatsBox.Create(opts)
     label:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -6 - ((index - 1) * LINE_HEIGHT))
     label:SetWidth(LABEL_COLUMN_WIDTH)
     label:SetJustifyH("RIGHT")
+    -- One line only: a wrapped value shifted the row out of alignment.
+    if type(label.SetWordWrap) == "function" then
+      label:SetWordWrap(false)
+    end
     label:SetText("")
 
     local value = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     value:SetPoint("TOPRIGHT", frame, "TOPRIGHT", VALUE_ONLY_RIGHT_OFFSET, -6 - ((index - 1) * LINE_HEIGHT))
     value:SetWidth(VALUE_COLUMN_WIDTH)
     value:SetJustifyH("RIGHT")
+    -- One line only: a wrapped value shifted the row out of alignment.
+    if type(value.SetWordWrap) == "function" then
+      value:SetWordWrap(false)
+    end
     value:SetText("")
 
     local percent = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     percent:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -6 - ((index - 1) * LINE_HEIGHT))
     percent:SetWidth(PERCENT_COLUMN_WIDTH)
     percent:SetJustifyH("RIGHT")
+    -- One line only: a wrapped value shifted the row out of alignment.
+    if type(percent.SetWordWrap) == "function" then
+      percent:SetWordWrap(false)
+    end
     percent:SetText("")
 
     state.lines[index] = {

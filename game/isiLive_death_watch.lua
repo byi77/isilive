@@ -17,24 +17,9 @@ local WATCHED_UNITS = {
   party4 = true,
 }
 
--- Deterministic order for the full re-poll (CHALLENGE_MODE_DEATH_COUNT_UPDATED).
--- A pairs() walk over WATCHED_UNITS would make the death-audio burst pause,
--- which depends on the order consecutive deaths are observed in, unstable.
+-- Deterministic order for the full re-poll (CHALLENGE_MODE_DEATH_COUNT_UPDATED),
+-- so deaths found in one re-poll are announced in a stable order.
 local WATCHED_UNIT_ORDER = { "player", "party1", "party2", "party3", "party4" }
-
-local DEATH_AUDIO_BURST_PAUSE_SECONDS = 30
-
-local function DefaultGetTime()
-  local fn = rawget(_G, "GetTime")
-  if type(fn) ~= "function" then
-    return 0
-  end
-  local ok, value = pcall(fn)
-  if not ok then
-    return 0
-  end
-  return tonumber(value) or 0
-end
 
 -- Full runtime profile: an active keystone or a mythic party dungeon whose key
 -- has not been inserted yet (difficultyID 23). Resolved centrally so death
@@ -153,7 +138,6 @@ function DeathWatch.CreateController(opts)
   local getUnitRole = type(opts.getUnitRole) == "function" and opts.getUnitRole or DefaultGetUnitRole
   local getUnitNameAndRealm = type(opts.getUnitNameAndRealm) == "function" and opts.getUnitNameAndRealm
     or DefaultGetUnitNameAndRealm
-  local getTime = type(opts.getTime) == "function" and opts.getTime or DefaultGetTime
   local getDB = type(opts.getDB) == "function" and opts.getDB
     or function()
       return rawget(_G, "IsiLiveDB") or {}
@@ -170,9 +154,6 @@ function DeathWatch.CreateController(opts)
   local deadRoleByGuid = {}
   local deathSummaryByGuid = {}
   local guidByPlayerKey = {}
-  local previousDeathGuid = nil
-  local sequentialDifferentDeaths = 0
-  local deathAudioPausedUntil = 0
   -- Same in-key cache pattern as CombatEvents: invalidated via Reset() on
   -- CHALLENGE_MODE_START / COMPLETED / RESET, the only events that change it.
   local cachedInKey = nil
@@ -203,37 +184,6 @@ function DeathWatch.CreateController(opts)
       end
     end
     return false
-  end
-
-  local function GetNow()
-    return tonumber(getTime()) or 0
-  end
-
-  local function IsDeathAudioPaused(now)
-    return tonumber(deathAudioPausedUntil) and now < deathAudioPausedUntil
-  end
-
-  local function UpdateDeathAudioBurstPause(guid, now)
-    if IsDeathAudioPaused(now) then
-      return true
-    end
-    if tonumber(deathAudioPausedUntil) and deathAudioPausedUntil > 0 then
-      previousDeathGuid = nil
-      sequentialDifferentDeaths = 0
-      deathAudioPausedUntil = 0
-    end
-    local suppressAudio = false
-    if previousDeathGuid and previousDeathGuid ~= guid then
-      sequentialDifferentDeaths = sequentialDifferentDeaths + 1
-    else
-      sequentialDifferentDeaths = 1
-    end
-    previousDeathGuid = guid
-    if sequentialDifferentDeaths >= 2 then
-      deathAudioPausedUntil = now + DEATH_AUDIO_BURST_PAUSE_SECONDS
-      suppressAudio = true
-    end
-    return suppressAudio
   end
 
   local function RecordDeath(guid, unit, role)
@@ -302,9 +252,8 @@ function DeathWatch.CreateController(opts)
       if role == "DAMAGER" and HasDeadTankAndHealer() then
         return
       end
-      local suppressAudio = UpdateDeathAudioBurstPause(guid, GetNow())
       deadRoleByGuid[guid] = role
-      onRoleDeath(role, unit, { suppressAudio = suppressAudio })
+      onRoleDeath(role, unit, {})
     end
   end
 
@@ -431,9 +380,6 @@ function DeathWatch.CreateController(opts)
   function controller.ResetEdges()
     deadByGuid = {}
     deadRoleByGuid = {}
-    previousDeathGuid = nil
-    sequentialDifferentDeaths = 0
-    deathAudioPausedUntil = 0
     cachedInKey = nil
   end
 

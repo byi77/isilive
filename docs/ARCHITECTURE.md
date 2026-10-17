@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.435`
-Zuletzt aktualisiert: `2026-10-17`
+Versionsbasis: `0.9.436`
+Zuletzt aktualisiert: `2026-10-18`
 
 Review-Fixes (2026-10-17): `UpdateCollapseState` merkt waehrend Kampf-Lockdown
 ausstehendes Secure-Layout und ueberspringt geschuetzte Sichtbarkeitsaenderungen.
@@ -425,7 +425,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.435                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.436                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-18 - Version 0.9.436 (patch)
+
+- Death announcements: removed the 30-second death-audio burst pause left over
+  from the spoken-TTS era. It muted the second of two different player deaths
+  with no time window, so a healer dying after the tank was never announced.
+  Tank and healer deaths now always play, one after the other with 1.25 s
+  spacing instead of overlapping; each player is still announced once per
+  death, and the 1-second per-role duplicate guard stays.
+- Stats box: columns are measured with `GetUnboundedStringWidth`, because
+  `GetStringWidth` reports the clipped width of a fixed-width column, and stat
+  texts no longer word-wrap. A mastery above 100% now shows in full and the box
+  widens instead of clipping the value or shifting the row.
+
 ## 2026-10-17 - Version 0.9.435 (patch)
 
 - A party member's spec switch (`PLAYER_SPECIALIZATION_CHANGED` for

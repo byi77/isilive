@@ -5,6 +5,10 @@ local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
 local DEATH_ALERT_DUPLICATE_WINDOW_SECONDS = 1
+-- Death announcements play one after another instead of overlapping: the
+-- longest bundled death WAV (TankDied.wav / HealerDied.wav) runs 1.1 s, so the
+-- next one starts 1.25 s after the previous one began.
+local DEATH_SOUND_SPACING_SECONDS = 1.25
 
 local OWN_DEATH_SOUND_SETTINGS = {
   TANK = "soundOwnTankDiedEnabled",
@@ -15,12 +19,35 @@ local ContextHelpers = addonTable.ContextHelpers or {}
 local IsMplusTimerRunning = ContextHelpers.IsMplusTimerRunning
 local IsTrackedPartyRunActive = ContextHelpers.IsTrackedPartyRunActive
 
+local ROLE_DEATH_SOUND_KEYS = {
+  TANK = "tank_died",
+  HEALER = "healer_died",
+}
+
+-- True when a death announcement will actually play, so only those take a
+-- slot in the sequential queue (damage-dealer deaths have no WAV).
+local function WillPlayRoleDeathSound(role, unit)
+  local soundKey = ROLE_DEATH_SOUND_KEYS[role]
+  if not soundKey then
+    return false
+  end
+  if unit == "player" then
+    local db = rawget(_G, "IsiLiveDB")
+    local settingKey = OWN_DEATH_SOUND_SETTINGS[role]
+    if type(db) == "table" and db[settingKey] == false then
+      return false
+    end
+  end
+  local soundUtils = addonTable.SoundUtils
+  if type(soundUtils) ~= "table" then
+    return false
+  end
+  return type(soundUtils.IsEnabled) ~= "function" or soundUtils.IsEnabled(soundKey) == true
+end
+
 -- Static WAV only. The bundled death WAVs exist for tank and healer; damage
 -- dealer deaths keep their DeathWatch counting path but have no audio asset.
 local function PlayRoleDeathSound(role, opts)
-  if type(opts) == "table" and opts.suppressAudio == true then
-    return
-  end
   if type(opts) == "table" and opts.unit == "player" then
     local settingKey = OWN_DEATH_SOUND_SETTINGS[role]
     local db = rawget(_G, "IsiLiveDB")
@@ -60,6 +87,29 @@ end
 
 local function InitializeFactoryDeathAlertControllers(ctx)
   local lastRoleAlertAt = {}
+  -- GetTime at which the death-sound slot is free again.
+  local deathSoundFreeAt = 0
+
+  -- A tank death followed by a healer death plays both announcements, the
+  -- second once the first has finished.
+  local function QueueRoleDeathSound(role, opts, now)
+    if not WillPlayRoleDeathSound(role, opts.unit) then
+      return
+    end
+    local timer = rawget(_G, "C_Timer")
+    local delay = now and (deathSoundFreeAt - now) or 0
+    if delay <= 0 or type(timer) ~= "table" or type(timer.After) ~= "function" then
+      if now then
+        deathSoundFreeAt = now + DEATH_SOUND_SPACING_SECONDS
+      end
+      PlayRoleDeathSound(role, opts)
+      return
+    end
+    deathSoundFreeAt = deathSoundFreeAt + DEATH_SOUND_SPACING_SECONDS
+    timer.After(delay, function()
+      PlayRoleDeathSound(role, opts)
+    end)
+  end
   local deathAlert = addonTable.DeathAlert
   if type(deathAlert) == "table" and type(deathAlert.SetDependencies) == "function" then
     deathAlert.SetDependencies({
@@ -94,7 +144,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
     end
     opts = type(opts) == "table" and opts or {}
     opts.unit = unit
-    PlayRoleDeathSound(role, opts)
+    QueueRoleDeathSound(role, opts, now)
   end
 
   -- Rule 168: on a key start (death alerts enabled) the alert frame is built

@@ -240,13 +240,13 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(env.alerts[2].role, "HEALER", "the healer death still alerts")
   end)
 
-  test("DeathWatch marks death-audio pause for 30 seconds after two consecutive player deaths", function()
+  test("DeathWatch announces every different player death once, however close together", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv({
       roles = {
         player = "DAMAGER",
         party1 = "TANK",
-        party2 = "DAMAGER",
+        party2 = "HEALER",
         party3 = "DAMAGER",
         party4 = "DAMAGER",
       },
@@ -255,22 +255,16 @@ local function RegisterDeathWatchTests(test, ctx)
 
     env.deadUnits.party1 = true
     controller.HandleUnitHealth("party1")
-    Assert.False(env.alerts[1].opts.suppressAudio == true, "first death must still allow death audio")
-
     env.now = 101
     env.deadUnits.party2 = true
     controller.HandleUnitHealth("party2")
-    Assert.True(env.alerts[2].opts.suppressAudio == true, "second different player death must start the audio pause")
+    controller.HandleUnitHealth("party2")
+    controller.HandleUnitHealth("party1")
 
-    env.now = 120
-    env.deadUnits.party3 = true
-    controller.HandleUnitHealth("party3")
-    Assert.True(env.alerts[3].opts.suppressAudio == true, "death audio must stay paused inside the 30-second window")
-
-    env.now = 132
-    env.deadUnits.party4 = true
-    controller.HandleUnitHealth("party4")
-    Assert.False(env.alerts[4].opts.suppressAudio == true, "death audio must resume after the 30-second pause expires")
+    Assert.Equal(#env.alerts, 2, "a tank and a healer dying back to back each alert exactly once")
+    Assert.Equal(env.alerts[1].role, "TANK", "the tank death alerts first")
+    Assert.Equal(env.alerts[2].role, "HEALER", "the healer death right after it still alerts")
+    Assert.Nil(env.alerts[2].opts.suppressAudio, "no death announcement is muted any more")
   end)
 
   test("DeathWatch ignores disconnected units", function()
@@ -1435,18 +1429,36 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.Equal(env.wavs[3], "tank", "a later tank WAV must play")
   end)
 
-  test("Factory death alert suppresses paused death WAV without hiding tank or healer warnings", function()
+  test("Factory death alert plays a healer death right after a tank death without overlap", function()
+    local now = 100
+    local timers = {}
     local env = BuildFactoryStaticWavEnv()
-    WithGlobals({}, function()
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      C_Timer = {
+        After = function(delay, callback)
+          timers[#timers + 1] = { delay = delay, callback = callback }
+        end,
+      },
+    }, function()
       local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
       addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
-      env.deps.onRoleDeath("TANK", "party1", { suppressAudio = true })
-      env.deps.onRoleDeath("HEALER", "party2", { suppressAudio = true })
+      env.deps.onRoleDeath("TANK", "party1")
+      now = 100.3
+      env.deps.onRoleDeath("HEALER", "party2")
+      env.deps.onRoleDeath("DAMAGER", "party3")
     end)
-    Assert.Equal(#env.shown, 2, "suppressed death audio must not hide tank or healer warnings")
-    Assert.Equal(env.shown[1], "TANK", "the tank warning must still render")
-    Assert.Equal(env.shown[2], "HEALER", "the healer warning must still render")
-    Assert.Equal(#env.wavs, 0, "suppressed death audio must not play tank or healer WAV files")
+    Assert.Equal(env.shown[1], "TANK", "the tank warning renders at once")
+    Assert.Equal(env.shown[2], "HEALER", "the healer warning renders at once")
+    Assert.Equal(#env.wavs, 1, "the healer WAV must wait until the tank WAV has finished")
+    Assert.Equal(env.wavs[1], "tank", "the tank WAV plays first")
+    Assert.Equal(#timers, 1, "only the healer announcement is queued; damage deaths have no WAV")
+    Assert.True(math.abs(timers[1].delay - 0.95) < 0.001, "the healer WAV starts 1.25 s after the tank WAV")
+    timers[1].callback()
+    Assert.Equal(#env.wavs, 2, "the queued healer WAV plays after the tank WAV")
+    Assert.Equal(env.wavs[2], "healer", "the second announcement is the healer death")
   end)
 end
 
