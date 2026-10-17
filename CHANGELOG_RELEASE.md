@@ -3,20 +3,20 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.433`.
+Current version: `0.9.434`.
 
-Version 0.9.433: combat-safe layout changes and M+ timer recovery after reload.
+Version 0.9.434: exact-name role marking, combat-safe V/H switch and test mode.
 
-<!-- highlights-reviewed-for: 0.9.433 -->
+<!-- highlights-reviewed-for: 0.9.434 -->
 
 Highlights:
-- **Combat-safe layout changes.** Mark-T/H visibility, size and anchors update
-  after combat; hidden windows apply the latest layout when reopened.
+- **Exact-name role marking.** Mark-T/H targets each player by exact name and
+  returns to your own target right after each marker.
+- **Combat-safe layout changes.** Switching to V or H in combat hides Mark-T/H
+  at once; size and anchors catch up after combat.
+- **Test mode and combat.** Test mode cannot start in combat and ends when
+  combat begins, leaving the window open with your real group.
 - **M+ timer reload recovery.** Reloading during a key restores its timer,
   level, time limit and death data from live APIs. Finished runs stay cleared.
-- **Mark-T/H button.** One click marks the tank (Blue Square) and the healer
-  (Green Triangle); right-click clears both. A missing role is simply skipped.
-- **Re-Sync in the title bar.** Re-Sync is now a small icon button between the
-  V and settings buttons (M and M+ layouts) and counts down its cooldown.
 - **DK helpers in isiBlightfallTracker.** Soul Reaper/Putrefy crosses, the ghoul
   reminder and horse-sound muting are configured there; isiLive keeps them off.

@@ -52,6 +52,7 @@ local function BuildContext(opts)
   ctx.isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
   ctx.isTestAllMode = RequireFunction(opts.isTestAllMode, "isTestAllMode")
   ctx.exitTestMode = RequireFunction(opts.exitTestMode, "exitTestMode")
+  ctx.exitTestModeForCombat = OptionalFunction(opts.exitTestModeForCombat, ctx.exitTestMode)
   ctx.handleGroupRosterUpdate = RequireFunction(opts.handleGroupRosterUpdate, "handleGroupRosterUpdate")
 
   ctx.isInChallengeMode = RequireFunction(opts.isInChallengeMode, "isInChallengeMode")

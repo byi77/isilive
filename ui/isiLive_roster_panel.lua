@@ -456,8 +456,10 @@ local function CreatePanelButtons(mainFrame, deps)
     markRolesButton:RegisterForClicks("AnyUp", "AnyDown")
   end
   if type(markRolesButton.HookScript) == "function" then
-    markRolesButton:HookScript("OnClick", function()
-      if type(deps.logRuntimeTrace) == "function" then
+    -- Registered for AnyUp + AnyDown, so OnClick runs twice per click; trace
+    -- the release only.
+    markRolesButton:HookScript("OnClick", function(_, _, down)
+      if not down and type(deps.logRuntimeTrace) == "function" then
         deps.logRuntimeTrace("[UI] btn_click name=mark_roles")
       end
     end)
@@ -610,14 +612,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local killTrackRow = CreateKillTrackRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
-  local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  raidNoticeLabel:SetPoint("TOP", 0, -100)
-  local frameWidth = type(mainFrame.GetWidth) == "function" and mainFrame:GetWidth() or 400
-  raidNoticeLabel:SetWidth(frameWidth - 16)
-  raidNoticeLabel:SetJustifyH("CENTER")
-  raidNoticeLabel:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.ORANGE_RAID_NOTICE) or { 1, 0.5, 0 }))
-  raidNoticeLabel:SetWordWrap(true)
-  raidNoticeLabel:Hide()
 
   local ui = {
     panelTooltip = panelTooltip,
@@ -630,7 +624,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     titleVersion = titleVersion,
     titleHint = titleHint,
     panelChrome = panelChrome,
-    raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
     tankButtons = tankButtons,
     tankHeader = tankHeader,
@@ -682,7 +675,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   ui.modeButtons = {}
   local modeButtonDefs = {
     {
-      xOffset = -112,
+      xOffset = RI.TITLE_BUTTON_FIRST_SLOT_X - 2 * RI.TITLE_BUTTON_SLOT_WIDTH,
       label = "M+",
       target = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
       width = 24,
@@ -690,14 +683,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       descriptionFallback = L.MODE_LAYOUT_M2 or "Main horizontal layout.",
     },
     {
-      xOffset = -90,
+      xOffset = RI.TITLE_BUTTON_FIRST_SLOT_X - RI.TITLE_BUTTON_SLOT_WIDTH,
       label = "H",
       target = LAYOUT_MODE_COMPACT_HORIZONTAL,
       descriptionKey = "MODE_LAYOUT_H",
       descriptionFallback = L.MODE_LAYOUT_H or "Compact horizontal layout.",
     },
     {
-      xOffset = -68,
+      xOffset = RI.TITLE_BUTTON_FIRST_SLOT_X,
       label = "V",
       target = LAYOUT_MODE_COMPACT_VERTICAL,
       descriptionKey = "MODE_LAYOUT_V",
@@ -1080,7 +1073,6 @@ function RosterPanel.CreateController(opts)
       getTime = getTime,
       getL = getL,
       isRaidGroup = isRaidGroup,
-      raidNoticeLabel = ui.raidNoticeLabel,
       uiRef = ui,
       applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
     }, roster)

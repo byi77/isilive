@@ -348,11 +348,16 @@ local function ReadUnitStat(statIndex, opts)
   return ReadDisplayNumber(effective, true)
 end
 
-local function ReadCombatRating(globalName, opts)
+local function ResolveRatingID(globalName, opts)
   local ratingID = opts[globalName]
   if ratingID == nil then
     ratingID = rawget(_G, globalName)
   end
+  return ratingID
+end
+
+local function ReadCombatRating(globalName, opts)
+  local ratingID = ResolveRatingID(globalName, opts)
   local getCombatRating = opts.GetCombatRating or rawget(_G, "GetCombatRating")
   if type(getCombatRating) ~= "function" or ratingID == nil then
     return nil
@@ -389,14 +394,6 @@ local function ReadPlainCall(fnName, opts, ...)
     return nil
   end
   return ReadPlainNumber(value)
-end
-
-local function ResolveRatingID(globalName, opts)
-  local ratingID = opts[globalName]
-  if ratingID == nil then
-    ratingID = rawget(_G, globalName)
-  end
-  return ratingID
 end
 
 -- Spell schools scanned by the character sheet: 2 (holy) through

@@ -207,7 +207,9 @@ end
 
 local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latestQueueActivityID, latestQueueMapID)
   local logf = deps.logRuntimeTracef
-  local currentInstanceID = GetCurrentPartyInstanceID()
+  -- Diagnostics only; the match itself reads the instance in
+  -- IsPlayerInsideTargetDungeon, so skip the extra GetInstanceInfo without a logger.
+  local currentInstanceID = logf and GetCurrentPartyInstanceID() or nil
   if logf then
     logf(
       "[HIGHLIGHT] resolve_spell_id currentInstanceID=%s queueActivityID=%s queueMapID=%s",

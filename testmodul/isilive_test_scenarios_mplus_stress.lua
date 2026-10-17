@@ -723,7 +723,7 @@ return function(test, ctx, fixtures)
   test("Mplus stress: a role macro left stale in combat is rewritten when a closed window reopens", function()
     local partyNames = { player = "Tester", party1 = "Anna", party2 = "Peer2", party3 = "Peer3", party4 = "Peer4" }
     local function FindRoleButtons(session, name)
-      local wanted = "\n/target " .. name .. "\n"
+      local wanted = "\n/targetexact " .. name .. "\n"
       local found = {}
       for _, frame in ipairs(session.frames) do
         local macro = type(frame.GetAttribute) == "function" and frame:GetAttribute("macrotext1") or nil

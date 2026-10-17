@@ -19,6 +19,14 @@ function Validators.IsSecretValue(value)
   return ok and result == true
 end
 
+--- True for a real number that is neither NaN nor infinite. Run the secret
+--- check first: type() on a Secret Value is not trustworthy.
+--- @param value any
+--- @return boolean
+function Validators.IsFiniteNumber(value)
+  return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
 --- Reads a single field out of a table that Blizzard handed us (event payload,
 --- API result struct, tooltip data) without ever operating on a masked value.
 ---
@@ -205,6 +213,13 @@ end
 --- @return number|nil -- nil outside a party instance or when the data is missing/masked
 function Validators.GetCurrentPartyInstanceID()
   local ok, instanceInfo = Validators.GetInstanceInfoSafe()
+  return Validators.GetPartyInstanceIDFromInfo(ok, instanceInfo)
+end
+
+--- Same check on an already read GetInstanceInfoSafe() result, for callers
+--- that need further fields of the same read.
+--- @return number|nil
+function Validators.GetPartyInstanceIDFromInfo(ok, instanceInfo)
   if not ok or type(instanceInfo) ~= "table" or instanceInfo.instanceType ~= "party" then
     return nil
   end

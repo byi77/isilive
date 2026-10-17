@@ -462,7 +462,7 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules, overrid
   return controller, createdFrames, stubs, mainFrame, addon
 end
 
--- Locate the secure Mark-T/H button by a "/target <targetName>" line in its
+-- Locate the secure Mark-T/H button by a "/targetexact <targetName>" line in its
 -- macrotext1. The role-marker macro targets by character name (with optional
 -- "-Realm" suffix), never by unit token — see CLAUDE.md "Role-marker click
 -- feature: target by character name". Pass nil to grab any secure action
@@ -473,7 +473,7 @@ local function FindSecureRoleButton(createdFrames, targetName)
       local macrotext1 = frame:GetAttribute("macrotext1")
       if
         targetName == nil
-        or (type(macrotext1) == "string" and macrotext1:find("/target " .. targetName, 1, true) ~= nil)
+        or (type(macrotext1) == "string" and macrotext1:find("/targetexact " .. targetName, 1, true) ~= nil)
       then
         return frame
       end
@@ -789,14 +789,14 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
     markButton = RequireNonNil(markButton, "Mark-T/H button should carry the tank macro")
     Assert.Equal(
       markButton:GetAttribute("macrotext1"),
-      "/cleartarget\n/target Felix\n/tm [exists] 6\n/targetlasttarget\n"
-        .. "/cleartarget\n/target Anna-Tichondrius\n/tm [exists] 4\n/targetlasttarget",
+      "/cleartarget\n/targetexact Felix\n/tm [exists] 6\n/targetlasttarget\n"
+        .. "/cleartarget\n/targetexact Anna-Tichondrius\n/tm [exists] 4\n/targetlasttarget",
       "Mark-T/H must target tank then cross-realm healer by name (12.0.5 secret-token regression)"
     )
     Assert.Equal(
       markButton:GetAttribute("macrotext2"),
-      "/cleartarget\n/target Felix\n/tm [exists] 0\n/targetlasttarget\n"
-        .. "/cleartarget\n/target Anna-Tichondrius\n/tm [exists] 0\n/targetlasttarget",
+      "/cleartarget\n/targetexact Felix\n/tm [exists] 0\n/targetlasttarget\n"
+        .. "/cleartarget\n/targetexact Anna-Tichondrius\n/tm [exists] 0\n/targetlasttarget",
       "Mark-T/H right click must clear both markers on the same names"
     )
     for _, token in ipairs({ "player", "party1", "party2" }) do
@@ -820,7 +820,7 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
     markButton = RequireNonNil(markButton, "Mark-T/H button should carry the healer macro")
     Assert.Equal(
       markButton:GetAttribute("macrotext1"),
-      "/cleartarget\n/target Anna\n/tm [exists] 4\n/targetlasttarget",
+      "/cleartarget\n/targetexact Anna\n/tm [exists] 4\n/targetlasttarget",
       "without a tank only the healer block is written"
     )
 
@@ -1221,6 +1221,9 @@ local function RegisterDeferredMarkRolesLayoutTests(test, Assert, WithGlobals, L
       function markButton:GetPoint()
         return (rawget(_G, "unpack") or rawget(table, "unpack"))(self.point)
       end
+      function markButton.GetParent()
+        return mainFrame
+      end
       local mutationCount = 0
       for _, method in ipairs({ "Show", "Hide", "SetShown", "SetSize", "ClearAllPoints", "SetPoint" }) do
         local original = markButton[method]
@@ -1243,8 +1246,15 @@ local function RegisterDeferredMarkRolesLayoutTests(test, Assert, WithGlobals, L
       controller.RenderRoster(roster)
       Assert.Equal(mutationCount, 0, "combat clicks and renders must leave the secure button untouched")
       Assert.True(markButton:IsShown(), "visibility must remain unchanged during combat")
+      Assert.Equal(markButton.alpha, 0, "a combat switch to H must make Mark-T/H invisible via alpha")
+      local blocker = RequireNonNil(markButton._isiLiveCombatBlocker, "a click blocker must cover Mark-T/H")
+      Assert.True(blocker:IsShown(), "the click blocker must be shown while Mark-T/H is shrouded")
+      Assert.True(blocker._mouseEnabled, "the click blocker must swallow clicks")
+      Assert.True(blocker:GetFrameLevel() > markButton:GetFrameLevel(), "the click blocker must sit above Mark-T/H")
       inCombat = false
       controller.RenderRoster(roster)
+      Assert.Equal(markButton.alpha, 1, "the post-combat replay must restore Mark-T/H alpha")
+      Assert.False(blocker:IsShown(), "the post-combat replay must remove the click blocker")
       Assert.True(mutationCount > 0, "the post-combat render must apply pending secure layout")
       Assert.False(markButton:IsShown(), "the latest H request must hide Mark-T/H after combat")
       Assert.Equal(controller.GetLayoutMode(), "compact_horizontal")

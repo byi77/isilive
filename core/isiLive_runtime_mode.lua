@@ -93,16 +93,25 @@ end
 -- Forces tracking and the M+ timer depend on live challenge-mode data and must
 -- keep using this, not the wider full-profile check.
 -- @return boolean
-function RuntimeMode.IsActiveChallenge()
+-- The running key's challenge map ID, or nil when no key runs or the value is
+-- masked, missing or not a positive integer.
+function RuntimeMode.ReadVerifiedChallengeMapID()
   local api = rawget(_G, "C_ChallengeMode")
   if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
-    return false
+    return nil
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
   if not ok or IsSecretValue(mapID) then
-    return false
+    return nil
   end
-  return ToPositiveInteger(mapID) ~= nil
+  if not addonTable.Validators.IsFiniteNumber(mapID) or mapID <= 0 or mapID % 1 ~= 0 then
+    return nil
+  end
+  return mapID
+end
+
+function RuntimeMode.IsActiveChallenge()
+  return RuntimeMode.ReadVerifiedChallengeMapID() ~= nil
 end
 
 -- Full-profile check without the raid gate, for callers that already ran it.

@@ -86,7 +86,6 @@ function M.BuildDefaultRenderState(memberRows, addonRoster, overrides)
     rosterTooltip = nil,
     setMainFrameHeightSafe = NoOp,
     minFrameHeight = 100,
-    raidNoticeLabel = nil,
     buildOrderedRoster = addonRoster.Roster.BuildOrderedRoster,
     rolePriority = { TANK = 1, HEALER = 2, DAMAGER = 3, NONE = 4 },
     unitPriority = { player = 1, party1 = 2, party2 = 3, party3 = 4, party4 = 5 },

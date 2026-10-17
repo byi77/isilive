@@ -279,6 +279,25 @@ local function SetDescription(control, text)
   end
 end
 
+-- Retained DK VIP controls: all four helpers are now configured in isiBlightfallTracker.
+local MIGRATED_DK_CONTROL_KEYS = {
+  "vipDkSoulReaperWarning",
+  "vipDkPutrefyWarning",
+  "vipDkApocalypseHorseSound",
+  "vipDkGhoulReminder",
+}
+
+local function ApplyDkMigrationNotice(controls, labels, disable)
+  local notice = labels.SETTINGS_VIP_DK_MOVED or "Configure in isiBlightfallTracker."
+  for _, key in ipairs(MIGRATED_DK_CONTROL_KEYS) do
+    local control = controls[key]
+    if disable and control and control.check and type(control.check.Disable) == "function" then
+      control.check:Disable()
+    end
+    SetDescription(control, notice)
+  end
+end
+
 function SettingsSound.GetSoundSettingEntries()
   local soundUtils = addonTable.SoundUtils
   local registry = type(soundUtils) == "table" and type(soundUtils.Registry) == "table" and soundUtils.Registry or nil
@@ -866,21 +885,7 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "vipDkGhoulReminderEnabled"
   )
 
-  -- Retained controls: all four DK helpers are now configured in the tracker.
-  for _, key in ipairs({
-    "vipDkSoulReaperWarning",
-    "vipDkPutrefyWarning",
-    "vipDkApocalypseHorseSound",
-    "vipDkGhoulReminder",
-  }) do
-    local control = controls[key]
-    if control and control.check and type(control.check.Disable) == "function" then
-      control.check:Disable()
-    end
-    if control and control.description and type(control.description.SetText) == "function" then
-      control.description:SetText(labels.SETTINGS_VIP_DK_MOVED or "Configure in isiBlightfallTracker.")
-    end
-  end
+  ApplyDkMigrationNotice(controls, labels, true)
 
   return yOffset
 end
@@ -1071,14 +1076,5 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
     controls.vipDkGhoulReminder.check:SetChecked(db.vipDkGhoulReminderEnabled == true)
   end
   -- Preserve the retained controls, but keep their migration notice on refresh.
-  for _, key in ipairs({
-    "vipDkSoulReaperWarning",
-    "vipDkPutrefyWarning",
-    "vipDkApocalypseHorseSound",
-    "vipDkGhoulReminder",
-  }) do
-    if controls[key] then
-      SetDescription(controls[key], labels.SETTINGS_VIP_DK_MOVED or "Configure in isiBlightfallTracker.")
-    end
-  end
+  ApplyDkMigrationNotice(controls, labels, false)
 end

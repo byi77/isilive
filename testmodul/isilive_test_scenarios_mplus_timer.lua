@@ -421,6 +421,22 @@ return function(test, ctx)
     end)
   end)
 
+  test("mplus_timer: reload recovery skips a finished run that still reports its map", function()
+    local globals = BuildEnv({ worldElapsed = 420 })
+    local active = false
+    globals.C_ChallengeMode.IsChallengeModeActive = function()
+      return active
+    end
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+      Assert.False(addon.MplusTimer.IsRunning(), "IsChallengeModeActive == false must block recovery")
+      active = true
+      addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+      Assert.True(addon.MplusTimer.IsRunning(), "an active challenge mode must still be recovered")
+    end)
+  end)
+
   test("mplus_timer: world entry never resurrects a completed or reset run from stale APIs", function()
     for _, event in ipairs({ "CHALLENGE_MODE_COMPLETED", "CHALLENGE_MODE_RESET" }) do
       local globals = BuildEnv({ worldElapsed = 420 })

@@ -98,11 +98,27 @@ function TestMode.CreateController(opts)
     end
   end
 
+  -- The preview rewrites the roster, secure buttons and frame visibility, so it
+  -- is never started during combat lockdown (and ends when combat begins, see
+  -- ExitTestModeForCombat).
+  local function RejectInCombat()
+    local inCombat = rawget(_G, "InCombatLockdown")
+    if type(inCombat) == "function" and inCombat() then
+      deps.printFn(deps.getL().ERR_COMBAT_TEST)
+      return true
+    end
+    return false
+  end
+
   function controller.EnterFullDummyPreview()
+    if RejectInCombat() then
+      return false
+    end
     ApplyDummyPreviewState({
       isTestMode = true,
       isTestAllMode = true,
     }, true, true, "full")
+    return true
   end
 
   function controller.RefreshActivePreview()
@@ -115,14 +131,16 @@ function TestMode.CreateController(opts)
     return true
   end
 
-  function controller.ExitTestMode()
+  -- keepVisible: the combat-start exit leaves the main frame open and only
+  -- swaps the dummy roster for the real one.
+  local function ExitPreview(keepVisible)
     local inCombat = rawget(_G, "InCombatLockdown")
     if type(inCombat) == "function" and inCombat() then
-      return
+      return false
     end
     local state = deps.getState()
     if not state.isTestMode and not state.isTestAllMode then
-      return
+      return false
     end
 
     local L = deps.getL()
@@ -142,8 +160,21 @@ function TestMode.CreateController(opts)
     deps.updateLeaderButtons()
     deps.setCenterNoticeVisible(false)
     deps.hideInviteHint()
-    deps.setMainFrameVisible(false)
+    if not keepVisible then
+      deps.setMainFrameVisible(false)
+    end
     deps.triggerGroupRosterUpdate()
+    return true
+  end
+
+  function controller.ExitTestMode()
+    return ExitPreview(false)
+  end
+
+  -- Called from PLAYER_REGEN_DISABLED, which fires just before combat
+  -- lockdown starts, so the cleanup can still touch secure frames.
+  function controller.ExitTestModeForCombat()
+    return ExitPreview(true)
   end
 
   function controller.ToggleStandardTestMode()
@@ -163,6 +194,9 @@ function TestMode.CreateController(opts)
       return
     end
 
+    if RejectInCombat() then
+      return
+    end
     deps.printFn(L.TEST_ENABLED)
     controller.EnterFullDummyPreview()
   end
@@ -200,6 +234,9 @@ function TestMode.CreateController(opts)
       return
     end
 
+    if RejectInCombat() then
+      return
+    end
     deps.printFn(L.TEST_ENABLED)
     controller.EnterFullDummyPreview()
   end

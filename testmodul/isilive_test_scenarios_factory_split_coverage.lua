@@ -701,7 +701,10 @@ return function(test, ctx)
     local capturedOpts
 
     local refreshButton = NewButton()
-    refreshButton._fullText = "Re-Sync"
+    local shownCooldowns = {}
+    function refreshButton.ShowCooldownRemaining(remaining)
+      shownCooldowns[#shownCooldowns + 1] = remaining or 0
+    end
     local mainFrame = {
       GetScript = function(_, name)
         if name == "OnEvent" then
@@ -832,6 +835,8 @@ return function(test, ctx)
     Assert.Equal(fullRefreshHits, 2, "cooldown must block only the middle click")
     Assert.True(tickerCancelCount >= 1, "cooldown ticker must be cancelled after expiry")
     Assert.Equal(refreshButton.enabled, true, "button must re-enable after cooldown expiry")
+    Assert.Equal(shownCooldowns[1], 10, "the click must show the full cooldown on the icon")
+    Assert.Equal(shownCooldowns[#shownCooldowns], 0, "cooldown expiry must restore the icon")
   end)
 
   test("factory split coverage: localization panel callbacks and center teleport refresh execute", function()
@@ -942,7 +947,6 @@ return function(test, ctx)
 
     local countdownButton = NewButton()
     local refreshButton = NewButton()
-    refreshButton._fullText = "Re-Sync"
 
     local runtimeState = {
       GetLatestQueueState = function()

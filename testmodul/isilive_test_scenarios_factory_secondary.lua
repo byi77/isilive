@@ -235,6 +235,10 @@ local function BuildControllerContext(state, addon, initial)
                 opts.clearDemoFeatureData()
               end
             end,
+            ExitTestModeForCombat = function()
+              state.combatExitCalls = (state.combatExitCalls or 0) + 1
+              return true
+            end,
             ToggleStandardTestMode = function() end,
             RefreshActivePreview = function()
               return false
@@ -346,6 +350,12 @@ local function BuildControllerContext(state, addon, initial)
         }
       end,
       PatchRuntimeFlags = function() end,
+      IsTestMode = function()
+        return state.testModeActive == true
+      end,
+      IsTestAllMode = function()
+        return false
+      end,
       SetLatestQueueState = function(dungeonName, activityID, teleportSpellID, mapID)
         state.latestQueueState = {
           dungeonName = dungeonName,
@@ -941,46 +951,16 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
-  test("Factory demo simulation tablet routes the VIP DK action to the guarded preview", function()
+  test("Factory demo simulation tablet no longer offers the moved VIP DK action", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
 
     WithGlobals(BuildGlobalsEnv(state), function()
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
       -- The tablet controller is created on first open (`/isilive sim`).
       state.ctx.ToggleSimulationTablet()
-      local actions = state.simulationTabletOpts.getActions()
-
-      local vipAction = nil
-      for _, action in ipairs(actions) do
-        if action.id == "E5" then
-          vipAction = action
-        end
+      for _, action in ipairs(state.simulationTabletOpts.getActions()) do
+        Assert.True(action.id ~= "E5", "the VIP DK preview moved to isiBlightfallTracker")
       end
-
-      Assert.NotNil(vipAction, "simulation tablet must expose the VIP DK warning action")
-      Assert.Equal(vipAction.category, "alerts", "VIP DK preview belongs to the alerts category")
-      Assert.Equal(vipAction.titleKey, "SIM_ACTION_E5_TITLE", "VIP DK action must use its localized title key")
-      Assert.Equal(vipAction.descKey, "SIM_ACTION_E5_DESC", "VIP DK action must use its localized description key")
-
-      local previewCalls = 0
-      state.addon.VipDkAssist = {
-        ShowWarningPreview = function()
-          previewCalls = previewCalls + 1
-          return true
-        end,
-      }
-      vipAction.run()
-      Assert.Equal(previewCalls, 1, "the VIP DK action must drive the guarded preview entry point")
-
-      state.addon.VipDkAssist = {
-        ShowWarningPreview = function()
-          return false
-        end,
-      }
-      Assert.NotNil(vipAction.run(), "a suppressed preview must still report a status line instead of failing")
-
-      state.addon.VipDkAssist = nil
-      Assert.NotNil(vipAction.run(), "a missing VIP DK module must not break the simulator action")
     end)
   end)
 
@@ -1030,7 +1010,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 24, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 23, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -1094,6 +1074,24 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(sawLocalPi, "PI preview action must use the local recipient announce path")
     Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
     Assert.Nil(state.ttsPreviews, "sound action must not speak removed TTS preview")
+  end)
+
+  test("Factory combat exit ends only an active preview and keeps the solo roster rebuildable", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+    local wasInGroupWrites = {}
+    state.ctx.SetWasInGroup = function(value)
+      wasInGroupWrites[#wasInGroupWrites + 1] = value
+    end
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      Assert.False(state.ctx.ExitTestModeForCombat(), "without a preview the combat exit is a no-op")
+      Assert.Equal(state.combatExitCalls, nil, "an inactive preview must not reach the controller")
+      state.testModeActive = true
+      Assert.True(state.ctx.ExitTestModeForCombat(), "an active preview ends on combat start")
+    end)
+
+    Assert.Equal(state.combatExitCalls, 1, "the combat exit must use the frame-keeping controller path")
+    Assert.Equal(wasInGroupWrites[1], true, "the solo player entry must be rebuilt after the preview")
   end)
 
   test("Factory demo cleanup stops active preview sounds", function()

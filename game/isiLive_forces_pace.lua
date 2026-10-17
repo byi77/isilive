@@ -47,9 +47,7 @@ local function BumpRunRevision()
   runRevision = runRevision + 1
 end
 
-local function IsFiniteNumber(value)
-  return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 
 local function RoundOne(value)
   return tonumber(string.format("%.1f", value))

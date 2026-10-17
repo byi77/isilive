@@ -37,7 +37,6 @@ UICommon.Colors = {
   GOLD_TARGET_TEXT = { 1.0, 0.84, 0.35 },
   MUTED_GOLD_PCT_TEXT = { 0.9, 0.82, 0.45 },
   AMBER_SUPPORT_NOTICE = { 1, 0.75, 0.2, 1 },
-  ORANGE_RAID_NOTICE = { 1, 0.5, 0 },
   ORANGE_WARNING_LABEL = { 1, 0.55, 0.2, 1 },
   WARM_WHITE_TEXT = { 1, 0.92, 0.7 },
   BLUE_VERSION_TEXT = { 0.55, 0.75, 1.0 },

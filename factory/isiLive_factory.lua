@@ -1051,6 +1051,7 @@ local function FinalizeFactoryRuntime(ctx)
     statusController = ctx.statusController,
     teleportUIController = ctx.teleportUIController,
     exitTestMode = ctx.ExitTestMode,
+    exitTestModeForCombat = ctx.ExitTestModeForCombat,
     updateStatusLine = ctx.UpdateStatusLine,
     applyLocalizationToUI = ctx.ApplyLocalizationToUI,
     applyDBSettings = function()

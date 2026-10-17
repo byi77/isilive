@@ -327,6 +327,28 @@ return function(test, ctx)
     end)
   end)
 
+  test("LFG view hooks register every event statically at load and never again on hook", function()
+    local searchPanel = { ScrollBox = {
+      GetFrames = function()
+        return {}
+      end,
+    } }
+    local globals, captured = BuildLFGFlagsEnv({ LFGListFrame = { SearchPanel = searchPanel } })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_flags.lua" })
+      local events = { "ADDON_LOADED", "LFG_LIST_SEARCH_RESULT_UPDATED", "PLAYER_SPECIALIZATION_CHANGED" }
+      for _, event in ipairs(events) do
+        Assert.Equal(captured.registeredEvents[event] or 0, 1, event .. " must be registered in the main chunk")
+      end
+      addon.LFGFlags.HookSearchPanel()
+      addon.LFGFlags.HookSearchPanel()
+      for _, event in ipairs(events) do
+        Assert.Equal(captured.registeredEvents[event] or 0, 1, event .. " must not be registered again by a hook")
+      end
+    end)
+  end)
+
   test("LFGFlags.HookSearchPanel installs cache-clear hook for LFGListSearchPanel_DoSearch", function()
     local searchPanel = { ScrollBox = {} }
     local globals, captured = BuildLFGFlagsEnv({

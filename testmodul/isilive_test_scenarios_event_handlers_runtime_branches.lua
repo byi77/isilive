@@ -1459,6 +1459,29 @@ return function(test, ctx)
     return frame
   end
 
+  test("PLAYER_REGEN_DISABLED ends an active test mode through the combat exit only", function()
+    rawset(_G, "IsiLiveDB", { combatFadeMM = false, rosterLayoutMode = "expanded" })
+    local testMode = true
+    local combatExits, plainExits = 0, 0
+    local handlers = LoadHandlers({
+      handleKillTrackEvent = function() end,
+      isTestMode = function()
+        return testMode
+      end,
+      exitTestMode = function()
+        plainExits = plainExits + 1
+      end,
+      exitTestModeForCombat = function()
+        combatExits = combatExits + 1
+        testMode = false
+      end,
+    })
+    handlers.PLAYER_REGEN_DISABLED(nil)
+    handlers.PLAYER_REGEN_DISABLED(nil)
+    Assert.Equal(combatExits, 1, "combat start must end the active preview once")
+    Assert.Equal(plainExits, 0, "combat start must not use the frame-hiding exit")
+  end)
+
   test("PLAYER_REGEN_DISABLED skips combat fade when combatFadeMM is not enabled", function()
     rawset(_G, "IsiLiveDB", { combatFadeMM = false, rosterLayoutMode = "expanded" })
     local frame = MakeMainFrameStub(1.0)

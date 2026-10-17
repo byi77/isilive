@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.433`
+Versionsbasis: `0.9.434`
 Zuletzt aktualisiert: `2026-10-17`
 
 Review-Fixes (2026-10-17): Layoutklicks im Kampf uebernehmen weiterhin den
@@ -285,9 +285,12 @@ markieren.
    fasst den Button im Kampf daher gar nicht an, auch nicht beim Leeren einer
    Roster-Zeile; er behaelt bis Kampfende das Makro des letzten Renders. Damit
    ein solches Makro keinen falschen Spieler markiert, lautet es
-   `/cleartarget`, `/target <Name[-Realm]>`, `/stopmacro [noexists]`,
-   `/tm <n>`, `/targetlasttarget`: findet `/target` den Spieler nicht mehr
-   (Gruppe verlassen), bleibt kein Ziel stehen und `/tm` wird nicht ausgefuehrt.
+   je Rolle `/cleartarget`, `/targetexact <Name[-Realm]>`, `/tm [exists] <n>`,
+   `/targetlasttarget`: findet `/targetexact` den Spieler nicht mehr (Gruppe
+   verlassen), bleibt kein Ziel stehen und `/tm` markiert niemanden; ein
+   anderer Spieler mit gleichem Namensanfang wird nicht getroffen. Wechselt der
+   Spieler im Kampf auf V oder H, wird der Button bis Kampfende per Alpha 0 und
+   Klickblocker verdeckt.
 5. Ergebnis nach Kampfende: `PLAYER_REGEN_ENABLED` rendert das Roster neu,
    stellt den Button mit korrektem Makro wieder her und blendet ihn fuer
    Ghost-, geleerte oder eingeklappte Zeilen aus; ein eigener Retry-Frame ist

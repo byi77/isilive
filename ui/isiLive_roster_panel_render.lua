@@ -96,27 +96,32 @@ local CLEAR_MARKER = 0
 
 -- Mark-T/H macro, target by character name (see CLAUDE.md "Role-marker
 -- click feature"). One block per marked player:
---   /cleartarget        -> a failed /target leaves no target behind
---   /target <name>
---   /tm [exists] <n>    -> no-op when /target found nobody
+--   /cleartarget        -> a failed /targetexact leaves no target behind
+--   /targetexact <name> -> exact match, no partial-name hit
+--   /tm [exists] <n>    -> no-op when /targetexact found nobody
 --   /targetlasttarget   -> restore the player's own target
 -- The [exists] guard replaces the single-target /stopmacro [noexists]: a
 -- missing tank must not stop the healer block. During combat lockdown the
 -- button keeps the macro of the previous render, so a player who left the
 -- group is simply not found instead of the current target getting marked.
 -- markTargets: ordered list of { target = "<name[-realm]>", marker = n }.
-local function BuildMarkRolesMacro(markTargets, clearMarkers)
-  local lines = {}
+-- Returns the mark macro (left click) and the clear macro (right click), or
+-- nil, nil without targets.
+local function BuildMarkRolesMacro(markTargets)
+  if #markTargets == 0 then
+    return nil, nil
+  end
+  local markLines, clearLines = {}, {}
   for _, entry in ipairs(markTargets) do
-    lines[#lines + 1] = "/cleartarget"
-    lines[#lines + 1] = "/target " .. entry.target
-    lines[#lines + 1] = "/tm [exists] " .. tostring(clearMarkers and CLEAR_MARKER or entry.marker)
-    lines[#lines + 1] = "/targetlasttarget"
+    for _, block in ipairs({ { markLines, entry.marker }, { clearLines, CLEAR_MARKER } }) do
+      local lines = block[1]
+      lines[#lines + 1] = "/cleartarget"
+      lines[#lines + 1] = "/targetexact " .. entry.target
+      lines[#lines + 1] = "/tm [exists] " .. tostring(block[2])
+      lines[#lines + 1] = "/targetlasttarget"
+    end
   end
-  if #lines == 0 then
-    return nil
-  end
-  return table.concat(lines, "\n")
+  return table.concat(markLines, "\n"), table.concat(clearLines, "\n")
 end
 
 -- Writes the Mark-T/H secure macros. Out of combat only: SetAttribute on a
@@ -130,8 +135,7 @@ local function UpdateMarkRolesButton(button, markTargets)
   if IsCombatLockdownActive() then
     return
   end
-  local macroText1 = BuildMarkRolesMacro(markTargets or {}, false)
-  local macroText2 = BuildMarkRolesMacro(markTargets or {}, true)
+  local macroText1, macroText2 = BuildMarkRolesMacro(markTargets or {})
   -- Compare against what was actually written, so a macro that went stale
   -- during combat lockdown is still rewritten on the next render.
   if
@@ -640,7 +644,6 @@ local function RenderRosterImpl(state, roster)
   local rosterTooltip = state.rosterTooltip
   local setMainFrameHeightSafe = state.setMainFrameHeightSafe
   local minFrameHeight = state.minFrameHeight
-  local raidNoticeLabel = state.raidNoticeLabel
   local buildOrderedRoster = state.buildOrderedRoster
   local rolePriority = state.rolePriority
   local unitPriority = state.unitPriority
@@ -697,11 +700,13 @@ local function RenderRosterImpl(state, roster)
       row.readyCheckBackground:Hide()
     end
     if row.roleIcon then
+      row.roleIcon._roleVisible = false
       row.roleIcon:Hide()
     end
   end
 
-  -- If in a raid group, clear rows and skip roster render (H mode shows the tool buttons)
+  -- Rule 11: the main UI stays off in a raid, so a raid render only clears
+  -- the rows and drops the Mark-T/H macro.
   if isRaidGroup and isRaidGroup() then
     for i = 1, #memberRows do
       local row = memberRows[i]
@@ -709,16 +714,8 @@ local function RenderRosterImpl(state, roster)
         ClearMemberRow(row)
       end
     end
-    if raidNoticeLabel then
-      raidNoticeLabel:Hide()
-    end
     UpdateMarkRolesButton(state.uiRef and state.uiRef.markRolesButton, nil)
     return
-  end
-
-  -- Normal case: hide notice, show rows
-  if raidNoticeLabel then
-    raidNoticeLabel:Hide()
   end
 
   -- Temporarily hidden in Settings: keep the DPS/Deaths/Kicks columns hard-enabled in runtime.
@@ -774,8 +771,8 @@ local function RenderRosterImpl(state, roster)
   local targetMapID = resolveTargetMapID and resolveTargetMapID() or nil
   local hasAnyKey = false
   local createdMemberRow = false
-  local markTargets = {}
-  local markedRoles = {}
+  -- First living tank / healer per role; the macro writes the tank block first.
+  local markTargetByRole = {}
 
   for _, entry in ipairs(orderedRoster) do
     if index > 5 then
@@ -814,6 +811,9 @@ local function RenderRosterImpl(state, roster)
         showIcon = false
       end
 
+      -- Remembered for UpdateCollapseState, which re-shows the icon on a
+      -- layout switch and must not reveal it for ghost / role-less rows.
+      row.roleIcon._roleVisible = showIcon
       if showIcon and not isCollapsed then
         row.roleIcon:Show()
       else
@@ -825,18 +825,17 @@ local function RenderRosterImpl(state, roster)
     -- character name, never by unit token (12.0.5 secret-token regression).
     -- See CLAUDE.md "Role-marker click feature: target by character name".
     local marker = ROLE_MARKER[info.role]
-    if marker and not info.isGhost and not markedRoles[info.role] then
+    if marker and not info.isGhost and not markTargetByRole[info.role] then
       local target = addonTable.StringUtils.BuildSlashTargetName(info.name, info.realm)
       if target then
-        markedRoles[info.role] = true
-        markTargets[#markTargets + 1] = { role = info.role, target = target, marker = marker }
+        markTargetByRole[info.role] = { target = target, marker = marker }
       end
     end
 
     local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)
 
     ApplyRowSpecDisplay(row, displayData)
-    -- Skip displayData.roleIconMarkup since we render it as a secure button
+    -- Skip displayData.roleIconMarkup since row.roleIcon renders the role
     ApplyRowNameDisplay(row, displayData)
     ApplyRowReadyCheckDisplay(row, displayData)
     ApplyRowActivityDisplay(row, displayData)
@@ -903,9 +902,9 @@ local function RenderRosterImpl(state, roster)
     end
   end
 
-  table.sort(markTargets, function(a, b)
-    return a.marker > b.marker
-  end)
+  local markTargets = {}
+  markTargets[#markTargets + 1] = markTargetByRole.TANK
+  markTargets[#markTargets + 1] = markTargetByRole.HEALER
   UpdateMarkRolesButton(state.uiRef and state.uiRef.markRolesButton, markTargets)
 
   if not hasAnyKey and getOwnedKeystoneSnapshot then
@@ -980,7 +979,6 @@ RI.HasReadyCheckHoldInRoster = HasReadyCheckHoldInRoster
 RI.SetKickCellText = SetKickCellText
 RI.ResolveReadyCheckActive = ResolveReadyCheckActive
 RI.RenderRosterImpl = RenderRosterImpl
-RI.BuildMarkRolesMacro = BuildMarkRolesMacro
 RI.RefreshReadyCheckStateImpl = function(state, roster)
   return RefreshReadyCheckStateImpl(state, roster)
 end

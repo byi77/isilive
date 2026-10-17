@@ -264,6 +264,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     isTestMode = RequireFunction(state.isTestMode, "state.isTestMode"),
     isTestAllMode = RequireFunction(state.isTestAllMode, "state.isTestAllMode"),
     exitTestMode = RequireFunction(callbacks.exitTestMode, "callbacks.exitTestMode"),
+    exitTestModeForCombat = callbacks.exitTestModeForCombat,
     handleGroupRosterUpdate = function()
       controllers.group.HandleGroupRosterUpdate()
     end,
@@ -997,6 +998,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     },
     callbacks = {
       exitTestMode = ctx.exitTestMode,
+      exitTestModeForCombat = ctx.exitTestModeForCombat,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
       captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,

@@ -6,13 +6,13 @@
 --   * The macro must target by CHARACTER NAME, never by unit token.
 --     /target party1 is broken in WoW 12.0.5 (party tokens are secret unit
 --     tokens; the slash command silently fails from secure macros).
---   * Same-realm units use bare "/target Name", cross-realm units use
---     "/target Name-Realm" — same shape as the existing whisper code.
+--   * Same-realm units use bare "/targetexact Name", cross-realm units use
+--     "/targetexact Name-Realm" — same shape as the existing whisper code.
 --   * UTF-8 character names are passed through byte-for-byte. WoW's slash-
 --     command parser handles Müller / Sébastien / Юрий / José / Çağrı /
 --     Lucía / Aleksandr natively. We must NOT normalize or transliterate.
 --   * One guarded block per role, tank before healer:
---     /cleartarget, /target <name>, /tm [exists] <n>, /targetlasttarget.
+--     /cleartarget, /targetexact <name>, /tm [exists] <n>, /targetlasttarget.
 --   * A member without a name is skipped (no partial block); without tank and
 --     healer the button carries no macro at all.
 --   * The row role icons are display-only: no secure template, no mouse.
@@ -61,7 +61,7 @@ local function Macro(blocks)
   local lines = {}
   for _, block in ipairs(blocks) do
     lines[#lines + 1] = "/cleartarget"
-    lines[#lines + 1] = "/target " .. block[1]
+    lines[#lines + 1] = "/targetexact " .. block[1]
     lines[#lines + 1] = "/tm [exists] " .. tostring(block[2])
     lines[#lines + 1] = "/targetlasttarget"
   end
@@ -358,7 +358,7 @@ local function RunStaleCombatRenderScenario()
     party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
   }
   local function CountRoleButtonsTargeting(name)
-    local wanted = "\n/target " .. name .. "\n"
+    local wanted = "\n/targetexact " .. name .. "\n"
     local count = 0
     for _, frame in ipairs(createdFrames) do
       local macro = frame.attributes and frame.attributes.macrotext1
@@ -533,7 +533,7 @@ Harness.WithGlobals({
     )
     for _, dpsName in ipairs({ "Bob", "Carl", "Dave" }) do
       Check(
-        markButton:GetAttribute("macrotext1"):find("/target " .. dpsName, 1, true) == nil,
+        markButton:GetAttribute("macrotext1"):find("/targetexact " .. dpsName, 1, true) == nil,
         "DAMAGER " .. dpsName .. " is not part of the macro"
       )
     end
@@ -609,14 +609,14 @@ Harness.WithGlobals({
     })
 
     local TOKEN_PATTERNS = {
-      "/target party",
-      "/target raid",
-      "/target target",
-      "/target focus",
-      "/target boss",
-      "/target nameplate",
-      "/target arena",
-      "/target player",
+      "/targetexact party",
+      "/targetexact raid",
+      "/targetexact target",
+      "/targetexact focus",
+      "/targetexact boss",
+      "/targetexact nameplate",
+      "/targetexact arena",
+      "/targetexact player",
     }
     for _, attr in ipairs({ "macrotext1", "macrotext2" }) do
       local m = markButton:GetAttribute(attr)

@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-17 - Version 0.9.434 (patch)
+
+- Mark-T/H targets players with `/targetexact`, so a macro left stale in combat
+  can no longer hit a different unit whose name only starts with the departed
+  player's name. Each block still returns to the player's own target.
+- Switching to V or H during combat now makes Mark-T/H invisible and
+  unclickable at once (alpha 0 plus a click blocker); the post-combat layout
+  replay hides it for real.
+- Test mode can no longer be started in combat and ends on combat start without
+  closing the main window; the real roster returns.
+- LFG view hooks register their events once in the main chunk instead of from
+  the Blizzard_LFGList load handler; repeated hook calls no longer create
+  extra event frames.
+- M+ timer: a reload inside a finished key no longer restarts the timer when
+  the client reports the challenge as inactive, and a new key never inherits
+  the previous key's time limits.
+- Bloodlust ready reminder and 00:00 display resume after a single unresolved
+  aura scan instead of staying off for the rest of the key.
+- LFG flags check search-result info and leader name for secret values first.
+- Re-Sync: no hover surface while the cooldown disables the button, and the
+  hover state is restored correctly when the cooldown ends.
+- Role icons no longer reappear stale on rows without a role after a layout
+  switch.
+- Tooling: the secret-value guard check recognises wrapped multi-line `pcall`
+  calls; the addon-message size check measures the LOC instance ID suffix.
+- Cleanup: shared `Validators.IsFiniteNumber` and
+  `RuntimeMode.ReadVerifiedChallengeMapID`, one instance read per LOC snapshot,
+  shared title-bar slot constants and button setup, single-pass Mark-T/H macro
+  build, removed the dead raid notice label, the demo action E5 (VIP DK, moved
+  to isiBlightfallTracker) and the text-button cooldown path; updated Soul
+  Reaper descriptions in esES, frFR, itIT, ptBR, ruRU and trTR.
+
 ## 2026-10-17 - Version 0.9.433 (patch)
 
 - Defer Mark-T/H visibility, size and anchor changes during combat and apply

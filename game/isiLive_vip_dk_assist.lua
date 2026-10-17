@@ -309,6 +309,12 @@ function VipDkAssist.CreateController(opts)
   local ghoulReminderDriverActive = false
   local pendingGhoulReminderApply = false
 
+  -- Timers that end a visible warning phase, and the start timers scheduled
+  -- by Dark Transformation. Combat end clears only the visible phases; a
+  -- pending start must still fire (rule 90).
+  local WARNING_END_TIMER_KEYS = { "soulOpeningEnd", "soulEnd", "putrefyEnd" }
+  local WARNING_START_TIMER_KEYS = { "soulStart", "putrefyStart" }
+
   local function CancelTimer(timer)
     if timer and type(timer.Cancel) == "function" then
       timer:Cancel()
@@ -459,12 +465,19 @@ function VipDkAssist.CreateController(opts)
     end)
   end
 
-  function controller.Stop()
-    for _, key in ipairs({ "soulStart", "soulOpeningEnd", "soulEnd", "putrefyStart", "putrefyEnd" }) do
+  local function EndVisibleWarnings()
+    for _, key in ipairs(WARNING_END_TIMER_KEYS) do
       CancelNamedTimer(key)
     end
     soulOpening, soulCooldown, putrefyCooldown = false, false, false
     HideWarning()
+  end
+
+  function controller.Stop()
+    for _, key in ipairs(WARNING_START_TIMER_KEYS) do
+      CancelNamedTimer(key)
+    end
+    EndVisibleWarnings()
   end
 
   function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)
@@ -508,11 +521,7 @@ function VipDkAssist.CreateController(opts)
   end
 
   function controller.HandlePlayerRegenEnabled()
-    for _, key in ipairs({ "soulOpeningEnd", "soulEnd", "putrefyEnd" }) do
-      CancelNamedTimer(key)
-    end
-    soulOpening, soulCooldown, putrefyCooldown = false, false, false
-    HideWarning()
+    EndVisibleWarnings()
     controller.ApplyPendingGhoulReminder()
   end
 

@@ -283,7 +283,6 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
   function nav.UpdateFromScroll()
     local position = type(scrollFrame.GetVerticalScroll) == "function" and tonumber(scrollFrame:GetVerticalScroll())
       or 0
-    position = position or 0
     local active = NAV_SECTIONS[1].key
     for _, section in ipairs(NAV_SECTIONS) do
       if nav.offsets[section.key] and position >= nav.offsets[section.key] - 12 then
@@ -302,10 +301,13 @@ end
 -- Returns the navigation; the controls table is filled in place.
 local function BuildSettingsContent(canvas, scrollFrame, content, config, controls)
   local nav = CreateSectionNavigation(canvas, scrollFrame, config.getL)
-  if type(scrollFrame.SetScript) == "function" then
+  -- Hook instead of replace: the template's own handler keeps the scrollbar in sync.
+  if type(scrollFrame.HookScript) == "function" then
     scrollFrame:HookScript("OnVerticalScroll", function()
       nav.UpdateFromScroll()
     end)
+  end
+  if type(scrollFrame.SetScript) == "function" then
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)
       local currentScroll = type(self.GetVerticalScroll) == "function" and (self:GetVerticalScroll() or 0) or 0
       local maxScroll = type(self.GetVerticalScrollRange) == "function" and (self:GetVerticalScrollRange() or 0) or 0
@@ -387,7 +389,7 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
       local current = type(scrollFrame.GetVerticalScroll) == "function" and tonumber(scrollFrame:GetVerticalScroll())
         or 0
       local range = tonumber(scrollFrame:GetVerticalScrollRange()) or 0
-      scrollFrame:SetVerticalScroll(math.min(current or 0, math.max(0, range)))
+      scrollFrame:SetVerticalScroll(math.min(current, math.max(0, range)))
     end
     nav.UpdateFromScroll()
   end

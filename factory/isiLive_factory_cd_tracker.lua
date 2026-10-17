@@ -216,6 +216,13 @@ local function InitializeFactorySecondaryCdTracker(
   ctx.RefreshCdTrackerPolling = RefreshCdTrackerPolling
   ctx.StopCdTrackerPolling = StopCdTrackerPolling
 
+  local function IsLustScanResolved()
+    return ctx.cdTrackerController
+        and type(ctx.cdTrackerController.IsLustScanResolved) == "function"
+        and ctx.cdTrackerController.IsLustScanResolved() == true
+      or false
+  end
+
   local function PlayBloodlustReadySound()
     if
       ctx.addonTable
@@ -306,13 +313,9 @@ local function InitializeFactorySecondaryCdTracker(
         and ctx.cdTrackerController.GetLustInfo()
       or nil
     local lustRemain = type(lustInfo) == "table" and tonumber(lustInfo.remain) or nil
-    local lustResolved = ctx.cdTrackerController
-      and type(ctx.cdTrackerController.IsLustScanResolved) == "function"
-      and ctx.cdTrackerController.IsLustScanResolved() == true
-    if not lustResolved then
-      lustReadyDisplayActive = false
-      lastLustReadySoundAt = nil
-    end
+    local lustResolved = IsLustScanResolved()
+    -- An unresolved scan only pauses ready transitions and reminders; keep the
+    -- reminder clock so a later resolved scan resumes the confirmed ready cycle.
     local lustTimerDisplayed = lustRemain ~= nil and lustRemain > 0
     if lustTimerDisplayed then
       lastLustReadySoundAt = nil
@@ -417,7 +420,7 @@ local function InitializeFactorySecondaryCdTracker(
         if info ~= nil then
           return info
         end
-        if lustReadyDisplayActive and IsMplusTimerRunning() and IsGroupedUtilityContext() then
+        if lustReadyDisplayActive and IsLustScanResolved() and IsMplusTimerRunning() and IsGroupedUtilityContext() then
           return { remain = 0 }
         end
         return nil

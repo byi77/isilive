@@ -204,6 +204,7 @@ local cases = {
       Sync.SendLoc({
         force = true,
         mapID = 99999,
+        instanceID = 99999,
         capturedAt = 999999999,
         source = LONG_SOURCE,
       })

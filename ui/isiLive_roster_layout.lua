@@ -64,10 +64,13 @@ local MINI_VERTICAL_FRAME_HEIGHT = 128
 local MINI_HORIZONTAL_FRAME_WIDTH = 212
 local MINI_MAIN_HORIZONTAL_FRAME_WIDTH = 500
 local MANAGEMENT_COLUMN_X = -145
--- Title-bar Re-Sync button: placed in the slot left of the settings button
--- (-46); the M+ / H / V mode buttons shift one 22 px slot left while it shows.
-local TITLE_RESYNC_X = -68
-local TITLE_RESYNC_SHIFT = -22
+-- Title-bar button slots, right to left from the first slot left of the
+-- settings button (-46): V, H, M+. The Re-Sync button takes the first slot,
+-- and the mode buttons shift one slot left while it shows.
+local TITLE_BUTTON_FIRST_SLOT_X = -68
+local TITLE_BUTTON_SLOT_WIDTH = 22
+local TITLE_RESYNC_X = TITLE_BUTTON_FIRST_SLOT_X
+local TITLE_RESYNC_SHIFT = -TITLE_BUTTON_SLOT_WIDTH
 local MANAGEMENT_COLUMN_X_MINI = -70
 local MANAGEMENT_COLUMN_X_VERTICAL_MINI = -82
 local HELPER_COLUMN_X = -111
@@ -166,6 +169,8 @@ RI.SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET
 RI.SYSTEM_OPTION_TOGGLE_GAP = SYSTEM_OPTION_TOGGLE_GAP
 RI.CD_TRACKER_ROW_HEIGHT = CD_TRACKER_ROW_HEIGHT
 RI.CD_TRACKER_ROW_BOTTOM_OFFSET = CD_TRACKER_ROW_BOTTOM_OFFSET
+RI.TITLE_BUTTON_FIRST_SLOT_X = TITLE_BUTTON_FIRST_SLOT_X
+RI.TITLE_BUTTON_SLOT_WIDTH = TITLE_BUTTON_SLOT_WIDTH
 
 -- Descriptor per layout mode: width and label for the mode button
 local LAYOUT_MODE_CONFIG = {
@@ -629,7 +634,7 @@ local function ReanchorFrame(frame, point, x, y)
   if not (frame and frame.SetPoint) then
     return
   end
-  if IsProtectedFrame(frame) and IsCombatLockdownActive() then
+  if IsCombatLockdownActive() and IsProtectedFrame(frame) then
     return
   end
   if frame.ClearAllPoints then
@@ -642,7 +647,7 @@ local function SetFrameSizeSafe(frame, width, height)
   if not (frame and frame.SetSize) then
     return
   end
-  if IsProtectedFrame(frame) and IsCombatLockdownActive() then
+  if IsCombatLockdownActive() and IsProtectedFrame(frame) then
     return
   end
   frame:SetSize(width, height)
@@ -736,6 +741,53 @@ local function UpdateColumnPositions(ui, layoutMode)
   end
 end
 
+-- A secure frame cannot be hidden during combat lockdown. Until the
+-- post-combat replay hides it for real, it is made invisible (SetAlpha is not
+-- protected) and covered by a plain mouse-enabled frame, so a layout switch
+-- to V/H in combat leaves no visible or clickable Mark-T/H behind.
+local function SetCombatShrouded(frame, shrouded)
+  if type(frame) ~= "table" then
+    return
+  end
+  local blocker = frame._isiLiveCombatBlocker
+  if shrouded then
+    if frame._isiLiveShroudAlpha == nil then
+      frame._isiLiveShroudAlpha = type(frame.GetAlpha) == "function" and tonumber(frame:GetAlpha()) or 1
+    end
+    if type(frame.SetAlpha) == "function" then
+      frame:SetAlpha(0)
+    end
+    local createFrame = rawget(_G, "CreateFrame")
+    if not blocker and type(createFrame) == "function" and type(frame.GetParent) == "function" then
+      blocker = createFrame("Frame", nil, frame:GetParent())
+      if blocker.SetAllPoints then
+        blocker:SetAllPoints(frame)
+      end
+      if blocker.EnableMouse then
+        blocker:EnableMouse(true)
+      end
+      frame._isiLiveCombatBlocker = blocker
+    end
+    if blocker then
+      if blocker.SetFrameLevel and type(frame.GetFrameLevel) == "function" then
+        blocker:SetFrameLevel((tonumber(frame:GetFrameLevel()) or 0) + 10)
+      end
+      blocker:Show()
+    end
+    return
+  end
+  if frame._isiLiveShroudAlpha ~= nil then
+    if type(frame.SetAlpha) == "function" then
+      frame:SetAlpha(frame._isiLiveShroudAlpha)
+    end
+    frame._isiLiveShroudAlpha = nil
+  end
+  if blocker then
+    blocker:Hide()
+  end
+end
+RI.SetCombatShrouded = SetCombatShrouded
+
 local function UpdateCollapseState(ui, layoutMode, mainFrame)
   layoutMode = NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode))
   local isCollapsed = IsCompactLayoutMode(layoutMode)
@@ -776,8 +828,8 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
 
   -- The title-bar Re-Sync button sits where the V button used to be; while
   -- it is visible (M / M+) the mode buttons move one slot to the left.
-  local showTitleResync = not isCollapsed or isMainHorizontal
-  local modeButtonShift = showTitleResync and ui.refreshButton and TITLE_RESYNC_SHIFT or 0
+  -- isCollapsed covers only V / H, so M and M+ both land here.
+  local modeButtonShift = not isCollapsed and ui.refreshButton and TITLE_RESYNC_SHIFT or 0
   for _, btn in ipairs(ui.modeButtons or {}) do
     if tonumber(btn._titleBaseX) and btn.ClearAllPoints and btn.SetPoint then
       btn:ClearAllPoints()
@@ -869,9 +921,11 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   end
 
   local function SetVisible(obj, show)
-    if obj and IsProtectedFrame(obj) and IsCombatLockdownActive() then
+    if obj and IsCombatLockdownActive() and IsProtectedFrame(obj) then
+      SetCombatShrouded(obj, not show)
       return
     end
+    SetCombatShrouded(obj, false)
     if obj and obj.SetShown then
       obj:SetShown(show)
     elseif obj and show and obj.Show then
@@ -915,7 +969,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       SetVisible(row.kick, show)
       SetVisible(row.realm, show)
       if row.roleIcon then
-        SetVisible(row.roleIcon, show and row.unit ~= nil)
+        SetVisible(row.roleIcon, show and row.unit ~= nil and row.roleIcon._roleVisible ~= false)
       end
       if row.hoverFrame then
         if row.hoverFrame.EnableMouse then
@@ -949,14 +1003,11 @@ local function NotifyLayoutChanged(ui, layoutMode)
 end
 RI.NotifyLayoutChanged = NotifyLayoutChanged
 
--- Creates one of the four static mode buttons.
--- _modeTarget and _collapseLayoutMode identify the button for tests.
--- Active/inactive state is set via text color in UpdateCollapseState.
-local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
+-- Shared frame setup of the title-bar buttons (mode buttons and Re-Sync).
+local function CreateTitleBarButton(mainFrame, xOffset, buttonWidth)
   local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
   btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
-  btn._titleBaseX = xOffset
   -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
@@ -964,6 +1015,15 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
   if ApplyBackdrop then
     ApplyBackdrop(btn, "TITLE_BUTTON")
   end
+  return btn
+end
+
+-- Creates one of the four static mode buttons.
+-- _modeTarget and _collapseLayoutMode identify the button for tests.
+-- Active/inactive state is set via text color in UpdateCollapseState.
+local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
+  local btn = CreateTitleBarButton(mainFrame, xOffset, buttonWidth)
+  btn._titleBaseX = xOffset
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
   end
@@ -1003,16 +1063,7 @@ RI.CreateModeButton = CreateModeButton
 -- way to the remaining seconds (ShowCooldownRemaining, driven by
 -- isiLive_factory_refresh.lua).
 local function CreateTitleResyncButton(mainFrame)
-  local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
-  btn:SetSize(20, 20)
-  btn:SetPoint("TOPRIGHT", TITLE_RESYNC_X, -2)
-  -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
-  if btn.SetFrameLevel and mainFrame.GetFrameLevel then
-    btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
-  end
-  if ApplyBackdrop then
-    ApplyBackdrop(btn, "TITLE_BUTTON")
-  end
+  local btn = CreateTitleBarButton(mainFrame, TITLE_RESYNC_X)
   if ApplyActionButtonVisual then
     ApplyActionButtonVisual(btn, "title", "default")
   end
@@ -1061,6 +1112,18 @@ local function CreateTitleResyncButton(mainFrame)
         btn.icon:Show()
       end
     end
+    -- The click that starts the cooldown happens while hovered; drop the hover
+    -- surface with it, and bring it back if the cooldown ends under the cursor.
+    -- The ticker calls this every second; only a cooldown start or end changes
+    -- the surface.
+    if ApplyActionButtonVisual and btn._cooldownVisualOn ~= onCooldown then
+      btn._cooldownVisualOn = onCooldown
+      -- IsMouseOver tests geometry only, so a button hidden in V / H would
+      -- otherwise keep a stale hover surface for the next M / M+ switch.
+      local visible = type(btn.IsVisible) ~= "function" or btn:IsVisible()
+      local hovered = not onCooldown and visible and type(btn.IsMouseOver) == "function" and btn:IsMouseOver()
+      ApplyActionButtonVisual(btn, "title", hovered and "hover" or "default")
+    end
   end
 
   -- Tooltip helpers replace OnEnter/OnLeave via SetScript, so the title-bar
@@ -1070,7 +1133,9 @@ local function CreateTitleResyncButton(mainFrame)
       return
     end
     btn:HookScript("OnEnter", function(self)
-      ApplyActionButtonVisual(self, "title", "hover")
+      -- No hover surface while the Re-Sync cooldown keeps the button disabled.
+      local enabled = type(self.IsEnabled) ~= "function" or self:IsEnabled()
+      ApplyActionButtonVisual(self, "title", enabled and "hover" or "default")
     end)
     btn:HookScript("OnLeave", function(self)
       ApplyActionButtonVisual(self, "title", "default")

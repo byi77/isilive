@@ -31,6 +31,7 @@ local function BuildTestModeController(LoadAddonModules, overrides)
         TEST_DISABLED = "Test mode disabled.",
         ERR_STOPPED_TEST = "Addon is stopped.",
         ERR_PAUSED_TEST = "Addon is paused.",
+        ERR_COMBAT_TEST = "In combat.",
         LEAD_TRANSFERRED_CENTER = "You are now the group leader!",
         TESTALL_DUMMY_GROUP = "Dummy Keys",
         TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",
@@ -601,6 +602,37 @@ return function(test, ctx)
       controller.ExitTestMode()
       Assert.Equal(state.clearDemoFeatureDataCalls, 1, "inactive exit stays idempotent")
     end)
+  end)
+
+  test("TestMode refuses to start any preview during combat lockdown", function()
+    WithGlobals({
+      InCombatLockdown = function()
+        return true
+      end,
+    }, function()
+      local controller, state = BuildTestModeController(LoadAddonModules)
+      Assert.False(controller.EnterFullDummyPreview(), "testall must be refused in combat")
+      controller.ToggleStandardTestMode()
+      controller.ToggleDemoMode()
+      Assert.False(state.isTestMode or state.isTestAllMode, "no preview flag may be set in combat")
+      Assert.Equal(state.buildDummyRosterCalls, 0, "no dummy roster may be built in combat")
+      Assert.False(state.mainFrameVisible, "the preview must not open the frame in combat")
+      Assert.Equal(#state.prints, 3, "each refused start reports the combat block once")
+      for _, msg in ipairs(state.prints) do
+        Assert.Equal(msg, "In combat.", "refused start prints the combat message")
+      end
+    end)
+  end)
+
+  test("TestMode combat-start exit cleans up the preview but keeps the main frame open", function()
+    local controller, state = BuildTestModeController(LoadAddonModules)
+    controller.EnterFullDummyPreview()
+    Assert.True(controller.ExitTestModeForCombat(), "an active preview ends on combat start")
+    Assert.False(state.isTestMode or state.isTestAllMode, "both preview flags are cleared")
+    Assert.Equal(state.clearDemoFeatureDataCalls, 1, "demo surfaces are cleaned up")
+    Assert.True(state.mainFrameVisible, "the main frame stays open for the real roster")
+    Assert.False(controller.ExitTestModeForCombat(), "without a preview the combat exit is a no-op")
+    Assert.Equal(state.clearDemoFeatureDataCalls, 1, "the inactive combat exit stays idempotent")
   end)
 
   RegisterTestModeToggleTests(test, Assert, LoadAddonModules)

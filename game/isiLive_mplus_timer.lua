@@ -9,9 +9,7 @@ local IsSecretValue = addonTable.Validators.IsSecretValue
 -- resurrect a cleared run even if Blizzard still reports its previous map.
 local canRestoreActiveRun = true
 
-local function IsFiniteNumber(value)
-  return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 
 -- Internal state
 local state = {
@@ -34,16 +32,15 @@ local function RefreshElapsedTime()
   end
   -- GetWorldElapsedTime returns (timerType, elapsedTime, ...) — use select(2, ...) for elapsed
   local ok, _, elapsedTime = pcall(getWorldElapsedTime, 1)
-  if not ok or type(elapsedTime) ~= "number" then
-    return
-  end
-  if IsSecretValue(elapsedTime) then
-    return
-  end
-  if elapsedTime ~= elapsedTime or elapsedTime == math.huge or elapsedTime == -math.huge or elapsedTime < 0 then
+  if not ok or IsSecretValue(elapsedTime) or not IsFiniteNumber(elapsedTime) or elapsedTime < 0 then
     return
   end
   state.timer = elapsedTime
+end
+
+local function ClearTimeLimits()
+  state.timeLimit = 0
+  state.timeLimits = { 0, 0, 0 }
 end
 
 local function LoadKeyTimeLimits(mapId)
@@ -71,18 +68,24 @@ end
 local DEATH_PENALTY_MIN_LEVEL = 4
 
 local function ReadActiveChallengeMapID()
+  local runtimeMode = addonTable.RuntimeMode
+  if type(runtimeMode) ~= "table" or type(runtimeMode.ReadVerifiedChallengeMapID) ~= "function" then
+    return nil
+  end
+  return runtimeMode.ReadVerifiedChallengeMapID()
+end
+
+-- Blizzard keeps reporting the active map after a key completes while the
+-- player is still inside the instance. A plain `false` from
+-- IsChallengeModeActive marks such a finished run; an unavailable or masked
+-- answer leaves the decision to the map check.
+local function IsChallengeModeReportedInactive()
   local api = rawget(_G, "C_ChallengeMode")
-  if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
-    return nil
+  if type(api) ~= "table" or type(api.IsChallengeModeActive) ~= "function" then
+    return false
   end
-  local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok or IsSecretValue(mapID) or not IsFiniteNumber(mapID) then
-    return nil
-  end
-  if mapID <= 0 or mapID % 1 ~= 0 then
-    return nil
-  end
-  return mapID
+  local ok, active = pcall(api.IsChallengeModeActive)
+  return ok and not IsSecretValue(active) and active == false
 end
 
 local function StartTimer(verifiedMapID)
@@ -91,6 +94,8 @@ local function StartTimer(verifiedMapID)
   local hasChallengeAPI = type(challengeMode) == "table"
 
   local mapId = verifiedMapID or ReadActiveChallengeMapID()
+  -- Clear the previous run's limits so a failed lookup cannot reuse them.
+  ClearTimeLimits()
   LoadKeyTimeLimits(mapId)
 
   local keyLevel = 0
@@ -121,8 +126,7 @@ local function ResetTimerState()
   state.timer = 0
   state.deaths = 0
   state.deathTimeLost = 0
-  state.timeLimit = 0
-  state.timeLimits = { 0, 0, 0 }
+  ClearTimeLimits()
   state.keyLevel = 0
   state.deathPenaltyActive = false
 end
@@ -212,7 +216,7 @@ function MplusTimer.HandleEvent(event)
       ResetTimerState()
     elseif canRestoreActiveRun and not state.running then
       local mapID = ReadActiveChallengeMapID()
-      if mapID then
+      if mapID and not IsChallengeModeReportedInactive() then
         StartTimer(mapID)
         UpdateDeaths()
         RefreshElapsedTime()

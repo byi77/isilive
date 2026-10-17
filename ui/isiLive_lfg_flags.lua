@@ -137,11 +137,12 @@ local function GetTagForResult(resultID)
     return nil
   end
   local ok, info = pcall(C_LFGList_ref.GetSearchResultInfo, resultID)
-  if not ok or not info or IsSecretValue(info) then
+  -- Secret check first: even the truth test of a masked value raises.
+  if not ok or IsSecretValue(info) or type(info) ~= "table" then
     return nil
   end
   local leaderName = info.leaderName
-  if not leaderName then
+  if IsSecretValue(leaderName) or type(leaderName) ~= "string" or leaderName == "" then
     return nil
   end
   local _, realm = SplitNameRealm(leaderName)

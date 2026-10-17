@@ -454,9 +454,16 @@ local function analyzeLines(path, lines)
         -- StyLua wraps a long assignment as `local a, b =` plus `pcall(...)`
         -- on the next line; that form must not slip past the ordering rule.
         local wrappedNames = code:match("^%s*local%s+([^=]-)%s*=%s*$")
-        local nextTarget = stripComment(lines[lineno + 1]):match("^%s*pcall%s*%(%s*([%w_%.]+)")
+        local nextCode = stripComment(lines[lineno + 1])
+        local nextTarget = nextCode:match("^%s*pcall%s*%(%s*([%w_%.]+)")
+        local targetAnchor = lineno + 1
+        if not nextTarget and nextCode:match("^%s*pcall%s*%(%s*$") and lineno + 1 < #lines then
+          -- Wider still: `pcall(` alone, the target on the line after.
+          nextTarget = stripComment(lines[lineno + 2]):match("^%s*([%w_%.]+)%s*,?%s*$")
+          targetAnchor = lineno + 2
+        end
         if wrappedNames and nextTarget then
-          assignedNames, pcallTarget, guardAnchor = wrappedNames, nextTarget, lineno + 1
+          assignedNames, pcallTarget, guardAnchor = wrappedNames, nextTarget, targetAnchor
         end
       end
       local pcallApi = pcallTarget and resolveWatchedApi(pcallTarget, watchedAliasByName) or nil

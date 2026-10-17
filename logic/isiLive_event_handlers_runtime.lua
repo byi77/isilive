@@ -889,6 +889,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if type(ctx.logRuntimeTrace) == "function" then
       ctx.logRuntimeTrace("[RUNTIME] player_regen_disabled")
     end
+    -- The event fires just before combat lockdown, the last moment the
+    -- preview cleanup may still touch secure frames.
+    if ctx.isTestMode() or ctx.isTestAllMode() then
+      ctx.exitTestModeForCombat()
+    end
     ctx.handleKillTrackEvent("PLAYER_REGEN_DISABLED")
     ApplyCombatFade(ctx, 0)
   end

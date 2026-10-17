@@ -139,10 +139,8 @@ local function BuildMemberRows(RosterMocks)
     end
     row.hoverFrame = RosterMocks.MakeFrameMock()
     row.readyCheckBackground = RosterMocks.MakeFrameMock()
-    row.roleButton = RosterMocks.MakeFrameMock()
-    row.roleButton.SetAttribute = RosterMocks.NoOp
-    row.roleButton.GetAttribute = RosterMocks.NoOp
-    row.roleButton.icon = row.roleButton:CreateTexture()
+    row.roleIcon = RosterMocks.MakeFrameMock()
+    row.roleIcon.icon = row.roleIcon:CreateTexture()
     rows[i] = row
   end
   return rows

@@ -50,6 +50,20 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
     end
     ctx.testModeController.ExitTestMode()
   end
+  -- Combat start ends the preview but keeps the main frame open; like the
+  -- demo toggle, the "was in group" flag lets HandleNoGroup rebuild the solo
+  -- player entry from the restored real roster.
+  ctx.ExitTestModeForCombat = function()
+    if not (runtimeState.IsTestMode() or runtimeState.IsTestAllMode()) then
+      return false
+    end
+    local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
+    if logFn then
+      logFn("[TESTMODE] exit_for_combat")
+    end
+    ctx.SetWasInGroup(true)
+    return ctx.testModeController.ExitTestModeForCombat()
+  end
   ctx.ToggleStandardTestMode = function()
     local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
     if logFn then

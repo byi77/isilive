@@ -1490,9 +1490,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
         end,
       }
 
-      local row = RI.CreateMemberRow(mainFrame, 1, nil, function()
-        return {}
-      end)
+      local row = RI.CreateMemberRow(mainFrame, 1, nil)
 
       local background = row.readyCheckBackground
       Assert.NotNil(background, "the row must own a ready-check background texture")

@@ -8,7 +8,7 @@ addonTable.KeySync = KeySync
 local SeasonData = addonTable.SeasonData or {}
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
-local GetCurrentPartyInstanceID = addonTable.Validators.GetCurrentPartyInstanceID
+local GetPartyInstanceIDFromInfo = addonTable.Validators.GetPartyInstanceIDFromInfo
 
 -- Module-level diagnostics counters. These are write-only from inside
 -- KeySync internals and read-only from outside via KeySync.GetDiagnostics().
@@ -236,25 +236,30 @@ local function SendLibKeystonePartyData(sync, getUnitRio, force)
   })
 end
 
-local function GetOwnedLocMapID()
+-- One GetInstanceInfo read per snapshot: returns the legacy UiMapID and the
+-- party instance ID (8th GetInstanceInfo return, already secret-checked by
+-- GetInstanceInfoSafe). Both are nil outside a party instance.
+local function GetOwnedLocIDs()
   if type(GetInstanceInfoSafe) ~= "function" then
-    return nil
+    return nil, nil
   end
   local ok, instanceInfo = GetInstanceInfoSafe()
   if not ok or instanceInfo.instanceType ~= "party" then
-    return nil
+    return nil, nil
   end
+  local instanceID = type(GetPartyInstanceIDFromInfo) == "function" and GetPartyInstanceIDFromInfo(ok, instanceInfo)
+    or nil
   local mapApi = rawget(_G, "C_Map")
   local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit
   if type(getBestMapForUnit) ~= "function" or not addonTable.Validators.IsExistingUnit("player") then
-    return nil
+    return nil, instanceID
   end
   local okMap, mapID = pcall(getBestMapForUnit, "player")
   mapID = okMap and not IsSecretValue(mapID) and tonumber(mapID) or nil
   if not mapID or mapID <= 0 then
-    return nil
+    return nil, instanceID
   end
-  return math.floor(mapID)
+  return math.floor(mapID), instanceID
 end
 
 local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, opts)
@@ -317,14 +322,14 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
   -- The UiMapID stays in the legacy field for clients up to 0.9.423; the
   -- target-dungeon marker of current clients reads only the instance ID
   -- (rules 193/194).
-  local locMapID = GetOwnedLocMapID()
+  local locMapID, locInstanceID = GetOwnedLocIDs()
   sync.SendLoc({
     force = force,
     isVisible = isVisible,
     allowHidden = allowHidden,
     onlyIfChanged = onlyIfChanged,
     mapID = locMapID,
-    instanceID = type(GetCurrentPartyInstanceID) == "function" and GetCurrentPartyInstanceID() or nil,
+    instanceID = locInstanceID,
     source = source,
   })
 end

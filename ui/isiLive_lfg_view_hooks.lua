@@ -179,32 +179,92 @@ function Hooks.Configure(value)
   callbacks = value
 end
 
+-- Every event is registered here, once, in the main chunk (CLAUDE.md: never
+-- register events dynamically from a protected-dispatch handler such as the
+-- load-on-demand Blizzard_LFGList ADDON_LOADED). Each branch stays inert
+-- until the hook it serves has run.
+local pendingSearchPanelHook
+local searchPanelHooked = false
+local fallbackSearchBox
+
+local HOOK_EVENTS = {
+  "ADDON_LOADED",
+  "LFG_LIST_SEARCH_RESULT_UPDATED",
+  "PLAYER_SPECIALIZATION_CHANGED",
+  "LFG_LIST_SEARCH_RESULTS_RECEIVED",
+}
+
+local hookEventFrame
+
+local function RefreshFallbackSearchButtons()
+  local searchBox = fallbackSearchBox
+  if not searchBox then
+    return
+  end
+  ScheduleAfter(0.1, function()
+    if type(searchBox.GetFrames) == "function" then
+      HookButtons(searchBox:GetFrames() or {})
+    end
+    ScheduleAfter(0.3, RefreshAll)
+  end)
+end
+
+local function OnHookEvent(_, event, value)
+  if event == "ADDON_LOADED" then
+    if value ~= "Blizzard_LFGList" or not pendingSearchPanelHook then
+      return
+    end
+    local hookSearchPanel = pendingSearchPanelHook
+    pendingSearchPanelHook = nil
+    if hookEventFrame and type(hookEventFrame.UnregisterEvent) == "function" then
+      hookEventFrame:UnregisterEvent("ADDON_LOADED")
+    end
+    hookSearchPanel()
+    return
+  end
+  if not searchPanelHooked or not callbacks then
+    return
+  end
+  if event == "LFG_LIST_SEARCH_RESULTS_RECEIVED" then
+    RefreshFallbackSearchButtons()
+    return
+  end
+  if addonTable.Validators.IsSecretValue(value) then
+    return
+  end
+  if event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
+    if type(value) == "number" then
+      callbacks.refreshSearchResultBonuses(value)
+    end
+  elseif value == "player" then
+    callbacks.refreshSearchResultBonuses()
+  end
+end
+
+hookEventFrame = CreateEventFrame()
+if
+  hookEventFrame
+  and type(hookEventFrame.RegisterEvent) == "function"
+  and type(hookEventFrame.SetScript) == "function"
+then
+  for _, event in ipairs(HOOK_EVENTS) do
+    hookEventFrame:RegisterEvent(event)
+  end
+  hookEventFrame:SetScript("OnEvent", OnHookEvent)
+end
+
 function Hooks.HookSearchPanel()
   local cb = RequireCallbacks()
+  if searchPanelHooked then
+    return
+  end
   local LFGListFrameRef = rawget(_G, "LFGListFrame")
   if not LFGListFrameRef or not LFGListFrameRef.SearchPanel or not LFGListFrameRef.SearchPanel.ScrollBox then
     return
   end
   local searchBox = LFGListFrameRef.SearchPanel.ScrollBox
+  searchPanelHooked = true
   HookApplicationViewer()
-
-  local bonusEvents = CreateEventFrame()
-  if bonusEvents then
-    bonusEvents:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
-    bonusEvents:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
-    bonusEvents:SetScript("OnEvent", function(_, event, value)
-      if addonTable.Validators.IsSecretValue(value) then
-        return
-      end
-      if event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
-        if type(value) == "number" then
-          cb.refreshSearchResultBonuses(value)
-        end
-      elseif value == "player" then
-        cb.refreshSearchResultBonuses()
-      end
-    end)
-  end
 
   local ScrollBoxUtil_ref = rawget(_G, "ScrollBoxUtil")
   if type(ScrollBoxUtil_ref) == "table" and type(ScrollBoxUtil_ref.OnViewFramesChanged) == "function" then
@@ -213,18 +273,7 @@ function Hooks.HookSearchPanel()
       ScrollBoxUtil_ref:OnViewScrollChanged(searchBox, RefreshAll)
     end
   else
-    local eventFrame = CreateEventFrame()
-    if eventFrame then
-      eventFrame:RegisterEvent("LFG_LIST_SEARCH_RESULTS_RECEIVED")
-      eventFrame:SetScript("OnEvent", function()
-        ScheduleAfter(0.1, function()
-          if type(searchBox.GetFrames) == "function" then
-            HookButtons(searchBox:GetFrames() or {})
-          end
-          ScheduleAfter(0.3, RefreshAll)
-        end)
-      end)
-    end
+    fallbackSearchBox = searchBox
   end
 
   HookGlobalFunction("LFGListSearchPanel_DoSearch", cb.clearSearchCaches)
@@ -243,17 +292,7 @@ function Hooks.RegisterWhenAvailable(hookSearchPanel)
     hookSearchPanel()
     return
   end
-  local eventFrame = CreateEventFrame()
-  if eventFrame then
-    eventFrame:RegisterEvent("ADDON_LOADED")
-    eventFrame:SetScript("OnEvent", function(self, _, name)
-      if name ~= "Blizzard_LFGList" then
-        return
-      end
-      self:UnregisterEvent("ADDON_LOADED")
-      hookSearchPanel()
-    end)
-  end
+  pendingSearchPanelHook = hookSearchPanel
 end
 
 function Hooks.ForEachSearchButton(callback)
