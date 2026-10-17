@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-18 - Version 0.9.437 (patch)
+
+- Stats box inside a running key: the stat APIs return secret values there,
+  which the box displays as they come, and the width of a secret text is
+  secret too. The column then fell back to its old 70 px width, so a mastery
+  of "(122.23%)" ran out of the box. A column whose text cannot be measured now
+  reserves the width of a plain template ("(888.88%)" for percentages,
+  "88888" for values) measured in the same font on an invisible FontString.
+
 ## 2026-10-18 - Version 0.9.436 (patch)
 
 - Death announcements: removed the 30-second death-audio burst pause left over

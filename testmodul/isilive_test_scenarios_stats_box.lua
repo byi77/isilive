@@ -1224,6 +1224,65 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox reserves the template width when a secret percent text cannot be measured", function()
+    local secretWidth = {}
+    local fontStrings = {}
+    local createFrameStub = BuildCreateFrameStub()
+    local createFrame = function(...)
+      local frame = createFrameStub(...)
+      local originalCreateFontString = frame.CreateFontString
+      frame.CreateFontString = function(self, ...)
+        local fontString = originalCreateFontString(self, ...)
+        -- 10 px per character; inside a key the mastery text is secret and so
+        -- is its measured width.
+        local function measure(widthSelf)
+          local text = tostring(widthSelf._text or "")
+          if text == "(122.23%)" then
+            return secretWidth
+          end
+          return #text * 10
+        end
+        fontString.GetUnboundedStringWidth = measure
+        fontString.GetStringWidth = measure
+        fontStrings[#fontStrings + 1] = fontString
+        return fontString
+      end
+      return frame
+    end
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = createFrame,
+      issecretvalue = function(value)
+        return value == secretWidth
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "crit", label = "Krit", value = 678, percent = 26.74 },
+            { key = "mastery", label = "Meist", value = 1007, percent = 122.23 },
+          }
+        end,
+      })
+      local masteryPercent
+      for _, fontString in ipairs(fontStrings) do
+        if fontString._text == "(122.23%)" then
+          masteryPercent = fontString
+        end
+      end
+      Assert.NotNil(masteryPercent, "the secret mastery percent must render")
+      Assert.Equal(
+        masteryPercent and masteryPercent._width,
+        #"(888.88%)" * 10,
+        "an unmeasurable percent column reserves the template width, not the 70 px default"
+      )
+    end)
+  end)
+
   test("StatsBox ignores secret text width measurements", function()
     local secretWidth = {}
     local secretWidths = false

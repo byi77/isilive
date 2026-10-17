@@ -748,20 +748,43 @@ local function ResolveFallbackColumnWidth(previousLayout, baseLayout, key)
   return baseLayout[key]
 end
 
-local function ResolveContentFitLayout(baseLayout, lines, visibleCount, previousLayout)
+-- Widest text a value or percent column normally shows. Inside restricted
+-- content the stat APIs return secret values that are displayed as they come,
+-- and the width of a secret text is secret too, so it cannot be measured; the
+-- column then reserves the width of this plain template in the same font.
+local COLUMN_WIDTH_TEMPLATES = {
+  value = "88888",
+  percent = "(888.88%)",
+}
+
+local function ResolveContentFitLayout(baseLayout, lines, visibleCount, previousLayout, measureTemplate)
   local labelWidth = 0
   local valueWidth = 0
   local percentWidth = 0
   local hasPercent = false
+  local valueUnmeasured = false
+  local percentUnmeasured = false
   for index = 1, visibleCount do
     local rowFrame = lines[index]
     if rowFrame then
       labelWidth = math.max(labelWidth, MeasureFontStringWidth(rowFrame.label) or 0)
-      valueWidth = math.max(valueWidth, MeasureFontStringWidth(rowFrame.value) or 0)
+      local measuredValue = MeasureFontStringWidth(rowFrame.value)
+      valueUnmeasured = valueUnmeasured or measuredValue == nil
+      valueWidth = math.max(valueWidth, measuredValue or 0)
       if rowFrame.percent and type(rowFrame.percent.IsShown) == "function" and rowFrame.percent:IsShown() then
         hasPercent = true
-        percentWidth = math.max(percentWidth, MeasureFontStringWidth(rowFrame.percent) or 0)
+        local measuredPercent = MeasureFontStringWidth(rowFrame.percent)
+        percentUnmeasured = percentUnmeasured or measuredPercent == nil
+        percentWidth = math.max(percentWidth, measuredPercent or 0)
       end
+    end
+  end
+  if type(measureTemplate) == "function" then
+    if valueUnmeasured then
+      valueWidth = math.max(valueWidth, measureTemplate(COLUMN_WIDTH_TEMPLATES.value) or 0)
+    end
+    if percentUnmeasured then
+      percentWidth = math.max(percentWidth, measureTemplate(COLUMN_WIDTH_TEMPLATES.percent) or 0)
     end
   end
 
@@ -943,7 +966,7 @@ local function RenderRows(state, rows, forceLayout)
       end
     end
   end
-  local nextLayout = ResolveContentFitLayout(layout, state.lines, visibleCount, state.layout)
+  local nextLayout = ResolveContentFitLayout(layout, state.lines, visibleCount, state.layout, state.measureTemplate)
   if forceLayout == true or not LayoutsEqual(state.layout, nextLayout) then
     ApplyLayout(state, nextLayout)
   end
@@ -1110,6 +1133,23 @@ function StatsBox.Create(opts)
     }
   end
 
+  -- Invisible FontString in the value font that measures the plain column
+  -- templates when a secret stat text cannot be measured. Shown at alpha 0
+  -- rather than hidden, so the client lays its text out for measuring.
+  local measureText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  if type(measureText.SetWordWrap) == "function" then
+    measureText:SetWordWrap(false)
+  end
+  if type(measureText.SetAlpha) == "function" then
+    measureText:SetAlpha(0)
+  end
+  measureText:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+  state.measureText = measureText
+  function state.measureTemplate(template)
+    measureText:SetText(template)
+    return MeasureFontStringWidth(measureText)
+  end
+
   local function Refresh(forceLayout)
     RenderRows(state, state.collectStats(opts), forceLayout)
   end
@@ -1142,6 +1182,7 @@ function StatsBox.Create(opts)
       ApplyLineTextStyle(rowFrame.value, state.baseLayout.valueFontSize)
       ApplyLineTextStyle(rowFrame.percent, state.baseLayout.valueFontSize)
     end
+    ApplyLineTextStyle(state.measureText, state.baseLayout.valueFontSize)
     if ResolveEnabled() then
       Refresh(true)
       frame:SetScript("OnUpdate", UpdateVisibleStats)
