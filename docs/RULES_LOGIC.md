@@ -1332,6 +1332,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UpdateCdTrackerRow renders BL ready as 00:00 when cooldown reached zero
   - UpdateCdTrackerRow restores default BL icon and renders BL: -- when no BL context exists
   - CdTracker reports zero Lust remain when an observed aura timer expires
+  - CdTracker resolves Lust ready from a passed verified expiry when secret slots block absence
   - Event handlers call updateCdTracker on UNIT_AURA aura removals
   - Event handlers call updateCdTracker on UNIT_AURA aura instance updates
   - Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh

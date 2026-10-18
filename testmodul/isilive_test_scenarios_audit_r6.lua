@@ -128,4 +128,57 @@ return function(test, ctx)
       end
     )
   end)
+
+  test("Group-full sound plays when a fifth member joins through the real roster dispatch", function()
+    for _, variant in ipairs({ "readable", "late-name", "solo-invite", "slot-shift" }) do
+      local hideParty4 = false
+      local shifted = false
+      Stress.WithParty(ctx, Fixture, function(session)
+        local sounds = 0
+        session.addon.SoundUtils.PlayGroupJoin = function()
+          sounds = sounds + 1
+          return true
+        end
+        if variant == "solo-invite" then
+          -- Invited as the fourth member: login happened solo.
+          session.grouped = true
+        end
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        session.Advance(1)
+        ctx.assert.Equal(sounds, 0, variant .. ": four members stay silent")
+        session.members = 5
+        hideParty4 = variant == "late-name"
+        shifted = variant == "slot-shift"
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        session.Advance(1)
+        hideParty4 = false
+        session.Dispatch("GROUP_ROSTER_UPDATE")
+        session.Advance(1)
+        ctx.assert.Equal(sounds, 1, variant .. ": the fifth join plays the group-full sound once")
+      end, function(globals, session)
+        session.members = 4
+        session.grouped = variant ~= "solo-invite"
+        -- slot-shift: the newcomer takes party1 and the others move up a slot.
+        local shiftMap = { party1 = "party4", party2 = "party1", party3 = "party2", party4 = "party3" }
+        local function Source(unit)
+          return shifted and shiftMap[unit] or unit
+        end
+        local unitName = globals.UnitName
+        globals.UnitName = function(unit)
+          if unit == "party4" and (hideParty4 or (session.members or 5) < 5) then
+            return nil
+          end
+          return unitName(Source(unit))
+        end
+        globals.UnitFullName = globals.UnitName
+        local unitExists = globals.UnitExists
+        globals.UnitExists = function(unit)
+          if unit == "party4" and (session.members or 5) < 5 then
+            return false
+          end
+          return unitExists(unit)
+        end
+      end)
+    end
+  end)
 end

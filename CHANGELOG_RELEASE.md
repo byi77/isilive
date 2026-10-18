@@ -3,13 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.437`.
+Current version: `0.9.438`.
 
-Version 0.9.437: the stats box also fits long values inside a running key.
+Version 0.9.438: the Bloodlust-ready alert plays again inside a running key.
 
-<!-- highlights-reviewed-for: 0.9.437 -->
+<!-- highlights-reviewed-for: 0.9.438 -->
 
 Highlights:
+- **Bloodlust-ready alert is back in keys.** When Sated/Exhaustion runs out,
+  the ready alert plays again even while other debuffs on you cannot be read.
 - **Every tank and healer death is announced.** A healer dying right after the
   tank is no longer muted; the two announcements play one after the other.
 - **Stats box fits long values.** A mastery above 100% shows in full and the
@@ -20,5 +22,3 @@ Highlights:
   group role, so Mark-T/H no longer marks a healer who went damage.
 - **Exact-name role marking.** Mark-T/H targets each player by exact name and
   returns to your own target right after each marker.
-- **Combat-safe layout changes.** Switching to V or H in combat hides Mark-T/H
-  at once; size and anchors catch up after combat.

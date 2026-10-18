@@ -42,6 +42,12 @@ function CdTracker.CreateController(opts)
   local lustDuration = nil
   local lustIcon = nil
   local lustScanResolved = false
+  -- Expiry of the last plainly read Sated debuff. In a running key the client
+  -- throws on secret aura slots, so after Sated drops the list often cannot be
+  -- read to its end and absence stays unproven. Sated has a fixed length and
+  -- cannot be removed or refreshed early, so a verified expiry that has passed
+  -- proves readiness on its own.
+  local lustKnownExpiry = nil
 
   -- GetSpellCharges may hand back Secret Values in restricted content, both as
   -- the flat multi-return and as fields of the ChargeInfo struct. Every value
@@ -117,6 +123,38 @@ function CdTracker.CreateController(opts)
     end
   end
 
+  -- Returns "found" for a verified Sated match, "absent" for a readable list
+  -- ending without one, nil when the scan could not decide.
+  local function ReadLustAuras(readAura, previouslyObserved)
+    -- Absence requires a readable list ending; skipped secret/error slots
+    -- cannot prove readiness. A verified active match still resolves directly.
+    local complete = true
+    for index = 1, 40 do
+      local ok, aura = pcall(readAura, "player", index, "HARMFUL")
+      local plain = ok and not IsSecretValue(aura)
+      if plain and aura == nil then
+        return complete and "absent" or nil
+      end
+      local spellID = plain and type(aura) == "table" and ReadPlainNumber(aura, "spellId") or nil
+      if spellID and LUST_SATED_IDS[spellID] then
+        local expiry = ReadPlainNumber(aura, "expirationTime")
+        if not expiry then
+          return nil
+        end
+        local remain = math.max(0, expiry - getTime())
+        lustRemain = (remain > 0 or previouslyObserved) and remain or nil
+        lustDuration = ReadPlainNumber(aura, "duration")
+        lustIcon = ReadPlainField(aura, "icon")
+        lustKnownExpiry = remain > 0 and expiry or nil
+        return "found"
+      end
+      if not spellID then
+        complete = false
+      end
+    end
+    return nil
+  end
+
   local function ScanLust()
     local previouslyObserved = lustRemain ~= nil
     lustScanResolved = false
@@ -126,31 +164,20 @@ function CdTracker.CreateController(opts)
     if type(readAura) ~= "function" then
       return
     end
-    -- Absence requires a readable list ending; skipped secret/error slots
-    -- cannot prove readiness. A verified active match still resolves directly.
-    local complete = true
-    for index = 1, 40 do
-      local ok, aura = pcall(readAura, "player", index, "HARMFUL")
-      local plain = ok and not IsSecretValue(aura)
-      if plain and aura == nil then
-        lustScanResolved = complete
-        return
+    local result = ReadLustAuras(readAura, previouslyObserved)
+    if result ~= nil then
+      lustScanResolved = true
+      if result == "absent" then
+        lustKnownExpiry = nil
       end
-      local spellID = plain and type(aura) == "table" and ReadPlainNumber(aura, "spellId") or nil
-      if spellID and LUST_SATED_IDS[spellID] then
-        local expiry = ReadPlainNumber(aura, "expirationTime")
-        if expiry then
-          lustScanResolved = true
-          local remain = math.max(0, expiry - getTime())
-          lustRemain = (remain > 0 or previouslyObserved) and remain or nil
-          lustDuration = ReadPlainNumber(aura, "duration")
-          lustIcon = ReadPlainField(aura, "icon")
-        end
-        return
-      end
-      if not spellID then
-        complete = false
-      end
+      return
+    end
+    -- Undecided scan: only a verified expiry that has passed resolves it, as
+    -- the zero tick of the observed timer (one ready transition, then cleared).
+    if lustKnownExpiry ~= nil and getTime() >= lustKnownExpiry then
+      lustKnownExpiry = nil
+      lustScanResolved = true
+      lustRemain = 0
     end
   end
 
@@ -175,6 +202,7 @@ function CdTracker.CreateController(opts)
     lustDuration = nil
     lustIcon = nil
     lustScanResolved = false
+    lustKnownExpiry = nil
   end
 
   function controller.GetBResInfo()

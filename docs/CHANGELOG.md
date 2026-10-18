@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-18 - Version 0.9.438 (patch)
+
+- Bloodlust-ready alert inside a running key: the client throws on secret aura
+  slots there, so once Sated dropped the player's harmful aura list could no
+  longer be read to its end and absence stayed unproven (rule R6). The ready
+  transition never fired. The CD tracker now keeps the expiry of the last
+  plainly read Sated debuff; Sated has a fixed length and cannot be removed or
+  refreshed early, so an undecided scan after that expiry resolves once as the
+  zero tick of the observed timer. Without a verified expiry, unknown scans
+  still never manufacture a ready alert.
+- Tests: end-to-end regression for the group-full sound through the real
+  roster dispatch (fifth member joins, late-readable name, invite as fourth,
+  party slot shift).
+
 ## 2026-10-18 - Version 0.9.437 (patch)
 
 - Stats box inside a running key: the stat APIs return secret values there,

@@ -444,6 +444,49 @@ return function(test, ctx)
     end)
   end)
 
+  test("CdTracker resolves Lust ready from a passed verified expiry when secret slots block absence", function()
+    local NOW = 1000
+    local currentTime = NOW
+    local mode = "active"
+    WithGlobals({
+      C_UnitAuras = {
+        GetAuraDataByIndex = function(_, index)
+          if mode == "active" then
+            return index == 1 and MakeLustAura(NOW + 10) or nil
+          end
+          -- Key content: the client throws on a secret slot after Sated dropped.
+          if index == 1 then
+            error("Auras cannot be accessed when secret")
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return currentTime
+        end,
+      })
+      ctrl.Scan()
+      Assert.Equal(ctrl.GetLustInfo().remain, 10, "verified Sated timer is read")
+
+      mode = "blocked"
+      currentTime = NOW + 5
+      ctrl.Scan()
+      Assert.False(ctrl.IsLustScanResolved(), "blocked scan before the verified expiry stays unknown")
+      Assert.Nil(ctrl.GetLustInfo(), "blocked scan before expiry does not invent a timer")
+
+      currentTime = NOW + 11
+      ctrl.Scan()
+      Assert.True(ctrl.IsLustScanResolved(), "passed verified expiry proves readiness")
+      Assert.Equal(ctrl.GetLustInfo().remain, 0, "passed verified expiry reports the zero tick")
+
+      currentTime = NOW + 12
+      ctrl.Scan()
+      Assert.False(ctrl.IsLustScanResolved(), "the expiry proof is used once, later blocked scans stay unknown")
+    end)
+  end)
+
   test(
     "CdTracker reads aura fields via rawget - direct table fields are accessible, __index trap is not triggered",
     function()

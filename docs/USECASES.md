@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.437`
+Versionsbasis: `0.9.438`
 Zuletzt aktualisiert: `2026-10-18`
 
 Review-Fixes (2026-10-17): Layoutklicks im Kampf uebernehmen weiterhin den
