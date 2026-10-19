@@ -55,6 +55,7 @@ function Bootstrap.RegisterSlashCommands(opts)
   local printHearthstoneDebug = type(opts.printHearthstoneDebug) == "function" and opts.printHearthstoneDebug
     or function() end
   local printStatsDebug = type(opts.printStatsDebug) == "function" and opts.printStatsDebug or function() end
+  local printLustDebug = type(opts.printLustDebug) == "function" and opts.printLustDebug or function() end
 
   commands.RegisterSlashCommands({
     printFn = printFn,
@@ -100,6 +101,7 @@ function Bootstrap.RegisterSlashCommands(opts)
     printSeasonDebug = printSeasonDebug,
     printHearthstoneDebug = printHearthstoneDebug,
     printStatsDebug = printStatsDebug,
+    printLustDebug = printLustDebug,
     logRuntimeTracef = runtimeLogController.Logf,
   })
 end

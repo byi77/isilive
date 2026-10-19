@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.439`
-Zuletzt aktualisiert: `2026-10-19`
+Versionsbasis: `0.9.440`
+Zuletzt aktualisiert: `2026-10-20`
 
 Review-Fixes (2026-10-17): Layoutklicks im Kampf uebernehmen weiterhin den
 gewuenschten Modus. Mark-T/H behaelt dabei seine sichere Sichtbarkeit,

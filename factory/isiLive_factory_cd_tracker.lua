@@ -141,6 +141,199 @@ local function IsBloodlustReadyReminderEnabled(initialDBRef)
   return not (type(db) == "table" and db.soundBloodlustReadyReminderEnabled == false)
 end
 
+local function IsMplusTimerRunning(ctx)
+  local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+  if type(MplusTimer) == "table" and type(MplusTimer.IsRunning) == "function" then
+    return MplusTimer.IsRunning() == true
+  end
+  if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
+    local timerData = MplusTimer.GetTimerData()
+    if timerData and timerData.running then
+      return true
+    end
+  end
+  return false
+end
+
+-- BRes / Bloodlust tracking is a Mythic+ utility and only runs in the full
+-- runtime profile (active keystone or M0). A tracked party run alone is not
+-- enough any more: normal, heroic and timewalking runs are tracked for the
+-- last-run DPS snapshot, but must not start the 1s CD poll. Fails closed
+-- when the resolver is missing.
+local function IsFullProfileActive(ctx)
+  -- Running keystone: answered by the injected bridge, which stays valid in
+  -- every call context. The wider M0 / pre-insert case can only be read from
+  -- live instance data, so it goes through the central resolver.
+  if type(ctx.GetActiveChallengeMapID) == "function" then
+    local okBridge, mapID = pcall(ctx.GetActiveChallengeMapID)
+    if okBridge and not addonTable.Validators.IsSecretValue(mapID) then
+      local numeric = tonumber(mapID)
+      if numeric and numeric > 0 then
+        return true
+      end
+    end
+  end
+  local runtimeMode = addonTable.RuntimeMode
+  if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileContext) ~= "function" then
+    return false
+  end
+  local ok, isFullProfile = pcall(runtimeMode.IsFullProfileContext)
+  return ok and isFullProfile == true
+end
+
+local function IsActiveChallengeContext(ctx)
+  if type(ctx.GetActiveChallengeMapID) ~= "function" then
+    return true
+  end
+  local ok, mapID = pcall(ctx.GetActiveChallengeMapID)
+  if not ok or addonTable.Validators.IsSecretValue(mapID) or mapID == nil then
+    return false
+  end
+  return true
+end
+
+local function IsGroupedUtilityContext(ctx)
+  if type(ctx.isInGroup) == "function" and ctx.isInGroup() == true then
+    return true
+  end
+  if type(ctx.isInInstanceGroup) == "function" and ctx.isInInstanceGroup() == true then
+    return true
+  end
+  return false
+end
+
+-- Plays one Lust alert and writes its outcome to the runtime log, so a
+-- missing in-game announcement can be told apart from a muted or rejected
+-- playback.
+local function PlayLustAlert(ctx, fnName, label)
+  local played = PlaySoundUtil(ctx, fnName)
+  local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
+  if type(logf) == "function" then
+    local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+    local result = type(soundUtils) == "table"
+        and type(soundUtils.GetLastPlayResult) == "function"
+        and soundUtils.GetLastPlayResult()
+      or nil
+    logf(
+      "[LUST] %s played=%s reason=%s",
+      label,
+      tostring(played),
+      tostring(type(result) == "table" and result.reason or nil)
+    )
+  end
+  return played
+end
+
+local function DescribeAura(aura)
+  if addonTable.Validators.IsSecretValue(aura) or type(aura) ~= "table" then
+    return "secret"
+  end
+  local spellID = addonTable.Validators.ReadPlainNumber(aura, "spellId")
+  local expiry = addonTable.Validators.ReadPlainNumber(aura, "expirationTime")
+  return string.format("id=%s exp=%s", tostring(spellID or "secret"), tostring(expiry or "secret"))
+end
+
+local function DescribeHarmfulSlot(index)
+  local api = rawget(_G, "C_UnitAuras")
+  local readAura = type(api) == "table" and rawget(api, "GetAuraDataByIndex") or nil
+  if type(readAura) ~= "function" then
+    return "api-missing"
+  end
+  local ok, aura = pcall(readAura, "player", index, "HARMFUL")
+  if not ok then
+    return "error"
+  end
+  if addonTable.Validators.IsSecretValue(aura) then
+    return "secret"
+  end
+  if aura == nil then
+    return nil
+  end
+  return DescribeAura(aura)
+end
+
+-- The aura list the Lust scan reads first (see CdTracker.ReadLustAuras).
+local function DescribeUnitAuraList(Line)
+  local api = rawget(_G, "C_UnitAuras")
+  local getUnitAuras = type(api) == "table" and rawget(api, "GetUnitAuras") or nil
+  if type(getUnitAuras) ~= "function" then
+    Line("unitAuras: api-missing")
+    return
+  end
+  local ok, list = pcall(getUnitAuras, "player", "HARMFUL")
+  if not ok or addonTable.Validators.IsSecretValue(list) or type(list) ~= "table" then
+    Line("unitAuras: %s", ok and "unreadable" or "error")
+    return
+  end
+  Line("unitAuras: %d entries", #list)
+  for index = 1, math.min(#list, 40) do
+    Line("unitAuras[%d] %s", index, DescribeAura(list[index]))
+  end
+end
+
+-- `/isilive bldump`: one chat snapshot of everything the Bloodlust alerts
+-- depend on -- key context, what the aura scan sees, alert state, settings
+-- and the last playback result.
+local function PrintLustDump(ctx, printFn, state)
+  local function Line(fmt, ...)
+    printFn(string.format("[BL] " .. fmt, ...))
+  end
+  local controller = ctx.cdTrackerController
+  local info = controller and type(controller.GetLustInfo) == "function" and controller.GetLustInfo() or nil
+  Line(
+    "context: mplusTimer=%s grouped=%s activeKey=%s",
+    tostring(IsMplusTimerRunning(ctx)),
+    tostring(IsGroupedUtilityContext(ctx)),
+    tostring(IsActiveChallengeContext(ctx))
+  )
+  Line(
+    "tracker: resolved=%s remain=%s",
+    tostring(controller and type(controller.IsLustScanResolved) == "function" and controller.IsLustScanResolved()),
+    tostring(type(info) == "table" and info.remain or nil)
+  )
+  DescribeUnitAuraList(Line)
+  for index = 1, 40 do
+    local slot = DescribeHarmfulSlot(index)
+    if slot == nil then
+      Line("harmful slots: %d readable end", index - 1)
+      break
+    end
+    Line("harmful[%d] %s", index, slot)
+    if slot == "error" or slot == "api-missing" then
+      break
+    end
+  end
+  Line(
+    "state: lastTimer=%s soonWarned=%s readyAt=%s now=%s",
+    tostring(state.lastDisplayed),
+    tostring(state.soonWarned),
+    tostring(state.lastReadyAt),
+    tostring(state.now)
+  )
+  local db = rawget(_G, "IsiLiveDB")
+  db = type(db) == "table" and db or {}
+  Line(
+    "settings: soon=%s ready=%s reminder=%s channel=%s",
+    tostring(db.soundBloodlustSoonEnabled),
+    tostring(db.soundBloodlustReadyEnabled),
+    tostring(db.soundBloodlustReadyReminderEnabled),
+    tostring(db.soundOutputChannel)
+  )
+  local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+  local result = type(soundUtils) == "table"
+      and type(soundUtils.GetLastPlayResult) == "function"
+      and soundUtils.GetLastPlayResult()
+    or nil
+  if type(result) == "table" then
+    Line(
+      "last sound: ok=%s reason=%s path=%s",
+      tostring(result.ok),
+      tostring(result.reason),
+      tostring(result.path or result.soundKit)
+    )
+  end
+end
+
 local function InitializeFactorySecondaryCdTracker(
   ctx,
   modules,
@@ -179,20 +372,6 @@ local function InitializeFactorySecondaryCdTracker(
     lustWake.Cancel()
   end
 
-  local function IsMplusTimerRunning()
-    local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
-    if type(MplusTimer) == "table" and type(MplusTimer.IsRunning) == "function" then
-      return MplusTimer.IsRunning() == true
-    end
-    if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
-      local timerData = MplusTimer.GetTimerData()
-      if timerData and timerData.running then
-        return true
-      end
-    end
-    return false
-  end
-
   local function IsTrackedPartyRunActive()
     if runtimeState and type(runtimeState.IsTrackedPartyRunActive) == "function" then
       return runtimeState.IsTrackedPartyRunActive() == true
@@ -203,41 +382,15 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
-  -- BRes / Bloodlust tracking is a Mythic+ utility and only runs in the full
-  -- runtime profile (active keystone or M0). A tracked party run alone is not
-  -- enough any more: normal, heroic and timewalking runs are tracked for the
-  -- last-run DPS snapshot, but must not start the 1s CD poll. Fails closed
-  -- when the resolver is missing.
-  local function IsFullProfileActive()
-    -- Running keystone: answered by the injected bridge, which stays valid in
-    -- every call context. The wider M0 / pre-insert case can only be read from
-    -- live instance data, so it goes through the central resolver.
-    if type(ctx.GetActiveChallengeMapID) == "function" then
-      local okBridge, mapID = pcall(ctx.GetActiveChallengeMapID)
-      if okBridge and not addonTable.Validators.IsSecretValue(mapID) then
-        local numeric = tonumber(mapID)
-        if numeric and numeric > 0 then
-          return true
-        end
-      end
-    end
-    local runtimeMode = addonTable.RuntimeMode
-    if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileContext) ~= "function" then
-      return false
-    end
-    local ok, isFullProfile = pcall(runtimeMode.IsFullProfileContext)
-    return ok and isFullProfile == true
-  end
-
   local function ResolveCombatUtilityContextActive()
     -- A running key timer is itself proof of the full profile; no second
     -- opinion needed. The tracked-party-run branch does need one: it also
     -- covers normal, heroic and timewalking runs, which are tracked for the
     -- last-run DPS snapshot but must not start the 1s CD poll.
-    if IsMplusTimerRunning() then
+    if IsMplusTimerRunning(ctx) then
       return true
     end
-    if not IsFullProfileActive() then
+    if not IsFullProfileActive(ctx) then
       return false
     end
     return IsTrackedPartyRunActive()
@@ -245,27 +398,6 @@ local function InitializeFactorySecondaryCdTracker(
 
   local contextMemo = CreatePassMemo(ResolveCombatUtilityContextActive, getTime)
   local IsCombatUtilityContextActive = contextMemo.Get
-
-  local function IsActiveChallengeContext()
-    if type(ctx.GetActiveChallengeMapID) ~= "function" then
-      return true
-    end
-    local ok, mapID = pcall(ctx.GetActiveChallengeMapID)
-    if not ok or addonTable.Validators.IsSecretValue(mapID) or mapID == nil then
-      return false
-    end
-    return true
-  end
-
-  local function IsGroupedUtilityContext()
-    if type(ctx.isInGroup) == "function" and ctx.isInGroup() == true then
-      return true
-    end
-    if type(ctx.isInInstanceGroup) == "function" and ctx.isInInstanceGroup() == true then
-      return true
-    end
-    return false
-  end
 
   local function StopCdTrackerPolling()
     if cdPollingTicker and type(cdPollingTicker.Cancel) == "function" then
@@ -334,9 +466,9 @@ local function InitializeFactorySecondaryCdTracker(
       lastMplusRunning = false
       return
     end
-    local mplusRunning = IsMplusTimerRunning()
+    local mplusRunning = IsMplusTimerRunning(ctx)
     local combatUtilityContextActive = IsCombatUtilityContextActive()
-    local readySoundContextActive = mplusRunning and IsGroupedUtilityContext() and IsActiveChallengeContext()
+    local readySoundContextActive = mplusRunning and IsGroupedUtilityContext(ctx) and IsActiveChallengeContext(ctx)
     if mplusRunning and not lastMplusRunning then
       lastBResCharges = nil
       lastBResCooldownRemain = nil
@@ -401,7 +533,7 @@ local function InitializeFactorySecondaryCdTracker(
       and not suppressLustReadySound
     then
       lustSoonWarned = true
-      PlaySoundUtil(ctx, "PlayBloodlustSoon")
+      PlayLustAlert(ctx, "PlayBloodlustSoon", "soon")
     end
     if
       lustTimerDisplayed
@@ -419,7 +551,7 @@ local function InitializeFactorySecondaryCdTracker(
       and not lustTimerDisplayed
       and not suppressLustReadySound
     then
-      if PlaySoundUtil(ctx, "PlayBloodlustReady") then
+      if PlayLustAlert(ctx, "PlayBloodlustReady", "ready") then
         lastLustReadySoundAt = getTime()
         lustReadyDisplayActive = true
       end
@@ -432,7 +564,7 @@ local function InitializeFactorySecondaryCdTracker(
       and IsBloodlustReadyReminderEnabled(initialDBRef)
       and getTime() - lastLustReadySoundAt >= LUST_READY_REMINDER_SECONDS
     then
-      if PlaySoundUtil(ctx, "PlayBloodlustReady") then
+      if PlayLustAlert(ctx, "PlayBloodlustReady", "reminder") then
         lastLustReadySoundAt = getTime()
       end
     end
@@ -493,7 +625,7 @@ local function InitializeFactorySecondaryCdTracker(
         ctx.UpdateCdTracker({ fromVisibleRender = true })
       end,
       GetBResInfo = function()
-        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
+        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx) then
           return nil
         end
         return ctx.cdTrackerController
@@ -502,7 +634,7 @@ local function InitializeFactorySecondaryCdTracker(
           or nil
       end,
       GetLustInfo = function()
-        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
+        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx) then
           return nil
         end
         local info = ctx.cdTrackerController
@@ -512,7 +644,12 @@ local function InitializeFactorySecondaryCdTracker(
         if info ~= nil then
           return info
         end
-        if lustReadyDisplayActive and IsLustScanResolved() and IsMplusTimerRunning() and IsGroupedUtilityContext() then
+        if
+          lustReadyDisplayActive
+          and IsLustScanResolved()
+          and IsMplusTimerRunning(ctx)
+          and IsGroupedUtilityContext(ctx)
+        then
           return { remain = 0 }
         end
         return nil
@@ -520,6 +657,17 @@ local function InitializeFactorySecondaryCdTracker(
     }
     ctx.rosterPanelController.SetCdController(uiCdController)
   end
+
+  addonTable.LustDebug = {
+    PrintDump = function(printFn)
+      PrintLustDump(ctx, printFn, {
+        lastDisplayed = lastLustDisplayedTimer,
+        soonWarned = lustSoonWarned,
+        lastReadyAt = lastLustReadySoundAt,
+        now = getTime(),
+      })
+    end,
+  }
 
   -- Subscribe the kill-track row to state updates so the pull bar refreshes
   -- on every scenario tick / combat transition instead of only on roster

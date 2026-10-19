@@ -129,34 +129,82 @@ function CdTracker.CreateController(opts)
     end
   end
 
-  -- Returns "found" for a verified Sated match, "absent" for a readable list
-  -- ending without one, nil when the scan could not decide.
-  local function ReadLustAuras(readAura, previouslyObserved)
-    -- Absence requires a readable list ending; skipped secret/error slots
-    -- cannot prove readiness. A verified active match still resolves directly.
+  -- Classifies one aura: "found" for a verified Sated match (its timer is
+  -- applied), "undecided" for a Sated whose expiry is masked, "other" for a
+  -- plainly read other aura, nil when the aura itself cannot be read.
+  local function MatchLustAura(aura, previouslyObserved)
+    local spellID = not IsSecretValue(aura) and type(aura) == "table" and ReadPlainNumber(aura, "spellId") or nil
+    if not spellID then
+      return nil
+    end
+    if not LUST_SATED_IDS[spellID] then
+      return "other"
+    end
+    local expiry = ReadPlainNumber(aura, "expirationTime")
+    if not expiry then
+      return "undecided"
+    end
+    local remain = math.max(0, expiry - getTime())
+    lustRemain = (remain > 0 or previouslyObserved) and remain or nil
+    lustDuration = ReadPlainNumber(aura, "duration")
+    lustIcon = ReadPlainField(aura, "icon")
+    lustKnownExpiry = remain > 0 and expiry or nil
+    return "found"
+  end
+
+  -- Both readers return "found" for a verified Sated match, "absent" for a
+  -- fully readable list without one, nil when the scan could not decide:
+  -- skipped secret/error entries cannot prove readiness.
+  --
+  -- 12.x: in restricted content (a running key) the index API raises for the
+  -- whole call, so it never reaches the never-secret Sated debuff.
+  -- GetUnitAuras always returns the list; only the contents of each aura are
+  -- conditionally secret, and Sated/Exhaustion arrives plain.
+  local function ReadLustAuraList(list, previouslyObserved)
+    local complete = true
+    for index = 1, #list do
+      local match = MatchLustAura(list[index], previouslyObserved)
+      if match == "found" then
+        return "found"
+      elseif match == "undecided" then
+        return nil
+      elseif match == nil then
+        complete = false
+      end
+    end
+    return complete and "absent" or nil
+  end
+
+  local function ReadLustAurasByIndex(readAura, previouslyObserved)
     local complete = true
     for index = 1, 40 do
       local ok, aura = pcall(readAura, "player", index, "HARMFUL")
-      local plain = ok and not IsSecretValue(aura)
-      if plain and aura == nil then
+      if ok and not IsSecretValue(aura) and aura == nil then
         return complete and "absent" or nil
       end
-      local spellID = plain and type(aura) == "table" and ReadPlainNumber(aura, "spellId") or nil
-      if spellID and LUST_SATED_IDS[spellID] then
-        local expiry = ReadPlainNumber(aura, "expirationTime")
-        if not expiry then
-          return nil
-        end
-        local remain = math.max(0, expiry - getTime())
-        lustRemain = (remain > 0 or previouslyObserved) and remain or nil
-        lustDuration = ReadPlainNumber(aura, "duration")
-        lustIcon = ReadPlainField(aura, "icon")
-        lustKnownExpiry = remain > 0 and expiry or nil
+      local match = ok and MatchLustAura(aura, previouslyObserved) or nil
+      if match == "found" then
         return "found"
-      end
-      if not spellID then
+      elseif match == "undecided" then
+        return nil
+      elseif match == nil then
         complete = false
       end
+    end
+    return nil
+  end
+
+  local function ReadLustAuras(api, previouslyObserved)
+    local getUnitAuras = rawget(api, "GetUnitAuras")
+    if type(getUnitAuras) == "function" then
+      local ok, list = pcall(getUnitAuras, "player", "HARMFUL")
+      if ok and not IsSecretValue(list) and type(list) == "table" then
+        return ReadLustAuraList(list, previouslyObserved)
+      end
+    end
+    local readAura = rawget(api, "GetAuraDataByIndex")
+    if type(readAura) == "function" then
+      return ReadLustAurasByIndex(readAura, previouslyObserved)
     end
     return nil
   end
@@ -166,11 +214,10 @@ function CdTracker.CreateController(opts)
     lustScanResolved = false
     lustRemain, lustDuration, lustIcon = nil, nil, nil
     local api = rawget(_G, "C_UnitAuras")
-    local readAura = type(api) == "table" and rawget(api, "GetAuraDataByIndex") or nil
-    if type(readAura) ~= "function" then
+    if type(api) ~= "table" then
       return
     end
-    local result = ReadLustAuras(readAura, previouslyObserved)
+    local result = ReadLustAuras(api, previouslyObserved)
     if result ~= nil then
       lustScanResolved = true
       lustReadyConfirmed = result == "absent"

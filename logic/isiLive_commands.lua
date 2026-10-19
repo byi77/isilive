@@ -37,6 +37,7 @@ local function BuildDeps(opts)
     printSeasonDebug = opts.printSeasonDebug or function() end,
     printHearthstoneDebug = opts.printHearthstoneDebug or function() end,
     printStatsDebug = opts.printStatsDebug or function() end,
+    printLustDebug = opts.printLustDebug or function() end,
     setQueueDebugEnabled = opts.setQueueDebugEnabled or function(_enabled) end,
     getQueueDebugEnabled = opts.getQueueDebugEnabled or function()
       return false
@@ -512,6 +513,11 @@ local function TryHandleUtilityCommands(ctx, cmd)
 
   if cmd == "dpsdump" then
     ctx.printStatsDebug()
+    return true
+  end
+
+  if cmd == "bldump" then
+    ctx.printLustDebug()
     return true
   end
 

@@ -445,6 +445,14 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       end
       statsController.PrintCaptureDump(ctx.printFn)
     end,
+    printLustDebug = function()
+      local lustDebug = addonTable.LustDebug
+      if type(lustDebug) ~= "table" or type(lustDebug.PrintDump) ~= "function" then
+        ctx.printFn("[BL] CD tracker unavailable.")
+        return
+      end
+      lustDebug.PrintDump(ctx.printFn)
+    end,
     logRuntimeTrace = ctx.logRuntimeTrace,
     logRuntimeTracef = ctx.logRuntimeTracef,
   }

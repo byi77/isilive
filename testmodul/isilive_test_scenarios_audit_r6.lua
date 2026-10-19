@@ -227,23 +227,48 @@ return function(test, ctx)
         ctx.assert.Equal(ready, 2, visibility .. ": first 60-second reminder")
         session.Advance(60)
         ctx.assert.Equal(ready, 3, visibility .. ": reminder keeps looping while Lust is unused")
+        -- /isilive bldump reports the key context and the unreadable slot.
+        local dumpLines = {}
+        session.addon.LustDebug.PrintDump(function(line)
+          dumpLines[#dumpLines + 1] = line
+        end)
+        local dump = table.concat(dumpLines, "\n")
+        ctx.assert.True(
+          dump:find("[BL] context: mplusTimer=true grouped=true activeKey=true", 1, true) ~= nil,
+          visibility .. ": dump shows the key context"
+        )
+        ctx.assert.True(
+          dump:find("[BL] harmful[1] error", 1, true) ~= nil,
+          visibility .. ": dump shows the blocked index API"
+        )
+        ctx.assert.True(
+          dump:find("[BL] unitAuras[1] id=secret", 1, true) ~= nil,
+          visibility .. ": dump shows the masked debuff in the GetUnitAuras list"
+        )
         CastLust(600)
         session.Advance(180)
         ctx.assert.Equal(ready, 3, visibility .. ": using Lust again stops the reminder loop")
         ctx.assert.Equal(soon, 1, visibility .. ": no warning early in the new cycle")
       end, function(globals, session)
-        globals.C_UnitAuras.GetAuraDataByIndex = function(_, index, filter)
-          if filter ~= "HARMFUL" then
-            return nil
+        -- 12.x restricted content: the index API raises for every slot, while
+        -- GetUnitAuras returns the list with conditionally secret contents --
+        -- another debuff with masked fields next to the never-secret Sated.
+        local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+        for key, value in pairs(secretGlobals) do
+          globals[key] = value
+        end
+        globals.C_UnitAuras.GetAuraDataByIndex = function()
+          error("Auras cannot be accessed when secret")
+        end
+        globals.C_UnitAuras.GetUnitAuras = function(unit, filter)
+          if unit ~= "player" or filter ~= "HARMFUL" then
+            return {}
           end
-          if index == 1 then
-            if satedExpiry and session.now < satedExpiry then
-              return { spellId = 57723, expirationTime = satedExpiry, duration = 600, icon = 132114 }
-            end
-            -- Another debuff that is secret in the key: the client throws.
-            error("Auras cannot be accessed when secret")
+          local list = { { spellId = secret, expirationTime = secret } }
+          if satedExpiry and session.now < satedExpiry then
+            list[#list + 1] = { spellId = 57723, expirationTime = satedExpiry, duration = 600, icon = 132114 }
           end
-          return nil
+          return list
         end
       end)
     end

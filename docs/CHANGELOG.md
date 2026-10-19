@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-20 - Version 0.9.440 (patch)
+
+- Bloodlust timer and alerts inside keys: the Lust scan read the player's
+  debuffs with `C_UnitAuras.GetAuraDataByIndex`, which WoW 12.x blocks for the
+  whole call in restricted content (`SecretWhenUnitAuraRestricted`): every slot
+  raised, the never-secret Sated debuff was never reached, and the BL row stayed
+  at "--" with no countdown, warning or ready alert. The scan now reads
+  `C_UnitAuras.GetUnitAuras("player", "HARMFUL")`, which always returns the
+  list with conditionally secret contents, so Sated/Exhaustion arrives plain.
+  The index API remains the fallback when `GetUnitAuras` is missing or returns
+  no readable list.
+- New `/isilive bldump`: prints the key context, both aura views
+  (`GetUnitAuras` and the index API), the alert state, the Bloodlust sound
+  settings and the last playback result to chat.
+- Runtime log: every Bloodlust alert writes
+  `[LUST] soon|ready|reminder played=... reason=...`.
+- Tests: the end-to-end Bloodlust alert flow now models 12.x restricted content
+  (index API raising on every slot, `GetUnitAuras` with a masked debuff next to
+  a plain Sated) and checks the dump; the simulation-tablet tooltip stub is
+  installed with `rawset` so the language server no longer reports missing
+  `GameTooltip` fields.
+
 ## 2026-10-19 - Version 0.9.439 (patch)
 
 - Bloodlust in 10 seconds: new `bloodlust_soon` voice alert

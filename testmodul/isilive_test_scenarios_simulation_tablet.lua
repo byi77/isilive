@@ -255,16 +255,17 @@ return function(test, ctx)
     controller.Toggle()
     Assert.True(controller.IsShown(), "toggle must show a hidden tablet")
     local previousTooltip = rawget(_G, "GameTooltip")
-    _G.GameTooltip = {
+    -- rawset: a partial stub, not the full typed GameTooltip widget.
+    rawset(_G, "GameTooltip", {
       SetOwner = function() end,
       AddLine = function(_, text)
         table.insert(tooltipLines, text)
       end,
       Show = function() end,
       Hide = function() end,
-    }
+    })
     controller.buttons[1]._scripts.OnEnter(controller.buttons[1])
-    _G.GameTooltip = previousTooltip
+    rawset(_G, "GameTooltip", previousTooltip)
     Assert.Equal(tooltipLines[1], "Reduced", "tooltip must render action title")
     controller.buttons[1]._scripts.OnLeave(controller.buttons[1])
     controller.Toggle()
