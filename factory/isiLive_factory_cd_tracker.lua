@@ -5,6 +5,12 @@ local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
 local LUST_READY_REMINDER_SECONDS = 60
+-- The "Bloodlust ready in 10 seconds" voice alert fires once per Sated cycle
+-- when the observed remain first drops to this value.
+local LUST_SOON_SECONDS = 10
+-- Wake-ups land slightly after the moment they target, so the scan sees the
+-- remain crossed and not a few milliseconds short of it.
+local LUST_WAKE_MARGIN_SECONDS = 0.25
 
 -- One UpdateCdTracker pass asks for the combat-utility context up to five
 -- times (directly, through GetBResInfo / GetLustInfo of the row refresh, and
@@ -51,6 +57,90 @@ local function CreatePassMemo(resolve, getTime)
   return memo
 end
 
+-- Calls an optional SoundUtils playback helper; false when it is missing.
+local function PlaySoundUtil(ctx, fnName)
+  local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+  if type(soundUtils) == "table" and type(soundUtils[fnName]) == "function" then
+    soundUtils[fnName]()
+    return true
+  end
+  return false
+end
+
+-- Seconds from now until the next Lust alert is due, or nil when none is:
+-- the 10-second warning, the expiry, a short retry while an expired timer is
+-- not confirmed yet, or the next 60-second reminder.
+local function NextLustWakeDelay(state)
+  if state.timerDisplayed then
+    if state.remain > LUST_SOON_SECONDS and not state.soonWarned then
+      return state.remain - LUST_SOON_SECONDS
+    end
+    return state.remain
+  end
+  if state.lastDisplayed then
+    return 1
+  end
+  if state.lastReadyAt ~= nil and state.reminderEnabled then
+    return math.max(0, state.lastReadyAt + LUST_READY_REMINDER_SECONDS - state.now)
+  end
+  return nil
+end
+
+-- One pending one-shot wake-up for the Lust alerts. The 1s CD ticker only
+-- runs while the main frame is shown; these wake-ups make the 10-second
+-- warning, the ready alert and the 60-second reminder fire on time with a
+-- hidden frame too. A newer target supersedes the pending one through the
+-- generation counter.
+local function CreateLustWakeScheduler(getTime, timerApi, onWake)
+  local generation = 0
+  local wakeAt = nil
+  local scheduler = {}
+
+  function scheduler.Cancel()
+    generation = generation + 1
+    wakeAt = nil
+  end
+
+  function scheduler.Schedule(delay)
+    if delay == nil then
+      scheduler.Cancel()
+      return
+    end
+    local after = type(timerApi) == "table" and timerApi.After or nil
+    if type(after) ~= "function" then
+      return
+    end
+    local target = getTime() + delay + LUST_WAKE_MARGIN_SECONDS
+    -- The visible 1s ticker recomputes the same target every pass; keep the
+    -- pending wake-up instead of stacking a new timer per second.
+    if wakeAt ~= nil and math.abs(wakeAt - target) < 0.5 then
+      return
+    end
+    scheduler.Cancel()
+    wakeAt = target
+    local scheduled = generation
+    after(delay + LUST_WAKE_MARGIN_SECONDS, function()
+      if scheduled ~= generation then
+        return
+      end
+      wakeAt = nil
+      onWake()
+    end)
+  end
+
+  return scheduler
+end
+
+-- The 60-second Bloodlust-ready reminder is on unless explicitly disabled.
+-- Falls back to the DB table seen at init when the global is not a table.
+local function IsBloodlustReadyReminderEnabled(initialDBRef)
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    db = initialDBRef
+  end
+  return not (type(db) == "table" and db.soundBloodlustReadyReminderEnabled == false)
+end
+
 local function InitializeFactorySecondaryCdTracker(
   ctx,
   modules,
@@ -72,15 +162,21 @@ local function InitializeFactorySecondaryCdTracker(
   local lastLustDisplayedTimer = false
   local lustReadyDisplayActive = false
   local lastLustReadySoundAt = nil
+  local lustSoonWarned = false
   local initialDBRef = rawget(_G, "IsiLiveDB")
   local C_Timer_ref = rawget(_G, "C_Timer")
   local cdPollingTicker = nil
+  local lustWake = CreateLustWakeScheduler(getTime, C_Timer_ref, function()
+    ctx.UpdateCdTracker()
+  end)
   local function ClearReadySoundState()
     lastBResCharges = nil
     lastBResCooldownRemain = nil
     lastLustDisplayedTimer = false
     lustReadyDisplayActive = false
     lastLustReadySoundAt = nil
+    lustSoonWarned = false
+    lustWake.Cancel()
   end
 
   local function IsMplusTimerRunning()
@@ -223,29 +319,6 @@ local function InitializeFactorySecondaryCdTracker(
       or false
   end
 
-  local function PlayBloodlustReadySound()
-    if
-      ctx.addonTable
-      and type(ctx.addonTable.SoundUtils) == "table"
-      and type(ctx.addonTable.SoundUtils.PlayBloodlustReady) == "function"
-    then
-      ctx.addonTable.SoundUtils.PlayBloodlustReady()
-      return true
-    end
-    return false
-  end
-
-  local function IsBloodlustReadyReminderEnabled()
-    local db = rawget(_G, "IsiLiveDB")
-    if type(db) ~= "table" then
-      db = initialDBRef
-    end
-    if type(db) == "table" and db.soundBloodlustReadyReminderEnabled == false then
-      return false
-    end
-    return true
-  end
-
   local function UpdateCdTrackerPass(opts)
     local optsTable = type(opts) == "table" and opts or nil
     local suppressBattleResReadySound = optsTable and optsTable.suppressBattleResReadySound == true
@@ -294,11 +367,8 @@ local function InitializeFactorySecondaryCdTracker(
       (bresChargesIncreased or bresDisplayedCooldownExpired)
       and readySoundContextActive
       and not suppressBattleResReadySound
-      and ctx.addonTable
-      and type(ctx.addonTable.SoundUtils) == "table"
-      and type(ctx.addonTable.SoundUtils.PlayBattleResReady) == "function"
     then
-      ctx.addonTable.SoundUtils.PlayBattleResReady()
+      PlaySoundUtil(ctx, "PlayBattleResReady")
     end
     if suppressBattleResReadySound or not readySoundContextActive then
       lastBResCharges = nil
@@ -320,6 +390,18 @@ local function InitializeFactorySecondaryCdTracker(
     if lustTimerDisplayed then
       lastLustReadySoundAt = nil
       lustReadyDisplayActive = false
+      lustSoonWarned = lustSoonWarned and lustRemain <= LUST_SOON_SECONDS
+    end
+    if
+      readySoundContextActive
+      and lustResolved
+      and lustTimerDisplayed
+      and lustRemain <= LUST_SOON_SECONDS
+      and not lustSoonWarned
+      and not suppressLustReadySound
+    then
+      lustSoonWarned = true
+      PlaySoundUtil(ctx, "PlayBloodlustSoon")
     end
     if
       lustTimerDisplayed
@@ -327,11 +409,8 @@ local function InitializeFactorySecondaryCdTracker(
       and readySoundContextActive
       and type(opts) == "table"
       and opts.playLustSoundOnStart == true
-      and ctx.addonTable
-      and type(ctx.addonTable.SoundUtils) == "table"
-      and type(ctx.addonTable.SoundUtils.PlayBloodlust) == "function"
     then
-      ctx.addonTable.SoundUtils.PlayBloodlust()
+      PlaySoundUtil(ctx, "PlayBloodlust")
     end
     if
       readySoundContextActive
@@ -340,7 +419,7 @@ local function InitializeFactorySecondaryCdTracker(
       and not lustTimerDisplayed
       and not suppressLustReadySound
     then
-      if PlayBloodlustReadySound() then
+      if PlaySoundUtil(ctx, "PlayBloodlustReady") then
         lastLustReadySoundAt = getTime()
         lustReadyDisplayActive = true
       end
@@ -350,10 +429,10 @@ local function InitializeFactorySecondaryCdTracker(
       and not lustTimerDisplayed
       and not suppressLustReadySound
       and lastLustReadySoundAt ~= nil
-      and IsBloodlustReadyReminderEnabled()
+      and IsBloodlustReadyReminderEnabled(initialDBRef)
       and getTime() - lastLustReadySoundAt >= LUST_READY_REMINDER_SECONDS
     then
-      if PlayBloodlustReadySound() then
+      if PlaySoundUtil(ctx, "PlayBloodlustReady") then
         lastLustReadySoundAt = getTime()
       end
     end
@@ -363,6 +442,19 @@ local function InitializeFactorySecondaryCdTracker(
       lastLustReadySoundAt = nil
     elseif lustResolved then
       lastLustDisplayedTimer = lustTimerDisplayed
+    end
+    if suppressLustReadySound or not readySoundContextActive then
+      lustWake.Cancel()
+    else
+      lustWake.Schedule(NextLustWakeDelay({
+        timerDisplayed = lustTimerDisplayed,
+        remain = lustRemain,
+        soonWarned = lustSoonWarned,
+        lastDisplayed = lastLustDisplayedTimer,
+        lastReadyAt = lastLustReadySoundAt,
+        reminderEnabled = IsBloodlustReadyReminderEnabled(initialDBRef),
+        now = getTime(),
+      }))
     end
     if
       not fromVisibleRender

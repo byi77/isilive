@@ -483,7 +483,15 @@ return function(test, ctx)
 
       currentTime = NOW + 12
       ctrl.Scan()
-      Assert.False(ctrl.IsLustScanResolved(), "the expiry proof is used once, later blocked scans stay unknown")
+      Assert.True(ctrl.IsLustScanResolved(), "confirmed readiness survives later blocked scans")
+      Assert.Nil(ctrl.GetLustInfo(), "confirmed readiness shows no running timer")
+
+      mode = "active"
+      ctrl.Scan()
+      Assert.True(ctrl.IsLustScanResolved(), "a new verified Sated resolves the scan")
+      mode = "blocked"
+      ctrl.Scan()
+      Assert.False(ctrl.IsLustScanResolved(), "a new Sated cycle clears the confirmed readiness")
     end)
   end)
 

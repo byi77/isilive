@@ -48,6 +48,12 @@ function CdTracker.CreateController(opts)
   -- cannot be removed or refreshed early, so a verified expiry that has passed
   -- proves readiness on its own.
   local lustKnownExpiry = nil
+  -- Readiness confirmed by a readable list ending or a passed verified expiry.
+  -- Sated/Exhaustion is on Blizzard's never-secret aura list, so a slot the
+  -- client refuses to read cannot be a new Sated: while this is set, an
+  -- undecided scan still means "ready" and the 60-second reminder keeps
+  -- running inside a key. A plainly read Sated (Lust used again) clears it.
+  local lustReadyConfirmed = false
 
   -- GetSpellCharges may hand back Secret Values in restricted content, both as
   -- the flat multi-return and as fields of the ChargeInfo struct. Every value
@@ -167,17 +173,24 @@ function CdTracker.CreateController(opts)
     local result = ReadLustAuras(readAura, previouslyObserved)
     if result ~= nil then
       lustScanResolved = true
+      lustReadyConfirmed = result == "absent"
       if result == "absent" then
         lustKnownExpiry = nil
       end
       return
     end
-    -- Undecided scan: only a verified expiry that has passed resolves it, as
-    -- the zero tick of the observed timer (one ready transition, then cleared).
+    -- Undecided scan: a verified expiry that has passed resolves it as the
+    -- zero tick of the observed timer (the ready transition) ...
     if lustKnownExpiry ~= nil and getTime() >= lustKnownExpiry then
       lustKnownExpiry = nil
+      lustReadyConfirmed = true
       lustScanResolved = true
       lustRemain = 0
+      return
+    end
+    -- ... and an already confirmed ready state stays ready.
+    if lustReadyConfirmed then
+      lustScanResolved = true
     end
   end
 
@@ -203,6 +216,7 @@ function CdTracker.CreateController(opts)
     lustIcon = nil
     lustScanResolved = false
     lustKnownExpiry = nil
+    lustReadyConfirmed = false
   end
 
   function controller.GetBResInfo()

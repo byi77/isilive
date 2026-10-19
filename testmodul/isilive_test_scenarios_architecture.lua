@@ -805,6 +805,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     local soundFiles = {
       "BattleRezReady.wav",
       "BattleRezReady_deDE.wav",
+      "BloodlustSoon.wav",
+      "BloodlustSoon_deDE.wav",
       "BloodlustReady.wav",
       "BloodlustReady_deDE.wav",
       "PowerInfusionReceived.wav",

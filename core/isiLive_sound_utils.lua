@@ -728,6 +728,24 @@ local VIP_MOUNT_SOUND_FILE_IDS = {
     2470753,
     2470754,
   },
+  -- Voice lines of the two Grand Expedition Yak vendors (Cousin Slowhands,
+  -- Mystic Birdhat): greetings and farewells.
+  grand_expedition_yak_vendors = {
+    640336,
+    640338,
+    640340,
+    640314,
+    640316,
+    640318,
+    640320,
+    640180,
+    640182,
+    640184,
+    640158,
+    640160,
+    640162,
+    640164,
+  },
   dk_apocalypse_horse = {
     987917,
     987919,
@@ -1025,6 +1043,10 @@ function SoundUtils.PlayBloodlust()
   return SoundUtils.PlayKey("bloodlust")
 end
 
+function SoundUtils.PlayBloodlustSoon()
+  return SoundUtils.PlayKey("bloodlust_soon")
+end
+
 function SoundUtils.PlayBloodlustReady()
   return SoundUtils.PlayKey("bloodlust_ready")
 end
@@ -1092,6 +1114,10 @@ function SoundUtils.GetGrandExpeditionYakSoundFileIDs()
   return CopySoundFileIDs("grand_expedition_yak")
 end
 
+function SoundUtils.GetGrandExpeditionYakVendorSoundFileIDs()
+  return CopySoundFileIDs("grand_expedition_yak_vendors")
+end
+
 function SoundUtils.GetGildedBrutosaurSoundFileIDs()
   return CopySoundFileIDs("gilded_brutosaur")
 end
@@ -1106,6 +1132,10 @@ end
 
 function SoundUtils.ApplyGrandExpeditionYakSoundSetting(muted)
   return ApplyVIPMountSoundSetting("grand_expedition_yak", muted)
+end
+
+function SoundUtils.ApplyGrandExpeditionYakVendorSoundSetting(muted)
+  return ApplyVIPMountSoundSetting("grand_expedition_yak_vendors", muted)
 end
 
 function SoundUtils.ApplyGildedBrutosaurSoundSetting(muted)
@@ -1125,6 +1155,7 @@ function SoundUtils.ApplyVIPGuestSoundSettings()
   local db = rawget(_G, "IsiLiveDB")
   local astralMuted = false
   local yakMuted = false
+  local yakVendorMuted = false
   local brutosaurMuted = false
   local dkApocalypseHorseMuted = false
   if type(db) == "table" and db.vipAstralAurochsSoundMuted ~= nil then
@@ -1132,6 +1163,9 @@ function SoundUtils.ApplyVIPGuestSoundSettings()
   end
   if type(db) == "table" and db.vipGrandExpeditionYakSoundMuted ~= nil then
     yakMuted = db.vipGrandExpeditionYakSoundMuted == true
+  end
+  if type(db) == "table" and db.vipGrandExpeditionYakVendorSoundMuted ~= nil then
+    yakVendorMuted = db.vipGrandExpeditionYakVendorSoundMuted == true
   end
   if type(db) == "table" and db.vipGildedBrutosaurSoundMuted ~= nil then
     brutosaurMuted = db.vipGildedBrutosaurSoundMuted == true
@@ -1141,6 +1175,7 @@ function SoundUtils.ApplyVIPGuestSoundSettings()
   end
   SoundUtils.ApplyAstralAurochsSoundSetting(astralMuted)
   SoundUtils.ApplyGrandExpeditionYakSoundSetting(yakMuted)
+  SoundUtils.ApplyGrandExpeditionYakVendorSoundSetting(yakVendorMuted)
   SoundUtils.ApplyGildedBrutosaurSoundSetting(brutosaurMuted)
   SoundUtils.ApplyDkApocalypseHorseSoundSetting(dkApocalypseHorseMuted)
 end

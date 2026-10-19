@@ -1711,13 +1711,18 @@ return function(test, ctx)
       factoryCtx.UpdateCdTracker()
     end)
 
-    Assert.Equal(#playCalls, 1, "Bloodlust-ready transition must emit exactly one real sound call")
+    Assert.Equal(#playCalls, 2, "the 10-second warning and the ready transition each emit one real sound call")
     Assert.Equal(
       playCalls[1].path,
+      "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.wav",
+      "a remain at or below 10 seconds plays the dedicated warning WAV first"
+    )
+    Assert.Equal(
+      playCalls[2].path,
       "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
       "Bloodlust-ready transition must use the dedicated WAV asset"
     )
-    Assert.Equal(playCalls[1].channel, "Master", "Bloodlust-ready transition must use the configured channel")
+    Assert.Equal(playCalls[2].channel, "Master", "Bloodlust-ready transition must use the configured channel")
   end)
 
   test("Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh", function()

@@ -65,6 +65,7 @@ return function(test, ctx)
       local vipHeader = nil
       local aurochsCheck = nil
       local yakCheck = nil
+      local yakVendorCheck = nil
       local brutosaurCheck = nil
       local soulReaperCheck = nil
       local putrefyCheck = nil
@@ -80,6 +81,8 @@ return function(test, ctx)
           aurochsCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_GRAND_EXPEDITION_YAK_SOUND" then
           yakCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND" then
+          yakVendorCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND" then
           brutosaurCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_DK_SOUL_REAPER_WARNING" then
@@ -100,6 +103,8 @@ return function(test, ctx)
       Assert.NotNil(vipHeader, "settings panel should create the VIP guest section")
       aurochsCheck = Assert.NotNil(aurochsCheck, "settings panel should create the astral aurochs sound checkbox")
       yakCheck = Assert.NotNil(yakCheck, "settings panel should create the grand expedition yak sound checkbox")
+      yakVendorCheck =
+        Assert.NotNil(yakVendorCheck, "settings panel should create the grand expedition yak vendor sound checkbox")
       brutosaurCheck = Assert.NotNil(brutosaurCheck, "settings panel should create the gilded brutosaur sound checkbox")
       soulReaperCheck = Assert.NotNil(soulReaperCheck, "settings panel should create the VIP DK Soul Reaper checkbox")
       putrefyCheck = Assert.NotNil(putrefyCheck, "settings panel should create the VIP DK Putrefy checkbox")
@@ -128,6 +133,7 @@ return function(test, ctx)
 
       Assert.False(aurochsCheck:GetChecked(), "astral aurochs sound mute should default to off")
       Assert.False(yakCheck:GetChecked(), "grand expedition yak sound mute should default to off")
+      Assert.False(yakVendorCheck:GetChecked(), "grand expedition yak vendor sound mute should default to off")
       Assert.False(brutosaurCheck:GetChecked(), "gilded brutosaur sound mute should default to off")
       Assert.False(soulReaperCheck:GetChecked(), "VIP DK Soul Reaper warning should default to off")
       Assert.False(putrefyCheck:GetChecked(), "VIP DK Putrefy warning should default to off")
@@ -163,6 +169,16 @@ return function(test, ctx)
       yakOnClick(yakCheck)
       Assert.True(db.vipGrandExpeditionYakSoundMuted, "checking the yak option should persist muted=true")
       Assert.Equal(muted[1], 613111, "yak muting should include the verified first model sound file")
+      local yakVendorOnClick = Assert.NotNil(
+        yakVendorCheck._scripts and yakVendorCheck._scripts.OnClick or nil,
+        "yak vendor VIP checkbox needs OnClick"
+      )
+      muted = {}
+      yakVendorCheck:SetChecked(true)
+      yakVendorOnClick(yakVendorCheck)
+      Assert.True(db.vipGrandExpeditionYakVendorSoundMuted, "checking the yak vendor option should persist muted=true")
+      Assert.Equal(#muted, 14, "yak vendor muting should mute both vendors' greetings and farewells")
+      Assert.Equal(muted[1], 640336, "yak vendor muting should include Cousin Slowhands' first greeting")
       muted = {}
       brutosaurCheck:SetChecked(true)
       brutosaurOnClick(brutosaurCheck)

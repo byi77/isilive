@@ -154,6 +154,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     end,
     autoCloseMainFrame = deps.autoCloseMainFrame or function() end,
     logRuntimeTrace = deps.logRuntimeTrace,
+    logRuntimeTracef = deps.logRuntimeTracef,
   })
 end
 
@@ -185,7 +186,17 @@ local function BuildGroupControllerDepsFromContext(ctx)
       onMemberJoinedGroup = function()
         local soundUtils = addonTable.SoundUtils
         if type(soundUtils) == "table" and type(soundUtils.PlayGroupJoin) == "function" then
-          soundUtils.PlayGroupJoin()
+          local played = soundUtils.PlayGroupJoin()
+          local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
+          if type(logf) == "function" then
+            local result = type(soundUtils.GetLastPlayResult) == "function" and soundUtils.GetLastPlayResult() or nil
+            logf(
+              "[ROSTER] group_full_sound played=%s reason=%s channel=%s",
+              tostring(played),
+              tostring(result and result.reason),
+              tostring(result and result.channel)
+            )
+          end
           return
         end
         if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then

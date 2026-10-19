@@ -566,6 +566,11 @@ return function(test, ctx)
     Assert.Equal(known.hearthstoneChoice, true, "hearthstoneChoice must be in known fields")
     Assert.Equal(known.vipAstralAurochsSoundMuted, true, "vipAstralAurochsSoundMuted must be in known fields")
     Assert.Equal(known.vipGrandExpeditionYakSoundMuted, true, "vipGrandExpeditionYakSoundMuted must be in known fields")
+    Assert.Equal(
+      known.vipGrandExpeditionYakVendorSoundMuted,
+      true,
+      "vipGrandExpeditionYakVendorSoundMuted must be in known fields"
+    )
     Assert.Equal(known.vipGildedBrutosaurSoundMuted, true, "vipGildedBrutosaurSoundMuted must be in known fields")
     Assert.Equal(known.vipDkApocalypseHorseSoundMuted, true, "vipDkApocalypseHorseSoundMuted must be in known fields")
     Assert.Equal(known.vipDkSoulReaperWarningEnabled, true, "vipDkSoulReaperWarningEnabled must be in known fields")

@@ -467,6 +467,17 @@ return function(test, ctx)
       end
       Assert.True(hasYakFootstep, "grand expedition yak mute list must include verified footstep files")
       Assert.True(hasYakMountFoley, "grand expedition yak mute list must include verified yak mount foley files")
+      local yakVendorIDs = addon.SoundUtils.GetGrandExpeditionYakVendorSoundFileIDs()
+      Assert.Equal(
+        #yakVendorIDs,
+        14,
+        "grand expedition yak vendor mute list must include both vendors' greetings and farewells"
+      )
+      Assert.Equal(
+        yakVendorIDs[1],
+        640336,
+        "grand expedition yak vendor mute list must start with Cousin Slowhands' greeting"
+      )
       Assert.False(
         hasYakFalsePositive,
         "grand expedition yak mute list must not include the MountID 1460 false-positive row"

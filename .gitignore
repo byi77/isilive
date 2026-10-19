@@ -28,6 +28,8 @@ sounds/*
 !sounds/BoxingArenaSound.ogg
 !sounds/BattleRezReady.wav
 !sounds/BattleRezReady_deDE.wav
+!sounds/BloodlustSoon.wav
+!sounds/BloodlustSoon_deDE.wav
 !sounds/BloodlustReady.wav
 !sounds/BloodlustReady_deDE.wav
 !sounds/PowerInfusionReceived.wav

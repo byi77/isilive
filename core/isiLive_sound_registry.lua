@@ -92,6 +92,19 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
+    bloodlust_soon = {
+      file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.wav",
+      localizedFiles = {
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon_deDE.wav",
+      },
+      labelKey = "SETTINGS_SOUND_BLOODLUST_SOON",
+      descKey = "SETTINGS_SOUND_BLOODLUST_SOON_DESC",
+      labelFallback = "Sound: Bloodlust ready in 10 seconds",
+      descFallback = "Plays a voice alert 10 seconds before the exhaustion effect expires.",
+      settingKey = "soundBloodlustSoonEnabled",
+      defaultEnabled = true,
+      defaultChannel = "Master",
+    },
     bloodlust_ready = {
       file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
       localizedFiles = {
@@ -168,6 +181,7 @@ local SoundRegistry = {
     "battle_res",
     "battle_res_ready",
     "bloodlust",
+    "bloodlust_soon",
     "bloodlust_ready",
     "power_infusion_received",
     "pet_stuck",

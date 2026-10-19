@@ -84,7 +84,7 @@ WHAT isiLive GIVES YOU
 ✅ Voice alert when you are removed from the group, in parties and raids.
 ✅ Optional raid alerts: incoming summon, stuck pet and lead transfer, each switchable for raids.
 ✅ A large red tank/healer death alert during active keys.
-✅ Optional VIP helpers for a default-off Bloodlust button debuff warning for verified BL class and pet buttons plus a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder.
+✅ Optional VIP helpers: mount sound mutes for Astral Aurochs, Grand Expedition Yak (plus a separate mute for its two chatty vendors), and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons plus a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder.
 ✅ Optional support tools: ESC-menu shortcuts, Hearthstone and verified Dalaran travel, player stats box with distinct colors and corrected compact German labels, nameplate controls, runtime logs, UI lock, and demo simulation tablet.
 ✅ Coherent UI controls: live full-window background opacity, centered title controls, and one compact close style across every isiLive-owned window.
 

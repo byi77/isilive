@@ -113,6 +113,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundBloodlustEnabled",
     defaultEnabled = true,
   },
+  bloodlust_soon = {
+    labelKey = "SETTINGS_SOUND_BLOODLUST_SOON",
+    descKey = "SETTINGS_SOUND_BLOODLUST_SOON_DESC",
+    labelFallback = "Sound: Bloodlust ready in 10 seconds",
+    descFallback = "Plays a voice alert 10 seconds before the exhaustion effect expires.",
+    settingKey = "soundBloodlustSoonEnabled",
+    defaultEnabled = true,
+  },
   bloodlust_ready = {
     labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
     descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
@@ -230,6 +238,10 @@ local VIP_SOUND_DESCRIPTIONS = {
     descKey = "SETTINGS_VIP_GRAND_EXPEDITION_YAK_SOUND_DESC",
     fallback = "Mutes the Grand Expedition Yak vendor mount ambience.",
   },
+  SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND = {
+    descKey = "SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND_DESC",
+    fallback = "Mutes the greetings and farewells of the two Grand Expedition Yak vendors.",
+  },
   SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND = {
     descKey = "SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND_DESC",
     fallback = "Mutes the Trader Brutosaur vendor mount ambience.",
@@ -309,6 +321,7 @@ function SettingsSound.GetSoundSettingEntries()
       "battle_res",
       "battle_res_ready",
       "bloodlust",
+      "bloodlust_soon",
       "bloodlust_ready",
     }
   local entries = {}
@@ -692,6 +705,13 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "ApplyGrandExpeditionYakSoundSetting"
   )
   CreateVIPMountSoundCheckbox(
+    "vipGrandExpeditionYakVendorSound",
+    "SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND",
+    "Mute Grand Expedition Yak vendor voices",
+    "vipGrandExpeditionYakVendorSoundMuted",
+    "ApplyGrandExpeditionYakVendorSoundSetting"
+  )
+  CreateVIPMountSoundCheckbox(
     "vipGildedBrutosaurSound",
     "SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND",
     "Mute Trader Brutosaur mount sound",
@@ -1009,6 +1029,17 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
       labels.SETTINGS_VIP_GRAND_EXPEDITION_YAK_SOUND_DESC or "Mutes the Grand Expedition Yak vendor mount ambience."
     )
     controls.vipGrandExpeditionYakSound.check:SetChecked(db.vipGrandExpeditionYakSoundMuted == true)
+  end
+  if controls.vipGrandExpeditionYakVendorSound and controls.vipGrandExpeditionYakVendorSound.label then
+    controls.vipGrandExpeditionYakVendorSound.label:SetText(
+      labels.SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND or "Mute Grand Expedition Yak vendor voices"
+    )
+    SetDescription(
+      controls.vipGrandExpeditionYakVendorSound,
+      labels.SETTINGS_VIP_GRAND_EXPEDITION_YAK_VENDOR_SOUND_DESC
+        or "Mutes the greetings and farewells of the two Grand Expedition Yak vendors."
+    )
+    controls.vipGrandExpeditionYakVendorSound.check:SetChecked(db.vipGrandExpeditionYakVendorSoundMuted == true)
   end
   if controls.vipGildedBrutosaurSound and controls.vipGildedBrutosaurSound.label then
     controls.vipGildedBrutosaurSound.label:SetText(

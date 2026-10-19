@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-10-19 - Version 0.9.439 (patch)
+
+- Bloodlust in 10 seconds: new `bloodlust_soon` voice alert
+  (`BloodlustSoon_deDE.wav` on German clients, `BloodlustSoon.wav` otherwise)
+  plays once per Sated cycle when the observed timer reaches 10 seconds; own
+  sound toggle `soundBloodlustSoonEnabled`, default on, same key/group context
+  and suppression rules as the ready alert.
+- Bloodlust-ready reminder inside keys: after 0.9.438 the expiry proof was
+  used once, so the following scans were undecided again (other debuffs are
+  secret in a key and the client throws on them) and the 60-second reminder
+  stopped after the first alert. Sated/Exhaustion is on Blizzard's
+  never-secret aura list, so an unreadable slot cannot be a new Sated: the CD
+  tracker now keeps a confirmed ready state through undecided scans until a
+  plainly read Sated starts a new cycle.
+- Hidden window: the 1-second CD ticker only runs while the main frame is
+  shown. The factory now schedules exactly one `C_Timer.After` wake-up for the
+  next due Lust moment (10-second warning, expiry, next reminder), so all three
+  fire on time with a closed window, without a permanent ticker.
+- VIP: separate mute for the voices of the Grand Expedition Yak's two vendors
+  (`vipGrandExpeditionYakVendorSoundMuted`, default off).
+- Runtime log: the group controller now receives `logRuntimeTracef`, so the
+  `[GROUP]`/`[ROSTER]` traces reach the log again, and the group-full sound
+  logs its playback result (`[ROSTER] group_full_sound played=... reason=...`).
+- Tests: end-to-end Bloodlust alert flow in a key (visible and hidden window,
+  unreadable slots); group-full regression now also asserts the log traces;
+  the new voice assets are pinned in the `.gitignore` guard.
+
 ## 2026-10-18 - Version 0.9.438 (patch)
 
 - Bloodlust-ready alert inside a running key: the client throws on secret aura

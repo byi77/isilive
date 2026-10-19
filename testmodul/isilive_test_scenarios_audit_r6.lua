@@ -32,7 +32,9 @@ return function(test, ctx)
         ctx.assert.Equal(sounds, 1, "confirmed removal completes the observed cycle")
         Scan("error")
         session.Advance(61)
-        ctx.assert.Equal(sounds, 1, "unknown data stops ready reminders")
+        -- Sated is on the never-secret aura list: after a confirmed ready an
+        -- unreadable slot cannot be a new Sated, so the reminder keeps running.
+        ctx.assert.Equal(sounds, 2, "a confirmed ready cycle keeps reminding through unreadable slots")
       end, function(globals)
         for key, value in pairs(secretGlobals) do
           globals[key] = value
@@ -139,6 +141,8 @@ return function(test, ctx)
           sounds = sounds + 1
           return true
         end
+        local runtimeLog = session.runtime.runtimeLogController
+        runtimeLog.SetEnabled(true)
         if variant == "solo-invite" then
           -- Invited as the fourth member: login happened solo.
           session.grouped = true
@@ -155,6 +159,15 @@ return function(test, ctx)
         session.Dispatch("GROUP_ROSTER_UPDATE")
         session.Advance(1)
         ctx.assert.Equal(sounds, 1, variant .. ": the fifth join plays the group-full sound once")
+        -- The group controller's traces must reach the runtime log; a dropped
+        -- logRuntimeTracef once left the whole roster path invisible in-game.
+        local logText = table.concat(runtimeLog.GetLogTail(100), "\n")
+        ctx.assert.True(logText:find("[GROUP] event=roster_update", 1, true) ~= nil, variant .. ": roster trace logged")
+        ctx.assert.True(logText:find("[ROSTER] event=member_joined", 1, true) ~= nil, variant .. ": join trace logged")
+        ctx.assert.True(
+          logText:find("[ROSTER] event=group_full_sound played=true", 1, true) ~= nil,
+          variant .. ": sound result logged"
+        )
       end, function(globals, session)
         session.members = 4
         session.grouped = variant ~= "solo-invite"
@@ -177,6 +190,60 @@ return function(test, ctx)
             return false
           end
           return unitExists(unit)
+        end
+      end)
+    end
+  end)
+
+  test("Bloodlust alerts: 10-second warning, ready and 60-second reminder run inside a key", function()
+    for _, visibility in ipairs({ "visible", "hidden" }) do
+      local satedExpiry = nil
+      Stress.WithKey(ctx, Fixture, function(session)
+        if visibility == "hidden" then
+          session.runtime.mainFrame:Hide()
+        end
+        local soon, ready = 0, 0
+        session.addon.SoundUtils.PlayBloodlustSoon = function()
+          soon = soon + 1
+        end
+        session.addon.SoundUtils.PlayBloodlustReady = function()
+          ready = ready + 1
+        end
+        local function CastLust(duration)
+          satedExpiry = session.now + duration
+          session.Dispatch("UNIT_AURA", "player", { isFullUpdate = true })
+          session.Advance(0.1)
+        end
+        CastLust(30)
+        session.Advance(15)
+        ctx.assert.Equal(soon, 0, visibility .. ": no warning while more than 10 seconds remain")
+        session.Advance(6)
+        ctx.assert.Equal(soon, 1, visibility .. ": warning once 10 seconds remain")
+        ctx.assert.Equal(ready, 0, visibility .. ": not ready before Sated expires")
+        session.Advance(10)
+        ctx.assert.Equal(soon, 1, visibility .. ": the warning plays once per cycle")
+        ctx.assert.Equal(ready, 1, visibility .. ": ready once Sated expired, despite unreadable slots")
+        session.Advance(60)
+        ctx.assert.Equal(ready, 2, visibility .. ": first 60-second reminder")
+        session.Advance(60)
+        ctx.assert.Equal(ready, 3, visibility .. ": reminder keeps looping while Lust is unused")
+        CastLust(600)
+        session.Advance(180)
+        ctx.assert.Equal(ready, 3, visibility .. ": using Lust again stops the reminder loop")
+        ctx.assert.Equal(soon, 1, visibility .. ": no warning early in the new cycle")
+      end, function(globals, session)
+        globals.C_UnitAuras.GetAuraDataByIndex = function(_, index, filter)
+          if filter ~= "HARMFUL" then
+            return nil
+          end
+          if index == 1 then
+            if satedExpiry and session.now < satedExpiry then
+              return { spellId = 57723, expirationTime = satedExpiry, duration = 600, icon = 132114 }
+            end
+            -- Another debuff that is secret in the key: the client throws.
+            error("Auras cannot be accessed when secret")
+          end
+          return nil
         end
       end)
     end
