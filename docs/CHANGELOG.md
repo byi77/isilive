@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-20 - Version 0.9.443 (patch)
+
+### Spec short labels
+
+- Shorter, readable roster spec labels instead of five-letter cut-offs:
+  `UH`, `Pres`, `Surv`, `Arc`, `Brew`, `Prot`, `Outl`, `Sub`, `Ele`, `EH`.
+- German Devastation Evoker (`Verheerung`) now shows `Verh`; the old mapping
+  key never matched, so the full spec name was displayed.
+- Clients other than German and English map their localized spec names to the
+  English short labels via `GetSpecializationInfoByID`. The labels live as
+  `shortLabel` in `data/isiLive_specs.lua`; ambiguous localized names keep the
+  full spec name.
+
 ## 2026-10-20 - Version 0.9.442 (patch)
 
 ### Runtime log audit

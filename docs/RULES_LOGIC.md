@@ -712,7 +712,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-KOMPAKT-KURZTEXTE
 - Regelnummer: 36
 - Status: aktiv
-- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 5 Zeichen mit Hunter-Kurzlabels `MM`/`BM`, Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
+- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 5 Zeichen mit gängigen Kurzlabels (`MM`/`BM`/`UH`/`EH`, deutsches `Verh`; andere Client-Sprachen über `shortLabel` im Spec-Manifest), Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
 - Erforderliche Tests:
   - Units GetShortSpecLabel prefers readable five-character labels
   - Roster display truncates names to Blizzard 12-character limit

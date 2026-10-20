@@ -7,10 +7,10 @@ addonTable.Units = Units
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local SPEC_SHORT_LABELS = {
-  -- German short labels (mostly 5 chars)
+  -- German short labels (max 5 chars)
   ["wiederherstellung"] = "Resto",
   ["vergeltung"] = "Retri",
-  ["schutz"] = "Prote",
+  ["schutz"] = "Prot",
   ["heilig"] = "Holy",
   ["disziplin"] = "Disci",
   ["schatten"] = "Shado",
@@ -20,36 +20,36 @@ local SPEC_SHORT_LABELS = {
   ["verwustung"] = "Havoc",
   ["rachsucht"] = "Venge",
   ["verschlinger"] = "Devou",
-  ["braumeister"] = "Brewm",
+  ["braumeister"] = "Brew",
   ["nebelwirker"] = "MW",
   ["windlaufer"] = "WW",
-  ["verstarkung"] = "Enhan",
-  ["elementar"] = "Eleme",
+  ["verstarkung"] = "EH",
+  ["elementar"] = "Ele",
   ["waffen"] = "Arms",
   ["furor"] = "Fury",
   ["blut"] = "Blood",
   ["frost"] = "Frost",
-  ["unheilig"] = "Unhol",
+  ["unheilig"] = "UH",
   ["treffsicherheit"] = "MM",
   ["tierherrschaft"] = "BM",
-  ["uberleben"] = "Survi",
+  ["uberleben"] = "Surv",
   ["gebrechen"] = "Affli",
   ["demonologie"] = "Demon",
   ["zerstorung"] = "Destr",
   ["meucheln"] = "Assas",
-  ["gesetzlosigkeit"] = "Outla",
-  ["tauschung"] = "Subtl",
+  ["gesetzlosigkeit"] = "Outl",
+  ["tauschung"] = "Sub",
   ["feuer"] = "Fire",
-  ["arkan"] = "Arcan",
-  ["bewahrung"] = "Prese",
-  ["verwustung-evoker"] = "Devas",
+  ["arkan"] = "Arc",
+  ["bewahrung"] = "Pres",
+  ["verheerung"] = "Verh",
   ["augmentation"] = "Aug",
   ["starkung"] = "Aug", -- DE: Augmentation Evoker (NormalizeSpecKey converts ä→a)
 
-  -- English short labels (mostly 5 chars)
+  -- English short labels (max 5 chars)
   ["restoration"] = "Resto",
   ["retribution"] = "Retri",
-  ["protection"] = "Prote",
+  ["protection"] = "Prot",
   ["holy"] = "Holy",
   ["discipline"] = "Disci",
   ["shadow"] = "Shado",
@@ -59,30 +59,34 @@ local SPEC_SHORT_LABELS = {
   ["havoc"] = "Havoc",
   ["vengeance"] = "Venge",
   ["devourer"] = "Devou",
-  ["brewmaster"] = "Brewm",
+  ["brewmaster"] = "Brew",
   ["mistweaver"] = "MW",
   ["windwalker"] = "WW",
-  ["enhancement"] = "Enhan",
-  ["elemental"] = "Eleme",
+  ["enhancement"] = "EH",
+  ["elemental"] = "Ele",
   ["arms"] = "Arms",
   ["fury"] = "Fury",
   ["blood"] = "Blood",
-  ["unholy"] = "Unhol",
+  ["unholy"] = "UH",
   ["marksmanship"] = "MM",
   ["beast mastery"] = "BM",
-  ["survival"] = "Survi",
+  ["survival"] = "Surv",
   ["affliction"] = "Affli",
   ["demonology"] = "Demon",
   ["destruction"] = "Destr",
   ["assassination"] = "Assas",
-  ["outlaw"] = "Outla",
-  ["subtlety"] = "Subtl",
+  ["outlaw"] = "Outl",
+  ["subtlety"] = "Sub",
   ["fire"] = "Fire",
-  ["arcane"] = "Arcan",
-  ["preservation"] = "Prese",
+  ["arcane"] = "Arc",
+  ["preservation"] = "Pres",
   ["devastation"] = "Devas",
   -- frost: shared key between DE (Frost DK/Mage) and EN, already mapped above
 }
+
+-- Clients other than deDE/enUS resolve their localized spec names via
+-- GetSpecializationInfoByID to the manifest shortLabel (data/isiLive_specs.lua).
+local localizedSpecShortLabels = nil
 
 local function NormalizeSpecKey(text)
   local value = string.lower(tostring(text or ""))
@@ -94,6 +98,34 @@ local function NormalizeSpecKey(text)
   value = value:gsub("ü", "u")
   value = value:gsub("ß", "ss")
   return value
+end
+
+local function GetLocalizedSpecShortLabels()
+  if localizedSpecShortLabels then
+    return localizedSpecShortLabels
+  end
+
+  local getSpecInfoByID = rawget(_G, "GetSpecializationInfoByID")
+  local specs = addonTable.Specs
+  if type(getSpecInfoByID) ~= "function" or not specs or type(specs.BuildShortLabels) ~= "function" then
+    return {}
+  end
+
+  localizedSpecShortLabels = {}
+  for specID, label in pairs(specs.BuildShortLabels()) do
+    local ok, _, name = pcall(getSpecInfoByID, specID)
+    if ok and not IsSecretValue(name) and type(name) == "string" and name ~= "" then
+      local key = NormalizeSpecKey(name)
+      local existing = localizedSpecShortLabels[key]
+      -- Same localized name for different labels is ambiguous; keep the full name.
+      if existing == nil then
+        localizedSpecShortLabels[key] = label
+      elseif existing ~= label then
+        localizedSpecShortLabels[key] = false
+      end
+    end
+  end
+  return localizedSpecShortLabels
 end
 
 local IsExistingUnit = addonTable.Validators.IsExistingUnit
@@ -325,6 +357,11 @@ function Units.GetShortSpecLabel(specName)
 
   local normalized = NormalizeSpecKey(specName)
   local mapped = SPEC_SHORT_LABELS[normalized]
+  if mapped then
+    return mapped
+  end
+
+  mapped = GetLocalizedSpecShortLabels()[normalized]
   if mapped then
     return mapped
   end

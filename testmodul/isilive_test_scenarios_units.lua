@@ -97,27 +97,29 @@ return function(test, ctx)
         local cases = {
           { input = "Wiederherstellung", expected = "Resto" },
           { input = "Vergeltung", expected = "Retri" },
-          { input = "Schutz", expected = "Prote" },
+          { input = "Schutz", expected = "Prot" },
           { input = "Schatten", expected = "Shado" },
           { input = "Gleichgewicht", expected = "Boomy" },
           { input = "Wachter", expected = "Guard" },
           { input = "Verwustung", expected = "Havoc" },
           { input = "Rachsucht", expected = "Venge" },
-          { input = "Brewmaster", expected = "Brewm" },
-          { input = "Verstarkung", expected = "Enhan" },
-          { input = "Elemental", expected = "Eleme" },
+          { input = "Brewmaster", expected = "Brew" },
+          { input = "Verstarkung", expected = "EH" },
+          { input = "Elemental", expected = "Ele" },
           { input = "Treffsicherheit", expected = "MM" },
           { input = "Tierherrschaft", expected = "BM" },
-          { input = "Uberleben", expected = "Survi" },
+          { input = "Uberleben", expected = "Surv" },
           { input = "Gebrechen", expected = "Affli" },
           { input = "Demonologie", expected = "Demon" },
           { input = "Zerstorung", expected = "Destr" },
           { input = "Meucheln", expected = "Assas" },
-          { input = "Gesetzlosigkeit", expected = "Outla" },
-          { input = "Tauschung", expected = "Subtl" },
-          { input = "Arkan", expected = "Arcan" },
-          { input = "Bewahrung", expected = "Prese" },
-          { input = "Verwustung-Evoker", expected = "Devas" },
+          { input = "Gesetzlosigkeit", expected = "Outl" },
+          { input = "Tauschung", expected = "Sub" },
+          { input = "Arkan", expected = "Arc" },
+          { input = "Bewahrung", expected = "Pres" },
+          { input = "Verheerung", expected = "Verh" },
+          { input = "Unheilig", expected = "UH" },
+          { input = "Devastation", expected = "Devas" },
         }
 
         for _, case in ipairs(cases) do
@@ -127,6 +129,24 @@ return function(test, ctx)
             case.input .. " should map to " .. case.expected
           )
         end
+      end)
+    end)
+
+    test.it("Units GetShortSpecLabel maps other client languages via specID", function()
+      local frNames = { [102] = "Équilibre", [66] = "Protection", [1467] = "Dévastation", [263] = "Amélioration" }
+      WithGlobals({
+        GetSpecializationInfoByID = function(specID)
+          return specID, frNames[specID]
+        end,
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_specs.lua", "isiLive_units.lua" })
+        local Units = addon.Units
+
+        Assert.Equal("Boomy", Units.GetShortSpecLabel("Équilibre"), "FR Balance should map to Boomy")
+        Assert.Equal("Devas", Units.GetShortSpecLabel("Dévastation"), "FR Devastation should map to Devas")
+        Assert.Equal("EH", Units.GetShortSpecLabel("Amélioration"), "FR Enhancement should map to EH")
+        Assert.Equal("Prot", Units.GetShortSpecLabel("Protection"), "static EN label should still apply")
+        Assert.Equal("Inconnu", Units.GetShortSpecLabel("Inconnu"), "unknown spec should keep its name")
       end)
     end)
 
