@@ -491,7 +491,7 @@ local function RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddo
       env.applications[7] = { status = "invited" }
       dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "invited", "applied", "Group")
       Assert.Equal(#env.plays, 1, "an LFG invite must play immediately, even hidden and in combat")
-      Assert.True(env.plays[1].path:find("GroupInvite_deDE.wav", 1, true) ~= nil, "deDE must play the German WAV")
+      Assert.True(env.plays[1].path:find("GroupInvite_deDE.ogg", 1, true) ~= nil, "deDE must play the German WAV")
       Assert.Equal(counters.captures, 0, "the gate exception must not open the queue pipeline while hidden")
 
       env.now = 5
@@ -622,7 +622,7 @@ local function RegisterRaidSoundOptInTests(test, Assert, WithGlobals, LoadAddonM
 
       dispatch("CHAT_MSG_SYSTEM", REMOVED_TEXT)
       Assert.Equal(#env.plays, 1, "a removal must play, even hidden and in combat")
-      Assert.True(env.plays[1].path:find("GroupRemoved_deDE.wav", 1, true) ~= nil, "deDE must play the German WAV")
+      Assert.True(env.plays[1].path:find("GroupRemoved_deDE.ogg", 1, true) ~= nil, "deDE must play the German WAV")
 
       env.raid = true
       env.now = 5

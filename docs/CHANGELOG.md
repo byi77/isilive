@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-20 - Version 0.9.444 (patch)
+
+### Consistent German audio
+
+- Replaced all ten German spoken alerts with the approved male voice 6,
+  consistent loudness and compact mono Ogg files (about 115 KiB combined).
+  Shorter wording includes “Tank tot”, “Heiler tot” and “Gruppeneinladung”;
+  Battle Res readiness says “Kampfwiederbelebung verfügbar”, and PI is
+  pronounced “PiAy erhalten”.
+- Matched the loudness of the six existing effect files, including the Battle
+  Res fallback, and compressed the ready-check effect to Ogg. Sound settings,
+  event triggers and English voice recordings are unchanged.
+
 ## 2026-10-20 - Version 0.9.443 (patch)
 
 ### Spec short labels

@@ -19,7 +19,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     ready_check_complete = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.ogg",
       labelKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE",
       descKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE_DESC",
       labelFallback = "Sound alert when all five players are ready",
@@ -31,7 +31,7 @@ local SoundRegistry = {
     portal_available = {
       file = "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\Portal_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\Portal_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
       settingKey = "soundPortalAvailableEnabled",
@@ -41,7 +41,7 @@ local SoundRegistry = {
     group_invite = {
       file = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_GROUP_INVITE",
       descKey = "SETTINGS_SOUND_GROUP_INVITE_DESC",
@@ -54,7 +54,7 @@ local SoundRegistry = {
     group_removed = {
       file = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_GROUP_REMOVED",
       descKey = "SETTINGS_SOUND_GROUP_REMOVED_DESC",
@@ -75,7 +75,7 @@ local SoundRegistry = {
     battle_res_ready = {
       file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_BATTLE_RES_READY",
       descKey = "SETTINGS_SOUND_BATTLE_RES_READY_DESC",
@@ -95,7 +95,7 @@ local SoundRegistry = {
     bloodlust_soon = {
       file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_BLOODLUST_SOON",
       descKey = "SETTINGS_SOUND_BLOODLUST_SOON_DESC",
@@ -108,7 +108,7 @@ local SoundRegistry = {
     bloodlust_ready = {
       file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
       descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
@@ -121,7 +121,7 @@ local SoundRegistry = {
     power_infusion_received = {
       file = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED",
       descKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED_DESC",
@@ -134,7 +134,7 @@ local SoundRegistry = {
     pet_stuck = {
       file = "Interface\\AddOns\\isiLive\\sounds\\PetStuck.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\PetStuck_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\PetStuck_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_PET_STUCK",
       descKey = "SETTINGS_SOUND_PET_STUCK_DESC",
@@ -147,7 +147,7 @@ local SoundRegistry = {
     tank_died = {
       file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_TANK_DIED",
       descKey = "SETTINGS_SOUND_TANK_DIED_DESC",
@@ -160,7 +160,7 @@ local SoundRegistry = {
     healer_died = {
       file = "Interface\\AddOns\\isiLive\\sounds\\HealerDied.wav",
       localizedFiles = {
-        deDE = "Interface\\AddOns\\isiLive\\sounds\\HealerDied_deDE.wav",
+        deDE = "Interface\\AddOns\\isiLive\\sounds\\HealerDied_deDE.ogg",
       },
       labelKey = "SETTINGS_SOUND_HEALER_DIED",
       descKey = "SETTINGS_SOUND_HEALER_DIED_DESC",

@@ -1114,6 +1114,56 @@ local function RegisterStaticDeathWavTests(test, ctx)
     return (b1 or 0) + ((b2 or 0) * 256) + ((b3 or 0) * 65536) + ((b4 or 0) * 16777216)
   end
 
+  test("SoundUtils approved German Ogg package stays compact and single-announcement length", function()
+    local limits = {
+      TankDied_deDE = 1.2,
+      HealerDied_deDE = 1.2,
+      Portal_deDE = 2,
+      GroupInvite_deDE = 1.5,
+      GroupRemoved_deDE = 2,
+      BattleRezReady_deDE = 2.5,
+      BloodlustSoon_deDE = 2.5,
+      BloodlustReady_deDE = 2,
+      PowerInfusionReceived_deDE = 2,
+      PetStuck_deDE = 2,
+    }
+    local totalBytes = 0
+    for name, maxSeconds in pairs(limits) do
+      local path = "sounds/" .. name .. ".ogg"
+      local file = assert(io.open(path, "rb"))
+      local bytes = file:read("*a")
+      file:close()
+      totalBytes = totalBytes + #bytes
+      local offset, lastGranule, first = 1, nil, true
+      while offset <= #bytes do
+        Assert.Equal(bytes:sub(offset, offset + 3), "OggS", path .. " must contain complete Ogg pages")
+        local segments = assert(bytes:byte(offset + 26))
+        local payload = offset + 27 + segments
+        local pageBytes = 0
+        for index = 0, segments - 1 do
+          pageBytes = pageBytes + assert(bytes:byte(offset + 27 + index))
+        end
+        Assert.True(payload + pageBytes - 1 <= #bytes, path .. " must not be truncated")
+        if first then
+          Assert.Equal(bytes:sub(payload, payload + 6), "\1vorbis", path .. " must use Vorbis")
+          Assert.Equal(bytes:byte(payload + 11), 1, path .. " must be mono")
+          Assert.Equal(ReadLe32(bytes, payload + 12), 24000, path .. " must use 24 kHz")
+          first = false
+        end
+        local high = ReadLe32(bytes, offset + 10)
+        if high ~= 4294967295 then
+          lastGranule = ReadLe32(bytes, offset + 6) + high * 4294967296
+        end
+        offset = payload + pageBytes
+      end
+      Assert.NotNil(lastGranule, path .. " must declare its duration")
+      local seconds = lastGranule / 24000
+      Assert.True(seconds >= 0.3 and seconds <= maxSeconds, path .. " must contain one short announcement")
+      Assert.True(#bytes < 25000, path .. " must remain compact")
+    end
+    Assert.True(totalBytes < 130000, "the ten German announcements must remain compact together")
+  end)
+
   local function ReadWavInfo(path)
     local file = assert(io.open(path, "rb"))
     local bytes = file:read("*a")
@@ -1210,13 +1260,9 @@ local function RegisterStaticDeathWavTests(test, ctx)
   test("SoundUtils death WAV assets stay single-announcement length", function()
     local tankInfo = ReadWavInfo("sounds/TankDied.wav")
     local healerInfo = ReadWavInfo("sounds/HealerDied.wav")
-    local tankDeInfo = ReadWavInfo("sounds/TankDied_deDE.wav")
-    local healerDeInfo = ReadWavInfo("sounds/HealerDied_deDE.wav")
     for label, info in pairs({
       TankDied = tankInfo,
       HealerDied = healerInfo,
-      TankDied_deDE = tankDeInfo,
-      HealerDied_deDE = healerDeInfo,
     }) do
       Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
       Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
@@ -1231,7 +1277,6 @@ local function RegisterStaticDeathWavTests(test, ctx)
   test("SoundUtils group removed WAV assets stay short and loud", function()
     for label, info in pairs({
       GroupRemoved = ReadWavInfo("sounds/GroupRemoved.wav"),
-      GroupRemoved_deDE = ReadWavInfo("sounds/GroupRemoved_deDE.wav"),
     }) do
       Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
       Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
@@ -1246,7 +1291,6 @@ local function RegisterStaticDeathWavTests(test, ctx)
   test("SoundUtils group invite WAV assets stay short and loud", function()
     for label, info in pairs({
       GroupInvite = ReadWavInfo("sounds/GroupInvite.wav"),
-      GroupInvite_deDE = ReadWavInfo("sounds/GroupInvite_deDE.wav"),
     }) do
       Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
       Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
@@ -1261,7 +1305,6 @@ local function RegisterStaticDeathWavTests(test, ctx)
   test("SoundUtils pet stuck WAV assets stay short and loud", function()
     for label, info in pairs({
       PetStuck = ReadWavInfo("sounds/PetStuck.wav"),
-      PetStuck_deDE = ReadWavInfo("sounds/PetStuck_deDE.wav"),
     }) do
       Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
       Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")

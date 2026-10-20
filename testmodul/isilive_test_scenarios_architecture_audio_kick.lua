@@ -174,7 +174,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         readyCheckCompleteEntry.file,
-        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.ogg",
         "ready-check-complete sound should use the bundled BttF tinkle asset"
       )
       Assert.True(
@@ -329,7 +329,7 @@ return function(test, ctx)
       Assert.Equal(playCalls, 3, "ready-check-complete sound helper should play exactly once after the group sound")
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.ogg",
         "ready-check-complete sound helper should use the bundled BttF tinkle asset"
       )
       Assert.Equal(playedChannel, "Master", "ready-check-complete sound helper should use the Master channel")
@@ -707,7 +707,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("SoundUtils resolves German spoken WAV assets only for deDE", function()
+  test("SoundUtils resolves German spoken Ogg assets only for deDE", function()
     local calls = {}
     local locale = "deDE"
     local now = 0
@@ -728,29 +728,30 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
       local localizedKeys = {
-        battle_res_ready = "BattleRezReady_deDE.wav",
-        bloodlust_ready = "BloodlustReady_deDE.wav",
-        power_infusion_received = "PowerInfusionReceived_deDE.wav",
-        pet_stuck = "PetStuck_deDE.wav",
-        group_invite = "GroupInvite_deDE.wav",
-        group_removed = "GroupRemoved_deDE.wav",
-        portal_available = "Portal_deDE.wav",
-        tank_died = "TankDied_deDE.wav",
-        healer_died = "HealerDied_deDE.wav",
+        battle_res_ready = "BattleRezReady_deDE.ogg",
+        bloodlust_soon = "BloodlustSoon_deDE.ogg",
+        bloodlust_ready = "BloodlustReady_deDE.ogg",
+        power_infusion_received = "PowerInfusionReceived_deDE.ogg",
+        pet_stuck = "PetStuck_deDE.ogg",
+        group_invite = "GroupInvite_deDE.ogg",
+        group_removed = "GroupRemoved_deDE.ogg",
+        portal_available = "Portal_deDE.ogg",
+        tank_died = "TankDied_deDE.ogg",
+        healer_died = "HealerDied_deDE.ogg",
       }
 
       for key, expectedFile in pairs(localizedKeys) do
         local entry = addon.SoundUtils.GetEntry(key)
-        Assert.NotNil(entry.localizedFiles, key .. " must declare localized static WAV files")
+        Assert.NotNil(entry.localizedFiles, key .. " must declare localized static Ogg files")
         Assert.Equal(
           addon.SoundUtils.ResolveSoundFile(entry),
           "Interface\\AddOns\\isiLive\\sounds\\" .. expectedFile,
-          key .. " must resolve to the German WAV on deDE clients"
+          key .. " must resolve to the German Ogg on deDE clients"
         )
-        Assert.True(addon.SoundUtils.PlayKey(key), key .. " must play the German WAV")
+        Assert.True(addon.SoundUtils.PlayKey(key), key .. " must play the German Ogg")
         Assert.True(
           calls[#calls].path:find(expectedFile, 1, true) ~= nil,
-          key .. " playback must use the German WAV on deDE clients"
+          key .. " playback must use the German Ogg on deDE clients"
         )
       end
 

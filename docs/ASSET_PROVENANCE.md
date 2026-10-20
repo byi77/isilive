@@ -18,6 +18,23 @@ Texturen sind seit `2026-07-22` als Eigenwerk des Maintainers geklaert.
 
 ## Sounds
 
+Am `2026-10-20` wurden die zehn deutschen Sprachansagen durch lokal erzeugte,
+synthetische Aufnahmen mit der vom Maintainer ausgewaehlten maennlichen
+Stimme 6 ersetzt. Erzeugung: `Qwen/Qwen3-TTS-12Hz-1.7B-Base`, Revision
+`fd4b254389122332181a7c3db7f27e918eec64e3`, anhand einer gespeicherten
+synthetischen VoiceDesign-Referenz (keine zugeordnete reale Sprecheraufnahme).
+Die genaue Zuordnung, Texte, Lautheitswerte und SHA256-Pruefsummen der
+eingebauten Dateien stehen in `docs/AUDIO_ASSETS.json`. Referenz und
+reproduzierbarer Ablauf sind im privaten Projekt-Workspace archiviert.
+Fuer diese neuen Sprachdateien ist die Erzeugungsquelle damit geklaert;
+eine gesonderte Lizenz fuer die erzeugten Aufnahmen ist hier nicht festgelegt.
+
+Die sechs Effektdateien wurden aus den bisherigen Originalen nur in Lautheit
+und Ausgabeformat angeglichen (`BttF_Tinkle.wav` jetzt `BttF_Tinkle.ogg`).
+Ihre bisherige Herkunfts-/Lizenzluecke bleibt unveraendert. Unveraenderte
+englische Ansagen und uebrige Altdateien fallen weiterhin unter den folgenden
+historischen Herkunftsstand.
+
 Der Maintainer hat am 2026-07-13 bestaetigt, dass die Sounddateien teilweise
 selbst erstellt und teilweise aus anderen Quellen uebernommen wurden. Als
 moegliche externe Herkunft wurde ein frueheres WeakAuras-Soundpaket genannt.
