@@ -13,8 +13,8 @@ SettingsSections.BuildEscMenuSection = SettingsGeneral.BuildEscMenuSection
 SettingsSections.RefreshGeneralControls = SettingsGeneral.RefreshGeneralControls
 SettingsSections.RefreshEscMenuControls = SettingsGeneral.RefreshEscMenuControls
 
-local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
-local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green hearts for relevant non-stacking class buffs:\n"
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\plus_bonus_green:10:10:0:0|t"
+local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green plus signs for relevant non-stacking class buffs:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = one useful buff\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -809,7 +809,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.lfgGroupBonuses, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating hearts",
+    labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating plus signs",
     function()
       local db = config.getDB()
       return db.lfgGroupBonusesEnabled ~= false
@@ -1041,7 +1041,7 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.lfgFlags.check:SetChecked(db.lfgFlagsEnabled ~= false)
   end
   if controls.lfgGroupBonuses then
-    controls.lfgGroupBonuses.label:SetText(labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating hearts")
+    controls.lfgGroupBonuses.label:SetText(labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating plus signs")
     SetCheckboxDescription(
       controls.lfgGroupBonuses,
       labels.SETTINGS_LFG_GROUP_BONUSES_DESC or FALLBACK_LFG_GROUP_BONUSES_DESC

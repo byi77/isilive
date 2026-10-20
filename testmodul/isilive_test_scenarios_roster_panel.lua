@@ -1,9 +1,41 @@
+local ioLib = rawget(_G, "io")
+
 local _, addonTable = ...
 addonTable = addonTable or {}
 
 local RegisterRosterRenderReadyCheckReapplyTest
 
 local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster utility markers ship transparent plus and connection textures", function()
+    for _, name in ipairs({ "plus_bonus_green", "link_sync_blue" }) do
+      local file = assert(ioLib.open("media/" .. name .. ".tga", "rb"))
+      local bytes = file:read("*a")
+      file:close()
+      Assert.Equal(bytes:byte(3), 2, "marker must use uncompressed true-color TGA")
+      Assert.Equal(bytes:byte(13), 32, "marker width must be 32 pixels")
+      Assert.Equal(bytes:byte(15), 32, "marker height must be 32 pixels")
+      Assert.Equal(bytes:byte(17), 32, "marker must include an alpha channel")
+      Assert.Equal(bytes:byte(22), 0, "marker corner must be transparent")
+      if name == "plus_bonus_green" then
+        local function Pixel(horizontal, vertical, channel)
+          local row = math.floor(bytes:byte(18) / 32) % 2 == 0 and 31 - vertical or vertical
+          return bytes:byte(19 + (row * 32 + horizontal) * 4 + channel)
+        end
+        Assert.True(Pixel(5, 16, 3) > 200, "plus horizontal arm must be opaque")
+        Assert.True(Pixel(16, 5, 3) > 200, "plus vertical arm must be opaque")
+        Assert.True(Pixel(10, 10, 3) > 0 and Pixel(10, 10, 3) < 200, "plus must have a soft halo")
+        Assert.True(Pixel(15, 8, 2) > Pixel(15, 23, 2), "plus must have a brighter gloss highlight")
+      end
+    end
+    local file = assert(ioLib.open("factory/isiLive_controller_init.lua", "r"))
+    local source = file:read("*a")
+    file:close()
+    Assert.True(
+      source:find("media\\\\link_sync_blue:12:12", 1, true) ~= nil,
+      "runtime must wire the connection texture"
+    )
+  end)
+
   test("Roster ready check uses row backgrounds and status icons without recoloring text", function()
     local readyCheckStatusByUnit = {}
 
@@ -427,11 +459,11 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         name = "SyncedPlayer",
         hasIsiLive = true,
       }, {
-        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\link_sync_blue:12:12|t",
       })
 
       Assert.True(
-        displayData.addonMarker:find("heart_sync", 1, true) ~= nil,
+        displayData.addonMarker:find("link_sync_blue", 1, true) ~= nil,
         "synced users should receive the heart icon marker"
       )
     end)
@@ -494,7 +526,7 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         isLeader = true,
         hasIsiLive = true,
       }, {
-        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\link_sync_blue:12:12|t",
       })
 
       Assert.True(
@@ -502,10 +534,10 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         "leader marker must remain visible for synced leaders"
       )
       Assert.True(
-        displayData.addonMarker:find("heart_sync", 1, true) ~= nil,
+        displayData.addonMarker:find("link_sync_blue", 1, true) ~= nil,
         "blue-heart marker must remain visible for synced leaders"
       )
-      local heartPosition = displayData.addonMarker:find("heart_sync", 1, true)
+      local heartPosition = displayData.addonMarker:find("link_sync_blue", 1, true)
       local crownPosition = displayData.addonMarker:find("UI%-Group%-LeaderIcon", 1)
 
       Assert.True(heartPosition ~= nil, "blue-heart marker position must be detectable")
@@ -539,7 +571,7 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         name = "SyncedPlayer",
         hasIsiLive = true,
       }, {
-        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\link_sync_blue:12:12|t",
         syncBadge = " |TInterface\\Buttons\\UI-RefreshButton:12:12|t",
         syncSummary = {
           source = "refresh",
@@ -653,11 +685,11 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
       }, displayData)
 
       Assert.True(
-        capturedNameText:find("media\\heart_bonus_green", 1, true) ~= nil,
+        capturedNameText:find("media\\plus_bonus_green", 1, true) ~= nil,
         "relevant roster class buffs must render the green bonus-heart marker next to the member name"
       )
       Assert.True(
-        capturedNameText:find("Warrior|r |TInterface\\AddOns\\isiLive\\media\\heart_bonus_green", 1, true) ~= nil,
+        capturedNameText:find("Warrior|r |TInterface\\AddOns\\isiLive\\media\\plus_bonus_green", 1, true) ~= nil,
         "roster bonus-heart marker must keep the same leading spacing style as inline roster markers"
       )
     end)
@@ -720,7 +752,7 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
       }, displayData)
 
       Assert.True(
-        capturedNameText:find("media\\heart_bonus_green", 1, true) == nil,
+        capturedNameText:find("media\\plus_bonus_green", 1, true) == nil,
         "disabled group-bonus setting must suppress roster bonus-heart markers"
       )
     end)

@@ -56,45 +56,6 @@ local LANGUAGE_NAME_BY_LOCALE = {
     TR = "Turc",
     TW = "Taiwanais",
   },
-  esES = {
-    CN = "Chino",
-    DE = "Aleman",
-    EN = "Ingles",
-    ES = "Espanol",
-    FR = "Frances",
-    IT = "Italiano",
-    KR = "Coreano",
-    PT = "Portugues",
-    RU = "Ruso",
-    TR = "Turco",
-    TW = "Taiwanes",
-  },
-  ptBR = {
-    CN = "Chines",
-    DE = "Alemao",
-    EN = "Ingles",
-    ES = "Espanhol",
-    FR = "Frances",
-    IT = "Italiano",
-    KR = "Coreano",
-    PT = "Portugues",
-    RU = "Russo",
-    TR = "Turco",
-    TW = "Taiwanes",
-  },
-  itIT = {
-    CN = "Cinese",
-    DE = "Tedesco",
-    EN = "Inglese",
-    ES = "Spagnolo",
-    FR = "Francese",
-    IT = "Italiano",
-    KR = "Coreano",
-    PT = "Portoghese",
-    RU = "Russo",
-    TR = "Turco",
-    TW = "Taiwanese",
-  },
   ruRU = {
     CN = "Китайский",
     DE = "Немецкий",
@@ -134,7 +95,8 @@ end
 -- KR/CN/TW: tags are recognized but have no flag asset in
 -- LANGUAGE_FLAG_TEXTURE_BY_TAG → GetLanguageFlagMarkup returns text fallback.
 -- These are display-only locales (no isiLive UI translation) and therefore
--- are not listed in Languages.SUPPORTED.
+-- are not listed in Languages.SUPPORTED. ES/IT/PT below are display-only too
+-- since 2026-10-20: they tag party members' languages, not UI languages.
 local EXTRA_LOCALE_TO_LANGUAGE_TAG = {
   kokr = "KR",
   zhcn = "CN",

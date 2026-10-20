@@ -13,9 +13,6 @@ local LANGUAGE_FILES = {
   "isiLive_texts_enUS.lua",
   "isiLive_texts_deDE.lua",
   "isiLive_texts_frFR.lua",
-  "isiLive_texts_esES.lua",
-  "isiLive_texts_ptBR.lua",
-  "isiLive_texts_itIT.lua",
   "isiLive_texts_ruRU.lua",
   "isiLive_texts_trTR.lua",
 }

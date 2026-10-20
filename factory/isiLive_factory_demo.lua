@@ -8,8 +8,6 @@ local FactoryDemo = {}
 FI.FactoryDemo = FactoryDemo
 
 local DEMO_FEATURE_NIL = {}
-local DEMO_FEATURE_TARGET_DUNGEON_NAME = "Nexus-Point Xenas"
-local DEMO_FEATURE_TARGET_MAP_ID = 559
 local DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME = "Priorei der Heiligen Flamme"
 local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
 local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
@@ -37,6 +35,35 @@ local DEMO_FEATURE_DB_KEYS = {
   "deathAlertEnabled",
   "powerInfusionTextEnabled",
 }
+
+local function GetDemoSeasonData(ctx)
+  return (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
+end
+
+-- The demo target is the first dungeon of the active season, so the preview
+-- follows every season switch instead of pinning a past season's map. Without
+-- an active season (or a name for its first map) there is no verified target:
+-- the previews then render without a dungeon instead of inventing one.
+local function ResolveDemoTarget(ctx)
+  local seasonData = GetDemoSeasonData(ctx)
+  if type(seasonData) ~= "table" or type(seasonData.GetOrderedMapIDs) ~= "function" then
+    return nil, nil
+  end
+  local orderedMapIDs = seasonData.GetOrderedMapIDs()
+  local mapID = type(orderedMapIDs) == "table" and orderedMapIDs[1] or nil
+  if type(mapID) ~= "number" or type(seasonData.GetDungeonName) ~= "function" then
+    return nil, nil
+  end
+  local name = seasonData.GetDungeonName(mapID, ctx.locale)
+  if type(name) ~= "string" or name == "" then
+    return nil, nil
+  end
+  return mapID, name
+end
+
+local function FormatDemoTargetWithLevel(name)
+  return name and (name .. " +15") or nil
+end
 
 local function CaptureDemoFeatureSnapshot(db)
   local snapshot = {}
@@ -138,7 +165,8 @@ local function ApplyDemoMobForces(ctx)
   end
 
   if type(mobNameplate.SetTestMode) == "function" then
-    mobNameplate.SetTestMode(true, "12.34", { activeMapID = DEMO_FEATURE_TARGET_MAP_ID })
+    local targetMapID = ResolveDemoTarget(ctx)
+    mobNameplate.SetTestMode(true, "12.34", { activeMapID = targetMapID })
   elseif type(mobNameplate.SetEnabled) == "function" then
     mobNameplate.SetEnabled(true)
   end
@@ -233,123 +261,59 @@ local function ApplyDemoAlertAndSoundPreview(ctx, _L)
   end
 end
 
-local function ApplyDemoPortalNavigatorTeleportInfo(ctx, entry, mapID)
-  entry.mapID = mapID
-  local teleport = ctx.modules and ctx.modules.teleport
-  if type(teleport) ~= "table" or type(teleport.GetTeleportInfoByMapID) ~= "function" then
-    return
-  end
-
-  local ok, info = pcall(teleport.GetTeleportInfoByMapID, mapID)
-  if not ok or type(info) ~= "table" then
-    return
-  end
-
-  local spellID = tonumber(info.spellID)
-  if spellID and spellID > 0 then
-    entry.spellID = math.floor(spellID)
-  end
-  if type(info.icon) == "string" or type(info.icon) == "number" then
-    entry.icon = info.icon
-  end
-end
-
-local function BuildDemoPortalNavigatorEntry(ctx, slot, direction, destination, opts)
-  local entry = {
-    slot = slot,
-    direction = direction,
-    destination = destination,
-  }
-  if type(opts) == "table" then
-    entry.detail = opts.detail
-    entry.isEmpty = opts.isEmpty == true
-  end
-
-  local seasonData = (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
-  local navigator = type(seasonData) == "table"
-      and type(seasonData.GetPortalNavigatorConfig) == "function"
-      and seasonData.GetPortalNavigatorConfig()
-    or nil
-  local mapID = type(navigator) == "table" and type(navigator.slots) == "table" and navigator.slots[slot] or nil
-  if mapID then
-    if type(seasonData.GetDungeonName) == "function" then
-      entry.destination = seasonData.GetDungeonName(mapID, ctx.locale) or entry.destination
-    end
-    ApplyDemoPortalNavigatorTeleportInfo(ctx, entry, mapID)
-  end
-  return entry
-end
-
+-- The demo navigator reuses the live layout builder, so it mirrors the active
+-- season's portal-room slots (including unoccupied ones) and fails closed the
+-- same way when the season has no complete navigator config.
 local function ShowDemoPortalNavigator(ctx, L)
   if type(ctx.ShowPortalNavigatorNotice) ~= "function" then
     return
   end
 
-  local seasonData = (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
-  local navigator = type(seasonData) == "table"
-      and type(seasonData.GetPortalNavigatorConfig) == "function"
-      and seasonData.GetPortalNavigatorConfig()
-    or nil
-  local titles = type(navigator) == "table" and type(navigator.titleByLocale) == "table" and navigator.titleByLocale
-    or {}
-  ctx.ShowPortalNavigatorNotice({
-    eyebrow = L.PORTAL_NAVIGATOR_EYEBROW or "Portal - Navigation",
-    title = titles[ctx.locale] or titles.default or L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
-    entries = {
-      BuildDemoPortalNavigatorEntry(
-        ctx,
-        "left",
-        L.PORTAL_NAVIGATOR_LEFT or "Left",
-        L.PORTAL_NAVIGATOR_SKYREACH or "Skyreach"
-      ),
-      BuildDemoPortalNavigatorEntry(
-        ctx,
-        "half_left",
-        L.PORTAL_NAVIGATOR_HALF_LEFT or "Half-left",
-        L.PORTAL_NAVIGATOR_PIT_OF_SARON or "Pit of Saron"
-      ),
-      BuildDemoPortalNavigatorEntry(
-        ctx,
-        "center",
-        L.PORTAL_NAVIGATOR_CENTER or "Straight ahead",
-        L.PORTAL_NAVIGATOR_HEAVEN or "Heaven",
-        { detail = L.PORTAL_NAVIGATOR_UNOCCUPIED or "Unoccupied", isEmpty = true }
-      ),
-      BuildDemoPortalNavigatorEntry(
-        ctx,
-        "half_right",
-        L.PORTAL_NAVIGATOR_HALF_RIGHT or "Half-right",
-        L.PORTAL_NAVIGATOR_ALGETHAR or "Algeth'ar Academy"
-      ),
-      BuildDemoPortalNavigatorEntry(
-        ctx,
-        "right",
-        L.PORTAL_NAVIGATOR_RIGHT or "Right",
-        L.PORTAL_NAVIGATOR_TRIUMVIRATE or "Seat of the Triumvirate"
-      ),
-    },
+  local status = ctx.addonTable and ctx.addonTable.Status
+  if type(status) ~= "table" or type(status.BuildPortalNavigatorLayout) ~= "function" then
+    return
+  end
+
+  local teleport = ctx.modules and ctx.modules.teleport
+  local layout = status.BuildPortalNavigatorLayout({
+    getL = function()
+      return L
+    end,
+    getLocaleTag = function()
+      return ctx.locale
+    end,
+    getTeleportInfoByMapID = type(teleport) == "table" and teleport.GetTeleportInfoByMapID or nil,
   })
+  if type(layout) == "table" then
+    ctx.ShowPortalNavigatorNotice(layout)
+  end
 end
 
-local function BuildDemoAcceptedInviteNoticePayload(L)
+local function BuildDemoAcceptedInviteNoticePayload(ctx, L)
+  local targetMapID, targetName = ResolveDemoTarget(ctx)
+  local fields = {}
+  if targetName then
+    fields[#fields + 1] = {
+      label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:",
+      value = FormatDemoTargetWithLevel(targetName),
+    }
+  end
+  fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" }
+  fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" }
+  fields[#fields + 1] = {
+    label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
+    value = L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
+  }
   return {
     message = nil,
     durationSeconds = nil,
-    dungeonName = DEMO_FEATURE_TARGET_DUNGEON_NAME,
+    dungeonName = targetName,
     activityID = nil,
     showOptions = {
       eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
       title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
-      fields = {
-        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" },
-        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
-        {
-          label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
-          value = L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
-        },
-      },
-      teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
+      fields = fields,
+      teleportMapID = targetMapID,
       frameWidth = 680,
       persistent = true,
     },
@@ -361,7 +325,7 @@ local function ShowDemoAcceptedInviteNotice(ctx, L)
     return
   end
 
-  local payload = BuildDemoAcceptedInviteNoticePayload(L)
+  local payload = BuildDemoAcceptedInviteNoticePayload(ctx, L)
   ctx.ShowCenterNotice(
     payload.message,
     payload.durationSeconds,
@@ -454,21 +418,27 @@ local function ShowSimulationJoinedTargetNotice(ctx, L)
     return
   end
 
-  ctx.ShowCenterNotice(nil, 120, DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, {
+  local targetMapID, targetName = ResolveDemoTarget(ctx)
+  local fields = {}
+  if targetName then
+    fields[#fields + 1] = {
+      label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:",
+      value = FormatDemoTargetWithLevel(targetName),
+    }
+  end
+  fields[#fields + 1] = {
+    label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
+    value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
+  }
+  fields[#fields + 1] = {
+    label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
+    value = L.SIM_JOINED_TARGET_HINT or "Local center notice only; no real chat post was sent.",
+  }
+  ctx.ShowCenterNotice(nil, 120, targetName, nil, {
     eyebrow = L.SIM_JOINED_TARGET_EYEBROW or "Group joined",
     title = L.SIM_JOINED_TARGET_TITLE or "isiLive - Joined target group",
-    fields = {
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-      {
-        label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
-        value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
-      },
-      {
-        label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
-        value = L.SIM_JOINED_TARGET_HINT or "Local center notice only; no real chat post was sent.",
-      },
-    },
-    teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
+    fields = fields,
+    teleportMapID = targetMapID,
     frameWidth = 680,
     persistent = true,
   })
@@ -488,7 +458,7 @@ local function ApplyDemoFeatureData(ctx)
   ShowDemoPortalNavigator(ctx, L)
   if type(ctx.ShowDemoCenterNotices) == "function" then
     ctx.ShowDemoCenterNotices({
-      BuildDemoAcceptedInviteNoticePayload(L),
+      BuildDemoAcceptedInviteNoticePayload(ctx, L),
       BuildDemoNonMythicDungeonNoticePayload(L),
     })
   else
@@ -616,8 +586,9 @@ local function SetDemoTimerData(ctx, runtimeState)
       deathTimeLost = 8,
     })
   end
-  if type(runtimeState.SetLatestQueueState) == "function" then
-    runtimeState.SetLatestQueueState(DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, nil, DEMO_FEATURE_TARGET_MAP_ID)
+  local targetMapID, targetName = ResolveDemoTarget(ctx)
+  if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
+    runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
   end
   local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
   if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
@@ -626,7 +597,7 @@ local function SetDemoTimerData(ctx, runtimeState)
       percent = 47.34,
       rawCount = 204,
       total = 431,
-      mapID = DEMO_FEATURE_TARGET_MAP_ID,
+      mapID = targetMapID,
       inCombat = true,
       pullPercent = 3.21,
       -- Learned forces target for the next boss: shows the pace tick. The

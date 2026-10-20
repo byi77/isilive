@@ -22,6 +22,52 @@ local function NormalizeLocaleTag(localeTag)
   return resolved
 end
 
+-- Offline tools load this file without the validation helpers.
+local function IsSecretValue(value)
+  local validators = addonTable.Validators
+  return type(validators) == "table"
+    and type(validators.IsSecretValue) == "function"
+    and validators.IsSecretValue(value) == true
+end
+
+-- Manifest name table for a requested locale: nil/supported English tags read
+-- `enUS`, other supported tags their own table, unsupported tags none at all.
+local function ResolveManifestNameLocale(localeTag)
+  if localeTag == nil then
+    return "enUS"
+  end
+  if not addonTable.Languages.IsSupported(localeTag) then
+    return nil
+  end
+  return addonTable.Languages.ResolveTag(localeTag)
+end
+
+local function ReadManifestName(byLocale, localeKey, mapID)
+  local names = byLocale[localeKey]
+  local name = type(names) == "table" and names[mapID] or nil
+  if type(name) == "string" and name ~= "" then
+    return name
+  end
+  return nil
+end
+
+local function IsClientLocaleRequest(localeTag)
+  return addonTable.Languages.IsClientLocale(localeTag)
+end
+
+local function ReadChallengeMapUIName(mapID)
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  local getMapUIInfo = type(challengeMode) == "table" and rawget(challengeMode, "GetMapUIInfo") or nil
+  if type(getMapUIInfo) ~= "function" then
+    return nil
+  end
+  local ok, name = pcall(getMapUIInfo, mapID)
+  if not ok or IsSecretValue(name) or type(name) ~= "string" or name == "" then
+    return nil
+  end
+  return name
+end
+
 local function NormalizeMapIDInput(mapID)
   local numericMapID = tonumber(mapID)
   if not numericMapID then
@@ -197,6 +243,22 @@ for seasonID, source in pairs(SeasonManifest.seasons or {}) do
   SeasonData.SEASONS[seasonID] = CompileSeason(source)
 end
 
+-- Manifest-level errors that belong to no single season. Tooling reports them;
+-- the runtime never reads `upcomingSeasonID`.
+SeasonData.MANIFEST_ERRORS = {}
+SeasonData.UPCOMING_SEASON_ID = nil
+do
+  local upcoming = SeasonManifest.upcomingSeasonID
+  if upcoming ~= nil then
+    if type(upcoming) ~= "string" or SeasonData.SEASONS[upcoming] == nil then
+      SeasonData.MANIFEST_ERRORS[#SeasonData.MANIFEST_ERRORS + 1] =
+        string.format("upcomingSeasonID '%s' is not a configured season", tostring(upcoming))
+    else
+      SeasonData.UPCOMING_SEASON_ID = upcoming
+    end
+  end
+end
+
 local function RefreshLegacyAliases()
   SeasonData.MAP_TO_TELEPORT = SeasonData.GetMapToTeleport()
   SeasonData.MAP_SHORT_CODES = SeasonData.GetShortCodes("enUS")
@@ -355,6 +417,12 @@ function SeasonData.GetActiveSeasonID()
   return SeasonData.ACTIVE_SEASON_ID
 end
 
+-- Tooling default: the season being prepared, otherwise the active one. An
+-- unknown `upcomingSeasonID` is a manifest error and never becomes the default.
+function SeasonData.GetToolDefaultSeasonID()
+  return SeasonData.UPCOMING_SEASON_ID or SeasonData.ACTIVE_SEASON_ID
+end
+
 function SeasonData.GetMatchingForcesData(seasonID, opts)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local forces = addonTable.MPlusForces
@@ -372,6 +440,29 @@ function SeasonData.GetMatchingForcesData(seasonID, opts)
   return forces
 end
 
+-- Build/tooling gate for the generated M+ forces DB: season match, structural
+-- coverage of every season map and the expiresAt window. Seasons with
+-- `requiresForces = false` are skipped (`required = false`, always ready).
+-- Never used for season activation; see GetSeasonReadiness.
+function SeasonData.GetForcesReadiness(seasonID, opts)
+  local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
+  local season = SeasonData.GetSeasonConfig(resolvedSeasonID)
+  local errors = {}
+  if type(season) ~= "table" then
+    errors[1] = string.format("Unknown season id '%s'", tostring(resolvedSeasonID))
+    return { seasonID = resolvedSeasonID, required = false, isReady = false, errors = errors }
+  end
+
+  AppendForcesReadinessErrors(errors, resolvedSeasonID, season, opts)
+  table.sort(errors)
+  return {
+    seasonID = resolvedSeasonID,
+    required = season.requiresForces == true,
+    isReady = #errors == 0,
+    errors = errors,
+  }
+end
+
 function SeasonData.GetAvailableSeasonIDs()
   local out = {}
   local seasons = SeasonData.SEASONS or {}
@@ -382,7 +473,9 @@ function SeasonData.GetAvailableSeasonIDs()
   return out
 end
 
-function SeasonData.GetSeasonReadiness(seasonID, opts)
+-- `_opts` is kept so existing callers can keep passing their opts table; the
+-- activation readiness reads no options since forces moved to GetForcesReadiness.
+function SeasonData.GetSeasonReadiness(seasonID, _opts)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local season = SeasonData.GetSeasonConfig(resolvedSeasonID)
   local errors = {}
@@ -548,14 +641,17 @@ function SeasonData.GetSeasonReadiness(seasonID, opts)
     end
   end
 
-  AppendForcesReadinessErrors(errors, resolvedSeasonID, season, opts)
+  -- M+ forces data is deliberately not part of this activation readiness. A
+  -- missing, foreign or expired forces DB only closes the MDT-dependent
+  -- displays (GetMatchingForcesData); it must never keep a client on the
+  -- previous season's portals and LFG mapping. `requiresForces` is enforced
+  -- at build time through GetForcesReadiness instead.
 
   -- Most entries above are appended while iterating maps with `pairs`, whose
   -- order is unspecified. Both callers that surface a reason to the user report
   -- errors[1] as *the* reason a season is not ready, so an unordered list means
   -- identical data can produce a different message on the next run -- a support
-  -- report nobody can reproduce. Sorting here covers every append site at once,
-  -- including AppendForcesReadinessErrors.
+  -- report nobody can reproduce. Sorting here covers every append site at once.
   table.sort(errors)
   table.sort(warnings)
 
@@ -570,9 +666,13 @@ function SeasonData.GetSeasonReadiness(seasonID, opts)
   }
 end
 
+-- The third return value marks a failure as transient: Blizzard has not
+-- delivered the map list yet, so a later evaluation can still succeed. Every
+-- other failure is a verdict on the delivered list itself and only changes
+-- with a new list (CHALLENGE_MODE_MAPS_UPDATE) or a new addon build.
 function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   if type(mapIDs) ~= "table" then
-    return nil, "Blizzard challenge map list is unavailable"
+    return nil, "Blizzard challenge map list is unavailable", true
   end
 
   local observed = {}
@@ -589,7 +689,7 @@ function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
     observedCount = observedCount + 1
   end
   if observedCount == 0 then
-    return nil, "Blizzard challenge map list is empty"
+    return nil, "Blizzard challenge map list is empty", true
   end
 
   local match
@@ -620,23 +720,26 @@ function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   return match, nil
 end
 
+-- Returns ok, changed, message, retryable. `retryable` is true only for a
+-- transient failure (see ResolveSeasonIDFromChallengeMapIDs); callers use it
+-- to decide whether a later catch-up evaluation is worth running.
 function SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, opts)
-  local seasonID, resolveError = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
+  local seasonID, resolveError, retryable = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   if not seasonID then
-    return false, false, resolveError
+    return false, false, resolveError, retryable == true
   end
 
   local readiness = SeasonData.GetSeasonReadiness(seasonID, opts)
   if not readiness.isReady then
     local reason = readiness.errors[1] or readiness.warnings[1] or "season data is incomplete"
-    return false, false, string.format("Season '%s' is not ready: %s", seasonID, reason)
+    return false, false, string.format("Season '%s' is not ready: %s", seasonID, reason), false
   end
   if SeasonData.ACTIVE_SEASON_ID == seasonID then
-    return true, false, string.format("Active season already matches %s", seasonID)
+    return true, false, string.format("Active season already matches %s", seasonID), false
   end
 
   local ok, message = SeasonData.SetActiveSeasonID(seasonID, opts)
-  return ok, ok == true, message
+  return ok, ok == true, message, false
 end
 
 function SeasonData.HasActiveDungeons(seasonID)
@@ -848,23 +951,25 @@ function SeasonData.GetDungeonName(mapID, localeTag, seasonID)
   end
 
   local byLocale = season.namesByLocale or {}
-  local localeKey = NormalizeLocaleTag(localeTag)
-  if localeKey ~= "default" and type(byLocale[localeKey]) == "table" then
-    local localizedName = byLocale[localeKey][numericMapID]
-    if type(localizedName) == "string" and localizedName ~= "" then
-      return localizedName
+  -- 1. Manifest name in the requested locale. An unsupported tag (e.g. koKR)
+  --    has no manifest table of its own, so it skips straight to step 2.
+  local manifestLocale = ResolveManifestNameLocale(localeTag)
+  local localizedName = manifestLocale and ReadManifestName(byLocale, manifestLocale, numericMapID) or nil
+  if localizedName then
+    return localizedName
+  end
+
+  -- 2. Blizzard's client-localized name. The API answers in the client
+  --    language only, so it is used only when that is the language asked for.
+  if IsClientLocaleRequest(localeTag) then
+    local clientName = ReadChallengeMapUIName(numericMapID)
+    if clientName then
+      return clientName
     end
   end
 
-  local defaultNames = byLocale.enUS
-  if type(defaultNames) == "table" then
-    local defaultName = defaultNames[numericMapID]
-    if type(defaultName) == "string" and defaultName ~= "" then
-      return defaultName
-    end
-  end
-
-  return nil
+  -- 3. English manifest name.
+  return ReadManifestName(byLocale, "enUS", numericMapID)
 end
 
 function SeasonData.GetInactivePortalMessage(localeTag, seasonID)

@@ -10,7 +10,7 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local ReadPlainString = addonTable.Validators.ReadPlainString
 
-local POWER_INFUSION_SPELL_ID = 10060
+local POWER_INFUSION_SPELL_ID = addonTable.SpellManifest.powerInfusion
 local DEDUP_WINDOW_SECONDS = 30
 
 -- Every delta list WoW can put into a UNIT_AURA payload. A full update arrives

@@ -241,7 +241,7 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       ctx.modules.sync.SendPowerInfusionAnnounce({
         caster = casterName,
         recipient = recipientName,
-        spellID = 10060,
+        spellID = addonTable.SpellManifest.powerInfusion,
       })
     end
   end

@@ -16,8 +16,24 @@ Maschinenregeln:
 - `tools/check_season_intake.lua` gleicht verifizierte Dungeonzeilen mit dem
   normalisierten Saisonmanifest ab. ChallengeMapID, PortalSpellID,
   LFGActivityID, Status und VerifiedAt duerfen nicht auseinanderlaufen.
+- Die Datei darf Zeilen mehrerer Seasons enthalten. Ohne `--season=<id>` prueft
+  `tools/check_season_intake.lua` jede vorkommende Season einzeln; das Gate ist
+  nur gruen, wenn jede davon gueltig ist. Verifizierte Zeilen der laufenden
+  Season bleiben deshalb stehen, wenn die naechste Season gesammelt wird.
+- Eine Season, die noch keinen Eintrag in `data/isiLive_seasons.lua` hat, ist eine
+  reine Sammelstelle: ihre Zeilen duerfen `unresolved`, `candidate` oder
+  `partial` sein, aber nie `verified`. Erst mit dem Manifest-Eintrag gelten die
+  Plan- und Drift-Pruefungen.
+- `lua tools/check_season_intake.lua --list-seasons` listet die geprueften Seasons;
+  der taegliche Workflow fuehrt pro Season ein eigenes Status-Issue.
 
-Aktueller Stand `2026-07-13`: `8/8 verified`, `0/8 partial`. Der User hat die Uebernahme aller acht castbaren PortalSpellIDs nach dem Crosscheck von DBM, EnhanceQoL Teleport Compendium, Chonky Character Sheet und Wowhead-PTR-Spell-Daten ausdruecklich freigegeben. Die `128680x`-Reihe enthaelt die castbaren 10-Sekunden-Portalspells; die abweichenden `128977x`-Instant-Spells werden nicht als Portal-Cast-IDs uebernommen. ChallengeMapIDs und Mythic+-LFG-Activity-IDs sind dokumentiert. Englische und deutsche Namen, Default-/deDE-Kurzcodes sowie die ausdruecklich freigegebene aufsteigende Map-ID-Anzeigereihenfolge sind im Season-Datensatz gepflegt. S2 ist fuer die automatische Auswahl beim exakten Blizzard-S2-Mapset freigegeben; `activeSeasonID` bleibt der manuelle Fallback. S2 ist nicht von der optionalen MDT-Forces-DB abhaengig; bis eine passende S2-DB vorliegt, bleiben nur die MDT-abhaengigen Mob-Anzeigen geschlossen.
+Der aktuelle Stand wird nicht als Prosa gepflegt, weil er driftet. Massgeblich sind
+die generierten Reports: `lua tools/check_season_intake.lua` (Fortschritt und Fehler
+pro Season, taeglich als GitHub-Issue je Season ueber
+`.github/workflows/season-intake.yml`) und `lua tools/inspect_season_readiness.lua`
+(aktive und vorbereitete Season, Readiness, Forces-Gate).
+
+Freigabe-Nachweis `midnight_s2` (`2026-07-13`): Der User hat die Uebernahme aller acht castbaren PortalSpellIDs nach dem Crosscheck von DBM, EnhanceQoL Teleport Compendium, Chonky Character Sheet und Wowhead-PTR-Spell-Daten ausdruecklich freigegeben. Die `128680x`-Reihe enthaelt die castbaren 10-Sekunden-Portalspells; die abweichenden `128977x`-Instant-Spells werden nicht als Portal-Cast-IDs uebernommen. Die aufsteigende Map-ID-Anzeigereihenfolge ist ausdruecklich freigegeben.
 
 ## Dungeon-Intake
 
@@ -32,14 +48,7 @@ Aktueller Stand `2026-07-13`: `8/8 verified`, `0/8 partial`. Der User hat die Ue
 | midnight_s2 | Ruby Life Pools | 399 | 393256 | 1176 | PortalSpellID: User-Freigabe nach Crosscheck DBM, EnhanceQoL, Chonky und Wowhead-PTR; PTR C_Spell.GetSpellInfo; LFG: PTR C_LFGList.GetActivityInfoTable | 2026-07-13 | verified | deDE Rubinlebensbecken; bereits ingame verifizierter castbarer Portalspell Pfad des Nestverteidigers bestaetigt; Instanz-mapID 2521 bleibt getrennt von ChallengeMapID 399 |
 | midnight_s2 | Temple of Sethraliss | 250 | 1286828 | 504 | PortalSpellID: User-Freigabe nach Crosscheck DBM, EnhanceQoL, Chonky und Wowhead-PTR; LFG: PTR Blizzard-Activity-Suche | 2026-07-13 | verified | deDE Tempel von Sethraliss; castbarer Portalspell Path of the Sacred Temple; Instanz-mapID 1877 bleibt getrennt von ChallengeMapID 250 |
 
-## Ruhestein-Intake
+## Ruhesteine, Mounts und Reise-Items
 
-| Season | Name | ToyID | Source | VerifiedAt | Status | Notiz |
-| --- | --- | --- | --- | --- | --- | --- |
-| midnight_s2 | unresolved | unresolved | unresolved | unresolved | unresolved | Neue Ruhesteine erst nach verifizierter Quelle eintragen |
-
-## Mount-Intake
-
-| Season | Name | SpellID | Source | VerifiedAt | Status | Notiz |
-| --- | --- | --- | --- | --- | --- | --- |
-| midnight_s2 | unresolved | unresolved | unresolved | unresolved | unresolved | Neue Mounts erst nach verifizierter Quelle eintragen |
+Ruhesteine, Mounts und Reise-Items sind nicht saisonal. Ihre Sammelstelle ist
+`docs/TRAVEL_INTAKE.md`, das Gate `tools/check_travel_items.lua`.

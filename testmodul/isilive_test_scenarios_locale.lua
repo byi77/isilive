@@ -45,43 +45,24 @@ return function(test, ctx)
     end
   end)
 
-  test("All enUS keys exist in esES locale", function()
-    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+  test("Languages.SUPPORTED lists exactly the five UI languages", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_texts.lua" })
+    local tags = {}
+    for _, lang in ipairs(addon.Languages.SUPPORTED) do
+      tags[#tags + 1] = lang.tag
+    end
+    Assert.Equal(table.concat(tags, ","), "enUS,deDE,frFR,ruRU,trTR", "supported UI languages must be exactly five")
     local locales = addon.Texts.GetLocaleTables()
-
-    Assert.NotNil(locales.esES, "esES locale must exist")
-
-    for key, _ in pairs(locales.enUS) do
-      Assert.NotNil(locales.esES[key], "esES must have key: " .. tostring(key))
+    for _, removed in ipairs({ "esES", "ptBR", "itIT" }) do
+      Assert.Nil(locales[removed], removed .. " locale table must no longer ship")
+      Assert.False(addon.Languages.IsSupported(removed), removed .. " must no longer be a supported UI language")
     end
   end)
 
-  test("All esES keys exist in enUS locale", function()
-    local addon = LoadAddonModules({ "isiLive_texts.lua" })
-    local locales = addon.Texts.GetLocaleTables()
-
-    for key, _ in pairs(locales.esES) do
-      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
-    end
-  end)
-
-  test("All enUS keys exist in ptBR locale", function()
-    local addon = LoadAddonModules({ "isiLive_texts.lua" })
-    local locales = addon.Texts.GetLocaleTables()
-
-    Assert.NotNil(locales.ptBR, "ptBR locale must exist")
-
-    for key, _ in pairs(locales.enUS) do
-      Assert.NotNil(locales.ptBR[key], "ptBR must have key: " .. tostring(key))
-    end
-  end)
-
-  test("All ptBR keys exist in enUS locale", function()
-    local addon = LoadAddonModules({ "isiLive_texts.lua" })
-    local locales = addon.Texts.GetLocaleTables()
-
-    for key, _ in pairs(locales.ptBR) do
-      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
+  test("Removed UI languages resolve to enUS", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
+    for _, tag in ipairs({ "esES", "esMX", "es", "ptBR", "ptPT", "pt", "itIT", "it" }) do
+      Assert.Equal(addon.Locale.ResolveLocaleTag(tag), "enUS", tag .. " must fall back to enUS")
     end
   end)
 
@@ -101,7 +82,7 @@ return function(test, ctx)
     end)
 
     local locales = addonTable.Texts.GetLocaleTables()
-    Assert.True(#loadedFiles >= 9, "standalone fallback should load the split locale files")
+    Assert.True(#loadedFiles >= 6, "standalone fallback should load the split locale files")
     Assert.NotNil(locales.enUS, "loadfile fallback should provide enUS texts")
     Assert.Equal(locales.enUS.SETTINGS_SOUND_CHANNEL_MASTER, "Master", "aggregator should add Master label")
     Assert.Equal(locales.enUS.SETTINGS_SOUND_CHANNEL_SFX, "SFX", "aggregator should add SFX label")
@@ -188,7 +169,6 @@ return function(test, ctx)
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
     local titleKeys = {
-      "PORTAL_NAVIGATOR_TITLE",
       "INVITE_ACCEPTED_NOTICE_TITLE",
       "INVITE_ACCEPTED_RAID_NOTICE_TITLE",
     }
@@ -214,10 +194,8 @@ return function(test, ctx)
     Assert.Equal(addon.Locale.ResolveLocaleTag("de"), "deDE", "de tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("dede"), "deDE", "dede tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("en"), "enUS", "en tag must resolve to enUS")
-    Assert.Equal(addon.Locale.ResolveLocaleTag("es"), "esES", "es tag must resolve to esES")
-    Assert.Equal(addon.Locale.ResolveLocaleTag("eses"), "esES", "eses tag must resolve to esES")
-    Assert.Equal(addon.Locale.ResolveLocaleTag("pt"), "ptBR", "pt tag must resolve to ptBR")
-    Assert.Equal(addon.Locale.ResolveLocaleTag("ptbr"), "ptBR", "ptbr tag must resolve to ptBR")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("ru"), "ruRU", "ru tag must resolve to ruRU")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("trtr"), "trTR", "trtr tag must resolve to trTR")
     Assert.Equal(addon.Locale.ResolveLocaleTag("xx"), "enUS", "unsupported tag must fallback to enUS")
   end)
 
@@ -354,7 +332,7 @@ return function(test, ctx)
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
     local enUS = locales.enUS or {}
-    local checkedLocales = { "deDE", "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }
+    local checkedLocales = { "deDE", "frFR", "ruRU", "trTR" }
     local sharedTechnicalLabels = {
       SETTINGS_BETA_NOTICE = true,
       SETTINGS_DEFAULT_OPEN_UI_H = true,
@@ -377,13 +355,6 @@ return function(test, ctx)
         SETTINGS_NAV_RAID = true,
         SETTINGS_SECTION_RAID = true,
       },
-      esES = {
-        SETTINGS_SECTION_GENERAL = true,
-        SETTINGS_REDUCE_MOTION = true,
-        SETTINGS_REDUCE_MOTION_DESC = true,
-      },
-      ptBR = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
-      itIT = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
       ruRU = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
       trTR = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
     }
@@ -418,23 +389,23 @@ return function(test, ctx)
 
     Assert.Equal(
       enUS.SETTINGS_LFG_GROUP_BONUSES,
-      "Group Finder: Buff rating hearts",
+      "Group Finder: Buff rating plus signs",
       "enUS LFG group-bonus setting label must describe the heart rating"
     )
     Assert.True(
       type(enUS.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
-        and enUS.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil
+        and enUS.SETTINGS_LFG_GROUP_BONUSES_DESC:find("plus_bonus_green:10:10", 1, true) ~= nil
         and enUS.SETTINGS_LFG_GROUP_BONUSES_DESC:find("Atrophic Poison.", 1, true) ~= nil,
       "enUS LFG group-bonus setting description must show fixed-size green heart texture examples"
     )
     Assert.Equal(
       deDE.SETTINGS_LFG_GROUP_BONUSES,
-      "Gruppensuche: Buff-Rating-Herzen",
+      "Gruppensuche: Buff-Rating-Pluszeichen",
       "deDE LFG group-bonus setting label must be German"
     )
     Assert.True(
       type(deDE.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
-        and deDE.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil
+        and deDE.SETTINGS_LFG_GROUP_BONUSES_DESC:find("plus_bonus_green:10:10", 1, true) ~= nil
         and deDE.SETTINGS_LFG_GROUP_BONUSES_DESC:find("Atrophisches Gift", 1, true) ~= nil,
       "deDE LFG group-bonus setting description must show fixed-size green heart texture examples in German"
     )
@@ -445,7 +416,7 @@ return function(test, ctx)
       )
       Assert.True(
         type(localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
-          and localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil,
+          and localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC:find("plus_bonus_green:10:10", 1, true) ~= nil,
         localeName .. " LFG group-bonus setting description must use fixed-size green heart textures"
       )
       Assert.True(
@@ -517,7 +488,7 @@ return function(test, ctx)
       "BTN_SHARE_KEYS",
     }
 
-    local localeNames = { "enUS", "deDE", "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }
+    local localeNames = { "enUS", "deDE", "frFR", "ruRU", "trTR" }
     for _, localeName in ipairs(localeNames) do
       local localeTable = locales[localeName]
       if localeTable then
@@ -590,7 +561,8 @@ return function(test, ctx)
     Assert.False(addon.Languages.IsSupported(nil), "nil must not be reported as supported")
     Assert.True(addon.Languages.IsSupported("de"), "command alias must be supported")
     Assert.True(addon.Languages.IsSupported("deDE"), "canonical locale must be supported")
-    Assert.True(addon.Languages.IsSupported("pt-BR"), "dashed locale must be supported")
+    Assert.True(addon.Languages.IsSupported("fr-FR"), "dashed locale must be supported")
+    Assert.False(addon.Languages.IsSupported("pt-BR"), "removed UI language must not be supported")
     Assert.False(addon.Languages.IsSupported("zhCN"), "unprepared locale must not be supported")
   end)
 

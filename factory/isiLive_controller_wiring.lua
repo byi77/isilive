@@ -389,8 +389,11 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
   -- PLAYER_LOGIN and CHALLENGE_MODE_MAPS_UPDATE own the season evaluation;
   -- PLAYER_REGEN_ENABLED only catches up an evaluation that is still pending
-  -- (skipped in combat, no map table yet, or not conclusive). It used to
-  -- re-run the full season validation at the end of every single fight.
+  -- (skipped in combat, or no usable map table yet). It used to re-run the
+  -- full season validation at the end of every single fight. A conclusive
+  -- rejection (no exact match, ambiguous set, season not ready) is not pending:
+  -- its inputs only change with a new map list, which fires
+  -- CHALLENGE_MODE_MAPS_UPDATE, or with a new addon build.
   local seasonRefreshPending = true
   config.refreshActiveSeasonFromBlizzard = function(eventName)
     if eventName == "PLAYER_REGEN_ENABLED" and not seasonRefreshPending then
@@ -422,10 +425,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return false
     end
 
-    local ok, changed, message = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, {
-      forcesData = addonTable.MPlusForces,
-    })
-    seasonRefreshPending = ok ~= true
+    local ok, changed, message, retryable = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs)
+    seasonRefreshPending = ok ~= true and retryable == true
     if type(config.logRuntimeTracef) == "function" then
       config.logRuntimeTracef(
         "[SEASON] auto_select event=%s ok=%s changed=%s active=%s reason=%s",

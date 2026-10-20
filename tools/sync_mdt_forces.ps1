@@ -1,5 +1,7 @@
 param(
-  [string]$Season = "midnight_s1",
+  # Empty = the manifest's activeSeasonID (resolved by sync_mdt_forces.lua),
+  # so the generated DB always matches the season the runtime serves.
+  [string]$Season = "",
   [string]$MdtRepo = "https://github.com/Nnoggie/MythicDungeonTools",
   # The clone sits inside the WoW folder. A real .git directory there makes the
   # Battle.net agent fail its permission scan on the read-only object files
@@ -64,7 +66,11 @@ try {
   }
 
   Write-Step "generating $outFile"
-  & lua "tools/sync_mdt_forces.lua" "--season=$Season" "--mdt=tools/cache/mdt" "--source_commit=$sourceCommit" "--out=data/isiLive_mplus_forces.lua"
+  $syncArgs = @("tools/sync_mdt_forces.lua", "--mdt=tools/cache/mdt", "--source_commit=$sourceCommit", "--out=data/isiLive_mplus_forces.lua")
+  if ($Season -ne "") {
+    $syncArgs += "--season=$Season"
+  }
+  & lua @syncArgs
   if ($LASTEXITCODE -ne 0) { throw "sync_mdt_forces.lua failed ($LASTEXITCODE)" }
 
   Write-Host ""

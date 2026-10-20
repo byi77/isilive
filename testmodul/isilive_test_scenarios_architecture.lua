@@ -1728,12 +1728,19 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     )
     AssertContains(Assert, previewWorkflow, 'cron: "30 7 * * *"', "MDT Forces availability must be checked daily")
     Assert.True(
-      previewWorkflow:find("S2 Forces sources available in MDT for ", 1, true) ~= nil
+      previewWorkflow:find(' Forces sources available in MDT for " + process.env.SEASON_ID', 1, true) ~= nil
         and previewWorkflow:find("github.paginate(github.rest.issues.listForRepo", 1, true) ~= nil
         and previewWorkflow:find('state: "all"', 1, true) ~= nil
         and previewWorkflow:find("issue.body.includes(marker)", 1, true) ~= nil,
       "MDT preview workflow must find and reopen its marker-stable Forces issue across every issue page"
     )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "lua tools/inspect_mdt_season_preview.lua --print-default-season",
+      "MDT preview workflow must resolve its default season from the season manifest"
+    )
+    AssertNotContains(Assert, previewWorkflow, "midnight_s", "MDT preview workflow must not hard-code a season id")
     AssertNotContains(Assert, previewWorkflow, "git commit", "MDT preview workflow must not commit data")
     AssertNotContains(Assert, previewWorkflow, "git push", "MDT preview workflow must not push data")
 
@@ -1772,6 +1779,18 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       intakeWorkflow,
       "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
       "season intake workflow must upload its report as an artifact"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "lua tools/check_season_intake.lua --list-seasons",
+      "season intake workflow must report every intake season, not only the first one"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "for (const season of seasons) {",
+      "season intake workflow must keep one issue per intake season"
     )
     AssertNotContains(Assert, intakeWorkflow, "git commit", "season intake workflow must not commit data")
     AssertNotContains(Assert, intakeWorkflow, "git push", "season intake workflow must not push data")

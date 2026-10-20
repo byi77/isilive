@@ -197,10 +197,6 @@ UICommon.ResolveActiveLocale = ResolveActiveLocale
 local DECIMAL_COMMA_LOCALES = {
   deDE = true,
   frFR = true,
-  esES = true,
-  esMX = true,
-  ptBR = true,
-  itIT = true,
   ruRU = true,
   trTR = true,
 }

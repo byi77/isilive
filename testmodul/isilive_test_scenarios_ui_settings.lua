@@ -1287,84 +1287,90 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
-  test("Settings hearthstone selector shows English toy names for non-German addon locales", function()
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = { hearthstoneChoice = "random" }
+  test(
+    "Settings hearthstone selector shows English toy names when the addon language differs from the client",
+    function()
+      local createFrameStub, createdFrames = BuildCreateFrameStub()
+      local db = { hearthstoneChoice = "random" }
 
-    WithGlobals({
-      UIParent = {},
-      IsiLiveDB = db,
-      CreateFrame = createFrameStub,
-      C_ToyBox = {
-        GetToyInfo = function(itemID)
+      WithGlobals({
+        UIParent = {},
+        IsiLiveDB = db,
+        CreateFrame = createFrameStub,
+        GetLocale = function()
+          return "deDE"
+        end,
+        C_ToyBox = {
+          GetToyInfo = function(itemID)
+            if itemID == 180290 then
+              return itemID, "Nachtfae-Ruhestein", "Interface\\Icons\\inv_hearthstonepet"
+            end
+            return nil
+          end,
+        },
+        Settings = {
+          RegisterCanvasLayoutCategory = function(canvas, name)
+            return { canvas = canvas, name = name }
+          end,
+          RegisterAddOnCategory = function() end,
+        },
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+        addon.UI = addon.UI or {}
+        addon.UI.CollectOwnedHearthstoneToys = function()
+          return { 180290 }
+        end
+        addon.UI.GetHearthstoneToyEnglishName = function(itemID)
           if itemID == 180290 then
-            return itemID, "Nachtfae-Ruhestein", "Interface\\Icons\\inv_hearthstonepet"
+            return "Night Fae Hearthstone"
           end
           return nil
-        end,
-      },
-      Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
-        RegisterAddOnCategory = function() end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
-      addon.UI = addon.UI or {}
-      addon.UI.CollectOwnedHearthstoneToys = function()
-        return { 180290 }
-      end
-      addon.UI.GetHearthstoneToyEnglishName = function(itemID)
-        if itemID == 180290 then
-          return "Night Fae Hearthstone"
         end
-        return nil
-      end
 
-      local panel = addon.SettingsPanel.Create({
-        getL = function()
-          return {
-            SETTINGS_SECTION_GENERAL = "General",
-            SETTINGS_HEARTHSTONE_SELECT = "Hearthstone Selection",
-            SETTINGS_HEARTHSTONE_RANDOM = "Random owned Hearthstone",
-            SETTINGS_HEARTHSTONE_DEFAULT = "Default Hearthstone (6948)",
-          }
-        end,
-        getCurrentLocale = function()
-          return "frFR"
-        end,
-        setLanguage = function() end,
-        getDB = function()
-          return db
-        end,
-      })
-      Assert.NotNil(panel, "settings panel should be created")
+        local panel = addon.SettingsPanel.Create({
+          getL = function()
+            return {
+              SETTINGS_SECTION_GENERAL = "General",
+              SETTINGS_HEARTHSTONE_SELECT = "Hearthstone Selection",
+              SETTINGS_HEARTHSTONE_RANDOM = "Random owned Hearthstone",
+              SETTINGS_HEARTHSTONE_DEFAULT = "Default Hearthstone (6948)",
+            }
+          end,
+          getCurrentLocale = function()
+            return "frFR"
+          end,
+          setLanguage = function() end,
+          getDB = function()
+            return db
+          end,
+        })
+        Assert.NotNil(panel, "settings panel should be created")
 
-      local dropdown = nil
-      for _, frame in ipairs(createdFrames) do
-        if frame._settingKey == "SETTINGS_HEARTHSTONE_SELECT" then
-          dropdown = frame
-          break
+        local dropdown = nil
+        for _, frame in ipairs(createdFrames) do
+          if frame._settingKey == "SETTINGS_HEARTHSTONE_SELECT" then
+            dropdown = frame
+            break
+          end
         end
-      end
-      dropdown = Assert.NotNil(dropdown, "hearthstone selector dropdown must exist")
-      local options = dropdown._options or {}
-      local found = false
-      for _, option in ipairs(options) do
-        if option.value == "toy:180290" then
-          found = true
-          Assert.Equal(
-            option.fallback,
-            "Night Fae Hearthstone",
-            "non-German addon locale must use the verified English toy name"
-          )
+        dropdown = Assert.NotNil(dropdown, "hearthstone selector dropdown must exist")
+        local options = dropdown._options or {}
+        local found = false
+        for _, option in ipairs(options) do
+          if option.value == "toy:180290" then
+            found = true
+            Assert.Equal(
+              option.fallback,
+              "Night Fae Hearthstone",
+              "a frFR addon on a deDE client must use the verified English toy name, not the German client name"
+            )
+          end
+          Assert.False(option.fallback == "180290", "selector must not show a raw item id as its label")
         end
-        Assert.False(option.fallback == "180290", "selector must not show a raw item id as its label")
-      end
-      Assert.True(found, "owned toy with a verified name must be selectable")
-    end)
-  end)
+        Assert.True(found, "owned toy with a verified name must be selectable")
+      end)
+    end
+  )
 
   test("Settings hearthstone option builder uses DB and client locale fallbacks", function()
     local requestedItemIDs = {}
@@ -1437,7 +1443,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
-  test("Settings hearthstone selector uses client-localized toy names for German addon locale", function()
+  test("Settings hearthstone selector uses client toy names when the addon language matches the client", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = { hearthstoneChoice = "random" }
     local toyName = nil
@@ -1447,6 +1453,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       UIParent = {},
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
+      GetLocale = function()
+        return "deDE"
+      end,
       C_ToyBox = {
         GetToyInfo = function(itemID)
           return itemID, toyName, "Interface\\Icons\\inv_hearthstonepet"
@@ -1468,6 +1477,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       addon.UI = addon.UI or {}
       addon.UI.CollectOwnedHearthstoneToys = function()
         return { 180290 }
+      end
+      addon.UI.GetHearthstoneToyEnglishName = function(itemID)
+        return itemID == 180290 and "Night Fae Hearthstone" or nil
       end
 
       local panel = addon.SettingsPanel.Create({
@@ -1501,9 +1513,14 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       dropdown = Assert.NotNil(dropdown, "hearthstone selector dropdown must exist")
       itemDataFrame = Assert.NotNil(itemDataFrame, "settings must refresh when item info becomes available")
       Assert.Equal(requestedItemID, 180290, "missing toy name must request item data")
+      local coldLabel = nil
       for _, option in ipairs(dropdown._options or {}) do
-        Assert.False(option.value == "toy:180290", "uncached toy name must not be shown as a raw numeric fallback")
+        if option.value == "toy:180290" then
+          coldLabel = option.fallback
+        end
+        Assert.False(option.fallback == "180290", "uncached toy name must not be shown as a raw numeric fallback")
       end
+      Assert.Equal(coldLabel, "Night Fae Hearthstone", "a cold item cache falls back to the verified English name")
 
       toyName = "Nachtfae-Ruhestein"
       panel.canvas:Show()

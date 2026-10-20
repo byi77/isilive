@@ -273,4 +273,49 @@ return function(test, ctx)
       end)
     end
   end)
+
+  test("Bloodlust alerts survive blocked aura lists through direct Sated lookup", function()
+    for _, visibility in ipairs({ "visible", "hidden" }) do
+      local expiry = nil
+      Stress.WithKey(ctx, Fixture, function(session)
+        if visibility == "hidden" then
+          session.runtime.mainFrame:Hide()
+        end
+        local soon, ready = 0, 0
+        session.addon.SoundUtils.PlayBloodlustSoon = function()
+          soon = soon + 1
+        end
+        session.addon.SoundUtils.PlayBloodlustReady = function()
+          ready = ready + 1
+        end
+        expiry = session.now + 30
+        session.Dispatch("UNIT_AURA", "player", { isFullUpdate = true })
+        session.Advance(0.1)
+        local info = session.runtime.cdTrackerController.GetLustInfo()
+        ctx.assert.NotNil(info, visibility .. ": direct lookup must start the BL countdown")
+        ctx.assert.True(info.remain > 29, visibility .. ": countdown uses the live expiry")
+        session.Advance(21)
+        ctx.assert.Equal(soon, 1, visibility .. ": ten-second warning plays once")
+        session.Advance(10)
+        ctx.assert.Equal(ready, 1, visibility .. ": expiry plays the ready alert")
+        session.Advance(60)
+        ctx.assert.Equal(ready, 2, visibility .. ": ready reminder remains active")
+        expiry = session.now + 600
+        session.Dispatch("UNIT_AURA", "player", { isFullUpdate = true })
+        session.Advance(61)
+        ctx.assert.Equal(ready, 2, visibility .. ": a new Sated stops the ready reminders")
+      end, function(globals, session)
+        globals.C_UnitAuras.GetUnitAuras = function()
+          error("Aura lists cannot be accessed while restricted")
+        end
+        globals.C_UnitAuras.GetAuraDataByIndex = globals.C_UnitAuras.GetUnitAuras
+        globals.C_UnitAuras.GetPlayerAuraBySpellID = function(spellID)
+          if spellID == 57723 and expiry and session.now < expiry then
+            return { spellId = spellID, expirationTime = expiry, duration = 600, icon = 132114 }
+          end
+          return nil
+        end
+      end)
+    end
+  end)
 end

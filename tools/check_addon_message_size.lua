@@ -114,11 +114,13 @@ for k, v in pairs(globals) do
   _G[k] = v
 end
 
--- Sync depends on a small slice of the addon: bootstrap helpers + season-data
+-- Sync depends on a small slice of the addon: bootstrap helpers, the spell
+-- manifest (Power Infusion ID) + season-data
 -- (NormalizeMapID). LoadFile mutates the shared addonTable.
 LoadFile("core/isiLive_validation_helpers.lua")
 LoadFile("core/isiLive_string_utils.lua")
 LoadFile("locale/isiLive_languages.lua")
+LoadFile("data/isiLive_spells.lua")
 LoadFile("game/isiLive_season_data.lua")
 LoadFile("logic/isiLive_sync.lua")
 

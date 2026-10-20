@@ -358,4 +358,47 @@ return function(test, ctx)
       Assert.Equal(ghostKey, "ghost:Ravencast-Antonidas", "ghost key must include name and realm")
     end)
   end)
+
+  local function BuildDemoRosterOpts()
+    return {
+      getUnitNameAndRealm = function()
+        return "Player", "Realm"
+      end,
+      getUnitClass = function()
+        return "Warlock", "WARLOCK"
+      end,
+      getUnitRole = function()
+        return "DAMAGER"
+      end,
+    }
+  end
+
+  test("BuildDummyRoster keys follow the active season dungeon order", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_demo.lua" })
+      local ordered = addon.SeasonData.GetOrderedMapIDs()
+      Assert.True(#ordered >= 4, "active season must provide at least four dungeons for this scenario")
+      local roster = addon.Demo.BuildDummyRoster(BuildDemoRosterOpts())
+      for index = 1, 4 do
+        local entry = roster["party" .. index]
+        Assert.Equal(entry.keyMapID, ordered[index], "dummy key " .. index .. " must use the active season order")
+        Assert.Nil(entry.keyMapSlot, "the internal season slot must not leak into the roster entry")
+      end
+    end)
+  end)
+
+  test("BuildDummyRoster drops dummy keys when the active season has no dungeons", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_demo.lua" })
+      addon.SeasonData.GetOrderedMapIDs = function()
+        return {}
+      end
+      local roster = addon.Demo.BuildDummyRoster(BuildDemoRosterOpts())
+      for index = 1, 4 do
+        local entry = roster["party" .. index]
+        Assert.Nil(entry.keyMapID, "dummy key " .. index .. " must not invent a map without an active season")
+        Assert.Nil(entry.keyLevel, "dummy key " .. index .. " must not show a level without a map")
+      end
+    end)
+  end)
 end

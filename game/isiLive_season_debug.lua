@@ -79,6 +79,22 @@ local function AppendReadiness(lines)
     end
   end
 
+  -- The forces gate never decides activation; it only explains why the MDT
+  -- displays may be closed for the active season.
+  if type(seasonData.GetForcesReadiness) == "function" then
+    local forcesReadiness = seasonData.GetForcesReadiness(activeID)
+    lines[#lines + 1] = string.format(
+      "[SEASON] forcesGate required=%s ready=%s",
+      ValueText(forcesReadiness and forcesReadiness.required),
+      ValueText(forcesReadiness and forcesReadiness.isReady)
+    )
+    if type(forcesReadiness) == "table" then
+      for _, err in ipairs(forcesReadiness.errors or {}) do
+        lines[#lines + 1] = "[SEASON] forcesError=" .. tostring(err)
+      end
+    end
+  end
+
   local forces = addonTable.MPlusForces
   if type(forces) == "table" then
     lines[#lines + 1] = string.format(

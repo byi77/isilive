@@ -192,6 +192,8 @@ try {
   Invoke-CheckedCommand "Settings Default Pattern Check" "lua tools/check_settings_default_pattern.lua"
   Invoke-CheckedCommand "M+ Forces DB Lifetime" "lua tools/check_mplus_db_lifetime.lua"
   Invoke-CheckedCommand "Season Intake Check" "lua tools/check_season_intake.lua"
+  Invoke-CheckedCommand "Travel Items Check" "lua tools/check_travel_items.lua"
+  Invoke-CheckedCommand "Spec Coverage Check" "lua tools/check_spec_coverage.lua"
   Invoke-CheckedCommand "Simulator CI Coverage Check" "lua tools/check_simulator_ci_coverage.lua"
   Invoke-CheckedCommand "Nameplate Key-Start Simulator" "lua tools/simulate_nameplate_keystart.lua all"
   Invoke-CheckedCommand "CTL Wire-Order Simulator" "lua tools/simulate_ctl_wire_order.lua"

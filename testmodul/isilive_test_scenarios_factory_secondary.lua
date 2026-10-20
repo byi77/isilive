@@ -407,17 +407,12 @@ local function BuildControllerContext(state, addon, initial)
         NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
         NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
         NON_MYTHIC_NOTICE_DEMO_DUNGEON = "Priory of the Sacred Flame",
-        PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season Two M+ Navigator",
         PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
         PORTAL_NAVIGATOR_RIGHT = "Right",
         PORTAL_NAVIGATOR_HALF_RIGHT = "Half-right",
         PORTAL_NAVIGATOR_CENTER = "Straight ahead",
-        PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit",
-        PORTAL_NAVIGATOR_SKYREACH = "Sky",
-        PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat",
-        PORTAL_NAVIGATOR_ALGETHAR = "AA",
         PORTAL_NAVIGATOR_HEAVEN = "Heaven",
         PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
         ROLE_NAME_DAMAGE = "Damage",
@@ -614,6 +609,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
   WithGlobals(BuildGlobalsEnv(state), function()
     local addon = LoadAddonModules({
       "isiLive_season_data.lua",
+      "isiLive_status.lua",
       "isiLive_factory_controllers.lua",
       "isiLive_factory_kick_tracker.lua",
     }, {
@@ -781,8 +777,13 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.killTrackDemoData.percent, 47.34, "kill-track demo percent must match the preview value")
     Assert.Equal(state.killTrackRowRefreshes, 1, "test mode must refresh the kill-track row after demo data is set")
     Assert.NotNil(state.latestQueueState, "test mode must populate a demo target dungeon context")
-    Assert.Equal(state.latestQueueState.dungeonName, "Nexus-Point Xenas", "demo target dungeon name must be explicit")
-    Assert.Equal(state.latestQueueState.mapID, 559, "demo target dungeon map must match kill-track preview map")
+    Assert.Equal(
+      state.latestQueueState.dungeonName,
+      "King's Rest",
+      "demo target must be the first dungeon of the active season"
+    )
+    Assert.Equal(state.latestQueueState.mapID, 249, "demo target dungeon map must match kill-track preview map")
+    Assert.Equal(state.killTrackDemoData.mapID, 249, "kill-track demo must use the active season demo target")
 
     Assert.NotNil(state.afterCallbacks, "test mode must defer CD tracker demo data until controller creation")
     state.afterCallbacks[1]()
@@ -801,7 +802,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(state.mobNameplateTestMode == true, "test mode must enable nameplate forces demo mode")
     Assert.Equal(state.mobNameplateTestPercent, "12.34", "nameplate demo percent must be explicit")
     Assert.NotNil(state.mobNameplateTestOpts, "nameplate demo must pass an explicit demo context")
-    Assert.Equal(state.mobNameplateTestOpts.activeMapID, 559, "nameplate demo must use the demo target map context")
+    Assert.Equal(state.mobNameplateTestOpts.activeMapID, 249, "nameplate demo must use the demo target map context")
     Assert.Nil(state.mobNameplateFormat, "nameplate demo must not override the user's percent format settings")
     Assert.Nil(state.mobNameplateAppearance, "nameplate demo must not override the user's appearance settings")
     Assert.False(state.readyCheckActive, "demo mode must use finished ready-check hold states, not live active status")
@@ -864,9 +865,21 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       "icon-250",
       "demo half-right portal must use the Temple of Sethraliss teleport icon"
     )
-    -- The demo builder only fills a slot that the season actually maps; it does not
-    -- set isEmpty for the unmapped ones, so the observable contract is that no
-    -- icon or teleport is invented for them.
+    -- The demo reuses the live navigator layout: the active season's mapped slots
+    -- carry its dungeons, its `false` slots render as unoccupied.
+    Assert.Equal(
+      portalEntriesBySlot.center.destination,
+      "Ruby Life Pools",
+      "demo center portal must name the active season's center dungeon"
+    )
+    Assert.False(portalEntriesBySlot.center.isEmpty == true, "a mapped demo portal must not render as unoccupied")
+    Assert.True(portalEntriesBySlot.left.isEmpty == true, "an unmapped demo portal must render as unoccupied")
+    Assert.True(portalEntriesBySlot.right.isEmpty == true, "an unmapped demo portal must render as unoccupied")
+    Assert.Equal(
+      portalEntriesBySlot.left.detail,
+      "Unoccupied",
+      "an unmapped demo portal must carry the unoccupied hint"
+    )
     Assert.Nil(portalEntriesBySlot.left.icon, "an unmapped demo portal must not synthesize an icon")
     Assert.Nil(portalEntriesBySlot.left.spellID, "an unmapped demo portal must not synthesize a teleport")
     Assert.Nil(portalEntriesBySlot.right.icon, "an unmapped demo portal must not synthesize an icon")
@@ -875,10 +888,10 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(state.inviteHintPayload, "test mode must not show the removed pre-accept invite hint preview")
     local acceptedNotice = state.demoCenterNotices[1]
     local difficultyNotice = state.demoCenterNotices[2]
-    Assert.Equal(acceptedNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
+    Assert.Equal(acceptedNotice.dungeonName, "King's Rest", "center notice demo must use the demo target")
     Assert.Equal(
       acceptedNotice.showOptions.teleportMapID,
-      559,
+      249,
       "center notice demo must configure a verified map portal"
     )
     Assert.Nil(acceptedNotice.showOptions.teleportLabel, "center notice demo must omit the redundant teleport header")

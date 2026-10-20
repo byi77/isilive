@@ -57,10 +57,10 @@ local function IsSeparatorRow(cells)
 end
 
 local function ParseTables(content)
+  -- Hearthstone, mount and travel-item intake is not seasonal and lives in
+  -- docs/TRAVEL_INTAKE.md (tools/check_travel_items.lua).
   local sections = {
     dungeons = {},
-    hearthstones = {},
-    mounts = {},
   }
   local current
   local header
@@ -68,12 +68,6 @@ local function ParseTables(content)
   for line in tostring(content or ""):gmatch("[^\r\n]+") do
     if line:find("^## Dungeon%-Intake") then
       current = "dungeons"
-      header = nil
-    elseif line:find("^## Ruhestein%-Intake") then
-      current = "hearthstones"
-      header = nil
-    elseif line:find("^## Mount%-Intake") then
-      current = "mounts"
       header = nil
     elseif line:find("^## ") then
       current = nil
@@ -97,35 +91,41 @@ local function ParseTables(content)
   return sections
 end
 
-local function ResolveTargetSeason(tables, requestedSeason)
+-- Without an explicit season every season that appears in the intake is
+-- validated on its own, in order of first appearance. Verified rows of the
+-- running season stay next to the rows collected for the next one, so the
+-- drift check against the manifest keeps covering both.
+local function ResolveTargetSeasons(tables, requestedSeason)
   if requestedSeason ~= nil then
     local normalized = Trim(requestedSeason)
     if not normalized:match("^[%w_%-]+$") then
       return nil, "requested season ID has an invalid format"
     end
-    return normalized
+    return { normalized }
   end
 
   local seen = {}
-  local resolved
-  for _, row in ipairs(type(tables) == "table" and tables.dungeons or {}) do
-    local seasonID = Trim(row.Season)
-    if seasonID ~= "" and not seen[seasonID] then
-      seen[seasonID] = true
-      if resolved and resolved ~= seasonID then
-        return nil, "dungeon intake contains multiple seasons; pass an explicit season ID"
+  local ordered = {}
+  for _, section in ipairs({ "dungeons" }) do
+    for _, row in ipairs(type(tables) == "table" and tables[section] or {}) do
+      local seasonID = Trim(row.Season)
+      if seasonID == "" then
+        return nil, "intake row without a season ID in section " .. section
       end
-      resolved = seasonID
+      if not seasonID:match("^[%w_%-]+$") then
+        return nil, "intake season ID '" .. seasonID .. "' has an invalid format"
+      end
+      if not seen[seasonID] then
+        seen[seasonID] = true
+        ordered[#ordered + 1] = seasonID
+      end
     end
   end
 
-  if not resolved then
-    return nil, "dungeon intake does not contain a season ID"
+  if #ordered == 0 then
+    return nil, "intake does not contain a season ID"
   end
-  if not resolved:match("^[%w_%-]+$") then
-    return nil, "intake season ID has an invalid format"
-  end
-  return resolved
+  return ordered
 end
 
 local function LoadAddonFile(path, addonTable)
@@ -267,155 +267,133 @@ local function CountStatuses(rows, seasonID)
   return counts
 end
 
-local function CountRowsForSeason(rows, seasonID)
-  local count = 0
-  for _, row in ipairs(rows) do
-    if row.Season == seasonID then
-      count = count + 1
-    end
-  end
-  return count
-end
-
 local M = {}
 
-function M.Check(opts)
-  opts = opts or {}
-  local content, readErr = ReadFile(opts.intakePath or DEFAULT_INTAKE_PATH)
+-- Shared intake-row primitives, reused by tools/check_travel_items.lua so both
+-- intake gates apply the same Status / Source / VerifiedAt contract.
+M.SplitMarkdownRow = SplitMarkdownRow
+M.IsSeparatorRow = IsSeparatorRow
+M.ValidateRow = ValidateRow
+M.RegisterUnique = RegisterUnique
+M.IsUnresolved = IsUnresolved
+M.IsPositiveInteger = IsPositiveInteger
+M.IsDate = IsDate
+M.Trim = Trim
+
+local function BuildManifestDungeonIndex(seasonData, seasonID)
+  local manifestSeason = seasonData.MANIFEST and seasonData.MANIFEST.seasons and seasonData.MANIFEST.seasons[seasonID]
+  local byMapID = {}
+  for _, dungeon in ipairs(type(manifestSeason) == "table" and manifestSeason.dungeons or {}) do
+    local mapID = tonumber(dungeon.mapID)
+    if mapID then
+      byMapID[mapID] = dungeon
+    end
+  end
+  return byMapID
+end
+
+local function ValidateManifestDrift(errors, seasonData, targetSeason, manifestDungeonByMapID, row, label)
+  local mapID = tonumber(row.ChallengeMapID)
+  local portalSpellID = tonumber(row.PortalSpellID)
+  local activityID = tonumber(row.LFGActivityID)
+  if not (mapID and portalSpellID and activityID) then
+    return
+  end
+  local manifestDungeon = manifestDungeonByMapID[mapID]
+  if type(manifestDungeon) ~= "table" then
+    AddError(errors, label .. " is missing from the season manifest")
+    return
+  end
+  if seasonData.GetDungeonName(mapID, "enUS", targetSeason) ~= row.Dungeon then
+    AddError(errors, label .. " dungeon name does not match the season manifest")
+  end
+  if seasonData.GetMapToTeleport(targetSeason)[mapID] ~= portalSpellID then
+    AddError(errors, label .. " PortalSpellID does not match the season manifest")
+  end
+  if seasonData.GetMapIDByActivityID(activityID, targetSeason) ~= mapID then
+    AddError(errors, label .. " LFGActivityID does not match the season manifest")
+  end
+  local verification = manifestDungeon.verification
+  if type(verification) == "table" then
+    if verification.status ~= row.Status then
+      AddError(errors, label .. " Status does not match the season manifest")
+    end
+    if verification.verifiedAt ~= row.VerifiedAt then
+      AddError(errors, label .. " VerifiedAt does not match the season manifest")
+    end
+  end
+end
+
+-- Validates one season of the intake. A season that has no manifest entry yet
+-- is a pure collection surface: its rows may be unresolved, candidate or
+-- partial, but nothing may claim `verified` before the manifest carries it.
+local function CheckSeason(tables, targetSeason, seasonData)
   local errors = {}
-  if not content then
-    local targetSeason = opts.seasonID or "unresolved"
-    return false,
-      {
-        seasonID = targetSeason,
-        errors = { readErr },
-        summary = "## Season Intake Check\n\n- Status: invalid\n- Reason: " .. tostring(readErr) .. "\n",
-      }
-  end
-
-  local tables = ParseTables(content)
-  local targetSeason, targetErr = ResolveTargetSeason(tables, opts.seasonID)
-  if not targetSeason then
-    return false,
-      {
-        seasonID = "unresolved",
-        errors = { targetErr },
-        summary = "## Season Intake Check\n\n- Season: unresolved\n- Status: invalid\n- Reason: " .. tostring(
-          targetErr
-        ) .. "\n",
-      }
-  end
-
-  local seasonData, seasonErr = LoadSeasonData(opts)
-  if not seasonData then
-    return false,
-      {
-        seasonID = targetSeason,
-        errors = { seasonErr },
-        summary = "## Season Intake Check\n\n- Status: invalid\n- Reason: " .. tostring(seasonErr) .. "\n",
-      }
-  end
+  local inManifest = type(seasonData.SEASONS) == "table" and seasonData.SEASONS[targetSeason] ~= nil
 
   local plannedSet, plannedOrder = BuildPlannedDungeonSet(seasonData, targetSeason)
-  if #plannedOrder == 0 then
+  if inManifest and #plannedOrder == 0 then
     AddError(errors, "target season " .. targetSeason .. " has no plannedDungeons in SeasonData")
   end
 
   local dungeonRowsByName = {}
+  local dungeonRowOrder = {}
   local seenChallenge = {}
   local seenPortal = {}
   local seenLfg = {}
-  local seenToy = {}
-  local seenMount = {}
-  local manifestSeason = seasonData.MANIFEST
-    and seasonData.MANIFEST.seasons
-    and seasonData.MANIFEST.seasons[targetSeason]
-  local manifestDungeonByMapID = {}
-  for _, dungeon in ipairs(type(manifestSeason) == "table" and manifestSeason.dungeons or {}) do
-    local mapID = tonumber(dungeon.mapID)
-    if mapID then
-      manifestDungeonByMapID[mapID] = dungeon
+  local manifestDungeonByMapID = BuildManifestDungeonIndex(seasonData, targetSeason)
+
+  local function RejectVerifiedWithoutManifest(label, row)
+    if not inManifest and Trim(row.Status) == "verified" then
+      AddError(errors, label .. " is verified but season " .. targetSeason .. " is not in the season manifest")
     end
   end
 
   for _, row in ipairs(tables.dungeons) do
     local label = string.format("dungeon row %s/%s", tostring(row.Season), tostring(row.Dungeon))
     if row.Season == targetSeason then
-      if not plannedSet[row.Dungeon] then
-        AddError(errors, label .. " is not listed in SeasonData.plannedDungeons")
-      elseif dungeonRowsByName[row.Dungeon] then
+      if dungeonRowsByName[row.Dungeon] then
         AddError(errors, "duplicate dungeon intake row for " .. row.Dungeon)
       else
+        if inManifest and not plannedSet[row.Dungeon] then
+          AddError(errors, label .. " is not listed in SeasonData.plannedDungeons")
+        end
         dungeonRowsByName[row.Dungeon] = row
+        dungeonRowOrder[#dungeonRowOrder + 1] = row.Dungeon
       end
       ValidateRow(errors, label, row, { "ChallengeMapID", "PortalSpellID", "LFGActivityID" })
+      RejectVerifiedWithoutManifest(label, row)
       RegisterUnique(errors, seenChallenge, "ChallengeMapID", row.ChallengeMapID, label)
       RegisterUnique(errors, seenPortal, "PortalSpellID", row.PortalSpellID, label)
       RegisterUnique(errors, seenLfg, "LFGActivityID", row.LFGActivityID, label)
-
-      local mapID = tonumber(row.ChallengeMapID)
-      local portalSpellID = tonumber(row.PortalSpellID)
-      local activityID = tonumber(row.LFGActivityID)
-      if mapID and portalSpellID and activityID then
-        local manifestDungeon = manifestDungeonByMapID[mapID]
-        if type(manifestDungeon) ~= "table" then
-          AddError(errors, label .. " is missing from the season manifest")
-        else
-          if seasonData.GetDungeonName(mapID, "enUS", targetSeason) ~= row.Dungeon then
-            AddError(errors, label .. " dungeon name does not match the season manifest")
-          end
-          if seasonData.GetMapToTeleport(targetSeason)[mapID] ~= portalSpellID then
-            AddError(errors, label .. " PortalSpellID does not match the season manifest")
-          end
-          if seasonData.GetMapIDByActivityID(activityID, targetSeason) ~= mapID then
-            AddError(errors, label .. " LFGActivityID does not match the season manifest")
-          end
-          local verification = manifestDungeon.verification
-          if type(verification) == "table" then
-            if verification.status ~= row.Status then
-              AddError(errors, label .. " Status does not match the season manifest")
-            end
-            if verification.verifiedAt ~= row.VerifiedAt then
-              AddError(errors, label .. " VerifiedAt does not match the season manifest")
-            end
-          end
-        end
+      if inManifest then
+        ValidateManifestDrift(errors, seasonData, targetSeason, manifestDungeonByMapID, row, label)
       end
     end
   end
 
-  for _, name in ipairs(plannedOrder) do
-    if not dungeonRowsByName[name] then
-      AddError(errors, "missing dungeon intake row for planned dungeon " .. name)
+  if inManifest then
+    for _, name in ipairs(plannedOrder) do
+      if not dungeonRowsByName[name] then
+        AddError(errors, "missing dungeon intake row for planned dungeon " .. name)
+      end
     end
   end
 
-  for _, row in ipairs(tables.hearthstones) do
-    if row.Season == targetSeason then
-      local label = string.format("hearthstone row %s/%s", tostring(row.Season), tostring(row.Name))
-      ValidateRow(errors, label, row, { "ToyID" })
-      RegisterUnique(errors, seenToy, "ToyID", row.ToyID, label)
-    end
-  end
-
-  for _, row in ipairs(tables.mounts) do
-    if row.Season == targetSeason then
-      local label = string.format("mount row %s/%s", tostring(row.Season), tostring(row.Name))
-      ValidateRow(errors, label, row, { "SpellID" })
-      RegisterUnique(errors, seenMount, "SpellID", row.SpellID, label)
-    end
-  end
-
+  -- A manifest season lists its planned dungeons; a pre-manifest season only
+  -- has the rows collected so far.
+  local reportOrder = inManifest and plannedOrder or dungeonRowOrder
   local counts = CountStatuses(tables.dungeons, targetSeason)
   local lines = {
     "## Season Intake Check",
     "",
     "- Season: " .. targetSeason,
+    "- Manifest: " .. (inManifest and "configured" or "not configured yet (collection only)"),
     "- Status: " .. (#errors == 0 and "valid" or "invalid"),
     string.format(
       "- Dungeon progress: %d/%d verified, %d partial, %d candidate, %d unresolved",
       counts.verified,
-      #plannedOrder,
+      #reportOrder,
       counts.partial,
       counts.candidate,
       counts.unresolved
@@ -425,7 +403,7 @@ function M.Check(opts)
     "| --- | --- | --- | --- | --- | --- | --- |",
   }
 
-  for _, name in ipairs(plannedOrder) do
+  for _, name in ipairs(reportOrder) do
     local row = dungeonRowsByName[name] or {}
     lines[#lines + 1] = string.format(
       "| %s | %s | %s | %s | %s | %s | %s |",
@@ -439,11 +417,6 @@ function M.Check(opts)
     )
   end
 
-  lines[#lines + 1] = ""
-  lines[#lines + 1] = "### Weitere Daten"
-  lines[#lines + 1] = string.format("- Ruhestein-Zeilen: %d", CountRowsForSeason(tables.hearthstones, targetSeason))
-  lines[#lines + 1] = string.format("- Mount-Zeilen: %d", CountRowsForSeason(tables.mounts, targetSeason))
-
   if #errors > 0 then
     lines[#lines + 1] = ""
     lines[#lines + 1] = "### Fehler"
@@ -455,10 +428,107 @@ function M.Check(opts)
   return #errors == 0,
     {
       seasonID = targetSeason,
+      inManifest = inManifest,
       errors = errors,
-      tables = tables,
       summary = table.concat(lines, "\n") .. "\n",
     }
+end
+
+local function FailureResult(seasonID, reason, withSeasonLine)
+  local header = "## Season Intake Check\n\n"
+  if withSeasonLine then
+    header = header .. "- Season: " .. tostring(seasonID) .. "\n"
+  end
+  return false,
+    {
+      seasonID = seasonID,
+      seasonIDs = {},
+      results = {},
+      errors = { reason },
+      summary = header .. "- Status: invalid\n- Reason: " .. tostring(reason) .. "\n",
+    }
+end
+
+-- Lists the seasons a run without `seasonID` validates (CLI `--list-seasons`).
+function M.ListSeasons(opts)
+  opts = opts or {}
+  local content, readErr = ReadFile(opts.intakePath or DEFAULT_INTAKE_PATH)
+  if not content then
+    return nil, readErr
+  end
+  return ResolveTargetSeasons(ParseTables(content), opts.seasonID)
+end
+
+function M.Check(opts)
+  opts = opts or {}
+  local content, readErr = ReadFile(opts.intakePath or DEFAULT_INTAKE_PATH)
+  if not content then
+    return FailureResult(opts.seasonID or "unresolved", readErr, false)
+  end
+
+  local tables = ParseTables(content)
+  local targetSeasons, targetErr = ResolveTargetSeasons(tables, opts.seasonID)
+  if not targetSeasons then
+    return FailureResult("unresolved", targetErr, true)
+  end
+
+  local seasonData, seasonErr = LoadSeasonData(opts)
+  if not seasonData then
+    return FailureResult(targetSeasons[1], seasonErr, false)
+  end
+
+  local allOk = true
+  local errors = {}
+  local results = {}
+  local summaries = {}
+  for _, manifestError in ipairs(seasonData.MANIFEST_ERRORS or {}) do
+    allOk = false
+    errors[#errors + 1] = "season manifest: " .. tostring(manifestError)
+  end
+  if #errors > 0 then
+    local lines = { "## Season Manifest", "", "- Status: invalid" }
+    for _, err in ipairs(errors) do
+      lines[#lines + 1] = "- " .. err
+    end
+    summaries[#summaries + 1] = table.concat(lines, "\n") .. "\n"
+  end
+
+  for _, seasonID in ipairs(targetSeasons) do
+    local ok, result = CheckSeason(tables, seasonID, seasonData)
+    allOk = allOk and ok
+    results[seasonID] = result
+    summaries[#summaries + 1] = result.summary
+    for _, err in ipairs(result.errors) do
+      errors[#errors + 1] = seasonID .. ": " .. err
+    end
+  end
+
+  return allOk,
+    {
+      -- Kept for single-season callers; nil once the intake carries several seasons.
+      seasonID = #targetSeasons == 1 and targetSeasons[1] or nil,
+      seasonIDs = targetSeasons,
+      results = results,
+      errors = errors,
+      tables = tables,
+      summary = table.concat(summaries, "\n"),
+    }
+end
+
+local function ParseCliArgs(cliArg)
+  local opts = {}
+  for index = 1, #cliArg do
+    local value = tostring(cliArg[index])
+    local seasonID = value:match("^%-%-season=(.+)$")
+    if seasonID then
+      opts.seasonID = seasonID
+    elseif value == "--list-seasons" then
+      opts.listSeasons = true
+    else
+      return nil, "unknown argument " .. value
+    end
+  end
+  return opts
 end
 
 local cliArg = rawget(_G, "arg")
@@ -467,10 +537,24 @@ local isDirectRun = type(cliArg) == "table"
   and cliArg[0]:find("check_season_intake.lua", 1, true) ~= nil
 
 if isDirectRun then
-  local ok, result = M.Check()
-  io.write(result.summary)
-  if not ok then
-    os.exit(1)
+  local cliOpts, argErr = ParseCliArgs(cliArg)
+  if not cliOpts then
+    io.stderr:write("[check_season_intake] " .. argErr .. "\n")
+    os.exit(2)
+  end
+  if cliOpts.listSeasons then
+    local seasonIDs, listErr = M.ListSeasons(cliOpts)
+    if not seasonIDs then
+      io.stderr:write("[check_season_intake] " .. tostring(listErr) .. "\n")
+      os.exit(1)
+    end
+    io.write(table.concat(seasonIDs, "\n") .. "\n")
+  else
+    local ok, result = M.Check(cliOpts)
+    io.write(result.summary)
+    if not ok then
+      os.exit(1)
+    end
   end
 end
 

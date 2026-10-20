@@ -7,6 +7,11 @@
 --
 -- Exits 0 when fresh, 1 when expired, 2 on structural/parse errors.
 --
+-- A second step (M.CheckStructure) runs SeasonData.GetForcesReadiness for the
+-- active season: season match, a positive total and NPC coverage for every
+-- season map, no foreign maps. This is the build gate for `requiresForces`;
+-- the runtime season activation deliberately does not look at forces data.
+--
 -- Env overrides:
 --   ISILIVE_ALLOW_STALE_MPLUS_DB=1  Bypass an expired DB (e.g. hotfix releases
 --                                   that do not touch the M+ forces feature).
@@ -21,6 +26,8 @@
 
 local DB_PATH = "data/isiLive_mplus_forces.lua"
 local SEASON_DATA_PATH = "data/isiLive_seasons.lua"
+local SEASON_COMPILER_PATH = "game/isiLive_season_data.lua"
+local LANGUAGE_PATH = "locale/isiLive_languages.lua"
 local ENV_OVERRIDE = "ISILIVE_ALLOW_STALE_MPLUS_DB"
 
 local function today()
@@ -160,8 +167,77 @@ function M.Check(dbPath, opts)
     )
 end
 
+-- Structural forces gate through the production SeasonData compiler. The
+-- expiry window is Check()'s job (including the stale-DB override), so the
+-- structure step evaluates the DB at its own expiresAt date.
+function M.CheckStructure(dbPath, opts)
+  dbPath = dbPath or DB_PATH
+  opts = opts or {}
+
+  local addonTable = {}
+  local languageLoader, languageErr = loadfile(LANGUAGE_PATH)
+  if not languageLoader then
+    return 2, "cannot load languages: " .. tostring(languageErr)
+  end
+  local okLanguage, languageRunErr = pcall(languageLoader, "isiLive", addonTable)
+  if not okLanguage then
+    return 2, "languages load error: " .. tostring(languageRunErr)
+  end
+  local manifestLoader, manifestErr = loadfile(opts.seasonDataPath or SEASON_DATA_PATH)
+  if not manifestLoader then
+    return 2, "cannot load season manifest: " .. tostring(manifestErr)
+  end
+  local okManifest, manifestRunErr = pcall(manifestLoader, "isiLive", addonTable)
+  if not okManifest then
+    return 2, "season manifest load error: " .. tostring(manifestRunErr)
+  end
+  local compilerLoader, compilerErr = loadfile(opts.seasonCompilerPath or SEASON_COMPILER_PATH)
+  if not compilerLoader then
+    return 2, "cannot load season compiler: " .. tostring(compilerErr)
+  end
+  local okCompiler, compilerRunErr = pcall(compilerLoader, "isiLive", addonTable)
+  if not okCompiler or type(addonTable.SeasonData) ~= "table" then
+    return 2, "season compiler load error: " .. tostring(compilerRunErr)
+  end
+
+  local dbLoader, dbErr = loadfile(dbPath)
+  if not dbLoader then
+    return 2, "cannot load " .. dbPath .. ": " .. tostring(dbErr)
+  end
+  local dbTable = {}
+  local okDb, dbRunErr = pcall(dbLoader, "isiLive", dbTable)
+  if not okDb or type(dbTable.MPlusForces) ~= "table" then
+    return 2, "addonTable.MPlusForces missing or not loadable: " .. tostring(dbRunErr)
+  end
+  local db = dbTable.MPlusForces
+
+  local seasonID = opts.activeSeasonID
+    or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
+    or addonTable.SeasonData.ACTIVE_SEASON_ID
+  local readiness = addonTable.SeasonData.GetForcesReadiness(seasonID, {
+    forcesData = db,
+    currentDate = type(db.expiresAt) == "string" and db.expiresAt or nil,
+  })
+  if readiness.required ~= true and readiness.isReady == true then
+    return 0, string.format("M+ forces structure gate skipped: %s declares requiresForces = false", tostring(seasonID))
+  end
+  if readiness.isReady == true then
+    return 0, string.format("M+ forces DB structure matches season %s", tostring(seasonID))
+  end
+  return 2,
+    string.format(
+      "M+ forces DB structure does not match season %s: %s",
+      tostring(seasonID),
+      table.concat(readiness.errors or {}, "; ")
+    )
+end
+
 if ... == nil then
   local code, msg = M.Check()
+  if code == 0 then
+    io.stdout:write(msg .. "\n")
+    code, msg = M.CheckStructure()
+  end
   if code == 0 then
     io.stdout:write(msg .. "\n")
   else

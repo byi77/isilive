@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.440
+## Version: 0.9.441
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -20,12 +20,11 @@ locale/isiLive_texts_common.lua
 locale/isiLive_texts_enUS.lua
 locale/isiLive_texts_deDE.lua
 locale/isiLive_texts_frFR.lua
-locale/isiLive_texts_esES.lua
-locale/isiLive_texts_ptBR.lua
-locale/isiLive_texts_itIT.lua
 locale/isiLive_texts_ruRU.lua
 locale/isiLive_texts_trTR.lua
 locale/isiLive_texts.lua
+data/isiLive_spells.lua
+data/isiLive_specs.lua
 game/isiLive_spell_utils.lua
 game/isiLive_cd_tracker.lua
 ui/isiLive_bindings.lua
@@ -44,6 +43,7 @@ data/isiLive_seasons.lua
 game/isiLive_season_data.lua
 game/isiLive_season_debug.lua
 data/isiLive_mplus_forces.lua
+data/isiLive_travel_items.lua
 game/isiLive_lfg_entry_resolver.lua
 game/isiLive_lfg_detect.lua
 ui/isiLive_ui_motion.lua
@@ -80,6 +80,7 @@ ui/isiLive_roster.lua
 ui/isiLive_roster_tooltip.lua
 ui/isiLive_lfg_bonus_model.lua
 ui/isiLive_lfg_view_hooks.lua
+ui/isiLive_lfg_personal_best.lua
 ui/isiLive_lfg_flags.lua
 ui/isiLive_mob_tooltip.lua
 ui/isiLive_mob_nameplate_diagnostics.lua

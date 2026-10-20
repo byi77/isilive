@@ -413,12 +413,12 @@ local function CreateCdTrackerRow(mainFrame, opts)
   -- Cache spell icons once at creation time to avoid repeated API calls on every refresh.
   local C_Spell_ref = rawget(_G, "C_Spell")
   if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellTexture) == "function" then
-    local ok, tex = pcall(C_Spell_ref.GetSpellTexture, 20484)
+    local ok, tex = pcall(C_Spell_ref.GetSpellTexture, addonTable.SpellManifest.icons.battleRes)
     if ok and tex then
       row.bresIcon:SetTexture(tex)
       row._bresIconReady = true
     end
-    ok, tex = pcall(C_Spell_ref.GetSpellTexture, 2825)
+    ok, tex = pcall(C_Spell_ref.GetSpellTexture, addonTable.SpellManifest.icons.lust)
     if ok and tex then
       row.lustIcon:SetTexture(tex)
       row._lustDefaultIcon = tex

@@ -1547,6 +1547,73 @@ local function RegisterGameMenuSecondPanelBehaviorTests(test, Assert, WithGlobal
     end)
   end)
 
+  test("UI second game-menu hearthstone TOYS_UPDATED rebinds random choices and keeps explicit ones", function()
+    local createFrameStub, createdFrames, gameMenuFrame = BuildHousingScenario()
+    local ownedToys = {}
+    local isInCombat = false
+    local db = { hearthstoneChoice = "random" }
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      PlayerHasToy = function(itemID)
+        return ownedToys[itemID] == true
+      end,
+      InCombatLockdown = function()
+        return isInCombat
+      end,
+      IsiLiveDB = db,
+      C_Housing = {
+        GetPlayerOwnedHouses = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local function IsInCombat()
+        return isInCombat
+      end
+      local strip = UI.EnsurePanelUI({ gameMenuFrame = gameMenuFrame, isInCombat = IsInCombat })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = strip,
+        isInCombat = IsInCombat,
+        getL = function()
+          return { BTN_SECOND_HEARTHSTONE = "Hearthstone", PANEL_HEADER_TRAVEL = "Travel" }
+        end,
+      })
+      local button = RequireValue(travelStrip.buttonsById.hearthstone, "hearthstone button must exist")
+
+      Assert.Equal(button:GetAttribute("type"), "item", "random choice without owned toys binds the default item")
+      Assert.Equal(button:GetAttribute("item"), "item:6948", "default hearthstone item must come from the manifest")
+
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+      Assert.Equal(button:GetAttribute("type"), "item", "an empty owned pool keeps the current binding")
+
+      ownedToys[64488] = true
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+      Assert.Equal(button:GetAttribute("type"), "toy", "warmed random pool must bind a toy action")
+      Assert.Equal(button:GetAttribute("toy"), 64488, "warmed random pool must bind the only owned toy")
+      Assert.Equal(#button._hearthstoneOwnedToys, 1, "the refreshed pool must be cached on the button")
+
+      ownedToys[93672] = true
+      db.hearthstoneChoice = "item:6948"
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+      Assert.Equal(button:GetAttribute("type"), "item", "an explicit settings choice wins over the random pool")
+      Assert.Equal(button:GetAttribute("item"), "item:6948", "an explicit item choice binds that item")
+
+      db.hearthstoneChoice = "random"
+      isInCombat = true
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+      Assert.Equal(button:GetAttribute("type"), "item", "TOYS_UPDATED must not rewrite secure attributes in combat")
+      Assert.Nil(button._hearthstoneOwnedToys, "the combat path must not rebuild the cached pool")
+
+      isInCombat = false
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+      Assert.Equal(button:GetAttribute("type"), "toy", "after combat the random choice rebinds a toy")
+      Assert.Equal(#button._hearthstoneOwnedToys, 2, "after combat the refreshed pool holds both owned toys")
+    end)
+  end)
+
   test("UI housing-plot button binds teleporthome attributes on PLAYER_HOUSE_LIST_UPDATED", function()
     local createFrameStub, createdFrames, gameMenuFrame = BuildHousingScenario()
     local isInCombat = { value = false }

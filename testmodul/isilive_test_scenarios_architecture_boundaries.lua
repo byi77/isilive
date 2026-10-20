@@ -354,7 +354,11 @@ return function(test, ctx)
     local runtime = ReadFile("logic/isiLive_event_handlers_runtime.lua")
     Assert.True(
       coalescer:find("addonTable.EventHandlersCdCoalescer = CdCoalescer", 1, true) ~= nil
-        and coalescer:find("local LUST_SATED_AURA_IDS = {", 1, true) ~= nil
+        and coalescer:find(
+          "local LUST_SATED_AURA_IDS = addonTable.Spells.BuildIDSet(addonTable.SpellManifest.lustSated)",
+          1,
+          true
+        ) ~= nil
         and coalescer:find("local function UnitAuraUpdateRequiresCdScan(updateInfo)", 1, true) ~= nil
         and coalescer:find("local function BuildSpellCooldownCoalescer(ctx, isRaidActive)", 1, true) ~= nil
         and coalescer:find("local SPELL_COOLDOWN_COALESCE_SECONDS = 0.1", 1, true) ~= nil,

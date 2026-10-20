@@ -103,6 +103,48 @@ return function(test, ctx)
 
   -- BRes tests
 
+  test("CdTracker direct Sated lookups reject secret values and errors without inventing readiness", function()
+    local secret = {}
+    local mode = "secret"
+    WithGlobals({
+      issecretvalue = function(value)
+        return rawequal(value, secret)
+      end,
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(spellID)
+          if spellID ~= 57723 then
+            return nil
+          end
+          if mode == "secret" then
+            return secret
+          elseif mode == "error" then
+            error("lookup blocked")
+          elseif mode == "masked-expiry" then
+            return { spellId = spellID, expirationTime = secret }
+          end
+          return nil
+        end,
+        GetUnitAuras = function()
+          error("list blocked")
+        end,
+        GetAuraDataByIndex = function()
+          error("index blocked")
+        end,
+      },
+    }, function()
+      local ctrl = MakeController()
+      for _, nextMode in ipairs({ "secret", "error", "masked-expiry" }) do
+        mode = nextMode
+        ctrl.Scan()
+        Assert.False(ctrl.IsLustScanResolved(), nextMode .. ": incomplete lookup remains unresolved")
+        Assert.Nil(ctrl.GetLustInfo(), nextMode .. ": no synthetic timer")
+      end
+      mode = "absent"
+      ctrl.Scan()
+      Assert.True(ctrl.IsLustScanResolved(), "all direct lookups absent proves absence")
+    end)
+  end)
+
   test("CdTracker returns nil BRes info before first scan", function()
     WithGlobals({}, function()
       local ctrl = MakeController()

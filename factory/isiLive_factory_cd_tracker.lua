@@ -291,6 +291,26 @@ local function PrintLustDump(ctx, printFn, state)
     tostring(controller and type(controller.IsLustScanResolved) == "function" and controller.IsLustScanResolved()),
     tostring(type(info) == "table" and info.remain or nil)
   )
+  local api = rawget(_G, "C_UnitAuras")
+  local lookup = type(api) == "table" and rawget(api, "GetPlayerAuraBySpellID") or nil
+  if type(lookup) == "function" then
+    for _, record in ipairs(addonTable.SpellManifest.lustSated) do
+      local ok, aura = pcall(lookup, record.id)
+      local description = "error"
+      if ok then
+        if addonTable.Validators.IsSecretValue(aura) then
+          description = "secret"
+        elseif aura == nil then
+          description = "absent"
+        else
+          description = DescribeAura(aura)
+        end
+      end
+      Line("direct[%d] %s", record.id, description)
+    end
+  else
+    Line("direct: api-missing")
+  end
   DescribeUnitAuraList(Line)
   for index = 1, 40 do
     local slot = DescribeHarmfulSlot(index)

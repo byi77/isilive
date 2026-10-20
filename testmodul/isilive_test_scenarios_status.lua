@@ -24,7 +24,6 @@ local function BuildLocale()
     NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
     NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
     RAID_ENTERED = "Entered raid: %s",
-    PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season Two M+ Navigator",
     PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
     PORTAL_NAVIGATOR_LEFT = "Left",
@@ -34,10 +33,6 @@ local function BuildLocale()
     PORTAL_NAVIGATOR_KINGS_REST = "King's Rest",
     PORTAL_NAVIGATOR_SETHRALISS = "Temple of Sethraliss",
     PORTAL_NAVIGATOR_RUBY_LIFE_POOLS = "Ruby Life Pools",
-    PORTAL_NAVIGATOR_SKYREACH = "Skyreach",
-    PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
-    PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
-    PORTAL_NAVIGATOR_ALGETHAR = "Algeth'ar Academy",
     PORTAL_NAVIGATOR_HEAVEN = "Heaven",
     PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
     PORTAL_NAVIGATOR_TEXT = "isiLive - Portal Navigator\n"
@@ -568,7 +563,11 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
   local function AssertPortalNavigatorLayout(layout)
     Assert.Equal(type(layout), "table", "portal navigator should pass a structured layout table")
     Assert.Equal(layout.eyebrow, BuildLocale().PORTAL_NAVIGATOR_EYEBROW, "portal navigator should expose the eyebrow")
-    Assert.Equal(layout.title, BuildLocale().PORTAL_NAVIGATOR_TITLE, "portal navigator should expose the title")
+    Assert.Equal(
+      layout.title,
+      "isiLive - Midnight Season Two M+ Navigator",
+      "portal navigator should expose the manifest title"
+    )
     Assert.Equal(type(layout.entries), "table", "portal navigator should expose entry widgets")
     Assert.Equal(#layout.entries, 5, "portal navigator should expose five portal positions")
 

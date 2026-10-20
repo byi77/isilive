@@ -341,6 +341,7 @@ return function(test, ctx)
     local inCombat = false
     local evaluations = 0
     local autoSelectOk = true
+    local autoSelectRetryable = false
     WithGlobals({
       InCombatLockdown = function()
         return inCombat
@@ -355,7 +356,7 @@ return function(test, ctx)
         SeasonData = {
           TryAutoSelectSeasonFromChallengeMapIDs = function()
             evaluations = evaluations + 1
-            return autoSelectOk, false, "test"
+            return autoSelectOk, false, "test", autoSelectRetryable
           end,
         },
       })
@@ -380,9 +381,20 @@ return function(test, ctx)
       Assert.Equal(evaluations, 2, "a caught-up evaluation must not repeat")
 
       autoSelectOk = false
+      autoSelectRetryable = true
       refresh("CHALLENGE_MODE_MAPS_UPDATE")
       refresh("PLAYER_REGEN_ENABLED")
-      Assert.Equal(evaluations, 4, "an inconclusive evaluation stays pending for the next combat end")
+      Assert.Equal(evaluations, 4, "a transient failure stays pending for the next combat end")
+
+      -- Regression: every rejection used to stay pending, so a season that was
+      -- conclusively not ready re-ran the full validation after every fight.
+      autoSelectRetryable = false
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(evaluations, 5, "a map update must evaluate again")
+      for _ = 1, 10 do
+        refresh("PLAYER_REGEN_ENABLED")
+      end
+      Assert.Equal(evaluations, 5, "a conclusive rejection must not repeat at every combat end")
     end)
   end)
 

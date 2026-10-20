@@ -45,12 +45,6 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
       langMsgKey = "LANG_SET_DE"
     elseif resolved == "frFR" then
       langMsgKey = "LANG_SET_FR"
-    elseif resolved == "esES" then
-      langMsgKey = "LANG_SET_ES"
-    elseif resolved == "ptBR" then
-      langMsgKey = "LANG_SET_PT"
-    elseif resolved == "itIT" then
-      langMsgKey = "LANG_SET_IT"
     elseif resolved == "ruRU" then
       langMsgKey = "LANG_SET_RU"
     elseif resolved == "trTR" then

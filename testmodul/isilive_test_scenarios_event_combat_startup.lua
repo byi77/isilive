@@ -969,6 +969,32 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
     Assert.False(setRuntimeLogEnabledValue == true, "ADDON_LOADED must reset runtime log enabled state to OFF")
   end)
 
+  test("ADDON_LOADED normalizes a persisted removed UI language to enUS", function()
+    local db = {
+      locale = "itIT",
+      queueDebug = false,
+      position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+    }
+    local appliedTable = nil
+
+    WithGlobals({ IsiLiveDB = db }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua", "isiLive_languages.lua", "isiLive_texts.lua" })
+      local locales = addon.Texts.GetLocaleTables()
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        locales = locales,
+        resolveLocaleTag = addon.Languages.ResolveTag,
+        setLocaleTable = function(value)
+          appliedTable = value
+        end,
+      })
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+
+      Assert.Equal(db.locale, "enUS", "a persisted itIT addon language must be rewritten to enUS")
+      Assert.True(appliedTable == locales.enUS, "the enUS locale table must be applied")
+    end)
+  end)
+
   test("Event handlers restore Rio baseline from DB on ADDON_LOADED", function()
     local restoreCalls = 0
 

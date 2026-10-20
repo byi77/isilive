@@ -18,7 +18,7 @@ local DUMMY_MEMBERS = {
     spec = "Wachter",
     ilvl = 272,
     rio = 3120,
-    keyMapID = 559, -- Nexus-Point Xenas
+    keyMapSlot = 1,
     keyLevel = 10,
     syncKickOnCooldown = false,
     isDemoEntry = true,
@@ -32,7 +32,7 @@ local DUMMY_MEMBERS = {
     spec = "Holy",
     ilvl = 268,
     rio = 2980,
-    keyMapID = 560, -- Maisara Caverns
+    keyMapSlot = 2,
     keyLevel = 9,
     isDemoEntry = true,
   },
@@ -45,7 +45,7 @@ local DUMMY_MEMBERS = {
     spec = "Frost",
     ilvl = 275,
     rio = 3210,
-    keyMapID = 557, -- Windrunner Spire
+    keyMapSlot = 3,
     keyLevel = 11,
     syncKickOnCooldown = true,
     syncKickRemain = 14,
@@ -61,7 +61,7 @@ local DUMMY_MEMBERS = {
     spec = "Retri",
     ilvl = 269,
     rio = 2870,
-    keyMapID = 558, -- Magisters' Terrace
+    keyMapSlot = 4,
     keyLevel = 8,
     syncHasKick = true,
     syncKickOnCooldown = false,
@@ -80,7 +80,7 @@ local DUMMY_MEMBERS = {
     spec = "Marksmanship",
     ilvl = 271,
     rio = 3050,
-    keyMapID = 402, -- Algeth'ar Academy
+    keyMapSlot = 5,
     keyLevel = 10,
     syncKickOnCooldown = true,
     syncKickRemain = 6,
@@ -89,10 +89,33 @@ local DUMMY_MEMBERS = {
   },
 }
 
+-- Dummy keys point at a position in the active season's dungeon order rather
+-- than a fixed map ID, so the preview follows every season switch. Without an
+-- active season there is no verified map to show and the key stays empty.
+local function ResolveDemoKeyMapID(keyMapSlot)
+  local slot = tonumber(keyMapSlot)
+  if not slot or type(SeasonData.GetOrderedMapIDs) ~= "function" then
+    return nil
+  end
+  local orderedMapIDs = SeasonData.GetOrderedMapIDs()
+  local count = type(orderedMapIDs) == "table" and #orderedMapIDs or 0
+  if count == 0 then
+    return nil
+  end
+  return orderedMapIDs[((slot - 1) % count) + 1]
+end
+
 local function CopyRosterEntry(entry)
   local copy = {}
   for key, value in pairs(entry or {}) do
     copy[key] = value
+  end
+  if copy.keyMapSlot ~= nil then
+    copy.keyMapID = ResolveDemoKeyMapID(copy.keyMapSlot)
+    if copy.keyMapID == nil then
+      copy.keyLevel = nil
+    end
+    copy.keyMapSlot = nil
   end
   return copy
 end

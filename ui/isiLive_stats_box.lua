@@ -61,29 +61,12 @@ local PRIMARY_BY_CLASS = {
   WARRIOR = "strength",
 }
 
-local PRIMARY_BY_SPEC_ID = {
-  [65] = "intellect", -- Paladin: Holy
-  [66] = "strength", -- Paladin: Protection
-  [70] = "strength", -- Paladin: Retribution
-  [102] = "intellect", -- Druid: Balance
-  [103] = "agility", -- Druid: Feral
-  [104] = "agility", -- Druid: Guardian
-  [105] = "intellect", -- Druid: Restoration
-  [262] = "intellect", -- Shaman: Elemental
-  [263] = "agility", -- Shaman: Enhancement
-  [264] = "intellect", -- Shaman: Restoration
-  [268] = "agility", -- Monk: Brewmaster
-  [269] = "agility", -- Monk: Windwalker
-  [270] = "intellect", -- Monk: Mistweaver
-  -- Demon Hunter became a hybrid class with Devourer (Midnight): spec IDs per
-  -- warcraft.wiki.gg/wiki/SpecializationID (577 Havoc, 581 Vengeance, 1480
-  -- Devourer); Havoc and Vengeance use Agility (warcraft.wiki.gg/wiki/Agility),
-  -- the class infobox lists "Agility or Intellect" (warcraft.wiki.gg/wiki/Demon_hunter),
-  -- so Devourer is the Intellect spec. An unreadable spec shows no primary row.
-  [577] = "agility", -- Demon Hunter: Havoc
-  [581] = "agility", -- Demon Hunter: Vengeance
-  [1480] = "intellect", -- Demon Hunter: Devourer
-}
+-- Hybrid specs that override their class default come from data/isiLive_specs.lua
+-- (`primaryStat`). Demon Hunter became a hybrid class with Devourer (Midnight):
+-- Havoc and Vengeance use Agility (warcraft.wiki.gg/wiki/Agility), the class
+-- infobox lists "Agility or Intellect" (warcraft.wiki.gg/wiki/Demon_hunter), so
+-- Devourer is the Intellect spec. An unreadable spec shows no primary row.
+local PRIMARY_BY_SPEC_ID = addonTable.Specs.BuildPrimaryStatOverrides()
 
 local PRIMARY_STAT_INDEX = {
   strength = STAT_STRENGTH,

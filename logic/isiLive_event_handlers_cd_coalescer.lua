@@ -15,20 +15,12 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
 -- Sated/Exhaustion debuff IDs that CdTracker.ScanLust matches against the
--- player's HARMFUL aura list. Mirrors LUST_SATED_IDS in game/isiLive_cd_tracker.lua;
--- kept in sync so the event-side filter knows which UNIT_AURA payloads are
--- actually load-bearing for the CD-tracker scan.
-local LUST_SATED_AURA_IDS = {
-  [57723] = true,
-  [57724] = true,
-  [80354] = true,
-  [264689] = true,
-  [390435] = true,
-  [95809] = true,
-}
+-- player's HARMFUL aura list. Built from the same data/isiLive_spells.lua list,
+-- so the event-side filter cannot drift from the CD-tracker scan.
+local LUST_SATED_AURA_IDS = addonTable.Spells.BuildIDSet(addonTable.SpellManifest.lustSated)
 
 -- UNIT_AURA for "player" fires many times per second in combat (DoT ticks,
--- proc refreshes, stack changes). The CD-tracker only cares about the six
+-- proc refreshes, stack changes). The CD-tracker only cares about the
 -- Sated/Exhaustion IDs above. Use the unitAuraUpdateInfo payload to skip the
 -- 40-slot HARMFUL pcall scan when no Sated-relevant change is in this event.
 -- Aura removals and instance updates do not reliably include spellId, only

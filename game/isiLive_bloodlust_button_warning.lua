@@ -6,14 +6,11 @@ addonTable.BloodlustButtonWarning = BloodlustButtonWarning
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
-local LUST_SATED_IDS = {
-  [57723] = true, -- Exhaustion
-  [57724] = true, -- Sated
-  [80354] = true, -- Temporal Displacement
-  [264689] = true, -- Fatigued
-  [390435] = true, -- Exhaustion
-  [95809] = true, -- Insanity
-}
+-- Sated-class debuffs and the Bloodlust-class spells looked for on the action
+-- bars come from data/isiLive_spells.lua (`actionButton = true` entries).
+local Spells = addonTable.Spells
+local SpellManifest = addonTable.SpellManifest
+local LUST_SATED_IDS = Spells.BuildIDSet(SpellManifest.lustSated)
 
 local BLOODLUST_CLASS_TOKENS = {
   SHAMAN = true,
@@ -22,16 +19,7 @@ local BLOODLUST_CLASS_TOKENS = {
   HUNTER = true,
 }
 
-local BLOODLUST_BUTTON_SPELL_IDS = {
-  [2825] = true, -- Bloodlust
-  [32182] = true, -- Heroism
-  [80353] = true, -- Time Warp
-  [264667] = true, -- Primal Rage
-  [390386] = true, -- Fury of the Aspects
-  [466904] = true, -- Harrier's Cry
-  [90355] = true, -- Ancient Hysteria
-  [160452] = true, -- Netherwinds
-}
+local BLOODLUST_BUTTON_SPELL_IDS = Spells.BuildIDSet(SpellManifest.lustCasts, Spells.IsActionButtonLust)
 
 local function DefaultGetDB()
   return rawget(_G, "IsiLiveDB") or {}

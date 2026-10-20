@@ -5,9 +5,18 @@ addonTable = addonTable or {}
 local Mounts = {}
 addonTable.UIGameMenuMounts = Mounts
 
-local RANDOM_FAVORITE_MOUNT_SPELL_ID = 150544
-local AH_MOUNT_SPELL_ID = 465235
-local REPAIR_MOUNT_SPELL_ID = 122708
+-- Curated spell IDs live in data/isiLive_travel_items.lua.
+local MOUNT_SPELLS = type(addonTable.TravelItemManifest) == "table"
+    and type(addonTable.TravelItemManifest.mountSpells) == "table"
+    and addonTable.TravelItemManifest.mountSpells
+  or {}
+local function MountSpellID(key)
+  local entry = MOUNT_SPELLS[key]
+  return type(entry) == "table" and entry.spellID or nil
+end
+local RANDOM_FAVORITE_MOUNT_SPELL_ID = MountSpellID("randomFavorite")
+local AH_MOUNT_SPELL_ID = MountSpellID("auctionHouse")
+local REPAIR_MOUNT_SPELL_ID = MountSpellID("repair")
 local MOUNT_PANEL_UI_ENTRIES = {
   {
     id = "favorite_mount",

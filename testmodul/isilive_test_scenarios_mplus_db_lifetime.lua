@@ -172,6 +172,32 @@ return function(test, ctx)
     os.remove(path)
   end)
 
+  test("mplus_db_lifetime: structure gate enforces requiresForces through SeasonData", function()
+    local tool = LoadTool()
+    -- The shipped DB must cover the active season through the production
+    -- SeasonData.GetForcesReadiness path -- the build gate that replaced the
+    -- runtime activation coupling.
+    local shippedCode, shippedMsg = tool.CheckStructure("data/isiLive_mplus_forces.lua")
+    Assert.Equal(0, shippedCode, "shipped DB must match the active season structure: " .. tostring(shippedMsg))
+
+    local path = TempPath("isilive_mplus_db_structure.lua")
+    WriteDBFixture(path, "2030-01-01")
+    local code, msg = tool.CheckStructure(path, { activeSeasonID = "midnight_s2" })
+    Assert.Equal(2, code, "an empty DB for a requiresForces season must fail the structure gate")
+    Assert.True(tostring(msg):find("missing a positive total", 1, true) ~= nil, "message must name the gap")
+
+    -- A requiresForces = false season: the synthetic fixture, so the test does
+    -- not pin any real historical season in the manifest.
+    local FixtureSeasons = assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))()
+    local skippedCode, skippedMsg = tool.CheckStructure(path, {
+      activeSeasonID = FixtureSeasons.PREVIOUS_SEASON_ID,
+      seasonDataPath = FixtureSeasons.MANIFEST_PATH,
+    })
+    Assert.Equal(0, skippedCode, "a requiresForces = false season must skip the structure gate")
+    Assert.True(tostring(skippedMsg):find("skipped", 1, true) ~= nil, "message must name the skipped gate")
+    os.remove(path)
+  end)
+
   test("mplus_db_lifetime: shipped DB file passes under current date override", function()
     local tool = LoadTool()
     -- Use the shipped DB and a today value known to be before the current
@@ -188,7 +214,9 @@ return function(test, ctx)
     -- season = "midnight_s2". SeasonData rejects every out-of-season map id,
     -- so the active season turned "not ready" and both SetActiveSeasonID and
     -- the automatic season switch would have refused to run -- while the
-    -- lifetime gate above stayed green, because it only reads the header.
+    -- lifetime gate above stayed green, because it only read the header.
+    -- Forces no longer gate activation (rule 97); the lifetime tool's
+    -- CheckStructure step now fails the build for such a DB instead.
     local manifestChunk, manifestErr = loadfile("data/isiLive_seasons.lua")
     assert(manifestChunk, manifestErr)
     local manifestTable = {}

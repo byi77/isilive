@@ -28,7 +28,7 @@
 --   lua tools/check_format_string_consistency.lua
 
 local ENUS_KEY = "enUS"
-local LOCALE_ORDER = { "deDE", "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }
+local LOCALE_ORDER = { "deDE", "frFR", "ruRU", "trTR" }
 
 local function LoadLocaleTables()
   local addonTable = {}
@@ -125,9 +125,6 @@ local OVERRIDE_SCAN_FILES = {
   "locale/isiLive_texts_enUS.lua",
   "locale/isiLive_texts_deDE.lua",
   "locale/isiLive_texts_frFR.lua",
-  "locale/isiLive_texts_esES.lua",
-  "locale/isiLive_texts_ptBR.lua",
-  "locale/isiLive_texts_itIT.lua",
   "locale/isiLive_texts_ruRU.lua",
   "locale/isiLive_texts_trTR.lua",
 }

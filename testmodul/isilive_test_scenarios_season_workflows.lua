@@ -49,7 +49,10 @@ return function(test, ctx)
 
   test("Season readiness inspect reports active and prepared seasons without fetching data", function()
     local tool = LoadTool("tools/inspect_season_readiness.lua")
-    local summary = tool.BuildSummary()
+    -- Production manifest plus a synthetic non-active season, so the
+    -- "non-active season stays activatable" row survives retiring a real season.
+    local FixtureSeasons = assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))()
+    local summary = tool.BuildSummary({ manifestPath = FixtureSeasons.MANIFEST_PATH })
 
     Assert.True(
       summary:find("## isiLive Season Readiness", 1, true) ~= nil,
@@ -60,13 +63,52 @@ return function(test, ctx)
       "season readiness inspect must report the persisted active season"
     )
     Assert.True(
-      summary:find("| midnight_s1 | Midnight Season 1 | yes | 8 | 0 | - | - |", 1, true) ~= nil,
+      summary:find(
+        string.format(
+          "| %s | %s | yes | skipped | %d | 0 | - | - |",
+          FixtureSeasons.PREVIOUS_SEASON_ID,
+          FixtureSeasons.PREVIOUS_SEASON_LABEL,
+          #FixtureSeasons.MapIDs()
+        ),
+        1,
+        true
+      ) ~= nil,
       "season readiness inspect must keep the non-active season manually activatable"
+    )
+    Assert.True(
+      summary:find("| Season | Label | Ready | Forces |", 1, true) ~= nil,
+      "season readiness inspect must report the forces gate in its own column"
+    )
+    Assert.True(
+      summary:find("### M+ Forces gate", 1, true) ~= nil,
+      "season readiness inspect must list forces gate failures separately from activation errors"
     )
     Assert.True(
       summary:find("- Matches active season: yes", 1, true) ~= nil,
       "season readiness inspect must compare the forces DB season against the active season"
     )
+  end)
+
+  -- WARTUNG.md section 3.4 kept naming midnight_s1 as the active season for weeks
+  -- after S2 went live. Every "`<id>` ... die aktive Runtime-Season" statement in
+  -- the maintenance doc must name the manifest's activeSeasonID.
+  test("Maintenance doc names only the manifest activeSeasonID as the active season", function()
+    local addonTable = {}
+    loadfile("data/isiLive_seasons.lua")("isiLive", addonTable)
+    local activeSeasonID = addonTable.SeasonManifest.activeSeasonID
+    local doc = ReadFile("docs/WARTUNG.md")
+
+    local found = 0
+    for line in doc:gmatch("[^\n]+") do
+      if line:find("die aktive Runtime-Season", 1, true) then
+        local named = line:match("`([%w_]+)` ist")
+        if named then
+          found = found + 1
+          Assert.Equal(named, activeSeasonID, "WARTUNG.md must not name a stale active season: " .. line)
+        end
+      end
+    end
+    Assert.True(found > 0, "WARTUNG.md must state the active runtime season in section 3.4")
   end)
 
   test("MDT season preview marks missing candidates unresolved instead of inventing IDs", function()
@@ -89,6 +131,28 @@ return function(test, ctx)
       "MDT preview inspect must not fabricate a candidate when no MDT file is available"
     )
     Assert.True(summary:find("- Forces-ready: no", 1, true) ~= nil, "missing MDT data must fail closed")
+  end)
+
+  test("MDT season preview defaults to the manifest season instead of a literal season id", function()
+    local tool = LoadTool("tools/inspect_mdt_season_preview.lua")
+    local addonTable = {}
+    loadfile("data/isiLive_seasons.lua")("isiLive", addonTable)
+    local expected = addonTable.SeasonManifest.upcomingSeasonID or addonTable.SeasonManifest.activeSeasonID
+
+    Assert.Equal(tool.ResolveDefaultSeasonID(), expected, "the preview default must come from the season manifest")
+    local summary = tool.BuildSummary({ mdtPath = "tools/cache/does-not-exist" })
+    Assert.True(
+      summary:find("- Season: " .. expected, 1, true) ~= nil,
+      "a preview without --season must report the manifest default season"
+    )
+    Assert.True(
+      summary:find("- Season label: ", 1, true) ~= nil,
+      "the preview must expose the season label for the workflow issue title"
+    )
+    Assert.True(
+      ReadFile("tools/inspect_mdt_season_preview.lua"):find('"midnight_s', 1, true) == nil,
+      "the preview tool must not carry a literal season id"
+    )
   end)
 
   test("MDT season preview lists textual candidates from a cloned MDT tree", function()
@@ -323,12 +387,14 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     )
   end)
 
-  test("Season intake check infers one exact intake season and rejects ambiguous files", function()
+  test("Season intake check validates every intake season on its own", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local inferredOk, inferred = tool.Check()
     Assert.True(inferredOk, "one exact season in the intake must be inferred")
     Assert.Equal(inferred.seasonID, "midnight_s2", "inferred season must come from the intake rows")
 
+    -- The next season's collection rows sit next to the verified rows of the
+    -- running one; the running season stays covered by the manifest drift check.
     local path = "tools/cache/test_season_intake_ambiguous.md"
     EnsureDir("tools/cache")
     local content = ReadFile("docs/SEASON_INTAKE.md")
@@ -339,14 +405,77 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
 | Season | Dungeon | ChallengeMapID | PortalSpellID | LFGActivityID | Source | VerifiedAt | Status | Notiz |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | another_season | Example | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | test |
+| another_season | Second Example | 9001 | unresolved | unresolved | Test source | 2026-10-20 | partial | test |
+]])
+
+    local seasonIDs = tool.ListSeasons({ intakePath = path })
+    Assert.Equal(#seasonIDs, 2, "the intake must list both seasons")
+    Assert.Equal(seasonIDs[1], "midnight_s2", "seasons must be listed in order of first appearance")
+    Assert.Equal(seasonIDs[2], "another_season", "the pre-manifest season must be listed after the running one")
+
+    local ok, result = tool.Check({ intakePath = path })
+    Assert.True(ok, "a pre-manifest season with only collection rows must not break the intake gate")
+    Assert.Nil(result.seasonID, "a multi-season run must not pretend to cover a single season")
+    Assert.True(result.results.midnight_s2 ~= nil, "the running season must still be validated")
+    Assert.True(
+      result.results.midnight_s2.summary:find("8/8 verified", 1, true) ~= nil,
+      "the running season must keep its full manifest-backed progress report"
+    )
+    Assert.False(result.results.another_season.inManifest, "the next season is not configured in the manifest yet")
+    Assert.True(
+      result.summary:find("- Season: another_season", 1, true) ~= nil
+        and result.summary:find("- Manifest: not configured yet (collection only)", 1, true) ~= nil,
+      "the report must name the pre-manifest season and its collection-only state"
+    )
+
+    local driftedPath = "tools/cache/test_season_intake_manifest_drift.md"
+    local drifted = content:gsub(
+      "| midnight_s2 | Altar of Fangs | 588 | 1286812 | 1933 |",
+      "| midnight_s2 | Altar of Fangs | 588 | 1286812 | 1934 |",
+      1
+    )
+    WriteFile(driftedPath, drifted .. [[
+
+## Dungeon-Intake
+
+| Season | Dungeon | ChallengeMapID | PortalSpellID | LFGActivityID | Source | VerifiedAt | Status | Notiz |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| another_season | Example | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | test |
+]])
+    local driftOk, driftResult = tool.Check({ intakePath = driftedPath })
+    Assert.False(driftOk, "drift in the running season must still fail when another season is present")
+    Assert.True(
+      driftResult.summary:find("LFGActivityID does not match the season manifest", 1, true) ~= nil,
+      "the drift error must still name the mismatched field"
+    )
+
+    local singleOk, single = tool.Check({ intakePath = path, seasonID = "midnight_s2" })
+    Assert.True(singleOk, "an explicit season must validate only that season")
+    Assert.Equal(single.seasonID, "midnight_s2", "an explicit season run must report that season")
+    Assert.Equal(#single.seasonIDs, 1, "an explicit season run must cover exactly one season")
+  end)
+
+  test("Season intake check rejects verified rows for a season missing from the manifest", function()
+    local tool = LoadTool("tools/check_season_intake.lua")
+    local path = "tools/cache/test_season_intake_invalid.md"
+    EnsureDir("tools/cache")
+    local content = ReadFile("docs/SEASON_INTAKE.md")
+    WriteFile(path, content .. [[
+
+## Dungeon-Intake
+
+| Season | Dungeon | ChallengeMapID | PortalSpellID | LFGActivityID | Source | VerifiedAt | Status | Notiz |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| another_season | Example | 9001 | 9002 | 9003 | Test source | 2026-10-20 | verified | test |
 ]])
 
     local ok, result = tool.Check({ intakePath = path })
-    Assert.False(ok, "multiple intake seasons must require an explicit season selection")
+    Assert.False(ok, "a verified row must not exist before its season is in the manifest")
     Assert.True(
-      result.summary:find("contains multiple seasons", 1, true) ~= nil,
-      "ambiguous intake failure must identify the multiple-season source"
+      result.summary:find("is verified but season another_season is not in the season manifest", 1, true) ~= nil,
+      "the failure must name the missing manifest season"
     )
+    Assert.True(result.results.midnight_s2.errors[1] == nil, "the running season must stay valid on its own")
   end)
 
   test("Season intake check rejects concrete IDs without source metadata", function()

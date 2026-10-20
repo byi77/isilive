@@ -7,6 +7,16 @@ local Travel = {}
 addonTable.UIGameMenuTravel = Travel
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
+-- Curated IDs live in data/isiLive_travel_items.lua; this module only evaluates them.
+local TravelItems = addonTable.TravelItemManifest or {}
+local HEARTHSTONE_TOYS = type(TravelItems.hearthstoneToys) == "table" and TravelItems.hearthstoneToys or {}
+local COVENANT_RENOWN_ACHIEVEMENT_ID = TravelItems.covenantRenownAchievementID
+local DEFAULT_HEARTHSTONE_ITEM_STRING = TravelItems.defaultHearthstoneItemID
+    and ("item:" .. tostring(TravelItems.defaultHearthstoneItemID))
+  or nil
+local DALARAN_HEARTHSTONE_TOY_ID = TravelItems.dalaranHearthstoneToyID
+local ARCANTINA_KEY_ITEM_ID = TravelItems.arcantinaKeyItemID
+
 local covenantRenownCriteria = nil
 local function HasCompletedCovenantRenownCriteria(criteriaIndex)
   criteriaIndex = tonumber(criteriaIndex)
@@ -16,9 +26,9 @@ local function HasCompletedCovenantRenownCriteria(criteriaIndex)
   if covenantRenownCriteria == nil then
     covenantRenownCriteria = {}
     local getCriteriaInfo = rawget(_G, "GetAchievementCriteriaInfo")
-    if type(getCriteriaInfo) == "function" then
+    if type(getCriteriaInfo) == "function" and COVENANT_RENOWN_ACHIEVEMENT_ID then
       for index = 1, 4 do
-        local ok, _, _, completed = pcall(getCriteriaInfo, 15646, index)
+        local ok, _, _, completed = pcall(getCriteriaInfo, COVENANT_RENOWN_ACHIEVEMENT_ID, index)
         covenantRenownCriteria[index] = ok and completed == true or false
       end
     end
@@ -35,7 +45,7 @@ local function HasActiveCovenant(covenantID)
   return ok and activeID == covenantID
 end
 
-local function PlayerRaceIDIs(...)
+local function PlayerRaceIDIn(raceIDs)
   if not addonTable.Validators.IsExistingUnit("player") then
     return false
   end
@@ -47,79 +57,37 @@ local function PlayerRaceIDIs(...)
   if not ok or IsSecretValue(raceID) then
     return false
   end
-  for index = 1, select("#", ...) do
-    if raceID == select(index, ...) then
+  for _, candidate in ipairs(raceIDs) do
+    if raceID == candidate then
       return true
     end
   end
   return false
 end
 
-local function IsNightFaeHearthstoneUsable()
-  return HasCompletedCovenantRenownCriteria(3) or HasActiveCovenant(3)
+-- Evaluates a declarative `requires` block from the travel-item manifest.
+-- A covenant toy unlocks through the renown criteria or the active covenant;
+-- an unknown requirement shape fails closed.
+local function MeetsRequirements(requires)
+  if requires == nil then
+    return true
+  end
+  if type(requires) ~= "table" then
+    return false
+  end
+  if requires.covenantID ~= nil or requires.renownCriteria ~= nil then
+    return HasCompletedCovenantRenownCriteria(requires.renownCriteria) or HasActiveCovenant(requires.covenantID)
+  end
+  if type(requires.raceIDs) == "table" then
+    return PlayerRaceIDIn(requires.raceIDs)
+  end
+  return false
 end
 
-local function IsNecrolordHearthstoneUsable()
-  return HasCompletedCovenantRenownCriteria(2) or HasActiveCovenant(4)
-end
-
-local function IsVenthyrHearthstoneUsable()
-  return HasCompletedCovenantRenownCriteria(4) or HasActiveCovenant(2)
-end
-
-local function IsKyrianHearthstoneUsable()
-  return HasCompletedCovenantRenownCriteria(1) or HasActiveCovenant(1)
-end
-
-local function IsDraenicHologemUsable()
-  return PlayerRaceIDIs(11, 30)
-end
-
-local HEARTHSTONE_TOYS = {
-  { id = 54452, englishName = "Ethereal Portal" },
-  { id = 64488, englishName = "The Innkeeper's Daughter" },
-  { id = 93672, englishName = "Dark Portal" },
-  { id = 142542, englishName = "Tome of Town Portal" },
-  { id = 162973, englishName = "Greatfather Winter's Hearthstone" },
-  { id = 163045, englishName = "Headless Horseman's Hearthstone" },
-  { id = 163206, englishName = "Weary Spirit Binding" },
-  { id = 165669, englishName = "Lunar Elder's Hearthstone" },
-  { id = 165670, englishName = "Peddlefeet's Lovely Hearthstone" },
-  { id = 165802, englishName = "Noble Gardener's Hearthstone" },
-  { id = 166746, englishName = "Fire Eater's Hearthstone" },
-  { id = 166747, englishName = "Brewfest Reveler's Hearthstone" },
-  { id = 168907, englishName = "Holographic Digitalization Hearthstone" },
-  { id = 172179, englishName = "Eternal Traveler's Hearthstone" },
-  { id = 180290, englishName = "Night Fae Hearthstone", usable = IsNightFaeHearthstoneUsable },
-  { id = 182773, englishName = "Necrolord Hearthstone", usable = IsNecrolordHearthstoneUsable },
-  { id = 183716, englishName = "Venthyr Sinstone", usable = IsVenthyrHearthstoneUsable },
-  { id = 184353, englishName = "Kyrian Hearthstone", usable = IsKyrianHearthstoneUsable },
-  { id = 188952, englishName = "Dominated Hearthstone" },
-  { id = 190196, englishName = "Enlightened Hearthstone" },
-  { id = 190237, englishName = "Broker Translocation Matrix" },
-  { id = 193588, englishName = "Timewalker's Hearthstone" },
-  { id = 200630, englishName = "Ohn'ir Windsage's Hearthstone" },
-  { id = 206195, englishName = "Path of the Naaru" },
-  { id = 208704, englishName = "Deepdweller's Earthen Hearthstone" },
-  { id = 209035, englishName = "Hearthstone of the Flame" },
-  { id = 210455, englishName = "Draenic Hologem", usable = IsDraenicHologemUsable },
-  { id = 212337, englishName = "Stone of the Hearth" },
-  { id = 228940, englishName = "Notorious Thread's Hearthstone" },
-  { id = 235016, englishName = "Redeployment Module" },
-  { id = 236687, englishName = "Explosive Hearthstone" },
-  { id = 245970, englishName = "P.O.S.T. Master's Express Hearthstone" },
-  { id = 246565, englishName = "Cosmic Hearthstone" },
-  { id = 257736, englishName = "Lightcalled Hearthstone" },
-  { id = 263489, englishName = "Naaru's Enfold" },
-  { id = 263933, englishName = "Preyseeker's Hearthstone" },
-  { id = 265100, englishName = "Corewarden's Hearthstone" },
-}
 local HEARTHSTONE_TOY_LOOKUP = {}
 for _, entry in ipairs(HEARTHSTONE_TOYS) do
   HEARTHSTONE_TOY_LOOKUP[entry.id] = entry
 end
-
-local DALARAN_HEARTHSTONE_TOY_ID = 140192
 
 local function IsOwnedToy(toyId)
   toyId = tonumber(toyId)
@@ -134,18 +102,16 @@ local function IsOwnedToy(toyId)
   return ok and hasToy == true
 end
 
+local function IsUsableHearthstoneEntry(entry)
+  local okUsable, usable = pcall(MeetsRequirements, entry.requires)
+  return okUsable and usable == true
+end
+
 local function CollectOwnedHearthstoneToys()
   local owned = {}
   for _, entry in ipairs(HEARTHSTONE_TOYS) do
-    if IsOwnedToy(entry.id) then
-      local usable = true
-      if type(entry.usable) == "function" then
-        local okUsable, result = pcall(entry.usable)
-        usable = okUsable and result == true
-      end
-      if usable then
-        owned[#owned + 1] = entry.id
-      end
+    if IsOwnedToy(entry.id) and IsUsableHearthstoneEntry(entry) then
+      owned[#owned + 1] = entry.id
     end
   end
   return owned
@@ -167,12 +133,7 @@ local function IsAvailableHearthstoneToy(toyId)
   if not IsOwnedToy(toyId) then
     return false
   end
-  local usable = HEARTHSTONE_TOY_LOOKUP[toyId].usable
-  if type(usable) ~= "function" then
-    return true
-  end
-  local okUsable, result = pcall(usable)
-  return okUsable and result == true
+  return IsUsableHearthstoneEntry(HEARTHSTONE_TOY_LOOKUP[toyId])
 end
 
 local function GetHearthstoneToyEnglishName(toyId)
@@ -200,7 +161,7 @@ local function ResolveHearthstoneChoice(choice)
     return IsAvailableHearthstoneToy(numericToyId) and numericToyId or nil, nil
   end
 
-  if normalized == "item:6948" then
+  if DEFAULT_HEARTHSTONE_ITEM_STRING and normalized == DEFAULT_HEARTHSTONE_ITEM_STRING then
     return nil, normalized
   end
 
@@ -210,6 +171,67 @@ local function ResolveHearthstoneChoice(choice)
   end
 
   return nil, nil
+end
+
+-- Picks a random entry from `pool` that differs from `current` when possible.
+--
+-- The previous shape was `repeat pick = pool[math.random(1, #pool)] until pick
+-- ~= current`, guarded only by an `#pool == 1` special case. That loop never
+-- terminates when every remaining entry equals `current` -- which happens the
+-- moment the owned-toy list contains the same ID twice. The catalogue has no
+-- duplicates today, so this was latent rather than live, but the failure mode
+-- is a frozen client on a hearthstone click, so the loop gets a hard bound
+-- instead of relying on the data staying clean. After MAX_PICK_ATTEMPTS we
+-- accept a repeat of the current toy: rerolling the same mount is a cosmetic
+-- miss, hanging the client is not.
+local MAX_PICK_ATTEMPTS = 10
+
+local function PickDifferentEntry(pool, current)
+  local size = #pool
+  if size == 0 then
+    return nil
+  end
+  if size == 1 then
+    return pool[1]
+  end
+  local pick = pool[math.random(1, size)]
+  local attempts = 1
+  while pick == current and attempts < MAX_PICK_ATTEMPTS do
+    pick = pool[math.random(1, size)]
+    attempts = attempts + 1
+  end
+  return pick
+end
+
+-- Single source for what the hearthstone button should bind, shared by the
+-- secure refresh, the TOYS_UPDATED handler and the PreClick re-roll. Callers
+-- own the combat-lockdown gate and the SetAttribute calls.
+--
+-- Returns { isExplicit, type, value, pool }:
+--   * explicit owned toy  -> type "toy", value = toy id, pool = { toy id }
+--   * explicit item       -> type "item", value = item string, pool = nil
+--   * random              -> type "toy", value = a pick from the owned pool;
+--                            `opts.pool` is reused when non-empty, and
+--                            `opts.current` is avoided when possible
+--   * random, none owned  -> type "item", value = default hearthstone, pool = nil
+function Travel.ResolveHearthstoneSelection(choice, opts)
+  opts = type(opts) == "table" and opts or {}
+  local explicitToyId, explicitItemString = ResolveHearthstoneChoice(choice)
+  if explicitToyId then
+    return { isExplicit = true, type = "toy", value = explicitToyId, pool = { explicitToyId } }
+  end
+  if explicitItemString then
+    return { isExplicit = true, type = "item", value = explicitItemString, pool = nil }
+  end
+
+  local pool = opts.pool
+  if type(pool) ~= "table" or #pool == 0 then
+    pool = CollectOwnedHearthstoneToys()
+  end
+  if #pool > 0 then
+    return { isExplicit = false, type = "toy", value = PickDifferentEntry(pool, opts.current), pool = pool }
+  end
+  return { isExplicit = false, type = "item", value = DEFAULT_HEARTHSTONE_ITEM_STRING, pool = nil }
 end
 
 local function IsDalaranHearthstoneAvailable()
@@ -226,14 +248,13 @@ local SECOND_PANEL_UI_ENTRIES = {
     labelKey = "BTN_SECOND_ARKANATINE_KEY",
     fallbackText = "Arkantine",
     icon = "Interface\\Icons\\INV_Misc_Key_14",
-    -- Item names differ by WoW client locale; resolved at button creation via GetLocale().
+    -- The item ID resolves on every client locale; item names did not (the
+    -- English macro text "Arkantine" never matched "Personal Key to the Arcantina").
     secureMacroText = function()
-      local getLocale = rawget(_G, "GetLocale")
-      local clientLocale = type(getLocale) == "function" and getLocale() or ""
-      if clientLocale == "deDE" then
-        return "/use Persönlicher Schlüssel zur Arkantine"
+      if not ARCANTINA_KEY_ITEM_ID then
+        return nil
       end
-      return "/use Personal Key to the Arkantine"
+      return "/use item:" .. tostring(ARCANTINA_KEY_ITEM_ID)
     end,
   },
   {
@@ -264,5 +285,7 @@ Travel.CollectOwnedHearthstoneToys = CollectOwnedHearthstoneToys
 Travel.GetHearthstoneToyEnglishName = GetHearthstoneToyEnglishName
 Travel.GetKnownHearthstoneToyIDs = GetKnownHearthstoneToyIDs
 Travel.ResolveHearthstoneChoice = ResolveHearthstoneChoice
+Travel.PickDifferentEntry = PickDifferentEntry
+Travel.DEFAULT_HEARTHSTONE_ITEM_STRING = DEFAULT_HEARTHSTONE_ITEM_STRING
 Travel.DALARAN_HEARTHSTONE_TOY_ID = DALARAN_HEARTHSTONE_TOY_ID
 Travel.IsDalaranHearthstoneAvailable = IsDalaranHearthstoneAvailable

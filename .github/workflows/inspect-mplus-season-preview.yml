@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       season:
-        description: "Season ID from game/isiLive_season_data.lua"
-        required: true
-        default: "midnight_s2"
+        description: "Season ID from data/isiLive_seasons.lua (empty: upcomingSeasonID, otherwise activeSeasonID)"
+        required: false
+        default: ""
 
 concurrency:
-  group: inspect-mplus-season-preview-${{ github.event.inputs.season || 'midnight_s2' }}
+  group: inspect-mplus-season-preview-${{ github.event.inputs.season || 'manifest-default' }}
   cancel-in-progress: false
 
 jobs:
@@ -20,8 +20,6 @@ jobs:
     permissions:
       contents: read
       issues: write
-    env:
-      SEASON_ID: ${{ github.event.inputs.season || 'midnight_s2' }}
 
     steps:
       - name: Checkout
@@ -31,6 +29,18 @@ jobs:
         uses: leafo/gh-actions-lua@6919171ccf181b826f44b9bca76307b577217377 # v13.0.0
         with:
           luaVersion: "5.1"
+
+      - name: Resolve target season from the manifest
+        id: season
+        env:
+          REQUESTED_SEASON: ${{ github.event.inputs.season }}
+        run: |
+          season="${REQUESTED_SEASON}"
+          if [ -z "${season}" ]; then
+            season="$(lua tools/inspect_mdt_season_preview.lua --print-default-season)"
+          fi
+          echo "SEASON_ID=${season}" >> "$GITHUB_ENV"
+          echo "season_id=${season}" >> "$GITHUB_OUTPUT"
 
       - name: Clone MDT
         run: git clone --depth 1 https://github.com/Nnoggie/MythicDungeonTools tools/cache/mdt
@@ -43,8 +53,10 @@ jobs:
           cat tools/cache/season_preview/mdt-season-preview.md >> "$GITHUB_STEP_SUMMARY"
           candidate_count="$(sed -n 's/^- Candidate matches: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
           forces_ready="$(sed -n 's/^- Forces-ready: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
+          season_label="$(sed -n 's/^- Season label: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
           echo "candidate_count=${candidate_count:-0}" >> "$GITHUB_OUTPUT"
           echo "forces_ready=${forces_ready:-no}" >> "$GITHUB_OUTPUT"
+          echo "SEASON_LABEL=${season_label:-${SEASON_ID}}" >> "$GITHUB_ENV"
 
       - name: Open or update issue when structurally usable forces sources are available
         if: steps.preview.outputs.forces_ready == 'yes'
@@ -53,7 +65,7 @@ jobs:
           script: |
             const fs = require("fs");
             const marker = "<!-- isiLive:mplus-forces-ready:" + process.env.SEASON_ID + " -->";
-            const title = "S2 Forces sources available in MDT for " + process.env.SEASON_ID;
+            const title = process.env.SEASON_LABEL + " Forces sources available in MDT for " + process.env.SEASON_ID;
             const report = fs.readFileSync("tools/cache/season_preview/mdt-season-preview.md", "utf8");
             const body = [
               marker,
@@ -98,6 +110,6 @@ jobs:
       - name: Upload MDT season preview artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: mplus-season-preview-${{ env.SEASON_ID }}
+          name: mplus-season-preview-${{ steps.season.outputs.season_id }}
           path: tools/cache/season_preview/
           if-no-files-found: error

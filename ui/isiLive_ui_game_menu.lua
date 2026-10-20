@@ -31,10 +31,10 @@ local MOUNT_PANEL_UI_ENTRIES =
 local GameMenuTravel = assert(addonTable.UIGameMenuTravel, "isiLive: UIGameMenuTravel missing")
 local SECOND_PANEL_UI_ENTRIES =
   assert(GameMenuTravel.SECOND_PANEL_UI_ENTRIES, "isiLive: UIGameMenuTravel.SECOND_PANEL_UI_ENTRIES missing")
-local CollectOwnedHearthstoneToys =
-  assert(GameMenuTravel.CollectOwnedHearthstoneToys, "isiLive: UIGameMenuTravel.CollectOwnedHearthstoneToys missing")
-local ResolveHearthstoneChoice =
-  assert(GameMenuTravel.ResolveHearthstoneChoice, "isiLive: UIGameMenuTravel.ResolveHearthstoneChoice missing")
+local ResolveHearthstoneSelection =
+  assert(GameMenuTravel.ResolveHearthstoneSelection, "isiLive: UIGameMenuTravel.ResolveHearthstoneSelection missing")
+local PickDifferentEntry =
+  assert(GameMenuTravel.PickDifferentEntry, "isiLive: UIGameMenuTravel.PickDifferentEntry missing")
 local DALARAN_HEARTHSTONE_TOY_ID =
   assert(GameMenuTravel.DALARAN_HEARTHSTONE_TOY_ID, "isiLive: UIGameMenuTravel.DALARAN_HEARTHSTONE_TOY_ID missing")
 local IsDalaranHearthstoneAvailable = assert(
@@ -250,36 +250,6 @@ local function IsPanelUIEnabled(state)
   return true
 end
 
--- Picks a random entry from `pool` that differs from `current` when possible.
---
--- The previous shape was `repeat pick = pool[math.random(1, #pool)] until pick
--- ~= current`, guarded only by an `#pool == 1` special case. That loop never
--- terminates when every remaining entry equals `current` -- which happens the
--- moment the owned-toy list contains the same ID twice. The catalogue has no
--- duplicates today, so this was latent rather than live, but the failure mode
--- is a frozen client on a hearthstone click, so the loop gets a hard bound
--- instead of relying on the data staying clean. After MAX_PICK_ATTEMPTS we
--- accept a repeat of the current toy: rerolling the same mount is a cosmetic
--- miss, hanging the client is not.
-local MAX_PICK_ATTEMPTS = 10
-
-local function PickDifferentEntry(pool, current)
-  local size = #pool
-  if size == 0 then
-    return nil
-  end
-  if size == 1 then
-    return pool[1]
-  end
-  local pick = pool[math.random(1, size)]
-  local attempts = 1
-  while pick == current and attempts < MAX_PICK_ATTEMPTS do
-    pick = pool[math.random(1, size)]
-    attempts = attempts + 1
-  end
-  return pick
-end
-
 local function RefreshPanelUISecureButton(button)
   if type(button) ~= "table" or type(button.SetAttribute) ~= "function" then
     return
@@ -292,28 +262,10 @@ local function RefreshPanelUISecureButton(button)
 
   if type(button._actionId) == "string" and button._actionId == "hearthstone" then
     local db = rawget(_G, "IsiLiveDB") or {}
-    local explicitToyId, explicitItemString = ResolveHearthstoneChoice(db.hearthstoneChoice)
-    if explicitToyId then
-      button:SetAttribute("type", "toy")
-      button:SetAttribute("toy", explicitToyId)
-      button._hearthstoneOwnedToys = { explicitToyId }
-    elseif explicitItemString then
-      button:SetAttribute("type", "item")
-      button:SetAttribute("item", explicitItemString)
-      button._hearthstoneOwnedToys = nil
-    else
-      local collect = addonTable.UI and addonTable.UI.CollectOwnedHearthstoneToys
-      local pool = type(collect) == "function" and collect() or {}
-      if type(pool) == "table" and #pool > 0 then
-        button._hearthstoneOwnedToys = pool
-        button:SetAttribute("type", "toy")
-        button:SetAttribute("toy", pool[math.random(1, #pool)])
-      else
-        button:SetAttribute("type", "item")
-        button:SetAttribute("item", "item:6948")
-        button._hearthstoneOwnedToys = nil
-      end
-    end
+    local selection = ResolveHearthstoneSelection(db.hearthstoneChoice)
+    button._hearthstoneOwnedToys = selection.pool
+    button:SetAttribute("type", selection.type)
+    button:SetAttribute(selection.type, selection.value)
     return
   end
 
@@ -889,18 +841,15 @@ function UI.EnsureSecondPanelUI(opts)
           end
           -- Respect a user-set choice in the settings: if a fixed toy or
           -- explicit item is selected, do not override it on TOYS_UPDATED.
+          -- An empty owned pool keeps the current binding as well.
           local db = rawget(_G, "IsiLiveDB") or {}
-          local explicitToyId, explicitItemString = ResolveHearthstoneChoice(db.hearthstoneChoice)
-          if explicitToyId or explicitItemString then
+          local selection = ResolveHearthstoneSelection(db.hearthstoneChoice)
+          if selection.isExplicit or selection.type ~= "toy" then
             return
           end
-          local refreshed = CollectOwnedHearthstoneToys()
-          if #refreshed == 0 then
-            return
-          end
-          btn._hearthstoneOwnedToys = refreshed
+          btn._hearthstoneOwnedToys = selection.pool
           btn:SetAttribute("type", "toy")
-          btn:SetAttribute("toy", refreshed[math.random(1, #refreshed)])
+          btn:SetAttribute("toy", selection.value)
         end)
       end
       hearthstoneToysEventFrame:RegisterEvent("TOYS_UPDATED")
@@ -912,22 +861,16 @@ function UI.EnsureSecondPanelUI(opts)
             return
           end
           local db = rawget(_G, "IsiLiveDB") or {}
-          local explicitToyId, explicitItemString = ResolveHearthstoneChoice(db.hearthstoneChoice)
-          if explicitToyId or explicitItemString then
+          local selection = ResolveHearthstoneSelection(db.hearthstoneChoice, {
+            pool = button._hearthstoneOwnedToys,
+            current = button:GetAttribute("toy"),
+          })
+          if selection.isExplicit or selection.type ~= "toy" then
             return
           end
-          local pool = button._hearthstoneOwnedToys
-          if type(pool) ~= "table" or #pool == 0 then
-            pool = CollectOwnedHearthstoneToys()
-            if #pool == 0 then
-              return
-            end
-            button._hearthstoneOwnedToys = pool
-          end
-          local current = button:GetAttribute("toy")
-          local pick = PickDifferentEntry(pool, current)
+          button._hearthstoneOwnedToys = selection.pool
           button:SetAttribute("type", "toy")
-          button:SetAttribute("toy", pick)
+          button:SetAttribute("toy", selection.value)
         end
 
         if type(button.HookScript) == "function" then

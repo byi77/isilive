@@ -8,6 +8,9 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 ## 1. Daten sammeln und verifizieren
 
 - [ ] Neue Season in `docs/SEASON_INTAKE.md` anlegen, ohne sie zu aktivieren.
+  Die verifizierten Zeilen der laufenden Season bleiben stehen; das Gate prueft
+  jede Season im Intake einzeln. Solange die neue Season nicht im Manifest
+  steht, duerfen ihre Zeilen noch nicht `verified` sein.
 - [ ] Fuer jeden Dungeon `ChallengeMapID`, castbare `PortalSpellID` und
   Mythic+-`LFGActivityID` aus belastbaren Quellen erfassen.
 - [ ] Fuer jeden konkreten Wert `Source`, `VerifiedAt` und `Status` pflegen.
@@ -29,12 +32,18 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
   gegen `C_ChallengeMode.GetMapTable()`, eine vorbereitete Season gewinnt also
   erst, wenn Blizzard sie tatsaechlich ausliefert.
 - [ ] `requiresForces`, `inactivePortalMessageByLocale` und `portalNavigator`
-  bewusst festlegen.
+  bewusst festlegen. `requiresForces` ist ein reines Build-/CI-Gate fuer die
+  generierte Forces-DB (`SeasonData.GetForcesReadiness`) und entscheidet nie
+  ueber die Season-Aktivierung; eine vorbereitete Season darf `true` tragen,
+  bevor ihre eigene Forces-DB existiert.
 - [ ] `portalNavigator.zone` gegen den echten Portalraum pruefen (Map-IDs und
   Zonennamen). Eine falsche Zone laesst den Navigator stumm geschlossen.
 - [ ] `mdtDirectory` nur mit verifiziertem exaktem MDT-Verzeichnis setzen.
   Fehlt es bei `requiresForces = false`, ueberspringt `sync_mdt_forces.lua`
   den Lauf bewusst und laesst die bestehende DB unangetastet.
+- [ ] `upcomingSeasonID` auf die neue Season setzen. Die Season-Tools
+  (`inspect_mdt_season_preview.lua`, Preview-Workflow) zielen dann ohne
+  Argument auf sie; `sync_mdt_forces.lua` bleibt bewusst bei `activeSeasonID`.
 - [ ] `activeSeasonID` in dieser Phase noch nicht umstellen.
 - [ ] Keine saisonalen Zuordnungstabellen in LFG-, Status-, Demo-, UI- oder
   Tooldateien duplizieren.
@@ -46,22 +55,30 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] Falls `requiresForces = true`, `lua tools/sync_mdt_forces.lua` ausfuehren
   und den erzeugten Datensatz kontrollieren.
 - [ ] `data/isiLive_mplus_forces.lua` niemals von Hand bearbeiten.
-- [ ] `lua tools/check_mplus_db_lifetime.lua` erfolgreich ausfuehren.
+- [ ] `lua tools/check_mplus_db_lifetime.lua` erfolgreich ausfuehren. Das Gate
+  prueft Ablaufdatum und Struktur (Season-Match, Gesamtwert und NPC-Abdeckung
+  je Season-Map) fuer die `activeSeasonID`.
 - [ ] Fehlen verifizierte Forces-Daten, die MDT-abhaengigen Anzeigen fail-closed
   lassen und keine Ersatzwerte erzeugen.
 
 ## 4. Aktivierung
 
 - [ ] `lua tools/inspect_season_readiness.lua` ausfuehren und alle gemeldeten
-  Luecken klaeren.
+  Luecken klaeren. Die Spalte `Ready` ist die Aktivierungsbereitschaft; die
+  Spalte `Forces` und der Abschnitt `M+ Forces gate` zeigen getrennt davon den
+  Stand der Forces-DB und blockieren keine Aktivierung.
 - [ ] Die bewusste Freigabe des Users fuer den Saisonwechsel einholen.
 - [ ] Regelfall: Steht `autoDetectFromChallengeMaps = true` und stimmt der
-  Mapsatz, wechselt die Season zur Laufzeit von selbst. `activeSeasonID` bleibt
-  dann unveraendert, und die CI-Gates laufen weiter gegen die alte Season.
+  Mapsatz, wechselt die Season zur Laufzeit von selbst — auch ohne passende
+  oder mit abgelaufener Forces-DB; dann bleiben nur die MDT-Mob-Anzeigen zu.
+  `activeSeasonID` bleibt dabei unveraendert, und die CI-Gates laufen weiter
+  gegen die alte Season.
 - [ ] Fallback: Nur wenn kein Datensatz exakt passt (Blizzards Mapsatz weicht
   vom Manifest ab), `activeSeasonID` in `data/isiLive_seasons.lua` umstellen.
   Danach `lua tools/check_mplus_db_lifetime.lua` pruefen — bei
-  `requiresForces = true` muss vorher eine passende Forces-DB erzeugt sein.
+  `requiresForces = true` muss fuer den Release vorher eine passende Forces-DB
+  erzeugt sein (Build-Gate, keine Laufzeit-Sperre).
+- [ ] Sobald die neue Season aktiv ist, `upcomingSeasonID` wieder entfernen.
 - [ ] TOC-Version und `## Interface` nur nach ausdruecklichem Auftrag erhoehen.
 
 ## 5. Deterministische und In-Game-Pruefung
@@ -72,6 +89,11 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
   Reihenfolge pruefen.
 - [ ] LFG-Erkennung fuer jeden neuen Dungeon pruefen.
 - [ ] Portal-Navigator, lokalisierte Namen, Kurzcodes und leere Slots pruefen.
+  Namen ausserhalb `enUS`/`deDE` kommen aus `C_ChallengeMode.GetMapUIInfo`
+  und muessen nicht ins Manifest.
+- [ ] Demo-Modus (`Ctrl + Alt + F9`) oeffnen: Dummy-Keys, Demo-Ziel und
+  Demo-Navigator muessen die neue Season zeigen. Sie leiten sich aus
+  `SeasonData` ab; dafuer ist keine Code-Aenderung noetig.
 - [ ] Verhalten mit nicht erlernten Portalen und laufenden Cooldowns pruefen.
 - [ ] Blizzard-Forces-Fortschritt sowie aktivierte oder bewusst deaktivierte
   MDT-abhaengige Mob-Anzeigen pruefen.
@@ -89,6 +111,32 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1`.
 - [ ] Erst abschliessen, wenn CI, Coverage-Gates und alle Simulatoren gruen sind.
 - [ ] Commit, Push oder Release nur nach ausdruecklichem User-Auftrag ausfuehren.
+
+## 7. Alte Season entfernen (optional)
+
+Eine beendete Season darf aus `data/isiLive_seasons.lua` entfernt werden, muss
+aber nicht. Sie bleibt sonst als manueller Fallback und fuer die exakte
+Mapset-Erkennung erhalten. Tests haengen nicht an historischen Seasons: Wer
+"irgendeine zweite Season" braucht, nutzt die synthetische Fixture-Season aus
+`testmodul/isilive_test_fixture_seasons.lua` (geprueft am 2026-10-20, als
+`midnight_s1` probeweise entfernt wurde: alle Usecases und Simulatoren gruen).
+
+- [ ] Nur entfernen, wenn die Nachfolge-Season aktiv ist: `activeSeasonID` zeigt
+  nicht mehr auf die alte Season, und `lua tools/inspect_season_readiness.lua`
+  meldet die aktive Season als bereit.
+- [ ] `upcomingSeasonID` darf nicht auf die alte Season zeigen.
+- [ ] Die Forces-DB `data/isiLive_mplus_forces.lua` darf nicht fuer die alte
+  Season erzeugt sein (`lua tools/check_mplus_db_lifetime.lua`).
+- [ ] Die Intake-Zeilen der alten Season in `docs/SEASON_INTAKE.md` gleichzeitig
+  entfernen: `verified`-Zeilen einer Season, die nicht mehr im Manifest steht,
+  lassen `tools/check_season_intake.lua` scheitern.
+- [ ] Den Saison-Nachweis unten (Abschlussnachweis) als Historie stehen lassen.
+- [ ] Danach den vollstaendigen lokalen CI-Lauf ausfuehren
+  (`powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1`).
+- [ ] Tests, die bewusst echte Produktionsdaten pruefen (Manifestinhalt der
+  aktiven Season, Intake-Drift, Forces-DB-Abgleich), beziehen sich auf die
+  aktive Season; Literal-IDs einer entfernten Season duerfen dort nicht
+  stehen bleiben.
 
 ## Abschlussnachweis
 

@@ -219,23 +219,27 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       Assert.Equal(orderedActiveMapIDs[1], 2287, "explicit season display order should place HOA first")
       Assert.Equal(orderedActiveMapIDs[2], 2441, "explicit season display order should keep Tazavesh slot stable")
 
-      local availableSeasonIDs = addon.SeasonData.GetAvailableSeasonIDs()
-      local hasPreparedMidnightSeason = false
-      for _, seasonID in ipairs(availableSeasonIDs) do
-        if seasonID == "midnight_s1" then
-          hasPreparedMidnightSeason = true
+      -- A non-active season stays addressable by id. The synthetic fixture plays
+      -- that role so retiring a real season never breaks this test.
+      local FixtureSeasons = assert(rawget(_G, "loadfile")("testmodul/isilive_test_fixture_seasons.lua"))()
+      FixtureSeasons.Install(addon)
+      local fixtureID = FixtureSeasons.PREVIOUS_SEASON_ID
+      local hasNonActiveSeason = false
+      for _, seasonID in ipairs(addon.SeasonData.GetAvailableSeasonIDs()) do
+        if seasonID == fixtureID then
+          hasNonActiveSeason = true
           break
         end
       end
-      Assert.True(hasPreparedMidnightSeason, "prepared midnight_s1 season scaffold should be registered")
+      Assert.True(hasNonActiveSeason, "a non-active season should stay registered")
       Assert.NotNil(
-        next(addon.SeasonData.GetMapToTeleport("midnight_s1")),
-        "midnight_s1 should expose filled live mappings once portal IDs are available"
+        next(addon.SeasonData.GetMapToTeleport(fixtureID)),
+        "a non-active season should expose its mappings by id"
       )
       Assert.Equal(
-        #addon.SeasonData.GetOrderedMapIDs("midnight_s1"),
-        8,
-        "midnight_s1 should keep all 8 active ordered-map entries once mappings are provided"
+        #addon.SeasonData.GetOrderedMapIDs(fixtureID),
+        #FixtureSeasons.MapIDs(),
+        "a non-active season should keep all its ordered-map entries"
       )
     end)
   end)

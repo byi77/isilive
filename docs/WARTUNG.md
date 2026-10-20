@@ -156,36 +156,40 @@ Kritisch:
 
 `data/isiLive_seasons.lua` ist die einzige manuell gepflegte Runtime-Saisonquelle. `isiLive_season_data.lua` kompiliert daraus die Lookup-Flaechen fuer Teleports, LFG-Activities, Namen, Kurzcodes, Reihenfolge, Stufengates und Portalraum. Keine dieser Zuordnungen parallel in Verbraucherdateien pflegen. Die grosse, generierte und verfallende `data/isiLive_mplus_forces.lua` bleibt separat.
 
-Aktueller Stand:
-- `midnight_s1` ist die aktive Runtime-Season.
-- `midnight_s2` ist als vorbereitetes Dataset mit verifizierten Portal-/Challenge-Mappings und vollstaendigen Darstellungsdaten vorhanden. Die automatische Aktivierung erfolgt nur beim exakten, eindeutigen Blizzard-S2-Mapset und darf nicht von MDT-Forces abhaengen.
-- Freigabe-Intake vom `2026-07-13`: alle acht ChallengeMapIDs, castbaren PortalSpellIDs, Mythic+-LFG-Activity-IDs und Darstellungsdaten sind gepflegt. Die abweichenden `128977x`-Instant-Spells sind keine Portal-Cast-IDs. Nur die optionale S2-MDT-Forces-DB fehlt; `midnight_s1` bleibt aktiv, solange Blizzard nicht exakt das verifizierte S2-Mapset liefert und `activeSeasonID` nicht manuell umgestellt wird.
-- Die Portalraum-Belegung fuer `midnight_s2` ist dokumentiert, aber nicht aktiviert: ganz links leer, halb links Koenigsruh, oben Rubinlebensbecken, halb rechts Tempel von Sethraliss, ganz rechts leer.
-- `midnight_s2.autoDetectFromChallengeMaps=true`; Login und `CHALLENGE_MODE_MAPS_UPDATE` duerfen S2 nur bei einem exakten, eindeutigen Blizzard-S2-Mapset aktivieren. `activeSeasonID` bleibt der manuelle Fallback.
+Abgeleitet und beim Saisonwechsel nicht von Hand nachzuziehen:
+- Der Demo-Modus leitet sich vollstaendig aus `SeasonData` ab: Dummy-Keys zeigen auf Positionen in `GetOrderedMapIDs()` (mit Umlauf bei weniger Dungeons), Demo-Ziel ist der erste Dungeon der aktiven Season, und der Demo-Portal-Navigator nutzt denselben Layout-Builder wie der echte Navigator (`Status.BuildPortalNavigatorLayout`). Ohne aktive Season bleiben Dummy-Keys und Demo-Ziel leer statt S1-Werte zu zeigen.
+- Dungeonnamen: `SeasonData.GetDungeonName` liefert zuerst den Manifest-Namen der angefragten Sprache, dann den client-lokalisierten Blizzard-Namen aus `C_ChallengeMode.GetMapUIInfo` (nur wenn die angefragte Sprache die Client-Sprache ist), zuletzt den englischen Manifest-Namen. Das Manifest braucht deshalb nur `enUS`/`deDE`; `frFR`, `ruRU`, `trTR` und nicht unterstuetzte Clientsprachen bekommen den Blizzard-Namen. Die enUS/deDE-Pflicht in der Readiness bleibt bestehen (Regeln 97/98).
+
+Aktueller Stand (den Live-Stand liefern `lua tools/inspect_season_readiness.lua` und `lua tools/check_season_intake.lua`; diese Prosa beschreibt nur den letzten Wechsel):
+- `midnight_s2` ist seit `2026-09-06` die aktive Runtime-Season (`activeSeasonID`, Commit `f162c6b`, ausgeliefert mit 0.9.383). Die Forces-DB `data/isiLive_mplus_forces.lua` ist fuer `midnight_s2` generiert; der Nachweis steht in `docs/SAISON_WECHSEL.md`.
+- `midnight_s1` bleibt als historischer Datensatz mit `requiresForces = false` im Manifest und ist ueber die exakte Mapset-Erkennung weiterhin waehlbar. Tests haengen nicht an S1: Tests, die "eine zweite, nicht aktive Season" brauchen, nutzen die synthetische Fixture-Season aus `testmodul/isilive_test_fixture_seasons.lua` (vom echten Compiler kompiliert, `FixtureSeasons.Install` bzw. fuer Tools `FixtureSeasons.MANIFEST_PATH`). Neue Tests dieser Art keine historischen Season-IDs verwenden. Entfernen einer alten Season: `docs/SAISON_WECHSEL.md` Abschnitt 7.
+- Der Test "Maintenance doc names only the manifest activeSeasonID as the active season" bricht, sobald dieser Abschnitt eine andere Season als `activeSeasonID` als aktive Runtime-Season nennt.
+- Die S2-Portalraum-Belegung ist aktiv: ganz links leer, halb links Koenigsruh, oben Rubinlebensbecken, halb rechts Tempel von Sethraliss, ganz rechts leer.
+- Beide Seasons stehen auf `autoDetectFromChallengeMaps = true`; Login und `CHALLENGE_MODE_MAPS_UPDATE` waehlen nur bei einem exakten, eindeutigen Blizzard-Mapset. `activeSeasonID` bleibt der manuelle Fallback.
 
 Wenn eine neue Season startet:
 - neue Season und alle Dungeon-Datensaetze ausschliesslich in `data/isiLive_seasons.lua` eintragen und die automatische Auswahl explizit erlauben oder verbieten
 - Activity-, Portal-, Namens-, Kurzcode-, Reihenfolge-, Stufengate- und Portalraum-Daten nicht in LFG-, Status-, Demo- oder Tooldateien duplizieren
 - Forces-DB getrennt pflegen und nur bei exaktem Match zur aktiven Season an Runtime-Verbraucher ausgeben
-- bei `midnight_s2` die exakte Mapset-Autoerkennung und `activeSeasonID` als manuellen Fallback beibehalten
+- Forces-Daten sind kein Aktivierungskriterium (Regel 97): `GetSeasonReadiness` prueft nur Manifest- und Darstellungsdaten, die automatische Auswahl wechselt auch bei fehlender, fremder oder abgelaufener Forces-DB. `requiresForces = true` erzwingt die passende DB nur als Build-Gate ueber `SeasonData.GetForcesReadiness`
+- Eine endgueltige Ablehnung der automatischen Auswahl (kein exakter Satz, mehrdeutig, Season nicht bereit) wird nicht nach jedem Kampfende wiederholt; nur Kampf-Abbruch und eine fehlende oder leere Map-Liste (`retryable`) werden bei `PLAYER_REGEN_ENABLED` nachgeholt
+- fuer die neue Season die exakte Mapset-Autoerkennung und `activeSeasonID` als manuellen Fallback beibehalten
 - keine halbfertige Season live schalten und kein Datum als Umschaltquelle verwenden
 
-Fuer Midnight Season 2 muessen vor Aktivierung verifiziert werden:
-- Challenge-Map-IDs fuer alle acht Dungeons (erledigt 2026-07-13)
-- Portal-Spell-IDs fuer alle acht Dungeons (erledigt 2026-07-13)
-- `displayOrder`, englische/deutsche Namen und alle Default-/deDE-Kurzcodes (erledigt 2026-07-13; Reihenfolge aufsteigend nach Map-ID)
-- eine zu `midnight_s2` passende Forces-DB mit allen acht Dungeon-Gesamtwerten und NPC-Daten fuer die spaetere Freischaltung der optionalen Mob-Anzeigen; kein Aktivierungsblocker
+Vor Aktivierung einer neuen Season verifizieren (Checkliste: `docs/SAISON_WECHSEL.md`):
+- Challenge-Map-IDs, castbare Portal-Spell-IDs und Mythic+-LFG-Activity-IDs fuer alle Dungeons
+- `displayOrder`, englische/deutsche Namen und alle Default-/deDE-Kurzcodes
+- Portalraum-Zone und Slots
+- optional eine passende Forces-DB aus dem offiziellen MythicDungeonTools-Quellstand; kein Aktivierungsblocker. Fehlt sie, liefert `SeasonData.GetMatchingForcesData()` `nil`; Nameplate-Mobprozente, Mob-Tooltips und MDT-Total-Fallback bleiben unsichtbar, der Blizzard-Scenario-Gesamtfortschritt laeuft weiter.
 
-Forces-Quelle fuer S2 ist der offizielle MythicDungeonTools-Quellstand. Stand `2026-07-13` / MDT `6.1.20` ist er noch nicht verwendbar: Im `Midnight`-Ordner existiert fuer S2 nur ein unvollstaendiges `MurderRow.lua`-Geruest mit `mapID = 12345 -- FIXME`, waehrend die sieben weiteren S2-Dungeon-Dateien fehlen. S2 kann trotzdem manuell aktiv sein. `SeasonData.GetMatchingForcesData()` liefert in diesem Zustand fuer die weiterhin gebuendelte S1-DB `nil`; Nameplate-Mobprozente, Mob-Tooltips und MDT-Total-Fallback bleiben unsichtbar, waehrend Blizzard-Scenario-Gesamtfortschritt weiterlaeuft.
-- LFG-Activity-IDs fuer Mythic+-Listings (erledigt 2026-07-12)
-- MDT-/Forces-Daten inklusive Dungeon-Gesamtwerten und NPC-Zaehlern
-- Lokalisierte Dungeonnamen und stabile Kurz-Codes fuer `enUS`/Default und `deDE` (erledigt 2026-07-13)
+Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `docs/SEASON_INTAKE.md` gesammelt. Jede konkrete ID braucht `Source` und `VerifiedAt`; fehlende Werte bleiben `unresolved`. `tools/check_season_intake.lua` validiert die Struktur lokal, in CI und ueber den taeglichen Workflow `.github/workflows/season-intake.yml`. Ohne Argument prueft es jede Season im Intake einzeln (die laufende Season behaelt ihre verifizierten Zeilen und ihren Drift-Abgleich, eine noch nicht im Manifest angelegte Season darf keine `verified`-Zeilen tragen); der Workflow fuehrt pro Season ein eigenes GitHub Issue.
 
-Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `docs/SEASON_INTAKE.md` gesammelt. Jede konkrete ID braucht `Source` und `VerifiedAt`; fehlende Werte bleiben `unresolved`. `tools/check_season_intake.lua` validiert die Struktur lokal, in CI und ueber den taeglichen Workflow `.github/workflows/season-intake.yml`, der ein GitHub Issue mit dem aktuellen Intake-Stand aktualisiert.
+Das optionale Manifest-Feld `upcomingSeasonID` benennt die gerade vorbereitete Season. `SeasonData.GetToolDefaultSeasonID()` liefert sie, sonst `activeSeasonID`; `inspect_mdt_season_preview.lua` und der Preview-Workflow (`--print-default-season`) nutzen diesen Default statt einer festen Season-ID. Eine unbekannte ID ist ein Manifest-Fehler (`SeasonData.MANIFEST_ERRORS`) und laesst das Intake-Gate scheitern. Die Runtime liest das Feld nie; `sync_mdt_forces.lua` bleibt bei `activeSeasonID`, weil die Runtime-DB zur aktiven Season passen muss.
 
 ### 3.5 BR-/Bloodlust-Combat-Events und Addon-Message-Transport
 
 Pruefen:
+- `data/isiLive_spells.lua` (Spell-IDs, siehe 3.14)
 - `game/isiLive_combat_events.lua`
 - `logic/isiLive_sync.lua` (`SendCombatAnnounce`, `ProcessAddonMessage.BRLUST`)
 - `logic/isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`)
@@ -202,7 +206,7 @@ Aktueller Soll-Zustand:
 Typische Ursachen fuer Brueche:
 - Jemand legt `SendChatMessage` zurueck in den Broadcast-Pfad → `ADDON_ACTION_FORBIDDEN`-Popup im Live-Key.
 - Der Self-Cast-Filter (`unit == "player"`) wird aufgeweicht → sofortiger Log-Spam aus anderen Spielern in protected Zonen.
-- Blizzard erweitert BR- oder Lust-Spell-Liste → `BR_SPELL_IDS` / `LUST_CAST_IDS` entsprechend ergaenzen, sonst fehlen Ansagen.
+- Blizzard erweitert BR- oder Lust-Spell-Liste → Eintrag in `data/isiLive_spells.lua` (`battleRes` / `lustCasts`, Sated-Debuff in `lustSated`) ergaenzen, sonst fehlen Ansagen; siehe 3.14.
 
 ### 3.6 UNIT_AURA-Payload und Secret-Value-Felder (ab 12.1)
 
@@ -325,15 +329,16 @@ Aktueller Soll-Zustand:
 - `expiresAt` ist `generatedAt + 15 Tage`. Das Lifetime-Gate blockiert jeden Release mit abgelaufenem DB-File; Override ausschliesslich ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
 - Die Runtime prueft dasselbe `expiresAt` bei jedem Zugriff ueber `SeasonData.GetMatchingForcesData`; abgelaufene oder kalendarisch ungueltige Snapshots sowie ein nicht verifizierbares aktuelles Datum schliessen alle MDT-abhaengigen Anzeigen sofort.
 - Der Generator schreibt Single-Space-Key-Format (`season = %q,`), damit StyLua den regenerierten Datensatz akzeptiert.
-- Der Season-Readiness-Workflow fuehrt `tools/inspect_season_readiness.lua` aus, berichtet aktive/vorbereitete Seasons, Readiness-Fehler und den Abgleich zwischen aktiver Season und Forces-DB als Summary/Artifact und committet nichts.
-- Der M+-Season-Preview-Workflow klont MDT taeglich und fuehrt `tools/inspect_mdt_season_preview.lua` fuer die angefragte Season aus. Ein stabiles GitHub Issue wird erst erstellt oder wieder geoeffnet, wenn alle acht Dungeons als ausfuehrbare Datensaetze mit exakt passender Map-ID, positivem normalem Dungeon-Gesamtwert und mindestens einem positiven NPC-Forces-Eintrag strukturell nutzbar sind. Der Inspector prueft nach ungueltigen Texttreffern weitere Dateien. Das Signal beweist nicht, dass upstream bereits jeden beabsichtigten NPC enthaelt; die generierte Runtime-DB bleibt separat zu validieren. Locale-/Moduldateien und Platzhalter wie `mapID = 12345` erzeugen keinen Alarm. Das Issue wird seitenuebergreifend anhand seines Markers gefunden, damit geschlossene Issues nicht dupliziert werden.
+- `tools/check_mplus_db_lifetime.lua` prueft nach dem Ablaufdatum zusaetzlich die Struktur ueber `SeasonData.GetForcesReadiness` (Season-Match, positiver Gesamtwert und NPC-Abdeckung je Map der `activeSeasonID`, keine fremden Maps); bei `requiresForces = false` wird dieser Schritt uebersprungen. Das ist das einzige Gate fuer `requiresForces` — die Season-Aktivierung zur Laufzeit liest keine Forces-Daten.
+- Der Season-Readiness-Workflow fuehrt `tools/inspect_season_readiness.lua` aus, berichtet aktive/vorbereitete Seasons, Readiness-Fehler, getrennt davon die Spalte `Forces` (`yes`/`no`/`skipped`) mit dem Abschnitt `M+ Forces gate` sowie den Abgleich zwischen aktiver Season und Forces-DB als Summary/Artifact und committet nichts.
+- Der M+-Season-Preview-Workflow klont MDT taeglich und fuehrt `tools/inspect_mdt_season_preview.lua` fuer die angefragte Season aus. Ein stabiles GitHub Issue wird erst erstellt oder wieder geoeffnet, wenn alle Dungeons der Season als ausfuehrbare Datensaetze mit exakt passender Map-ID, positivem normalem Dungeon-Gesamtwert und mindestens einem positiven NPC-Forces-Eintrag strukturell nutzbar sind. Der Inspector prueft nach ungueltigen Texttreffern weitere Dateien. Das Signal beweist nicht, dass upstream bereits jeden beabsichtigten NPC enthaelt; die generierte Runtime-DB bleibt separat zu validieren. Locale-/Moduldateien und Platzhalter wie `mapID = 12345` erzeugen keinen Alarm. Das Issue wird seitenuebergreifend anhand seines Markers gefunden, damit geschlossene Issues nicht dupliziert werden.
 
 Typische Ursachen fuer Brueche:
 - MDT aendert die Struktur von `dungeonEnemies` / `dungeonTotalCount` / `mapInfo` → `sync_mdt_forces.lua` anpassen, lokal per `lua tools/sync_mdt_forces.lua` gegen einen frischen `tools/cache/mdt`-Clone testen.
 - MDT-Clone schlaegt im Workflow fehl → Auto-Refresh bleibt still, Lifetime-Gate wird irgendwann rot.
 - Season-Wechsel → `activeSeasonID` und bei verifizierter MDT-Struktur `mdtDirectory` im Manifest pflegen; `sync_mdt_forces.lua` liest beide Werte daraus.
 
-### 3.10 Gruppensuche-Buff-Rating-Herzchen
+### 3.10 Gruppensuche-Buff-Rating-Pluszeichen
 
 Pruefen:
 - `ui/isiLive_lfg_flags.lua`
@@ -348,13 +353,13 @@ Aktueller Soll-Zustand:
 - `lfgGroupBonusesEnabled` ist ein SavedVariable-Schemafeld mit Default `true`.
 - Suchergebniszeilen und Bewerberzeilen zeigen nur relevante, nicht stapelnde Nicht-Utility-Boni als gruene Marker.
 - Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und vergleichbare Utility-Hinweise duerfen im Tooltip erscheinen, zaehlen aber nicht fuer die kompakten Marker.
-- Settings-Beschreibung und sichtbare Marker verwenden `Interface\AddOns\isiLive\media\heart_bonus_green.tga`; Font-Herz-Glyphen sind fuer dieses Feature nicht stabil genug.
+- Settings-Beschreibung und sichtbare Marker verwenden `Interface\AddOns\isiLive\media\plus_bonus_green.tga`; Font-Pluszeichen-Glyphen sind fuer dieses Feature nicht stabil genug.
 - Die Settings-Beschreibung erklaert untereinander 1/2/3/4 Herzchen als einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs.
 - `SetGroupBonusesEnabled(false)` leert Suchergebnis-Caches und sichtbare Bewerbermarker.
 
 Typische Ursachen fuer Brueche:
 - Ein neuer Bonus wird als Utility oder als stapelnder Gruppenbuff falsch einsortiert → Markerzahl wird irrefuehrend.
-- Eine Locale-Beschreibung nutzt ein rohes Herzzeichen statt `heart_bonus_green.tga` → Darstellung driftet zwischen Fonts/Clients.
+- Eine Locale-Beschreibung nutzt ein rohes Pluszeichenzeichen statt `plus_bonus_green.tga` → Darstellung driftet zwischen Fonts/Clients.
 - Ein Settings-Schalter schreibt nur DB, ruft aber nicht den Live-Callback → Anzeige aendert sich erst nach Reload.
 
 ### 3.11 Lokalisierung und Uebersetzungs-PRs
@@ -370,7 +375,7 @@ Pruefen:
 Aktueller Soll-Zustand:
 - Beim Programmieren werden neue Texte mindestens in Englisch und Deutsch gepflegt.
 - Weitere vorbereitete Locales duerfen bewusst englischen Fallback behalten, bis sie nachbearbeitet werden.
-- Settings-Texte sind fuer `frFR`, `esES`, `ptBR`, `itIT`, `ruRU` und `trTR` nachbearbeitet; andere vorbereitete Locale-Bereiche duerfen weiterhin englische Fallbacks tragen. Neue Settings-Texte duerfen diesen Stand nicht wieder auf englische Fallbacks zuruecksetzen.
+- Settings-Texte sind fuer `frFR`, `ruRU` und `trTR` nachbearbeitet (`esES`, `ptBR` und `itIT` sind seit 2026-10-20 keine UI-Sprachen mehr); andere vorbereitete Locale-Bereiche duerfen weiterhin englische Fallbacks tragen. Neue Settings-Texte duerfen diesen Stand nicht wieder auf englische Fallbacks zuruecksetzen.
 - Hilfreiche Uebersetzungs-PRs werden angenommen, wenn sie technisch zum aktuellen UI- und Regelvertrag passen; der User wird im Changelog bedankt.
 - `Locale.LocaleToLanguageTag` ist tooltip-hotpath-sicher: statischer Lookup, kein Iterieren ueber `Languages.SUPPORTED` beim Hover.
 - `koKR`, `zhCN` und `zhTW` bleiben display-only Flag-Tags ohne vollstaendige UI-Sprache.
@@ -413,6 +418,48 @@ Typische Ursachen fuer Brueche:
   in `docs/ASSET_PROVENANCE.md` nachzuziehen.
 - Ein Mockup-Asset landet durch eine abweichende Ausschlussliste im
   CurseForge-/WowUp-Paket.
+
+### 3.13 Ruhesteine, Mounts und Reise-Items pflegen
+
+Pruefen:
+- `data/isiLive_travel_items.lua` (einzige Datenquelle: Ruhestein-Toy-Pool, Standard-Ruhestein, Dalaran-Ruhestein, Arcantina-Schluessel, Mount-Spells)
+- `docs/TRAVEL_INTAKE.md`
+- `tools/check_travel_items.lua`
+
+Neuer Ruhestein-Toy:
+- Zeile in `docs/TRAVEL_INTAKE.md` (`Ruhestein-Intake`) mit ToyID, `Source`, `VerifiedAt`, `Status = verified` und `Patch`.
+- Eine Zeile in `hearthstoneToys` mit `id`, `englishName` und `verification = { status = "verified", source, verifiedAt }`.
+- Bedingte Toys bekommen `requires = { covenantID, renownCriteria }` oder `requires = { raceIDs = { ... } }`; neuer Code ist dafuer nicht noetig. Ein neuer Bedingungstyp braucht einen Zweig in `MeetsRequirements` in `ui/isiLive_ui_game_menu_travel.lua` und im Gate.
+- `lua tools/check_travel_items.lua` und `lua tools/validate_usecases.lua` ausfuehren.
+
+Was kaputtgehen kann:
+- Eine `verified`-Zeile ohne passenden Datensatz oder ein `verified`-Datensatz ohne Intake-Zeile laesst das Gate fehlschlagen.
+- `legacy` markiert den Bestand vor 2026-10-20 ohne dokumentierte Herkunft; diese Eintraege werden nicht nachtraeglich mit Quellen versehen.
+- Die Settings-Werte `random`, `item:6948` und `toy:<id>` sind persistierte Werte in `IsiLiveDB.hearthstoneChoice` und bleiben stabil, auch wenn sich die Datenquelle aendert.
+- Der Arcantina-Button nutzt `/use item:253629`; die Bestaetigung im Spiel auf allen Clientsprachen steht noch aus.
+
+### 3.14 Nach einem WoW-Patch: neue Spells und Specs
+
+Jede Datenart hat genau eine Stelle; Verbraucher leiten ihre Lookup-Tabellen daraus ab und pflegen keine eigenen Kopien.
+
+| Datenart | Einzige Stelle | Gate |
+| --- | --- | --- |
+| Battle-Res-, Bloodlust-Cast-, Sated-Debuff-IDs, Power Infusion, CD-Zeilen-Icons | `data/isiLive_spells.lua` (`SpellManifest`) | `lua tools/validate_usecases.lua` (Snapshot- und End-to-end-Tests) |
+| Spec-IDs mit Klasse, Name, LFG-Bonusprofil (`lfg`), Stats-Box-Primaerstat (`primaryStat`) | `data/isiLive_specs.lua` (`SpecManifest`) | `lua tools/check_spec_coverage.lua` |
+| Interrupt-Spell und Cooldown pro Spec | `game/isiLive_kick_tracker.lua` (`SPEC_DATA` / `NO_INTERRUPT_SPEC_IDS`) | Skill `interrupt-audit`, `check_spec_coverage.lua` (Abdeckung je Spec) |
+
+Neuer Bloodlust-artiger Spell:
+- Eintrag in `lustCasts`; `actionButton = true` nur fuer Klassen- oder Pet-Spells, die auf der Aktionsleiste liegen koennen (Drums bleiben aus der Button-Warnung). Der zugehoerige Sated-Debuff gehoert getrennt nach `lustSated`.
+- Regel `RULE-VIP-BLOODLUST-DEBUFF-BUTTON-WARNUNG` zaehlt die IDs ausdruecklich auf; eine neue ID braucht dort eine User-Freigabe der Regelaenderung.
+
+Neue Spezialisierung:
+- Datensatz in `data/isiLive_specs.lua` mit `class`, `name` und allen vier `lfg`-Flags als explizite Booleans; `primaryStat` nur, wenn die Spec vom Klassen-Default der Stats-Box abweicht.
+- Interrupt-Entscheidung im Kick-Tracker (`SPEC_DATA` oder `NO_INTERRUPT_SPEC_IDS`), Cooldown aus dem Tooltip.
+- `check_spec_coverage.lua` meldet fehlende Pflichtfelder, fehlende Interrupt-Entscheidungen und neue Literal-Tabellen mit Spec-ID-Schluesseln ausserhalb von `data/`.
+
+Bekannte, bewusst nicht entschiedene Datenlage (Stand 2026-10-20):
+- Devourer (1480) zaehlt im LFG-Bonusprofil als Attack-Power-Nutzer mit physischem Schaden, in der Stats-Box als Intelligenz-Spec. Beide Werte sind unveraendert aus dem Bestand uebernommen.
+- `390435` heisst laut Wowhead `Exhaustion`; der ausloesende Spell ist dort nicht genannt und bleibt im Manifest offen.
 
 ## 4) Dinge, die bewusst so gebaut sind und nicht versehentlich rueckgaengig gemacht werden duerfen
 
@@ -562,8 +609,8 @@ Mindestens das testen:
 6. M0 betreten, Gruppe teilweise aufloesen, Dungeon verlassen -> DPS bleibt ueber frozen roster matchbar
 7. Key-Anzeige zeigt echte Shortcodes, keine `228`/`277`-Zahlen
 8. Tooltip zeigt `Level`, `Lang`, `Last run DPS`
-9. LFG-Suchergebnis und Bewerberzeile zeigen Buff-Rating-Herzchen nur, wenn der Settings-Schalter aktiv ist
-10. Settings-Beschreibung fuer `Group Finder: Buff rating hearts` nutzt gruene Texturbeispiele untereinander
+9. LFG-Suchergebnis und Bewerberzeile zeigen Buff-Rating-Pluszeichen nur, wenn der Settings-Schalter aktiv ist
+10. Settings-Beschreibung fuer `Group Finder: Buff rating plus signs` nutzt gruene Texturbeispiele untereinander
 11. Readycheck-Button funktioniert als Leader und bleibt fuer Nicht-Leader optisch deaktiviert
 12. Ready-Check-Zeilen zeigen Ready, Not-ready und Waiting jeweils mit Hintergrundfarbe und passendem Blizzard-Symbol; die Resultat-Holds behalten beides und entfernen beides nach Ablauf
 13. `Background Opacity` live von 30% ueber 50% bis 100% bewegen; Main-Backdrop, Titelflaeche, Portaltiles, BR-/BL-/M+-Timer und Killtracker muessen gemeinsam reagieren, ohne dass Titel oder untere Run-Bloecke fast deckend dunkel bleiben
@@ -856,7 +903,7 @@ Zeitliche Streuung (Jitter) wurde verworfen. Manueller Refresh und Gruppenende
 loeschen weiter vollstaendig.
 
 Forces-DB: der Generator vergibt 15 Tage Laufzeit, Refresh daher etwa alle zwei
-Wochen (`tools/sync_mdt_forces.ps1 -Season midnight_s2`, dann Release). Der
+Wochen (`tools/sync_mdt_forces.ps1` ohne `-Season` erzeugt fuer `activeSeasonID`, dann Release). Der
 MDT-Cache unter `tools/cache/mdt` haelt sein Git-Verzeichnis ausserhalb des
 WoW-Ordners (`--separate-git-dir`); ein echter `.git`-Ordner dort fuehrt zur
 Battle.net-Update-Schleife (error 2118).

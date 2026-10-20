@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-10-20 - Version 0.9.441 (patch)
+
+### Utility marker update
+
+- Replace green group-bonus hearts with glossy green plus signs (soft green
+  halo, baked diagonal gloss highlight) in search results, applicant rows,
+  roster names and settings examples. The effect is part of the transparent
+  texture; no animation timer or per-frame update is needed.
+- Replace the blue isiLive peer heart with a blue bidirectional connection
+  arrow. Keep its position before the leader crown and preserve bonus counts,
+  settings and sync behavior.
+- Bundle transparent TGA textures with a reproducible geometric generator.
+
+### Personal dungeon best
+
+- Show your current character's highest completed seasonal dungeon level in an independent isiLive label (`You: +14`), with or without PGF. Replace only PGF's leader-best line and retain its overall rating; disabling PGF rating info does not hide your own best. Timed and overtime completions count; unavailable or ambiguous data stays hidden.
+
+### Bloodlust follow-up
+
+- Query Sated-class player auras with `GetPlayerAuraBySpellID` before trying
+  aura lists. Both `GetUnitAuras` and `GetAuraDataByIndex` require unit-aura
+  access; replacing only the index scan did not cover restricted list access.
+- Keep secret values, errors and masked expiration times unresolved. No
+  synthetic lockout duration is introduced.
+- Extend `/isilive bldump` with direct lookup results for each maintained
+  lockout ID. Add regression coverage for blocked list APIs, visible and hidden
+  countdowns, ten-second warnings, ready alerts and reminders.
+- Live verification in the affected client remains required.
+
+### Languages, data and tooling
+
+- Remove Spanish, Portuguese and Italian as UI languages; those clients and
+  persisted settings resolve to English. Supported: enUS, deDE, frFR, ruRU,
+  trTR.
+- Move spell, spec and travel-item tables into `data/` single sources
+  (`isiLive_spells.lua`, `isiLive_specs.lua`, `isiLive_travel_items.lua`) with
+  the new gates `tools/check_spec_coverage.lua` and
+  `tools/check_travel_items.lua` and the intake file `docs/TRAVEL_INTAKE.md`.
+- Season manifest: `upcomingSeasonID` drives the season preview tools and
+  workflow; `requiresForces` is documented as a build gate only. Tests use a
+  synthetic previous-season fixture instead of a real retired season.
+- Fix editor diagnostics: the season-preview workflow names its artifact from
+  a step output, and tests reach `io` / `loadfile` through `rawget(_G, ...)`.
+
 ## 2026-10-20 - Version 0.9.440 (patch)
 
 - Bloodlust timer and alerts inside keys: the Lust scan read the player's

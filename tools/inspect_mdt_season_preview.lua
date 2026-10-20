@@ -7,7 +7,6 @@
 local DEFAULT_LANGUAGE_PATH = "locale/isiLive_languages.lua"
 local DEFAULT_SEASON_DATA_PATH = "game/isiLive_season_data.lua"
 local DEFAULT_MDT_PATH = "tools/cache/mdt"
-local DEFAULT_SEASON_ID = "midnight_s2"
 local DEFAULT_SYNC_TOOL_PATH = "tools/sync_mdt_forces.lua"
 
 local function ParseArgs(args)
@@ -20,6 +19,8 @@ local function ParseArgs(args)
       opts.mdtPath = value
     elseif key == "season-data" then
       opts.seasonDataPath = value
+    elseif arg == "--print-default-season" then
+      opts.printDefaultSeason = true
     end
   end
   return opts
@@ -181,36 +182,68 @@ end
 
 local M = {}
 
+local function LoadSeasonData(opts, addonTable)
+  local ok, err = LoadAddonFile(opts.languagePath or DEFAULT_LANGUAGE_PATH, addonTable)
+  if not ok then
+    return nil, err
+  end
+  ok, err = LoadAddonFile(opts.seasonDataPath or DEFAULT_SEASON_DATA_PATH, addonTable)
+  if not ok then
+    return nil, err
+  end
+  if type(addonTable.SeasonData) ~= "table" then
+    return nil, "addonTable.SeasonData missing"
+  end
+  return addonTable.SeasonData
+end
+
+-- Default target when no --season is given: the manifest's upcomingSeasonID,
+-- otherwise its activeSeasonID. Never a literal season id in this tool.
+function M.ResolveDefaultSeasonID(opts)
+  local seasonData, err = LoadSeasonData(opts or {}, {})
+  if not seasonData then
+    return nil, err
+  end
+  local seasonID = type(seasonData.GetToolDefaultSeasonID) == "function" and seasonData.GetToolDefaultSeasonID() or nil
+  if type(seasonID) ~= "string" or seasonID == "" then
+    return nil, "season manifest has no default season"
+  end
+  return seasonID
+end
+
 function M.BuildSummary(opts)
   opts = opts or {}
-  local seasonID = opts.seasonID or DEFAULT_SEASON_ID
   local mdtPath = opts.mdtPath or DEFAULT_MDT_PATH
   local addonTable = {}
+  local seasonData, loadErr = LoadSeasonData(opts, addonTable)
+  local seasonID = opts.seasonID
+  if seasonID == nil and seasonData and type(seasonData.GetToolDefaultSeasonID) == "function" then
+    seasonID = seasonData.GetToolDefaultSeasonID()
+  end
   local lines = {
     "## isiLive MDT Season Preview",
     "",
-    "- Season: " .. tostring(seasonID),
+    "- Season: " .. tostring(seasonID or "unresolved"),
+    "- Season label: "
+      .. tostring(
+        seasonData
+            and seasonID
+            and type(seasonData.GetSeasonLabel) == "function"
+            and seasonData.GetSeasonLabel(seasonID)
+          or "unresolved"
+      ),
     "- MDT path: " .. tostring(mdtPath),
     "- MDT version: " .. ReadMdtVersion(mdtPath),
     "",
   }
 
-  local ok, err = LoadAddonFile(opts.languagePath or DEFAULT_LANGUAGE_PATH, addonTable)
-  if not ok then
+  if not seasonData then
     lines[#lines + 1] = "- Status: unresolved"
-    lines[#lines + 1] = "- Reason: " .. err
+    lines[#lines + 1] = "- Reason: " .. tostring(loadErr)
     return table.concat(lines, "\n") .. "\n"
   end
 
-  ok, err = LoadAddonFile(opts.seasonDataPath or DEFAULT_SEASON_DATA_PATH, addonTable)
-  if not ok then
-    lines[#lines + 1] = "- Status: unresolved"
-    lines[#lines + 1] = "- Reason: " .. err
-    return table.concat(lines, "\n") .. "\n"
-  end
-
-  local seasonData = addonTable.SeasonData
-  local season = type(seasonData) == "table" and seasonData.SEASONS and seasonData.SEASONS[seasonID] or nil
+  local season = seasonID and seasonData.SEASONS and seasonData.SEASONS[seasonID] or nil
   if type(season) ~= "table" then
     lines[#lines + 1] = "- Status: unresolved"
     lines[#lines + 1] = "- Reason: season id not present in SeasonData"
@@ -310,7 +343,16 @@ if isDirectRun then
     cliArgs[#cliArgs + 1] = cliArg[index]
   end
   local opts = ParseArgs(cliArgs)
-  io.write(M.BuildSummary(opts))
+  if opts.printDefaultSeason then
+    local seasonID, err = M.ResolveDefaultSeasonID(opts)
+    if not seasonID then
+      io.stderr:write("[inspect_mdt_season_preview] " .. tostring(err) .. "\n")
+      os.exit(1)
+    end
+    io.write(seasonID .. "\n")
+  else
+    io.write(M.BuildSummary(opts))
+  end
 end
 
 return M

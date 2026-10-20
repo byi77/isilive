@@ -47,24 +47,20 @@ local function ResolveHearthstoneSettingsLocale(config)
   return "enUS"
 end
 
-local function ResolveHearthstoneToyDisplayName(toyId, config)
-  toyId = tonumber(toyId)
-  if not toyId then
+local function ReadEnglishToyName(toyId)
+  local getEnglishName = addonTable.UI and addonTable.UI.GetHearthstoneToyEnglishName
+  if type(getEnglishName) ~= "function" then
     return nil
   end
-
-  if ResolveHearthstoneSettingsLocale(config) ~= "deDE" then
-    local getEnglishName = addonTable.UI and addonTable.UI.GetHearthstoneToyEnglishName
-    if type(getEnglishName) ~= "function" then
-      return nil
-    end
-    local name = getEnglishName(toyId)
-    if type(name) == "string" and name ~= "" then
-      return name
-    end
-    return nil
+  local name = getEnglishName(toyId)
+  if type(name) == "string" and name ~= "" then
+    return name
   end
+  return nil
+end
 
+-- Blizzard item APIs answer in the client language only.
+local function ReadClientToyName(toyId)
   local toyBox = rawget(_G, "C_ToyBox")
   if type(toyBox) == "table" and type(toyBox.GetToyInfo) == "function" then
     local ok, _, name = pcall(toyBox.GetToyInfo, toyId)
@@ -89,8 +85,34 @@ local function ResolveHearthstoneToyDisplayName(toyId, config)
     end
   end
 
-  RequestHearthstoneToyItemData(toyId)
   return nil
+end
+
+-- Same contract as the dungeon names in SeasonData: the live client name is
+-- used only when the addon language is the client language (a frFR addon on a
+-- deDE client would otherwise mix German toy names into French settings);
+-- every other case, and a cold item cache, falls back to the English name.
+local function ResolveHearthstoneToyDisplayName(toyId, config)
+  toyId = tonumber(toyId)
+  if not toyId then
+    return nil
+  end
+
+  local languages = addonTable.Languages
+  local addonLocale = ResolveHearthstoneSettingsLocale(config)
+  if
+    type(languages) == "table"
+    and type(languages.IsClientLocale) == "function"
+    and languages.IsClientLocale(addonLocale)
+  then
+    local clientName = ReadClientToyName(toyId)
+    if clientName then
+      return clientName
+    end
+    RequestHearthstoneToyItemData(toyId)
+  end
+
+  return ReadEnglishToyName(toyId)
 end
 
 function SettingsHearthstone.BuildOptions(config, labels)

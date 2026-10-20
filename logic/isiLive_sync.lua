@@ -21,6 +21,7 @@ local ISILIVE_SHAREKEYS_CD_COOLDOWN = 1
 local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = 30
 local LIBKEYSTONE_REQUEST_COOLDOWN = 3
 local MAX_SAFE_INTEGER = 9007199254740991
+local POWER_INFUSION_SPELL_ID = addonTable.SpellManifest.powerInfusion
 
 -- Upper sanity bounds for numeric peer payloads. These are NOT claims about
 -- game limits -- they are display bounds. Without them a broken or hostile
@@ -1889,8 +1890,8 @@ function Sync.SendPowerInfusionAnnounce(opts)
   if caster == "" or recipient == "" or string.find(caster, ":", 1, true) or string.find(recipient, ":", 1, true) then
     return
   end
-  local spellID = ToFiniteNumber(opts.spellID) or 10060
-  if spellID ~= 10060 then
+  local spellID = ToFiniteNumber(opts.spellID) or POWER_INFUSION_SPELL_ID
+  if spellID ~= POWER_INFUSION_SPELL_ID then
     return
   end
   local payload = string.format("PI:%s:%s:%d", caster, recipient, spellID)
@@ -2081,6 +2082,7 @@ if type(receiveFactory) == "function" then
     LIBKEYSTONE_SYNC_PREFIX = LIBKEYSTONE_SYNC_PREFIX,
     LIBKEYSTONE_SOURCE = LIBKEYSTONE_SOURCE,
     ISILIVE_SHAREKEYS_CD_MAX_SECONDS = ISILIVE_SHAREKEYS_CD_MAX_SECONDS,
+    POWER_INFUSION_SPELL_ID = POWER_INFUSION_SPELL_ID,
     ToFiniteNumber = ToFiniteNumber,
     IsExplicitNonFiniteNumber = IsExplicitNonFiniteNumber,
     IsPlainPeerName = IsPlainPeerName,

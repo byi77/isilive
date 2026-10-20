@@ -236,7 +236,7 @@ function Regression.Run(ctx, mode, beforeWorkload)
         1,
         "relevant aura burst must perform its one trailing scan"
       )
-    end, { pcalls = 31000, frames = 0, after = 1, auras = 1, renders = 1, scenario = 0, retained = 4 })
+    end, { pcalls = 29000, frames = 0, after = 1, auras = 1, renders = 1, scenario = 0, retained = 4 })
     Phase(session, "four-kick-peers", function()
       for remain = 14, 0, -1 do
         for peer = 1, 4 do

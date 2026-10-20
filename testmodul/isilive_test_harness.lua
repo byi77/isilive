@@ -33,9 +33,6 @@ local FILE_PATHS = {
   ["isiLive_texts_enUS.lua"] = "locale/isiLive_texts_enUS.lua",
   ["isiLive_texts_deDE.lua"] = "locale/isiLive_texts_deDE.lua",
   ["isiLive_texts_frFR.lua"] = "locale/isiLive_texts_frFR.lua",
-  ["isiLive_texts_esES.lua"] = "locale/isiLive_texts_esES.lua",
-  ["isiLive_texts_ptBR.lua"] = "locale/isiLive_texts_ptBR.lua",
-  ["isiLive_texts_itIT.lua"] = "locale/isiLive_texts_itIT.lua",
   ["isiLive_texts_ruRU.lua"] = "locale/isiLive_texts_ruRU.lua",
   ["isiLive_texts_trTR.lua"] = "locale/isiLive_texts_trTR.lua",
   -- game
@@ -43,6 +40,9 @@ local FILE_PATHS = {
   ["isiLive_cd_tracker.lua"] = "game/isiLive_cd_tracker.lua",
   ["isiLive_season_data.lua"] = "game/isiLive_season_data.lua",
   ["isiLive_seasons.lua"] = "data/isiLive_seasons.lua",
+  ["isiLive_travel_items.lua"] = "data/isiLive_travel_items.lua",
+  ["isiLive_spells.lua"] = "data/isiLive_spells.lua",
+  ["isiLive_specs.lua"] = "data/isiLive_specs.lua",
   ["isiLive_season_debug.lua"] = "game/isiLive_season_debug.lua",
   ["isiLive_teleport.lua"] = "game/isiLive_teleport.lua",
   ["isiLive_teleport_debug.lua"] = "ui/isiLive_teleport_debug.lua",
@@ -108,6 +108,7 @@ local FILE_PATHS = {
   ["isiLive_lfg_bonus_model.lua"] = "ui/isiLive_lfg_bonus_model.lua",
   ["isiLive_lfg_view_hooks.lua"] = "ui/isiLive_lfg_view_hooks.lua",
   ["isiLive_lfg_flags.lua"] = "ui/isiLive_lfg_flags.lua",
+  ["isiLive_lfg_personal_best.lua"] = "ui/isiLive_lfg_personal_best.lua",
   -- logic
   ["isiLive_leader_watch.lua"] = "logic/isiLive_leader_watch.lua",
   ["isiLive_demo.lua"] = "logic/isiLive_demo.lua",
@@ -173,6 +174,7 @@ local UNIVERSAL_DEPENDENCIES = {
 
 local IMPLICIT_DEPENDENCIES = {
   ["isiLive_sync.lua"] = {
+    "isiLive_spells.lua",
     "isiLive_sync_receive.lua",
   },
   ["isiLive_notice.lua"] = {
@@ -220,6 +222,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_roster_layout.lua",
   },
   ["isiLive_roster_panel_cd_row.lua"] = {
+    "isiLive_spells.lua",
     "isiLive_roster_panel_helpers.lua",
   },
   ["isiLive_roster_panel_kill_row.lua"] = {
@@ -278,18 +281,32 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_texts_enUS.lua",
     "isiLive_texts_deDE.lua",
     "isiLive_texts_frFR.lua",
-    "isiLive_texts_esES.lua",
-    "isiLive_texts_ptBR.lua",
-    "isiLive_texts_itIT.lua",
     "isiLive_texts_ruRU.lua",
     "isiLive_texts_trTR.lua",
   },
   ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
   ["isiLive_season_data.lua"] = { "isiLive_languages.lua", "isiLive_seasons.lua" },
+  ["isiLive_ui_game_menu_travel.lua"] = { "isiLive_travel_items.lua" },
+  ["isiLive_settings_hearthstone.lua"] = { "isiLive_languages.lua" },
+  -- Group-utility spell IDs and per-spec data (TOC order: data/ before game/).
+  ["isiLive_combat_events.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_cd_tracker.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_bloodlust_button_warning.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_pi_tracker.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_event_handlers_cd_coalescer.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_factory_combat_announces.lua"] = { "isiLive_spells.lua" },
+  ["isiLive_stats_box.lua"] = { "isiLive_specs.lua" },
+  ["isiLive_ui_game_menu_mounts.lua"] = { "isiLive_travel_items.lua" },
   ["isiLive_lfg_entry_resolver.lua"] = { "isiLive_season_data.lua" },
   ["isiLive_lfg_detect.lua"] = { "isiLive_season_data.lua", "isiLive_lfg_entry_resolver.lua" },
+  ["isiLive_lfg_bonus_model.lua"] = { "isiLive_specs.lua" },
   ["isiLive_lfg_view_hooks.lua"] = { "isiLive_lfg_bonus_model.lua" },
-  ["isiLive_lfg_flags.lua"] = { "isiLive_lfg_bonus_model.lua", "isiLive_lfg_view_hooks.lua" },
+  ["isiLive_lfg_personal_best.lua"] = { "isiLive_lfg_bonus_model.lua", "isiLive_lfg_entry_resolver.lua" },
+  ["isiLive_lfg_flags.lua"] = {
+    "isiLive_lfg_bonus_model.lua",
+    "isiLive_lfg_view_hooks.lua",
+    "isiLive_lfg_personal_best.lua",
+  },
   ["isiLive_status.lua"] = { "isiLive_season_data.lua" },
   ["isiLive_settings_controls.lua"] = { "isiLive_settings_layout.lua" },
   ["isiLive_settings.lua"] = {

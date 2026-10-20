@@ -10,6 +10,7 @@ addonTable = addonTable or {}
 --
 -- Maintenance workflow for a new season:
 -- 1. Add a new entry under `seasons`; do not overwrite historical season entries.
+--    Point `upcomingSeasonID` at it so the season tooling targets it by default.
 -- 2. Add every dungeon exactly once and use only IDs confirmed by a reliable source.
 -- 3. Keep `autoDetectFromChallengeMaps = false` until every dungeon row is verified.
 --    Once verified it may be set to `true` ahead of the season launch: selection is an
@@ -17,8 +18,12 @@ addonTable = addonTable or {}
 --    once Blizzard actually ships it. Auto-selection is runtime-only and never rewrites
 --    `activeSeasonID`.
 -- 4. Set `mdtDirectory` only when the exact MDT directory is verified; never guess it.
+--    `requiresForces = true` is a build/CI gate (SeasonData.GetForcesReadiness via
+--    tools/check_mplus_db_lifetime.lua) for the generated forces DB. It never decides
+--    season activation: without a matching, fresh DB only the MDT mob displays close.
 -- 5. Change `activeSeasonID` only as the manual fallback when auto-selection cannot
---    match (e.g. Blizzard's map table diverges from the manifest).
+--    match (e.g. Blizzard's map table diverges from the manifest). Clear
+--    `upcomingSeasonID` once the prepared season is the active one.
 -- 6. Run `lua tools/check_season_intake.lua` and `lua tools/validate_usecases.lua`.
 --
 -- Runtime lookup tables are compiled from this manifest by game/isiLive_season_data.lua.
@@ -30,14 +35,20 @@ addonTable.SeasonManifest = {
   -- no-auto-match fallback read, and leaving it on S1 kept the generated forces
   -- DB pinned to a season nobody plays any more.
   activeSeasonID = "midnight_s2",
+  -- Optional, tooling only: the season currently being prepared. MDT preview and
+  -- other tools default to it, otherwise to `activeSeasonID`. It must name a
+  -- season below (an unknown id is a manifest error); the runtime never reads it.
+  -- Leave it unset while no next season is configured, and clear it once that
+  -- season is the active one.
+  -- upcomingSeasonID = "<next season id>",
   seasons = {
     midnight_s1 = {
       label = "Midnight Season 1",
       autoDetectFromChallengeMaps = true,
       -- S1 ended on 2026-09-06. The generated forces DB now tracks the active
-      -- season, so demanding a matching S1 DB here would leave S1 permanently
-      -- "not ready" and block it as the manual fallback. It stays fully usable,
-      -- just without MDT mob percentages -- the documented no-DB behavior.
+      -- season, so the forces build gate is skipped for S1. It stays fully
+      -- usable as the manual fallback, just without MDT mob percentages -- the
+      -- documented no-DB behavior.
       requiresForces = false,
       mdtDirectory = "Midnight",
       inactivePortalMessageByLocale = {},
@@ -147,10 +158,9 @@ addonTable.SeasonManifest = {
       -- an active S2 key showed no mob percentages at all.
       requiresForces = true,
       mdtDirectory = "Midnight",
-      inactivePortalMessageByLocale = {
-        default = "Midnight Season 2 is prepared but not active yet.",
-        deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
-      },
+      -- Shown only as the teleport empty state while the active season maps no
+      -- dungeons (SeasonData.HasActiveDungeons); a populated season never reaches it.
+      inactivePortalMessageByLocale = {},
       portalNavigator = {
         -- Same hub zone as Season 1 (Millennia's Threshold), confirmed by the
         -- maintainer on 2026-07-22: S2 reuses the S1 portal room, only the

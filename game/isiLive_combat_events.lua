@@ -5,32 +5,13 @@ local CombatEvents = {}
 addonTable.CombatEvents = CombatEvents
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
--- Battle-Res spells a player can cast on a dead ally in combat.
-local BR_SPELL_IDS = {
-  [20484] = true, -- Rebirth (Druid)
-  [61999] = true, -- Raise Ally (Death Knight)
-  [391054] = true, -- Intercession (Paladin)
-  [20707] = true, -- Soulstone Resurrection (Warlock)
-}
-
--- Bloodlust / Heroism / Time Warp variant cast spell IDs. UNIT_SPELLCAST_SUCCEEDED
--- fires exactly once per completed cast, so only the cast-triggering IDs belong
--- here (the corresponding Sated / Exhaustion debuffs never produce a cast event).
-local LUST_CAST_IDS = {
-  [2825] = true, -- Bloodlust (Shaman)
-  [32182] = true, -- Heroism (Shaman)
-  [80353] = true, -- Time Warp (Mage)
-  [264667] = true, -- Primal Rage (Hunter Ferocity Pet)
-  [390386] = true, -- Fury of the Aspects (Evoker)
-  [466904] = true, -- Harrier's Cry (Marksmanship Hunter)
-  [381301] = true, -- Feral Hide Drums
-  [178207] = true, -- Drums of Fury
-  [230935] = true, -- Drums of the Mountain
-  [256740] = true, -- Drums of the Maelstrom
-  [292463] = true, -- Drums of Deathly Ferocity
-  [90355] = true, -- Ancient Hysteria (Core Hound)
-  [160452] = true, -- Netherwinds (Nether Ray Pet)
-}
+-- Battle-Res and Bloodlust-class cast IDs come from data/isiLive_spells.lua.
+-- Only cast-triggering IDs are in lustCasts; the Sated debuffs never produce a
+-- UNIT_SPELLCAST_SUCCEEDED event.
+local Spells = addonTable.Spells
+local SpellManifest = addonTable.SpellManifest
+local BR_SPELL_IDS = Spells.BuildIDSet(SpellManifest.battleRes)
+local LUST_CAST_IDS = Spells.BuildIDSet(SpellManifest.lustCasts)
 
 local DEDUP_WINDOW_SECONDS = 3
 

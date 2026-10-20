@@ -50,6 +50,8 @@ selbst erstellt wurden. Damit ist dieser Abschnitt vollstaendig geklaert.
 | `media/flags/*.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
 | `media/heart_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
 | `media/heart_sync.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
+| `media/diamond_bonus_green.tga`, `media/link_sync_blue.tga` | Am `2026-10-20` fuer den bestaetigten Benutzerentwurf geometrisch erzeugt; reproduzierbar mit `python tools/generate_utility_markers.py` (Pillow) | Projekteigene geometrische Gestaltung, keine Drittvorlage |
+| `media/plus_bonus_green.tga` | Am `2026-10-20` auf Benutzerwunsch geometrisch erzeugtes Pluszeichen mit Leuchthof und Glanzkante; derselbe Generator | Projekteigene geometrische Gestaltung, keine Drittvorlage |
 | `media/arrow_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22`. Bewusst im Repository behalten | Eigenes Werk des Maintainers |
 
 ## Screenshots und Mockups

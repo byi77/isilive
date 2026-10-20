@@ -277,6 +277,7 @@ function Hooks.HookSearchPanel()
   end
 
   HookGlobalFunction("LFGListSearchPanel_DoSearch", cb.clearSearchCaches)
+  HookGlobalFunction("LFGListSearchEntry_Update", UpdateButton)
   HookGlobalFunction("LFGListUtil_SetSearchEntryTooltip", function(_, resultID)
     if not resultID then
       return

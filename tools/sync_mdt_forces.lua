@@ -5,7 +5,9 @@
 -- generates data/isiLive_mplus_forces.lua for isiLive.
 --
 -- Usage (from repo root):
---   lua tools/sync_mdt_forces.lua [--season=midnight_s1] [--mdt=tools/cache/mdt]
+--   lua tools/sync_mdt_forces.lua [--season=<seasonID>] [--mdt=tools/cache/mdt]
+--   (default season: the manifest's activeSeasonID -- the runtime DB must match
+--   the active season, so this tool deliberately ignores upcomingSeasonID)
 --     [--source_commit=<40-char git sha>] [--out=data/isiLive_mplus_forces.lua]
 --
 -- MDT dungeon files mutate an `MDT` table. We stub that table, run each file
@@ -309,9 +311,9 @@ local function main(argv)
   -- exactly the eight Season 1 dungeons, so an unfiltered sweep looked correct.
   -- 6.2.0 ships Season 1 and Season 2 side by side in the same folder, and the
   -- unfiltered sweep silently produced a 16-dungeon DB stamped
-  -- season = "midnight_s1". SeasonData rejects every out-of-season map id and
-  -- npc id, which turns the active season "not ready" and blocks
-  -- SetActiveSeasonID / TryAutoSelectSeasonFromChallengeMapIDs. One DB file
+  -- season = "midnight_s1". SeasonData.GetForcesReadiness rejects every
+  -- out-of-season map id and npc id, which fails the forces build gate in
+  -- tools/check_mplus_db_lifetime.lua. One DB file
   -- carries exactly one season -- forces.season is a single field -- so the
   -- filter belongs here.
   local allowedMapIDs = {}

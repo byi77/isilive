@@ -106,7 +106,7 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
     end)
   end)
 
-  test("Settings language selector hides Spanish Portuguese and Italian buttons", function()
+  test("Settings language selector lists exactly the five supported languages", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
 
@@ -159,9 +159,9 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       Assert.True(rendered.frFR == true, "French must remain selectable in settings")
       Assert.True(rendered.ruRU == true, "Russian must remain selectable in settings")
       Assert.True(rendered.trTR == true, "Turkish must remain selectable in settings")
-      Assert.Nil(rendered.esES, "Spanish must no longer be selectable in settings")
-      Assert.Nil(rendered.ptBR, "Portuguese must no longer be selectable in settings")
-      Assert.Nil(rendered.itIT, "Italian must no longer be selectable in settings")
+      Assert.Nil(rendered.esES, "Spanish was removed as a UI language")
+      Assert.Nil(rendered.ptBR, "Portuguese was removed as a UI language")
+      Assert.Nil(rendered.itIT, "Italian was removed as a UI language")
     end)
   end)
 end

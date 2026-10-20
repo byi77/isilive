@@ -79,6 +79,17 @@ function M.BuildSummary(opts)
     return table.concat(lines, "\n") .. "\n"
   end
 
+  -- Without a manifest path the compiler loads data/isiLive_seasons.lua itself;
+  -- tests pass a fixture manifest here.
+  if opts.manifestPath ~= nil then
+    ok, err = LoadAddonFile(opts.manifestPath, addonTable)
+    if not ok then
+      lines[#lines + 1] = "- Status: unresolved"
+      lines[#lines + 1] = "- Reason: " .. err
+      return table.concat(lines, "\n") .. "\n"
+    end
+  end
+
   ok, err = LoadAddonFile(opts.seasonDataPath or DEFAULT_SEASON_DATA_PATH, addonTable)
   if not ok then
     lines[#lines + 1] = "- Status: unresolved"
@@ -97,13 +108,37 @@ function M.BuildSummary(opts)
   local forcesOk, forcesErr = LoadAddonFile(forcesPath, addonTable)
 
   lines[#lines + 1] = "- Active season: " .. tostring(seasonData.ACTIVE_SEASON_ID or "unresolved")
+  lines[#lines + 1] = "- Upcoming season: " .. tostring(seasonData.UPCOMING_SEASON_ID or "none")
+  local manifestErrors = type(seasonData.MANIFEST_ERRORS) == "table" and seasonData.MANIFEST_ERRORS or {}
+  if #manifestErrors > 0 then
+    AppendList(lines, "Manifest errors", manifestErrors)
+  end
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "| Season | Label | Ready | Mapped dungeons | Aliases | Errors | Warnings |"
-  lines[#lines + 1] = "| --- | --- | --- | ---: | ---: | --- | --- |"
+  -- `Ready` is the activation readiness (portals, LFG mapping, names). `Forces`
+  -- is the separate build gate for the generated MDT forces DB: `skipped` for a
+  -- requiresForces = false season, otherwise yes/no with the reasons listed in
+  -- the "M+ Forces gate" section below. Forces never decide activation.
+  lines[#lines + 1] = "| Season | Label | Ready | Forces | Mapped dungeons | Aliases | Errors | Warnings |"
+  lines[#lines + 1] = "| --- | --- | --- | --- | ---: | ---: | --- | --- |"
 
   local seasonIDs = SortedKeys(seasonData.SEASONS)
+  local forcesFailures = {}
   for _, seasonID in ipairs(seasonIDs) do
     local readiness = seasonData.GetSeasonReadiness(seasonID)
+    local forcesReadiness = type(seasonData.GetForcesReadiness) == "function"
+        and seasonData.GetForcesReadiness(seasonID, { forcesData = addonTable.MPlusForces or false })
+      or nil
+    local forcesState = "unresolved"
+    if type(forcesReadiness) == "table" then
+      if forcesReadiness.required ~= true and forcesReadiness.isReady == true then
+        forcesState = "skipped"
+      elseif forcesReadiness.isReady == true then
+        forcesState = "yes"
+      else
+        forcesState = "no"
+        forcesFailures[#forcesFailures + 1] = { seasonID = seasonID, errors = forcesReadiness.errors or {} }
+      end
+    end
     local errors = type(readiness.errors) == "table" and table.concat(readiness.errors, "<br>") or ""
     local warnings = type(readiness.warnings) == "table" and table.concat(readiness.warnings, "<br>") or ""
     if errors == "" then
@@ -113,10 +148,11 @@ function M.BuildSummary(opts)
       warnings = "-"
     end
     lines[#lines + 1] = string.format(
-      "| %s | %s | %s | %d | %d | %s | %s |",
+      "| %s | %s | %s | %s | %d | %d | %s | %s |",
       tostring(seasonID),
       tostring(readiness.label or ""),
       readiness.isReady and "yes" or "no",
+      forcesState,
       tonumber(readiness.mappedDungeonCount) or 0,
       tonumber(readiness.aliasCount) or 0,
       errors,
@@ -129,6 +165,16 @@ function M.BuildSummary(opts)
     lines[#lines + 1] = ""
     lines[#lines + 1] = "### " .. tostring(seasonID)
     AppendList(lines, "planned dungeons", type(season) == "table" and season.plannedDungeons or nil)
+  end
+
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "### M+ Forces gate"
+  if #forcesFailures == 0 then
+    lines[#lines + 1] = "- Failures: none"
+  else
+    for _, failure in ipairs(forcesFailures) do
+      AppendList(lines, failure.seasonID, failure.errors)
+    end
   end
 
   lines[#lines + 1] = ""

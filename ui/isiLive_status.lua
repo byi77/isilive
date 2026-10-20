@@ -260,6 +260,11 @@ local function BuildPortalNavigatorLayout(deps)
   }
 end
 
+-- Shared with the demo preview so the demo navigator is built from the same
+-- season slots as the live one. `deps` needs getL, getLocaleTag and
+-- optionally getTeleportInfoByMapID.
+Status.BuildPortalNavigatorLayout = BuildPortalNavigatorLayout
+
 local function GetAddonStateText(getL, flags)
   flags = flags or {}
   local L = getL()

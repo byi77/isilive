@@ -200,9 +200,6 @@ function Helpers.BuildGlobals(buildGlobals)
       end
       return nil
     end,
-    GetPlayerAuraBySpellID = function()
-      return nil
-    end,
   }
   globals.C_ScenarioInfo = {
     GetScenarioStepInfo = function()

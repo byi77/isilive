@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 ---@diagnostic disable: undefined-global
 -- Scans locale/isiLive_texts.lua for drift between enUS (reference) and the
--- other locales (deDE/frFR/esES/ptBR/itIT/ruRU/trTR):
+-- other locales (deDE/frFR/ruRU/trTR):
 --   * missing keys in a locale (key exists in enUS but not in target)
 --   * extra keys in a locale (key exists in target but not in enUS)
 --   * %s/%d placeholder count mismatches (would crash string.format at runtime)
@@ -76,7 +76,7 @@ end
 
 local issues = {}
 
-local orderedLocales = { "deDE", "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }
+local orderedLocales = { "deDE", "frFR", "ruRU", "trTR" }
 
 for _, localeName in ipairs(orderedLocales) do
   local localeTable = locales[localeName]

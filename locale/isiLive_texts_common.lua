@@ -4,8 +4,8 @@ addonTable = addonTable or {}
 -- Shared building blocks for the per-language tables in
 -- locale/isiLive_texts_<tag>.lua. Loaded before them via the TOC (or the
 -- standalone loadfile fallback in locale/isiLive_texts.lua).
-local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
-local LFG_GROUP_BONUSES_DESC_EN = "Shows green hearts for relevant non-stacking class buffs:\n"
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\plus_bonus_green:10:10:0:0|t"
+local LFG_GROUP_BONUSES_DESC_EN = "Shows green plus signs for relevant non-stacking class buffs:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = one useful buff\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -22,7 +22,7 @@ local LFG_GROUP_BONUSES_DESC_EN = "Shows green hearts for relevant non-stacking 
   .. " = four or more useful buffs\n"
   .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
   .. "Atrophic Poison."
-local LFG_GROUP_BONUSES_DESC_DE = "Zeigt grüne Herzen für relevante, nicht stapelnde Klassenbuffs:\n"
+local LFG_GROUP_BONUSES_DESC_DE = "Zeigt grüne Pluszeichen für relevante, nicht stapelnde Klassenbuffs:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = ein nützlicher Buff\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -39,7 +39,7 @@ local LFG_GROUP_BONUSES_DESC_DE = "Zeigt grüne Herzen für relevante, nicht sta
   .. " = vier oder mehr nützliche Buffs\n"
   .. "Utility bleibt nur im Tooltip: BL, BR, PI, Aura der Hingabe,\n"
   .. "Atrophisches Gift."
-local LFG_GROUP_BONUSES_DESC_RU = "Показывает зеленые сердца для полезных нестакующихся классовых баффов:\n"
+local LFG_GROUP_BONUSES_DESC_RU = "Показывает зеленые знаки плюса для полезных нестакующихся классовых баффов:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = один полезный бафф\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -56,7 +56,7 @@ local LFG_GROUP_BONUSES_DESC_RU = "Показывает зеленые серд�
   .. " = четыре или больше полезных баффов\n"
   .. "Utility остается только в подсказках: БЛ, БР, ПИ,\n"
   .. "Аура благочестия, Атрофический яд."
-local LFG_GROUP_BONUSES_DESC_FR = "Affiche des cœurs verts pour les buffs de classe utiles qui ne se cumulent pas:\n"
+local LFG_GROUP_BONUSES_DESC_FR = "Affiche des signes plus verts pour les buffs de classe utiles qui ne se cumulent pas:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = un buff utile\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -73,7 +73,7 @@ local LFG_GROUP_BONUSES_DESC_FR = "Affiche des cœurs verts pour les buffs de cl
   .. " = quatre buffs utiles ou plus\n"
   .. "L'utilitaire reste uniquement dans l'infobulle: BL, BR, PI,\n"
   .. "Aura de devouement, Poison atrophiant."
-local LFG_GROUP_BONUSES_DESC_ES = "Muestra corazones verdes para beneficios de clase útiles que no se acumulan:\n"
+local LFG_GROUP_BONUSES_DESC_ES = "Muestra signos más verdes para beneficios de clase útiles que no se acumulan:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = un beneficio útil\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -90,7 +90,7 @@ local LFG_GROUP_BONUSES_DESC_ES = "Muestra corazones verdes para beneficios de c
   .. " = cuatro o más beneficios útiles\n"
   .. "La utilidad queda solo en la descripcion: BL, BR, PI,\n"
   .. "Aura de devocion, Veneno atrofico."
-local LFG_GROUP_BONUSES_DESC_PT = "Mostra corações verdes para buffs de classe úteis que não acumulam:\n"
+local LFG_GROUP_BONUSES_DESC_PT = "Mostra sinais de mais verdes para buffs de classe úteis que não acumulam:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = um buff útil\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -107,7 +107,7 @@ local LFG_GROUP_BONUSES_DESC_PT = "Mostra corações verdes para buffs de classe
   .. " = quatro ou mais buffs úteis\n"
   .. "A utilidade fica apenas na dica: BL, BR, PI,\n"
   .. "Aura de Devocao, Veneno Atrofico."
-local LFG_GROUP_BONUSES_DESC_IT = "Mostra cuori verdi per i buff di classe utili che non si accumulano:\n"
+local LFG_GROUP_BONUSES_DESC_IT = "Mostra segni più verdi per i buff di classe utili che non si accumulano:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = un buff utile\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -124,7 +124,7 @@ local LFG_GROUP_BONUSES_DESC_IT = "Mostra cuori verdi per i buff di classe utili
   .. " = quattro o più buff utili\n"
   .. "L'utilita resta solo nel suggerimento: BL, BR, PI,\n"
   .. "Aura di Devozione, Veleno Atrofico."
-local LFG_GROUP_BONUSES_DESC_TR = "Birbirine eklenmeyen yararlı sınıf buffları için yeşil kalpler gösterir:\n"
+local LFG_GROUP_BONUSES_DESC_TR = "Birbirine eklenmeyen yararlı sınıf buffları için yeşil artı işaretleri gösterir:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = bir yararlı buff\n"
   .. LFG_GROUP_BONUS_HEART_ICON

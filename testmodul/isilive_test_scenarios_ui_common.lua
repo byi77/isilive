@@ -953,7 +953,7 @@ return function(test, ctx)
     WithGlobals({ IsiLiveDB = { locale = "enUS" } }, function()
       Assert.Equal(UICommon.FormatDecimal(12.345, 2), "12.35", "enUS decimals must use a decimal point")
     end)
-    for _, tag in ipairs({ "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }) do
+    for _, tag in ipairs({ "frFR", "ruRU", "trTR" }) do
       Assert.Equal(UICommon.GetDecimalSeparator(tag), ",", tag .. " must use a decimal comma")
     end
     Assert.Equal(UICommon.GetDecimalSeparator("enUS"), ".", "enUS must use a decimal point")

@@ -1490,6 +1490,7 @@ local function UpdateButton(button)
   AnchorSearchResultDungeonName(button)
   ApplyFlagToButton(button, resultID)
   ApplySearchResultBonusBadge(button, resultID)
+  addonTable.LFGPersonalBest.Apply(button)
 end
 
 ViewHooks.Configure({

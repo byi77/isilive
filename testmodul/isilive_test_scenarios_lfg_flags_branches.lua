@@ -180,8 +180,8 @@ local function StripColors(text)
   return stripped
 end
 
-local BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10|t"
-local BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
+local BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\plus_bonus_green:10:10|t"
+local BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\plus_bonus_green"
 
 local function NewTextureStub()
   local tex = {

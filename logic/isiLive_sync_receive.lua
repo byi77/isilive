@@ -8,6 +8,7 @@ addonTable.SyncReceiveFactory = function(deps)
   local LIBKEYSTONE_SYNC_PREFIX = deps.LIBKEYSTONE_SYNC_PREFIX
   local LIBKEYSTONE_SOURCE = deps.LIBKEYSTONE_SOURCE
   local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = deps.ISILIVE_SHAREKEYS_CD_MAX_SECONDS
+  local POWER_INFUSION_SPELL_ID = deps.POWER_INFUSION_SPELL_ID
   local ToFiniteNumber = deps.ToFiniteNumber
   local IsExplicitNonFiniteNumber = deps.IsExplicitNonFiniteNumber
   local IsPlainPeerName = deps.IsPlainPeerName
@@ -283,7 +284,7 @@ addonTable.SyncReceiveFactory = function(deps)
         local caster = parts[2]
         local recipient = parts[3]
         local spellID = ToFiniteNumber(parts[4]) or 0
-        if caster ~= "" and IsPlainPeerName(recipient) and spellID == 10060 then
+        if caster ~= "" and IsPlainPeerName(recipient) and spellID == POWER_INFUSION_SPELL_ID then
           payloadValid = true
           powerInfusionAnnounce = {
             caster = caster,

@@ -56,8 +56,8 @@ local function FindFontStringByText(panel, text)
   return nil
 end
 
-local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
-local LFG_GROUP_BONUSES_DESC_EN = "Shows green hearts for relevant non-stacking class buffs:\n"
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\plus_bonus_green:10:10:0:0|t"
+local LFG_GROUP_BONUSES_DESC_EN = "Shows green plus signs for relevant non-stacking class buffs:\n"
   .. LFG_GROUP_BONUS_HEART_ICON
   .. " = one useful buff\n"
   .. LFG_GROUP_BONUS_HEART_ICON
@@ -110,7 +110,7 @@ return function(test, ctx)
       SETTINGS_UI_SCALE_DESC = "Scales the main isiLive interface.",
       SETTINGS_MINIMAP_BUTTON = "Show minimap button",
       SETTINGS_MINIMAP_BUTTON_DESC = "Shows the isiLive minimap button.",
-      SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+      SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating plus signs",
       SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
       SETTINGS_SYNC_ENABLED = "Addon Sync",
       SETTINGS_SYNC_ENABLED_DESC = "Shares key, roster, target, DPS, location, and kick data "

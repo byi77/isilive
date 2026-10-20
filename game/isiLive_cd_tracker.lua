@@ -7,26 +7,13 @@ local ReadPlainField = addonTable.Validators.ReadPlainField
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
-local BRES_SPELL_IDS = {
-  20484, -- Rebirth (Druid)
-  61999, -- Raise Ally (Death Knight)
-  391054, -- Intercession (Paladin)
-  20707, -- Soulstone Resurrection (Warlock)
-}
-
--- Sated / Exhaustion / Insanity / Temporal Displacement debuff IDs left behind
--- by Bloodlust-class effects. ScanLust matches these against the player's
--- HARMFUL aura list, so only the actual debuff IDs belong here — the cast
--- IDs (e.g. 2825 Bloodlust, 32182 Heroism, 80353 Time Warp) would never
--- appear as HARMFUL auras and were dead matches.
-local LUST_SATED_IDS = {
-  [57723] = true, -- Exhaustion (Bloodlust)
-  [57724] = true, -- Sated (Heroism)
-  [80354] = true, -- Temporal Displacement (Time Warp)
-  [264689] = true, -- Fatigued (Primal Rage)
-  [390435] = true, -- Exhaustion (Ancient Hysteria)
-  [95809] = true, -- Insanity (pet variants)
-}
+-- Battle-Res spells (scan order) and the Sated-class debuff IDs come from
+-- data/isiLive_spells.lua. ScanLust matches the debuffs against the player's
+-- HARMFUL aura list; cast IDs would never appear there.
+local Spells = addonTable.Spells
+local SpellManifest = addonTable.SpellManifest
+local BRES_SPELL_IDS = Spells.BuildIDList(SpellManifest.battleRes)
+local LUST_SATED_IDS = Spells.BuildIDSet(SpellManifest.lustSated)
 
 function CdTracker.CreateController(opts)
   opts = opts or {}
@@ -155,11 +142,6 @@ function CdTracker.CreateController(opts)
   -- Both readers return "found" for a verified Sated match, "absent" for a
   -- fully readable list without one, nil when the scan could not decide:
   -- skipped secret/error entries cannot prove readiness.
-  --
-  -- 12.x: in restricted content (a running key) the index API raises for the
-  -- whole call, so it never reaches the never-secret Sated debuff.
-  -- GetUnitAuras always returns the list; only the contents of each aura are
-  -- conditionally secret, and Sated/Exhaustion arrives plain.
   local function ReadLustAuraList(list, previouslyObserved)
     local complete = true
     for index = 1, #list do
@@ -195,6 +177,25 @@ function CdTracker.CreateController(opts)
   end
 
   local function ReadLustAuras(api, previouslyObserved)
+    local getPlayerAura = rawget(api, "GetPlayerAuraBySpellID")
+    if type(getPlayerAura) == "function" then
+      local complete = true
+      for _, record in ipairs(SpellManifest.lustSated) do
+        local ok, aura = pcall(getPlayerAura, record.id)
+        if not ok or IsSecretValue(aura) then
+          complete = false
+        elseif aura ~= nil then
+          local match = MatchLustAura(aura, previouslyObserved)
+          if match == "found" then
+            return "found"
+          end
+          complete = false
+        end
+      end
+      if complete then
+        return "absent"
+      end
+    end
     local getUnitAuras = rawget(api, "GetUnitAuras")
     if type(getUnitAuras) == "function" then
       local ok, list = pcall(getUnitAuras, "player", "HARMFUL")

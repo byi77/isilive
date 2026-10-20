@@ -13,7 +13,7 @@ local CLASS_BONUS_RESET_COLOR = "|r"
 local APPLICANT_BONUS_TEXT_COLOR = { 0.20, 1.00, 0.20, 1.00 }
 local APPLICANT_BONUS_MAJOR_COLOR = { 1.00, 0.82, 0.00, 1.00 }
 -- WoW texture APIs resolve the .tga asset from this extensionless path.
-local SEARCH_RESULT_BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
+local SEARCH_RESULT_BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\plus_bonus_green"
 local SEARCH_RESULT_BONUS_MARKUP = "|T" .. SEARCH_RESULT_BONUS_TEXTURE .. ":10:10|t"
 local SEARCH_RESULT_BONUS_MAX_MARKERS = 4
 
@@ -35,26 +35,9 @@ local CLASS_TOKENS = {
 
 local AUGMENTATION_EVOKER_SPEC_ID = 1473
 
-local INTELLECT_SPEC_IDS = {
-  [62] = true,
-  [63] = true,
-  [64] = true,
-  [65] = true,
-  [102] = true,
-  [105] = true,
-  [256] = true,
-  [257] = true,
-  [258] = true,
-  [262] = true,
-  [264] = true,
-  [265] = true,
-  [266] = true,
-  [267] = true,
-  [270] = true,
-  [1467] = true,
-  [1468] = true,
-  [1473] = true,
-}
+-- Per-spec bonus profile flags come from data/isiLive_specs.lua (`lfg` field).
+local Specs = addonTable.Specs
+local INTELLECT_SPEC_IDS = Specs.BuildLfgFlagSet("intellect")
 
 local AP_CLASS_TOKENS = {
   DEATHKNIGHT = true,
@@ -64,30 +47,7 @@ local AP_CLASS_TOKENS = {
   WARRIOR = true,
 }
 
-local AP_SPEC_IDS = {
-  [66] = true,
-  [70] = true,
-  [71] = true,
-  [72] = true,
-  [73] = true,
-  [103] = true,
-  [104] = true,
-  [250] = true,
-  [251] = true,
-  [252] = true,
-  [253] = true,
-  [254] = true,
-  [255] = true,
-  [259] = true,
-  [260] = true,
-  [261] = true,
-  [263] = true,
-  [268] = true,
-  [269] = true,
-  [577] = true,
-  [581] = true,
-  [1480] = true,
-}
+local AP_SPEC_IDS = Specs.BuildLfgFlagSet("attackPower")
 
 local MAGIC_DAMAGE_CLASS_TOKENS = {
   MAGE = true,
@@ -96,25 +56,7 @@ local MAGIC_DAMAGE_CLASS_TOKENS = {
   EVOKER = true,
 }
 
-local MAGIC_DAMAGE_SPEC_IDS = {
-  [62] = true,
-  [63] = true,
-  [64] = true,
-  [251] = true,
-  [252] = true,
-  [102] = true,
-  [256] = true,
-  [257] = true,
-  [258] = true,
-  [262] = true,
-  [264] = true,
-  [265] = true,
-  [266] = true,
-  [267] = true,
-  [1467] = true,
-  [1468] = true,
-  [1473] = true,
-}
+local MAGIC_DAMAGE_SPEC_IDS = Specs.BuildLfgFlagSet("magicDamage")
 
 local PHYSICAL_DAMAGE_CLASS_TOKENS = {
   DEATHKNIGHT = true,
@@ -124,28 +66,7 @@ local PHYSICAL_DAMAGE_CLASS_TOKENS = {
   WARRIOR = true,
 }
 
-local PHYSICAL_DAMAGE_SPEC_IDS = {
-  [66] = true,
-  [70] = true,
-  [71] = true,
-  [72] = true,
-  [73] = true,
-  [103] = true,
-  [104] = true,
-  [250] = true,
-  [253] = true,
-  [254] = true,
-  [255] = true,
-  [259] = true,
-  [260] = true,
-  [261] = true,
-  [263] = true,
-  [268] = true,
-  [269] = true,
-  [577] = true,
-  [581] = true,
-  [1480] = true,
-}
+local PHYSICAL_DAMAGE_SPEC_IDS = Specs.BuildLfgFlagSet("physicalDamage")
 
 -- Intentionally shown group-bonus surface for the LFG helper. This list only
 -- contains bonuses that matter for choosing a Mythic+ group at a glance; class
@@ -214,12 +135,14 @@ local SPEC_BONUSES = {
   },
 }
 
-local SPEC_CLASS_TOKENS = {
-  [253] = "HUNTER",
-  [254] = "HUNTER",
-  [255] = "HUNTER",
-  [AUGMENTATION_EVOKER_SPEC_ID] = "EVOKER",
-}
+-- Class owning each spec-level bonus, derived from data/isiLive_specs.lua for
+-- exactly the specs listed in SPEC_BONUSES. Callers drop a spec ID whose class
+-- does not match, and every spec outside this table falls back to the class
+-- profile -- keep the table limited to SPEC_BONUSES keys.
+local SPEC_CLASS_TOKENS = {}
+for specID in pairs(SPEC_BONUSES) do
+  SPEC_CLASS_TOKENS[specID] = Specs.GetClassToken(specID)
+end
 
 -- Injected via Register().
 

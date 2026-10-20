@@ -116,7 +116,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
       party3 = 4,
       party4 = 5,
     },
-    syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+    syncMarker = " |TInterface\\AddOns\\isiLive\\media\\link_sync_blue:12:12|t",
     syncBadge = " |TInterface\\Buttons\\UI-RefreshButton:12:12|t",
     applyKnownKeyToRosterEntry = keySyncResult.applyKnownKeyToRosterEntry,
     applyKnownKickToRosterEntry = keySyncResult.applyKnownKickToRosterEntry,
