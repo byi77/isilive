@@ -1159,39 +1159,32 @@ return function(test, ctx)
     Assert.Equal(type(factoryCtx.eventHandlersController), "table")
   end)
 
-  -- Composition with runtimeLogEnabled = true: drives the optional
-  -- "[INIT] addon_loaded ..." log line at the end of FinalizeFactoryRuntime
-  -- and the IsEnabled() branches of queue/runtime debug closures that
-  -- the standard happy-path test leaves dark.
-  test("factory composition root: emits [INIT] log when runtimeLogEnabled is true at init", function()
+  -- Composition with runtimeLogEnabled = true: drives the IsEnabled()
+  -- branches of the queue/runtime debug closures the happy-path test leaves
+  -- dark, and checks that the settings snapshot formerly logged as [INIT]
+  -- (dead: it ran before SavedVariables existed) lands in session_start.
+  test("factory composition root: session_start header carries the settings snapshot", function()
     local globals, db = BuildGlobals()
-    db.runtimeLogEnabled = true -- enable BEFORE InitializeAddon so FinalizeFactoryRuntime sees it
+    db.runtimeLogEnabled = true
+    db.syncEnabled = true
     local addon
     local factoryCtx
     WithGlobals(globals, function()
       addon = LoadAddonModules(GetAllIsiLiveFiles())
-    end)
-
-    -- Capture every Log() call so we can assert the [INIT] line fires.
-    -- The runtimeLogController is created during Factory.InitializeAddon,
-    -- so we hook the Log function from the loaded RuntimeLog module
-    -- (which the controller wraps internally).
-    local logEntries = {}
-
-    WithGlobals(globals, function()
       local ok, err = xpcall(function()
         factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
       end, debug.traceback)
       Assert.Equal(ok, true, "InitializeAddon must not raise with runtimeLogEnabled=true: " .. tostring(err))
+      Assert.True(factoryCtx.runtimeLogController.IsEnabled() == true, "IsEnabled must reflect db.runtimeLogEnabled")
 
-      Assert.NotNil(factoryCtx, "factory ctx must still be wired")
-      -- IsEnabled must reflect the enabled flag we set up front.
-      Assert.True(
-        type(factoryCtx.runtimeLogController) == "table"
-          and type(factoryCtx.runtimeLogController.IsEnabled) == "function"
-          and factoryCtx.runtimeLogController.IsEnabled() == true,
-        "runtimeLogController.IsEnabled must report true when db.runtimeLogEnabled = true"
-      )
+      local runtimeLog = factoryCtx.runtimeLogController
+      runtimeLog.SetEnabled(false)
+      runtimeLog.ClearLog()
+      runtimeLog.SetEnabled(true)
+      local header = runtimeLog.GetLogTail(1)[1] or ""
+      Assert.True(header:find("session_start", 1, true) ~= nil, "enabling must write a session_start header")
+      Assert.True(header:find("syncEnabled=true", 1, true) ~= nil, "header must carry the settings snapshot")
+      Assert.True(header:find("maxEntries=1500", 1, true) ~= nil, "header must report the real ring size")
 
       -- Drive the IsRuntimeLogEnabled / IsQueueDebugLogEnabled closures
       -- the factory installs on ctx so their IsEnabled branches get
@@ -1209,13 +1202,236 @@ return function(test, ctx)
         pcall(factoryCtx.clearQueueDebugLog)
       end
     end)
+  end)
 
-    -- Coverage instrumentation records every hit even if we cannot
-    -- meaningfully read back the [INIT] string from the controller's
-    -- internal buffer (the buffer is opaque from the addon table). The
-    -- IsEnabled assertion above plus the closure pokes are enough to
-    -- mark the previously dark branches as hit.
-    Assert.NotNil(logEntries, "log capture buffer must exist (placeholder for future inspection)")
+  test("factory composition root: every log handle passed to a controller is read by it", function()
+    -- Highlight was handed logRuntimeTrace but only reads logRuntimeTracef,
+    -- so all of its [HIGHLIGHT] lines were dead without any test noticing.
+    -- Hide every log* option behind an __index probe during the real factory
+    -- run and fail for each one the receiving controller never looks at.
+    local globals = BuildGlobals()
+    local unread = {}
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local records = {}
+      for moduleName, module in pairs(addon) do
+        if type(module) == "table" and type(rawget(module, "CreateController")) == "function" then
+          local original = module.CreateController
+          module.CreateController = function(opts, ...)
+            if type(opts) ~= "table" or getmetatable(opts) ~= nil then
+              return original(opts, ...)
+            end
+            local hidden = {}
+            for key, value in pairs(opts) do
+              if type(key) == "string" and key:find("^log") and value ~= nil then
+                hidden[key] = value
+              end
+            end
+            if next(hidden) == nil then
+              return original(opts, ...)
+            end
+            local record = { module = moduleName, keys = hidden, read = {} }
+            records[#records + 1] = record
+            for key in pairs(hidden) do
+              opts[key] = nil
+            end
+            setmetatable(opts, {
+              __index = function(_, key)
+                if hidden[key] ~= nil then
+                  record.read[key] = true
+                  return hidden[key]
+                end
+                return nil
+              end,
+            })
+            return original(opts, ...)
+          end
+        end
+      end
+
+      addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+
+      for _, record in ipairs(records) do
+        for key in pairs(record.keys) do
+          if not record.read[key] then
+            unread[#unread + 1] = record.module .. "." .. key
+          end
+        end
+      end
+    end)
+    table.sort(unread)
+    Assert.Equal(table.concat(unread, ", "), "", "log handles passed but never read by the controller")
+  end)
+
+  test("factory composition root: roster panel actions are wired into the runtime log", function()
+    -- RosterPanel.SetTraceLogger existed with tests but was never called by
+    -- the factory, so share-keys and layout-mode traces never reached the log.
+    local globals = BuildGlobals()
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local wiredLogger
+      local originalSetTraceLogger = addon.RosterPanel.SetTraceLogger
+      addon.RosterPanel.SetTraceLogger = function(fn)
+        wiredLogger = fn
+        return originalSetTraceLogger(fn)
+      end
+      local factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+      Assert.Equal(wiredLogger, factoryCtx.runtimeLogController.Log, "roster panel must log through the runtime log")
+    end)
+  end)
+
+  local function CountLogEntriesContaining(runtimeLog, needle)
+    local hits = 0
+    for _, line in ipairs(runtimeLog.GetLogTail(100)) do
+      if tostring(line):find(needle, 1, true) ~= nil then
+        hits = hits + 1
+      end
+    end
+    return hits
+  end
+
+  local function InitializeWithRuntimeLog(globals)
+    local addon = LoadAddonModules(GetAllIsiLiveFiles())
+    local factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
+    local runtimeLog = factoryCtx.runtimeLogController
+    runtimeLog.ClearLog()
+    return addon, factoryCtx, runtimeLog
+  end
+
+  test("factory composition root: log and errorlog dumps do not feed back into the runtime log", function()
+    -- ctx.Print mirrors every chat line into the runtime log. The dump
+    -- commands used it too, so `log tail 100` re-appended 101 nested copies
+    -- of the buffer it was reading and evicted an eighth of the ring.
+    local globals, db = BuildGlobals()
+    db.runtimeLogEnabled = true
+    local printed = {}
+    globals.print = function(msg)
+      printed[#printed + 1] = tostring(msg)
+    end
+
+    WithGlobals(globals, function()
+      local _, _, runtimeLog = InitializeWithRuntimeLog(globals)
+      runtimeLog.Log("[TEST] first")
+      runtimeLog.Log("[TEST] second")
+      runtimeLog.Log("[TEST] third")
+      local countBefore = runtimeLog.GetLogCount()
+
+      globals.SlashCmdList.ISILIVE("log tail 3")
+      globals.SlashCmdList.ISILIVE("log tail 3 TEST")
+      globals.SlashCmdList.ISILIVE("log status")
+      globals.SlashCmdList.ISILIVE("errorlog")
+      globals.SlashCmdList.ISILIVE("qdebug tail")
+
+      -- Each command still leaves its single [CMD] audit line; nothing else.
+      Assert.Equal(
+        runtimeLog.GetLogCount(),
+        countBefore + 5,
+        "log dump commands may only add their [CMD] audit lines: " .. table.concat(runtimeLog.GetLogTail(100), " || ")
+      )
+      Assert.Equal(
+        CountLogEntriesContaining(runtimeLog, "[TEST] event=third"),
+        1,
+        "dumped line must stay a single entry"
+      )
+      Assert.Equal(CountLogEntriesContaining(runtimeLog, "Runtime log"), 0, "dump headers must not be logged")
+    end)
+
+    local sawDumpedLine = false
+    for _, msg in ipairs(printed) do
+      if msg:find("[TEST] event=third", 1, true) ~= nil then
+        sawDumpedLine = true
+      end
+    end
+    Assert.True(sawDumpedLine, "log tail must still print the entries to chat")
+  end)
+
+  test("factory composition root: QDBG lines reach the runtime log exactly once", function()
+    -- The queue debug sink printed through ctx.Print (which logs) and then
+    -- logged the same line again, so every QDBG line was stored twice.
+    local globals, db = BuildGlobals()
+    db.runtimeLogEnabled = true
+    local printed = {}
+    globals.print = function(msg)
+      printed[#printed + 1] = tostring(msg)
+    end
+
+    WithGlobals(globals, function()
+      local addon, _, runtimeLog = InitializeWithRuntimeLog(globals)
+      addon.Queue.SetDebugEnabled(true)
+      Assert.Equal(
+        CountLogEntriesContaining(runtimeLog, "[QDBG] event=queue debug enabled"),
+        1,
+        "a QDBG line must be stored once in the runtime log"
+      )
+      addon.Queue.SetDebugEnabled(false)
+    end)
+
+    local chatHits = 0
+    for _, msg in ipairs(printed) do
+      if msg:find("[QDBG] queue debug enabled", 1, true) ~= nil then
+        chatHits = chatHits + 1
+      end
+    end
+    Assert.Equal(chatHits, 1, "qdebug must still echo the line to chat once")
+  end)
+
+  test("factory composition root: group roster trace skips resolution while the runtime log is off", function()
+    local globals = BuildGlobals()
+
+    WithGlobals(globals, function()
+      local addon, factoryCtx, runtimeLog = InitializeWithRuntimeLog(globals)
+      runtimeLog.SetEnabled(false)
+      local resolveCalls = 0
+      factoryCtx.ResolveActiveTeleportSpellID = function()
+        resolveCalls = resolveCalls + 1
+        return nil
+      end
+      factoryCtx.ResolveLocalStatusTargetMapID = function()
+        resolveCalls = resolveCalls + 1
+        return nil
+      end
+      local teleportModule = {
+        ResolveTeleportSpellIDByMapID = function()
+          resolveCalls = resolveCalls + 1
+          return nil
+        end,
+      }
+      local traceLogger = addon._FactoryInternal.BuildLFGGroupRosterTraceLogger(factoryCtx, {
+        teleport = teleportModule,
+      })
+      local snapshot = { event = "GROUP_ROSTER_UPDATE", inGroup = true, members = 5, detectedAfter = 2526 }
+
+      traceLogger(snapshot)
+      Assert.Equal(resolveCalls, 0, "disabled log must not pay for teleport / target resolution")
+      Assert.Equal(runtimeLog.GetLogCount(), 0, "disabled log must not record the roster trace")
+
+      runtimeLog.SetEnabled(true)
+      traceLogger(snapshot)
+      Assert.True(resolveCalls > 0, "enabled log must still resolve the trace values")
+      Assert.Equal(CountLogEntriesContaining(runtimeLog, "[LFG_GROUP5]"), 1, "enabled log must record the roster trace")
+    end)
+  end)
+
+  test("factory composition root: LFGDetect builds no trace line while the runtime log is off", function()
+    local globals = BuildGlobals()
+
+    WithGlobals(globals, function()
+      local addon, _, runtimeLog = InitializeWithRuntimeLog(globals)
+      runtimeLog.SetEnabled(false)
+      local traceCalls = 0
+      addon.LFGDetect.SetTraceLogger(function(builder)
+        traceCalls = traceCalls + 1
+        runtimeLog.Trace(builder)
+      end)
+
+      addon.LFGDetect.ClearAllState()
+      Assert.Equal(traceCalls, 0, "disabled log must stop LFGDetect before it allocates the trace builder")
+
+      runtimeLog.SetEnabled(true)
+      addon.LFGDetect.ClearAllState()
+      Assert.Equal(traceCalls, 1, "enabled log must hand the line to the trace logger")
+      Assert.Equal(CountLogEntriesContaining(runtimeLog, "[LFG] event=clear_all_state"), 1, "line must be recorded")
+    end)
   end)
   dofile("testmodul/isilive_test_scenarios_mplus_stress.lua")(test, ctx, {
     buildGlobals = BuildGlobals,

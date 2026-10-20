@@ -21,13 +21,6 @@ local SetReadableText = type(UICommon.SetReadableText) == "function" and UICommo
 
 local CreateFrame = rawget(_G, "CreateFrame")
 
-local function Trace(msg)
-  local logger = RI._rosterPanelLogger
-  if logger then
-    logger("RosterPanel: " .. msg)
-  end
-end
-
 -- Tooltip imports.
 local DisableFontStringWrapping = RI.DisableFontStringWrapping or function(_fs) end
 local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function(...)
@@ -634,10 +627,6 @@ end
 local RefreshReadyCheckStateImpl
 
 local function RenderRosterImpl(state, roster)
-  local memberCount = roster and #roster or 0
-  if RI._rosterPanelLogger then
-    Trace(string.format("rendering roster, member_count=%d", memberCount))
-  end
   local memberRows = state.memberRows
   local mainFrame = state.mainFrame
   local shareKeysButton = state.shareKeysButton

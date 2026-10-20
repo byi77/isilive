@@ -646,10 +646,15 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
-  test("Architecture runtime log factory keeps the documented 800 entry cap", function()
+  test("Architecture runtime log factory keeps the documented 1500 entry cap", function()
     local content = ReadFile("factory/isiLive_factory_frame_bridge.lua")
 
-    AssertContains(Assert, content, "maxEntries = 800", "runtime log factory must enforce the documented cap")
+    AssertContains(
+      Assert,
+      content,
+      "runtimeLogMaxEntries = 1500",
+      "runtime log factory must enforce the documented cap"
+    )
     AssertNotContains(Assert, content, "maxEntries = 10000", "runtime log factory must not restore the oversized cap")
   end)
 

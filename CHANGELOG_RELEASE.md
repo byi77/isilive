@@ -3,14 +3,17 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.441`.
+Current version: `0.9.442`.
+
+Version 0.9.442: leaner, more useful diagnostic logs for bug reports; logging
+off costs no extra work.
 
 Version 0.9.441: your own dungeon best in Group Finder, new bonus and isiLive
 markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.441 -->
+<!-- highlights-reviewed-for: 0.9.442 -->
 
 Highlights:
 - **Your own dungeon best in Group Finder.** Search results show your current

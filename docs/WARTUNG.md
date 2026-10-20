@@ -486,10 +486,10 @@ Wenn du hier wieder Fremdspieler persistierst, baust du wieder unbounded Wachstu
 - `errorLog` ≤ 200 (ErrorLog-Modul cappt selbst auf 100; Schema ist Sicherheitsnetz)
 - `rioBaseline` ≤ 5000 (lifetime cross-realm players)
 - `stats.playerLastRunByCharacter` ≤ 5000 (per-character Run-Stats)
-- `runtimeLog` ≤ 800 (LogBuffer-Ring, schon vorher)
+- `runtimeLog` ≤ 1500 (LogBuffer-Ring, schon vorher)
 - `queueDebugLog` ≤ 400 (LogBuffer-Ring, schon vorher)
 
-Beim Laden beziehungsweise ersten Diagnosezugriff verdichtet `RuntimeLog` alte uebergrosse oder mit einem frueheren Cap rotierte Ringe physisch auf die neuesten 800 Eintraege. Gefilterte Tails durchsuchen alle 800 behaltenen Eintraege; ein internes 500er-Suchfenster darf nicht wieder eingefuehrt werden.
+Beim Laden beziehungsweise ersten Diagnosezugriff verdichtet `RuntimeLog` alte uebergrosse oder mit einem frueheren Cap rotierte Ringe physisch auf die neuesten 1500 Eintraege. Gefilterte Tails durchsuchen alle 1500 behaltenen Eintraege; ein internes 500er-Suchfenster darf nicht wieder eingefuehrt werden.
 
 Realistische User sollten diese Caps nie erreichen. Wenn doch, surfaced der Trim einen echten Bug upstream (infinite append in einer Schleife) und haelt die SavedVariables-Datei unter ~3MB statt sie auf Gigabyte-Skala wachsen zu lassen. Jede Trim-Aktion wird via `[DBSCHEMA] trimmed ...` geloggt.
 
@@ -503,7 +503,8 @@ Aktueller Soll-Zustand:
 - Der sichtbare CD-Sekundenticker aktualisiert nur CD-, Ready- und M+-Zeilen. Ein vollstaendiger M+-Pre-Render ist nur fuer ausgeblendete eventgetriebene Refreshes erlaubt.
 - Killtracker-Periodik aktualisiert nur bereits entdeckte Nameplate-Overlays. Ein Vollscan der Unit-Tokens ist auf Aktivierung, Start und Einstellungswechsel beschraenkt.
 - Statsbox, Roster-Collapse und Systemoption-Watcher duerfen unveraenderte Layouts nicht sekundenweise neu anwenden; der Systemoption-Watcher besitzt nur bei sichtbarer Main-UI einen abbrechbaren Fuenf-Sekunden-Ticker.
-- Deaktivierte Runtime-Logs duerfen auf Roster-Hotpaths keine Trace-Strings vorab formatieren.
+- Deaktivierte Runtime-Logs duerfen auf Roster-Hotpaths keine Trace-Strings vorab formatieren und keine Trace-Werte aufloesen (z. B. `[LFG_GROUP5]` pro `GROUP_ROSTER_UPDATE`). Die Praesenz eines Logger-Handles ist kein Gate; `IsLevelEnabled` bzw. ein `isActive`-Probe ist es.
+- Neue Logzeilen: Zustandswechsel und Nutzeraktionen auf `normal`, Wiederholungen ohne Aenderung und Schritt-fuer-Schritt-Traces auf `deep`; mehrere Felder eines Zustandswechsels in eine Zeile. Ausgaben von Log-Befehlen gehen ueber `printNoLogFn`.
 
 Bei Aenderungen mindestens die zugehoerigen Regel-93-Szenarien, `tools/simulate_mplus_timer_lifecycle.lua`, den Event-Dispatch-Benchmark und den vollen lokalen Preflight erneut ausfuehren.
 

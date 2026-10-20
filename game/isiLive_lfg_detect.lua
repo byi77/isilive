@@ -125,9 +125,10 @@ local acceptedInviteNoticeEnabledFn = nil
 local targetDungeonChatCallback = nil
 local targetDungeonChatEnabledFn = nil
 
-local debugLog = nil
 local debugTrace = nil
 local debugTraceDeep = nil
+local traceActive = nil
+local traceDeepActive = nil
 local lastRosterUpdateSignature = nil
 local TriggerHighlightUpdate
 
@@ -196,10 +197,6 @@ function LFGDetect.SetTargetDungeonChatEnabledFn(fn)
   targetDungeonChatEnabledFn = type(fn) == "function" and fn or nil
 end
 
-function LFGDetect.SetLogger(fn)
-  debugLog = type(fn) == "function" and fn or nil
-end
-
 function LFGDetect.SetTraceLogger(fn)
   debugTrace = type(fn) == "function" and fn or nil
 end
@@ -208,29 +205,31 @@ function LFGDetect.SetDeepTraceLogger(fn)
   debugTraceDeep = type(fn) == "function" and fn or nil
 end
 
+-- Optional level probes, same contract as Sync.SetTraceLogger's isActive:
+-- when one returns false the line is neither built nor handed to the trace
+-- function, so a disabled log costs no args table and no builder closure.
+function LFGDetect.SetTraceActiveCheck(isActive, isDeepActive)
+  traceActive = type(isActive) == "function" and isActive or nil
+  traceDeepActive = type(isDeepActive) == "function" and isDeepActive or nil
+end
+
 local function LogInternal(traceFn, event, formatText, ...)
-  if not traceFn and not debugLog then
+  if not traceFn then
+    return
+  end
+  local isActive = traceFn == debugTraceDeep and traceDeepActive or traceActive
+  if isActive and isActive() ~= true then
     return
   end
   local argCount = select("#", ...)
-  if traceFn then
-    local args = { ... }
-    traceFn(function()
-      local data = formatText
-      if argCount > 0 then
-        data = string.format(tostring(formatText or ""), Unpack(args))
-      end
-      return string.format("[LFG] %s %s", event, data or "")
-    end)
-    return
-  end
-  local data = formatText
-  if argCount > 0 then
-    data = string.format(tostring(formatText or ""), ...)
-  end
-  if debugLog then
-    debugLog(string.format("[LFG] %s %s", event, data or ""))
-  end
+  local args = { ... }
+  traceFn(function()
+    local data = formatText
+    if argCount > 0 then
+      data = string.format(tostring(formatText or ""), Unpack(args))
+    end
+    return string.format("[LFG] %s %s", event, data or "")
+  end)
 end
 
 local function Log(event, formatText, ...)
@@ -471,16 +470,22 @@ local function OnInviteAccepted(searchResultID)
     -- Fresh accept: the upcoming PARTY_LEADER_CHANGED is the initial
     -- convert-to-party-lead, not a handoff. See state-block comment above.
     rosterEstablishedSinceAccept = false
-    if detectedMapID ~= mapID then
-      Log("state_set", "var=detectedMapID before=%s after=%s", tostring(detectedMapID), tostring(mapID))
-      detectedMapID = mapID
-      Log("state_set", "var=pendingAcceptedInviteMapID val=%s", tostring(mapID))
-    end
-    Log("state_set", "var=activeInviteLeader val=%s", tostring(leaderName))
-    Log("state_set", "var=activeInviteGroupName val=%s", tostring(activeInviteGroupName))
-    Log("state_set", "var=activeInviteTitleLevel val=%s", tostring(titleLevel))
-    Log("state_set", "var=activeInviteTitleLevelText val=%s", tostring(titleLevelText))
-    Log("state_set", "var=acceptedInviteSearchResultID val=%s", tostring(searchResultID))
+    local detectedBefore = detectedMapID
+    detectedMapID = mapID
+    -- One snapshot line for the whole accept instead of one per field.
+    Log(
+      "state_set",
+      "source=invite_accept detectedMapID=%s->%s pendingAcceptedInviteMapID=%s leader=%s group=%s "
+        .. "titleLevel=%s titleLevelText=%s searchResultID=%s",
+      tostring(detectedBefore),
+      tostring(mapID),
+      tostring(mapID),
+      tostring(leaderName),
+      tostring(activeInviteGroupName),
+      tostring(titleLevel),
+      tostring(titleLevelText),
+      tostring(searchResultID)
+    )
     MaybeShowAcceptedInviteNotice(entry, searchResultID)
     -- Announce chat with the SAME entry the notice just rendered before the
     -- highlight refresh can synchronously re-enter the resolver-driven status
@@ -757,10 +762,14 @@ local function CheckActiveGroup()
     activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
     activeQueueListingLeaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName
       or GetLocalPlayerFullName()
-    Log("state_set", "var=lastQueueMapID val=%s", tostring(mapID))
-    Log("state_set", "var=detectedMapID val=%s", tostring(mapID))
-    Log("state_set", "var=activeQueueListingGroupName val=%s", tostring(activeQueueListingGroupName))
-    Log("state_set", "var=activeQueueListingLeaderName val=%s", tostring(activeQueueListingLeaderName))
+    Log(
+      "state_set",
+      "source=queue_listing lastQueueMapID=%s detectedMapID=%s group=%s leader=%s",
+      tostring(mapID),
+      tostring(mapID),
+      tostring(activeQueueListingGroupName),
+      tostring(activeQueueListingLeaderName)
+    )
     TriggerHighlightUpdate("queue") -- BUG-1: own listing → suppress portal sound
   elseif mapID then
     activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil

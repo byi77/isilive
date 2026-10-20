@@ -421,7 +421,30 @@ return function(test, ctx)
     end)
   end)
 
-  test("Runtime log controller sanitizes non-ASCII bytes", function()
+  test("Runtime log controller continues the sequence after a reload", function()
+    local db = {}
+    WithGlobals({
+      IsiLiveDB = db,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_log_buffer.lua", "isiLive_runtime_log.lua" })
+      local first = addon.RuntimeLog.CreateController({ maxEntries = 10 })
+      first.SetEnabled(true)
+      first.Log("[TEST] one")
+      first.Log("[TEST] two")
+
+      -- A /reload builds a fresh controller over the persisted ring.
+      local afterReload = addon.RuntimeLog.CreateController({ maxEntries = 10 })
+      afterReload.Log("[TEST] three")
+      local newest = afterReload.GetLogTail(1)[1]
+      Assert.True(newest:find("^seq=3 ") ~= nil, "seq must continue after the stored entries: " .. tostring(newest))
+
+      afterReload.ClearLog()
+      afterReload.Log("[TEST] fresh")
+      Assert.True(afterReload.GetLogTail(1)[1]:find("^seq=1 ") ~= nil, "ClearLog must restart the sequence")
+    end)
+  end)
+
+  test("Runtime log controller keeps UTF-8, drops broken bytes, UI markup and line breaks", function()
     WithGlobals({
       IsiLiveDB = {},
     }, function()
@@ -439,8 +462,20 @@ return function(test, ctx)
 
       Assert.Equal(#tail, 1, "sanitizing test should produce one log entry")
       Assert.True(
-        tail[1]:find("abc?xyz", 1, true) ~= nil,
-        "non-ASCII UTF-8 sequence must collapse to a single ? in stored log text"
+        tail[1]:find("abc\195\164xyz", 1, true) ~= nil,
+        "well-formed UTF-8 (player / realm names) must be stored unchanged"
+      )
+
+      controller.Log("bad\255byte cut\195 stray\164end")
+      Assert.True(
+        controller.GetLogTail(1)[1]:find("bad?byte cut? stray?end", 1, true) ~= nil,
+        "broken UTF-8 byte runs must each become a single ?"
+      )
+
+      controller.Log("|cff4da6ffisiLive|r: line1\nline2 |Hitem:1|h[Link]|h |TInterface\\Icons\\X:0|tend")
+      Assert.True(
+        controller.GetLogTail(1)[1]:find("isiLive: line1 line2 [Link] end", 1, true) ~= nil,
+        "colour / link / texture markup must be stripped and line breaks flattened"
       )
     end)
   end)

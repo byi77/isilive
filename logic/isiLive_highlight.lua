@@ -207,6 +207,12 @@ end
 
 local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latestQueueActivityID, latestQueueMapID)
   local logf = deps.logRuntimeTracef
+  -- A wired logger is not an active one: the factory always hands in the
+  -- controller's function. Without the probe every call would pay for the
+  -- GetInstanceInfo below and for the eager tostring() arguments.
+  if logf and deps.isTraceActive and deps.isTraceActive() ~= true then
+    logf = nil
+  end
   -- Diagnostics only; the match itself reads the instance in
   -- IsPlayerInsideTargetDungeon, so skip the extra GetInstanceInfo without a logger.
   local currentInstanceID = logf and GetCurrentPartyInstanceID() or nil
@@ -299,6 +305,7 @@ function Highlight.CreateController(opts)
       return nil
     end,
     logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or nil,
+    isTraceActive = type(opts.isTraceActive) == "function" and opts.isTraceActive or nil,
   }
 
   local controller = {}

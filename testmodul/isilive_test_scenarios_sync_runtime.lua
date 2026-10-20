@@ -227,8 +227,14 @@ local function RegisterSyncLazyPayloadTests(test, ctx)
       Burst()
       ctx.assert.Equal(formats, 0, "normal trace must not prepare deep payload bytes")
       local deferred
+      -- message_received is a deep line too and is handed over first; the
+      -- second deep builder of the first message is its payload dump.
+      local seenPerMessage = 0
       sync.SetDeepTraceLogger(function(builder)
-        deferred = deferred or builder
+        seenPerMessage = seenPerMessage + 1
+        if deferred == nil and seenPerMessage == 2 then
+          deferred = builder
+        end
       end)
       Burst()
       ctx.assert.Equal(formats, 0, "discarded deep builders must not prepare sender bytes")
@@ -242,18 +248,6 @@ local function RegisterSyncLazyPayloadTests(test, ctx)
       ctx.assert.Equal(sync.GetPlayerKeyInfo("Peer", "Realm").level, 12, "lazy logging must not change sync state")
       sync.SetTraceLogger(nil)
       sync.SetDeepTraceLogger(nil)
-      local legacyPayload
-      sync.SetLogger(function(message)
-        if message:find("message_payload", 1, true) then
-          legacyPayload = message
-        end
-      end)
-      sync.ProcessAddonMessage("ISILIVE", "KEY:2662:12:100:audit", "Peer-Realm", "Me", "Realm", "PARTY")
-      ctx.assert.Equal(formats, 20, "direct legacy logger must consume one additional payload dump")
-      ctx.assert.True(
-        legacyPayload:find("senderBytes=50-65-65-72-2D-52-65-61-6C-6D", 1, true) ~= nil,
-        "direct logger must retain its original payload text"
-      )
     end)
   end)
 end

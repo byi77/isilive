@@ -242,8 +242,8 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
       local logs = {}
-      addon.Sync.SetLogger(function(message)
-        logs[#logs + 1] = message
+      addon.Sync.SetTraceLogger(function(build)
+        logs[#logs + 1] = build()
       end)
 
       local shareKeysResult =
@@ -259,7 +259,7 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
         logs[#logs] and logs[#logs]:find("sharekeys=true", 1, true) ~= nil,
         "SHAREKEYS message_applied trace must expose sharekeys=true"
       )
-      addon.Sync.SetLogger(nil)
+      addon.Sync.SetTraceLogger(nil)
     end)
   end)
 

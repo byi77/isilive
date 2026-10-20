@@ -341,12 +341,11 @@ local SCHEMA = {
 }
 
 -- Persisted runtime-debug fields are intentionally NOT in the schema:
---   queueDebug, runtimeLogEnabled
--- Both are reset to false in HandleAddonLoadedEvent regardless of saved
--- value (see logic/isiLive_event_handlers_runtime.lua line ~333). Adding
--- them here would just create churn since they get overwritten ms later.
--- runtimeLogLevel is also NOT in the schema; it's set via debug commands
--- and the in-memory runtime-log module owns its own validation.
+--   queueDebug, runtimeLogEnabled, runtimeLogLevel
+-- All three are reset (false / false / "normal") in HandleAddonLoaded
+-- regardless of the saved value (logic/isiLive_event_handlers_runtime.lua).
+-- Adding them here would just create churn since they get overwritten ms
+-- later; the runtime-log module owns the level validation.
 --
 -- rosterCollapsed is a legacy key and must stay out of the schema: it is only
 -- read (never written) in ui/isiLive_roster_panel.lua to derive savedLayoutMode

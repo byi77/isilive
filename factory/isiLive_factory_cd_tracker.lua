@@ -711,9 +711,12 @@ local function InitializeFactorySecondaryCdTracker(
     -- surface in /isilive log dump without spamming chat.
     if type(killTrack.SetDebugLogger) == "function" then
       killTrack.SetDebugLogger(function(fmt, ...)
-        if ctx.runtimeLogController and type(ctx.runtimeLogController.Logf) == "function" then
-          ctx.runtimeLogController.Logf(fmt, ...)
+        local runtimeLog = ctx.runtimeLogController
+        if not (runtimeLog and runtimeLog.IsLevelEnabled and runtimeLog.IsLevelEnabled("normal")) then
+          return false
         end
+        runtimeLog.Logf(fmt, ...)
+        return true
       end)
     end
   end

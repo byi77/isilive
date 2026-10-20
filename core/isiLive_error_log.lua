@@ -203,14 +203,26 @@ local function CaptureStack(message)
   return tostring(message)
 end
 
--- Looks up an existing entry with the same fullText. Returns the entry and
+-- Dedup identity of an error. Object addresses differ on every occurrence
+-- ("attempt to index a table: 0000020F1A2B3C40", "function: 0x55d1..."), so
+-- comparing raw text gave each repeat of the same bug its own entry and one
+-- noisy error could evict the whole ring. Addresses are masked; line numbers
+-- and messages stay, so genuinely different errors remain distinct.
+local function BuildDedupKey(fullText)
+  local key = fullText:gsub("0x%x+", "0x?")
+  key = key:gsub("(%a+): (%x%x%x%x%x%x%x%x+)", "%1: ?")
+  return key
+end
+
+-- Looks up an existing entry with the same dedup key. Returns the entry and
 -- its index, or nil for both. fullText already includes traceback if present.
 local function FindExistingEntry(storage, fullText)
   if type(storage) ~= "table" or type(fullText) ~= "string" then
     return nil, nil
   end
+  local key = BuildDedupKey(fullText)
   for index, entry in ipairs(storage) do
-    if type(entry) == "table" and entry.fullText == fullText then
+    if type(entry) == "table" and type(entry.fullText) == "string" and BuildDedupKey(entry.fullText) == key then
       return entry, index
     end
   end

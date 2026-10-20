@@ -102,7 +102,6 @@ local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
 local verifiedAliasByRosterKey = {}
-local syncDebugLog = nil
 local syncDebugTrace = nil
 local syncDebugTraceDeep = nil
 -- Optional "would this level be recorded" checks paired with the trace
@@ -111,12 +110,6 @@ local syncDebugTraceDeep = nil
 -- a closure only for the logger to drop them.
 local syncTraceActive = nil
 local syncDeepTraceActive = nil
-
---- Sets the primary debug logger for sync events.
--- @param fn function|nil Receives a formatted string. Pass nil to disable.
-function Sync.SetLogger(fn)
-  syncDebugLog = type(fn) == "function" and fn or nil
-end
 
 --- Sets the trace logger for sync send/receive events.
 -- @param fn function|nil Receives a lazy builder function; call it to materialise the string. Pass nil to disable.
@@ -146,35 +139,20 @@ local function IsTraceLoggerActive(traceFn)
 end
 
 local function SyncLogInternal(traceFn, event, formatText, ...)
-  if not traceFn and not syncDebugLog then
-    return
-  end
-  if traceFn and not IsTraceLoggerActive(traceFn) then
+  if not traceFn or not IsTraceLoggerActive(traceFn) then
     return
   end
   local argCount = select("#", ...)
-  if traceFn then
-    local args = { ... }
-    traceFn(function()
-      local data = formatText
-      if type(formatText) == "function" then
-        data = formatText()
-      elseif argCount > 0 then
-        data = string.format(tostring(formatText or ""), Unpack(args))
-      end
-      return string.format("[SYNC] %s %s", event, data or "")
-    end)
-    return
-  end
-  local data = formatText
-  if type(formatText) == "function" then
-    data = formatText()
-  elseif argCount > 0 then
-    data = string.format(tostring(formatText or ""), ...)
-  end
-  if syncDebugLog then
-    syncDebugLog(string.format("[SYNC] %s %s", event, data or ""))
-  end
+  local args = { ... }
+  traceFn(function()
+    local data = formatText
+    if type(formatText) == "function" then
+      data = formatText()
+    elseif argCount > 0 then
+      data = string.format(tostring(formatText or ""), Unpack(args))
+    end
+    return string.format("[SYNC] %s %s", event, data or "")
+  end)
 end
 
 local function SyncLog(event, formatText, ...)
@@ -188,17 +166,11 @@ end
 -- True when a SyncLog / SyncLogDeep line would be recorded. Lets hot callers
 -- skip building tostring() arguments that the logger would discard.
 local function IsSyncLogActive()
-  if syncDebugTrace then
-    return IsTraceLoggerActive(syncDebugTrace)
-  end
-  return syncDebugLog ~= nil
+  return syncDebugTrace ~= nil and IsTraceLoggerActive(syncDebugTrace)
 end
 
 local function IsSyncLogDeepActive()
-  if syncDebugTraceDeep then
-    return IsTraceLoggerActive(syncDebugTraceDeep)
-  end
-  return syncDebugLog ~= nil
+  return syncDebugTraceDeep ~= nil and IsTraceLoggerActive(syncDebugTraceDeep)
 end
 
 local function FormatBytes(value)

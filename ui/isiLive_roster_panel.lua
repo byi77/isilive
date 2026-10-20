@@ -12,19 +12,19 @@ addonTable.RosterPanel = RosterPanel
 
 addonTable._RosterInternal = addonTable._RosterInternal or {}
 
--- Trace logger for debug output
+-- Runtime-log sink for user actions on the panel (share keys, layout mode).
+-- Wired by the factory; render and leader-button traces go through the
+-- controller's logRuntimeTraceDeep instead and must not be duplicated here.
 local runtimeLog = nil
 
---- Set trace logger for debug output
+--- Set the runtime-log sink. Receives the finished "[ROSTER_UI] ..." line.
 function RosterPanel.SetTraceLogger(logger)
-  runtimeLog = logger
-  -- Share with split render module so it can emit RosterPanel-prefixed traces.
-  addonTable._RosterInternal._rosterPanelLogger = logger
+  runtimeLog = type(logger) == "function" and logger or nil
 end
 
 local function Trace(msg)
   if runtimeLog then
-    runtimeLog("RosterPanel: " .. msg)
+    runtimeLog("[ROSTER_UI] " .. msg)
   end
 end
 
@@ -497,7 +497,6 @@ local function CreatePanelButtons(mainFrame, deps)
 end
 
 local function ConstructPanelUI(mainFrame, uiDeps)
-  Trace("constructing UI, row_count=5")
   local isRaidGroupFn = uiDeps.isRaidGroup
 
   -- Background for visibility
@@ -705,7 +704,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
         return
       end
       if runtimeLog then
-        Trace(string.format("layout mode changed to %s", tostring(target)))
+        Trace(string.format("layout_mode_changed target=%s", tostring(target)))
       end
       ui.layoutMode = target
       local db = GetDB()
@@ -770,7 +769,6 @@ local function ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
 end
 
 function RosterPanel.CreateController(opts)
-  Trace("creating controller")
   opts = opts or {}
 
   local mainFrame = assert(opts.mainFrame, "isiLive: RosterPanel requires mainFrame")
@@ -992,9 +990,6 @@ function RosterPanel.CreateController(opts)
 
   function controller.UpdateLeaderButtons()
     local enabled = isPlayerLeader()
-    if runtimeLog then
-      Trace(string.format("updating leader buttons, isLeader=%s", tostring(enabled)))
-    end
     if logRuntimeTraceDeep then
       logRuntimeTraceDeep(function()
         return string.format("[ROSTER_UI] leader_buttons enabled=%s", tostring(enabled))

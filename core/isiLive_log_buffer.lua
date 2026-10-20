@@ -93,14 +93,40 @@ function LogBuffer.EnsureSavedTable(key)
   end
 end
 
+-- Byte length a UTF-8 lead byte announces, or nil for a byte that cannot
+-- start a sequence (stray continuation byte, overlong / out-of-range lead).
+local function Utf8SequenceLength(leadByte)
+  if leadByte >= 194 and leadByte <= 223 then
+    return 2
+  elseif leadByte >= 224 and leadByte <= 239 then
+    return 3
+  elseif leadByte >= 240 and leadByte <= 244 then
+    return 4
+  end
+  return nil
+end
+
+local function ReplaceBrokenUtf8(sequence)
+  if Utf8SequenceLength(sequence:byte(1)) == #sequence then
+    return sequence
+  end
+  return "?"
+end
+
 function LogBuffer.SanitizeMessage(message)
   local text = tostring(message or "")
-  -- Keep SavedVariables debug logs ASCII-friendly for easier external parsing.
-  -- Collapse each full UTF-8 multi-byte sequence into a single "?" first so a
-  -- single character does not become multiple "?"s. Any remaining high bytes
-  -- (invalid / stray) also get replaced with "?".
-  local sanitized = text:gsub("[\194-\244][\128-\191]+", "?"):gsub("[\128-\255]", "?")
-  return sanitized
+  -- Player and realm names are UTF-8 (umlauts, Cyrillic realms). They used
+  -- to collapse to "?", which made sender names unreadable; SavedVariables
+  -- are UTF-8 anyway, so well-formed sequences are kept. Only broken byte
+  -- runs become "?".
+  text = text:gsub("[\128-\255][\128-\191]*", ReplaceBrokenUtf8)
+  -- WoW UI escapes (colour, texture, hyperlink wrappers) are chat markup, not
+  -- log content. Keep the visible link text, drop the wrapper.
+  text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  text = text:gsub("|T.-|t", ""):gsub("|H.-|h", ""):gsub("|h", "")
+  -- One entry per line: newlines and other control bytes become spaces.
+  text = text:gsub("%c", " ")
+  return text
 end
 
 function LogBuffer.Append(logs, timestamp, message, maxEntries)

@@ -59,6 +59,7 @@ function Bootstrap.RegisterSlashCommands(opts)
 
   commands.RegisterSlashCommands({
     printFn = printFn,
+    printNoLogFn = type(opts.printNoLogFn) == "function" and opts.printNoLogFn or nil,
     getL = getL,
     getState = getState,
     setState = setState,

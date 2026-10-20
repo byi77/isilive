@@ -104,7 +104,6 @@ function ConfigBuilders.BuildLeaderWatchControllerOpts(ctx)
     printFn = ctx.printFn,
     getL = ctx.getL,
     updateLeaderButtons = ctx.updateLeaderButtons,
-    logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
   }
 end
@@ -139,6 +138,7 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
   return {
     commands = ctx.commands,
     printFn = ctx.printFn,
+    printNoLogFn = ctx.printNoLogFn,
     getL = ctx.getL,
     getState = ctx.getState,
     setState = ctx.setState,

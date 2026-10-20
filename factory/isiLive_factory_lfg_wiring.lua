@@ -80,69 +80,41 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     end
     ctx.teleportUpdatePending = false
     local runtimeLog = ctx.runtimeLogController
-    local logf = runtimeLog and runtimeLog.Logf or nil
-    -- One level check per call instead of four trace closures and a deep
-    -- format call that the logger drops while deep tracing is off.
-    local deepActive = runtimeLog ~= nil
-      and (type(runtimeLog.IsLevelEnabled) ~= "function" or runtimeLog.IsLevelEnabled("deep") == true)
-    local logfDeep = deepActive and runtimeLog.LogfDeep or nil
-    local traceDeep = deepActive and runtimeLog.TraceDeep or nil
-    if soundContext and logf then
-      logf("[TP] update_button_called soundContext=%s", tostring(soundContext))
-    elseif logfDeep then
-      logfDeep("[TP] update_button_called soundContext=%s", tostring(soundContext))
-    end
+    -- One line per update instead of a trace per resolution step: this runs
+    -- on every LFG / sync / roster change and used to fill a third of the
+    -- ring at deep level. Sound-carrying updates (queue / invite) are the
+    -- user-visible ones and stay at normal level.
+    local logActive = runtimeLog ~= nil
+      and type(runtimeLog.IsLevelEnabled) == "function"
+      and runtimeLog.IsLevelEnabled(soundContext and "normal" or "deep") == true
     -- Priority 1: LFGDetect (invite accepted / own active listing). This is
     -- the strongest direct signal from the current LFG flow and must
     -- outrank sync/queue/listing resolution, which can otherwise surface a
     -- stale or peer-synced mapID that overrides the just-accepted invite.
     local resolvedSpellID = nil
+    local spellSource = "none"
     local lfgDetect = addonTable.LFGDetect
     local detectedMapID = type(lfgDetect) == "table"
         and type(lfgDetect.GetDetectedMapID) == "function"
         and lfgDetect.GetDetectedMapID()
       or nil
-    if traceDeep then
-      traceDeep(function()
-        return string.format("[TP] lfg_detected_map detectedMapID=%s", tostring(detectedMapID))
-      end)
-    end
     if detectedMapID then
       resolvedSpellID = modules.teleport.ResolveTeleportSpellIDByMapID(detectedMapID)
-      if traceDeep then
-        traceDeep(function()
-          return string.format(
-            "[TP] spell_from_lfg mapID=%s resolvedSpellID=%s",
-            tostring(detectedMapID),
-            tostring(resolvedSpellID)
-          )
-        end)
-      end
+      spellSource = resolvedSpellID and "lfg" or spellSource
     end
     if not resolvedSpellID then
       resolvedSpellID = ctx.ResolveActiveTeleportSpellID()
-      if traceDeep then
-        traceDeep(function()
-          return string.format("[TP] spell_from_active resolvedSpellID=%s", tostring(resolvedSpellID))
-        end)
-      end
+      spellSource = resolvedSpellID and "active" or spellSource
     end
-    if traceDeep then
-      traceDeep(function()
-        return string.format(
-          "[TP] frame_show_check spellFound=%s soundContext=%s frameShown=%s",
-          tostring(resolvedSpellID ~= nil),
-          tostring(soundContext),
-          tostring(ctx.mainFrame and ctx.mainFrame:IsShown())
-        )
-      end)
-    end
+    local frameWasShown = type(ctx.mainFrame) == "table"
+      and type(ctx.mainFrame.IsShown) == "function"
+      and ctx.mainFrame:IsShown() == true
     if
       resolvedSpellID
       and (soundContext == "queue" or soundContext == "invite")
+      and not frameWasShown
       and type(ctx.mainFrame) == "table"
       and type(ctx.mainFrame.IsShown) == "function"
-      and ctx.mainFrame:IsShown() ~= true
       and type(ctx.SetMainFrameVisible) == "function"
     then
       ctx.SetMainFrameVisible(true, {
@@ -150,10 +122,16 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
         skipShowCallbacks = true,
       })
     end
-    if traceDeep then
-      traceDeep(function()
-        return string.format("[TP] update_buttons_called resolvedSpellID=%s", tostring(resolvedSpellID))
-      end)
+    if logActive then
+      local logFn = soundContext and runtimeLog.Logf or runtimeLog.LogfDeep
+      logFn(
+        "[TP] update_button soundContext=%s detectedMapID=%s spellID=%s source=%s frameShown=%s",
+        tostring(soundContext),
+        tostring(detectedMapID),
+        tostring(resolvedSpellID),
+        spellSource,
+        tostring(frameWasShown)
+      )
     end
     ctx.teleportUIController.UpdateButtons(resolvedSpellID, soundContext)
   end
@@ -174,8 +152,17 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     if type(lfgDetect.SetDeepTraceLogger) == "function" then
       lfgDetect.SetDeepTraceLogger(ctx.runtimeLogController and ctx.runtimeLogController.TraceDeep or nil)
     end
-    if type(lfgDetect.SetLogger) == "function" then
-      lfgDetect.SetLogger(nil)
+    local runtimeLog = ctx.runtimeLogController
+    if
+      type(lfgDetect.SetTraceActiveCheck) == "function"
+      and runtimeLog
+      and type(runtimeLog.IsLevelEnabled) == "function"
+    then
+      lfgDetect.SetTraceActiveCheck(function()
+        return runtimeLog.IsLevelEnabled("normal")
+      end, function()
+        return runtimeLog.IsLevelEnabled("deep")
+      end)
     end
     -- Post-accept Center Notice plumbing. Triggered from OnInviteAccepted with
     -- a payload extracted exclusively from the accepted searchResultID's

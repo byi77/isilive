@@ -884,6 +884,34 @@ local function RegisterKillTrackBranchTests(test, Assert, WithGlobals, LoadAddon
       addon.KillTrack.SetDebugLogger(nil)
     end)
   end)
+
+  test("KillTrack keeps a drift report pending while the runtime log drops it", function()
+    -- The factory logger returns false while the runtime log is off. The
+    -- drift key used to be consumed anyway, so a drift seen before
+    -- "/isilive log on" never surfaced for the rest of the session.
+    local logs = {}
+    local logActive = false
+    local env = BuildKillTrackEnv({ scenario = { mapID = 555, total = 100, quantity = 10 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.MPlusForces = { dungeonTotal = { [555] = { total = 110 } } }
+      addon.KillTrack.SetDebugLogger(function(...)
+        if not logActive then
+          return false
+        end
+        table.insert(logs, string.format(...))
+        return true
+      end)
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Equal(#logs, 0, "dropped drift line must not be recorded")
+      logActive = true
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Equal(#logs, 1, "drift must surface once after logging is enabled")
+      addon.KillTrack.SetDebugLogger(nil)
+    end)
+  end)
 end
 
 return function(test, ctx)

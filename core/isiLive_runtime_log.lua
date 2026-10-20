@@ -61,6 +61,10 @@ function RuntimeLog.CreateController(opts)
 
   local controller = {}
   local sequence = 0
+  -- The ring survives /reload, the counter does not. Continue from the
+  -- newest stored entry on the first append so seq stays monotonic across
+  -- reloads instead of restarting at 1 next to the previous session's lines.
+  local sequenceSeeded = false
   local lastRawTime = nil
   local watchFn = nil
   local throttledLogState = {}
@@ -116,7 +120,23 @@ function RuntimeLog.CreateController(opts)
     return normalizedLevel == DEFAULT_LEVEL or controller.GetLevel() == DEEP_LEVEL
   end
 
+  local function SeedSequenceFromStorage(storage)
+    -- Before SavedVariables load EnsureStorage hands out a transient table;
+    -- only the real ring may settle the seed.
+    sequenceSeeded = type(rawget(_G, "IsiLiveDB")) == "table"
+    local newest = logBuffer.GetTail(storage, 1, 1, 1)[1]
+    local storedSeq = type(newest) == "string" and tonumber(newest:match("^seq=(%d+)")) or nil
+    if storedSeq and storedSeq > sequence then
+      sequence = storedSeq
+    end
+  end
+
   function controller.AppendLog(message)
+    -- Append normalizes the ring itself; no second Normalize pass here.
+    local storage = EnsureStorage()
+    if not sequenceSeeded then
+      SeedSequenceFromStorage(storage)
+    end
     sequence = sequence + 1
     local now = type(getRawTime) == "function" and tonumber(getRawTime()) or nil
     local deltaStr = ""
@@ -126,7 +146,7 @@ function RuntimeLog.CreateController(opts)
     lastRawTime = now or lastRawTime
     local entry =
       string.format("seq=%d t=%s%s %s", sequence, tostring(getTimestamp()), deltaStr, NormalizeRuntimeMessage(message))
-    logBuffer.Append(GetStorage(), "", entry, maxEntries)
+    logBuffer.Append(storage, "", entry, maxEntries)
     if watchFn then
       watchFn(entry)
     end
@@ -267,6 +287,7 @@ function RuntimeLog.CreateController(opts)
       end
     end
     sequence = 0
+    sequenceSeeded = true
     lastRawTime = nil
   end
 

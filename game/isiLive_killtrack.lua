@@ -323,14 +323,18 @@ local function ApplyEnemyForces(cInfo, mapID)
   if apiTotal and dbTotal and apiTotal ~= dbTotal and type(debugLogger) == "function" then
     local key = string.format("%d:%d:%d", mapID, apiTotal, dbTotal)
     if lastDriftKey ~= key then
-      lastDriftKey = key
-      pcall(
+      local ok, logged = pcall(
         debugLogger,
         "[KILLTRACK] mapID=%d total drift: api=%d db=%d (using api; check tools/sync_mdt_forces.lua)",
         mapID,
         apiTotal,
         dbTotal
       )
+      -- A logger that reports `false` dropped the line (runtime log off).
+      -- Keep the key open so the drift still surfaces once logging is on.
+      if ok and logged ~= false then
+        lastDriftKey = key
+      end
     end
   end
 

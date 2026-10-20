@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.441`
+Versionsbasis: `0.9.442`
 Zuletzt aktualisiert: `2026-10-20`
 
 Review-Fixes (2026-10-17): `UpdateCollapseState` merkt waehrend Kampf-Lockdown
@@ -303,7 +303,7 @@ Jeder Step laeuft genau einmal pro User; `db.__schemaVersion` wird nach erfolgre
 | `errorLog` | 200 | ErrorLog-Modul cappt selbst auf 100; Schema ist Sicherheitsnetz |
 | `rioBaseline` | 5000 | unique cross-realm players ueber Lebenszeit (~jahrelang) |
 | `stats.playerLastRunByCharacter` | 5000 | per-character Run-Stats |
-| `runtimeLog` | 800 (in LogBuffer) | Debug-Trace, ring-buffer enforced |
+| `runtimeLog` | 1500 (in LogBuffer) | Debug-Trace, ring-buffer enforced (~180 KB) |
 | `queueDebugLog` | 400 (in LogBuffer) | Queue-Debug-Trace, ring-buffer enforced |
 
 **Trim-Verhalten:** Bei Cap-Ueberschreitung droppt der Sanitizer first-fit-Eintraege via `pairs()`-Iteration (Eviction-Reihenfolge ist absichtlich willkuerlich — Ziel ist Size-Bound, keine spezifische Retention-Policy). Jede Trim-Aktion wird via `[DBSCHEMA] trimmed ...` geloggt.
@@ -425,7 +425,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.441                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.442                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -504,7 +504,8 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 - Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
 - Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Versionskommentare und `.github/dependabot.yml` halten die Pins wartbar. Alle gepflegten Workflows verwenden fuer `actions/checkout` denselben verifizierten v7.0.1-SHA.
 - Der MDT-Forces-Generator verarbeitet vendorfremde Dungeonquellen ohne `_G`-Fallback. Seine Ausfuehrungsumgebung enthaelt nur den injizierten MDT-Datencontainer und `ipairs`; Quellgroesse, Textformat und Instruktionszahl sind begrenzt. Der generierte Snapshot pinnt den exakten 40-stelligen MDT-Checkout-Commit.
-- Runtime-Diagnoselogs besitzen einen festen 800-Eintraege-Ring. Alte groessere Ringe werden auf die neuesten 800 Eintraege verdichtet, und Filter laufen ueber den gesamten behaltenen Ring.
+- Runtime-Diagnoselogs besitzen einen festen 1500-Eintraege-Ring. Alte groessere Ringe werden auf die neuesten Eintraege verdichtet, und Filter laufen ueber den gesamten behaltenen Ring. Die Sequenznummer zaehlt ueber `/reload` weiter, Aktivierung und Stufe starten jede Session aus bzw. auf `normal`.
+- Log-Kette: `RuntimeLog.Log/Logf/Trace[Deep]` → Level-Gate → `LogBuffer.Append` (UTF-8 bleibt, kaputte Bytes → `?`, WoW-Markup und Zeilenumbrueche entfernt). Ein verdrahteter Logger ist kein aktiver: Hot Paths (Roster-Trace, LFGDetect, Sync, Highlight, KillTrack) pruefen `IsLevelEnabled` vor teurer Arbeit. `ctx.Print` spiegelt Chatzeilen in den Log, `ctx.PrintNoLog` nicht — Log-Dumps und QDBG-Echo nutzen Letzteres. Ein Composition-Test prueft, dass jeder an einen Controller uebergebene `log*`-Handle auch gelesen wird.
 
 ## Sync- und Persistenz-Vertrauensgrenzen
 

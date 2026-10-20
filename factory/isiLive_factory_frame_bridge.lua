@@ -112,6 +112,14 @@ local function CreateFactoryContext(addonName, tbl)
     end
   end
 
+  -- Chat-only variant for output that must not feed back into the runtime
+  -- log: log/errorlog dumps (a `tail 100` would otherwise re-append 101
+  -- nested copies and evict an eighth of the ring) and QDBG lines, which the
+  -- queue debug logger already writes to the runtime log itself.
+  ctx.PrintNoLog = function(msg)
+    print("isiLive: " .. tostring(msg or ""))
+  end
+
   -- Styled variant for user-visible highlights (target-dungeon announce etc.).
   -- Blue "isiLive" brand prefix, rest passes through -- callers colour their
   -- own payload via |cff......|r so each announcement can pick its own palette.
@@ -140,16 +148,25 @@ local function CreateFactoryContext(addonName, tbl)
     return modules.contextHelpers.GetAddonVersionRaw(addonName)
   end
 
+  -- ~120 bytes per entry: 1500 entries are ~180 KB of SavedVariables and
+  -- cover a full key plus queue time at normal level.
+  local runtimeLogMaxEntries = 1500
   ctx.runtimeLogController = modules.runtimeLog.CreateController({
-    maxEntries = 800,
+    maxEntries = runtimeLogMaxEntries,
     buildSessionHeader = function()
-      local db = rawget(_G, "IsiLiveDB")
+      local db = rawget(_G, "IsiLiveDB") or {}
       return string.format(
-        "version=%s locale=%s level=%s maxEntries=%s",
+        "version=%s locale=%s level=%s maxEntries=%d syncEnabled=%s autoOpenOnQueue=%s "
+          .. "autoCloseOnKeyStart=%s autoCloseOnSoloChange=%s autoShowOnStartup=%s",
         tostring(ctx.GetAddonVersionRaw and ctx.GetAddonVersionRaw() or "unknown"),
-        tostring(db and db.locale or ctx.locale or "unknown"),
-        tostring(db and db.runtimeLogLevel or "normal"),
-        "800"
+        tostring(db.locale or ctx.locale or "unknown"),
+        tostring(db.runtimeLogLevel or "normal"),
+        runtimeLogMaxEntries,
+        tostring(db.syncEnabled),
+        tostring(db.autoOpenOnQueue),
+        tostring(db.autoCloseOnKeyStart),
+        tostring(db.autoCloseOnSoloChange),
+        tostring(db.autoShowMainFrameOnStartup)
       )
     end,
   })
@@ -159,7 +176,7 @@ local function CreateFactoryContext(addonName, tbl)
   end
 
   ctx.queueDebugController = modules.queueDebug.CreateController({
-    printFn = ctx.Print,
+    printFn = ctx.PrintNoLog,
     queueSetDebugEnabled = function(enabled)
       if modules.queue and modules.queue.SetDebugEnabled then
         modules.queue.SetDebugEnabled(enabled)

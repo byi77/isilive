@@ -28,6 +28,15 @@ local function BuildLFGGroupRosterTraceLogger(ctx, modules)
     if type(logFn) ~= "function" and type(logDeepFn) ~= "function" then
       return
     end
+    -- The log functions always exist, so their presence says nothing about
+    -- whether a line would be kept. Runs on every GROUP_ROSTER_UPDATE: check
+    -- the level before paying for teleport / target resolution below.
+    -- "normal" covers both sinks (deep implies the log is enabled).
+    if
+      type(runtimeLogController.IsLevelEnabled) == "function" and not runtimeLogController.IsLevelEnabled("normal")
+    then
+      return
+    end
 
     local resolvedSpellID = nil
     local detectedAfter = tonumber(snapshot.detectedAfter)

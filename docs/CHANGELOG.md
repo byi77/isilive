@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-20 - Version 0.9.442 (patch)
+
+### Runtime log audit
+
+- `/isilive log tail`, `qdebug` and `errorlog` no longer write their own output
+  back into the runtime log (a `tail 100` used to add 101 nested copies and
+  evict an eighth of the ring). QDBG lines are stored once instead of twice.
+- Logging off is now free on hot paths: the `GROUP_ROSTER_UPDATE` trace,
+  LFGDetect, Highlight and KillTrack check the log level before resolving or
+  formatting anything.
+- Dead log lines fixed: `[HIGHLIGHT]` (now deep) and `[KEYSYNC] applied` were
+  wired to the wrong logger handle; roster panel actions (share keys, layout
+  mode) now reach the log; the never-firing `[INIT]` line moved into the
+  `session_start` header together with the relevant settings.
+- Less noise: one `[TP] update_button` line instead of six, one `state_set`
+  snapshot instead of up to six lines, unchanged LibKeystone and plain
+  `message_received` sync lines on deep only, no `[EVENT_DISPATCH]` duplicate.
+- Stored text keeps UTF-8 player and realm names, replaces only broken bytes
+  and strips WoW colour / link / texture markup and line breaks.
+- Ring raised from 800 to 1500 entries; `seq` keeps counting across `/reload`;
+  the log level resets to `normal` on load like the on/off toggles.
+- Lua error log deduplicates repeats whose text only differs by object
+  addresses; a KillTrack drift report dropped while logging was off stays
+  pending.
+- Removed legacy `SetLogger` paths in Sync/LFGDetect and tautological roster
+  trace tests; a composition test now fails for any `log*` handle a controller
+  is given but never reads.
+
 ## 2026-10-20 - Version 0.9.441 (patch)
 
 ### Utility marker update

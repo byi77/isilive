@@ -292,46 +292,39 @@ local function RegisterReadyCheckLifecycleTests(test, Assert, _WithGlobals, Load
     controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
     controller:Dispatch("READY_CHECK_FINISHED")
 
-    Assert.Equal(#logEntries, 7, "ready check lifecycle should emit seven trace entries before cleanup")
+    -- The handlers' own [READYCHECK] lines are the record; the dispatcher
+    -- no longer adds a duplicate [EVENT_DISPATCH] line per event.
+    Assert.Equal(#logEntries, 4, "ready check lifecycle should emit four trace entries before cleanup")
+    Assert.True(logEntries[1]:find("event=READY_CHECK", 1, true) ~= nil, "first trace entry must record READY_CHECK")
     Assert.True(
-      logEntries[1]:find("[EVENT_DISPATCH] event=READY_CHECK handled=true", 1, true) ~= nil,
-      "first trace entry must record the READY_CHECK dispatch"
-    )
-    Assert.True(logEntries[2]:find("event=READY_CHECK", 1, true) ~= nil, "second trace entry must record READY_CHECK")
-    Assert.True(
-      logEntries[3]:find("[EVENT_DISPATCH] event=READY_CHECK_CONFIRM handled=true", 1, true) ~= nil,
-      "third trace entry must record the READY_CHECK_CONFIRM dispatch"
+      logEntries[2]:find("event=READY_CHECK_CONFIRM", 1, true) ~= nil,
+      "second trace entry must record READY_CHECK_CONFIRM"
     )
     Assert.True(
-      logEntries[4]:find("event=READY_CHECK_CONFIRM", 1, true) ~= nil,
-      "fourth trace entry must record READY_CHECK_CONFIRM"
+      logEntries[3]:find("event=READY_CHECK_FINISHED", 1, true) ~= nil,
+      "third trace entry must record READY_CHECK_FINISHED"
     )
     Assert.True(
-      logEntries[5]:find("[EVENT_DISPATCH] event=READY_CHECK_FINISHED handled=true", 1, true) ~= nil,
-      "fifth trace entry must record the READY_CHECK_FINISHED dispatch"
+      logEntries[4]:find("[RC_FINISH_HOLD]", 1, true) ~= nil,
+      "fourth trace entry must record the ready-check hold snapshot"
     )
+    for _, entry in ipairs(logEntries) do
+      Assert.True(entry:find("[EVENT_DISPATCH]", 1, true) == nil, "dispatcher must not log per event")
+    end
     Assert.True(
-      logEntries[6]:find("event=READY_CHECK_FINISHED", 1, true) ~= nil,
-      "sixth trace entry must record READY_CHECK_FINISHED"
-    )
-    Assert.True(
-      logEntries[7]:find("[RC_FINISH_HOLD]", 1, true) ~= nil,
-      "seventh trace entry must record the ready-check hold snapshot"
-    )
-    Assert.True(
-      logEntries[7]:find("ready_units=party1", 1, true) ~= nil,
+      logEntries[4]:find("ready_units=party1", 1, true) ~= nil,
       "hold snapshot must record the explicitly ready unit"
     )
     Assert.True(
-      logEntries[7]:find("declined_units=party2", 1, true) ~= nil,
+      logEntries[4]:find("declined_units=party2", 1, true) ~= nil,
       "hold snapshot must record unanswered units promoted to declined"
     )
     Assert.True(
-      logEntries[7]:find("ready_until_count=1", 1, true) ~= nil,
+      logEntries[4]:find("ready_until_count=1", 1, true) ~= nil,
       "hold snapshot must count ready hold entries"
     )
     Assert.True(
-      logEntries[7]:find("declined_until_count=1", 1, true) ~= nil,
+      logEntries[4]:find("declined_until_count=1", 1, true) ~= nil,
       "hold snapshot must count declined hold entries"
     )
 
@@ -342,8 +335,8 @@ local function RegisterReadyCheckLifecycleTests(test, Assert, _WithGlobals, Load
     end
     cleanupCallback()
 
-    Assert.Equal(#logEntries, 8, "cleanup callback should append a hold-clear trace entry")
-    Assert.True(logEntries[8]:find("event=HOLD_CLEAR", 1, true) ~= nil, "cleanup trace must record HOLD_CLEAR")
+    Assert.Equal(#logEntries, 5, "cleanup callback should append a hold-clear trace entry")
+    Assert.True(logEntries[5]:find("event=HOLD_CLEAR", 1, true) ~= nil, "cleanup trace must record HOLD_CLEAR")
   end)
 end
 

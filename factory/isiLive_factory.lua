@@ -653,6 +653,7 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
   return {
     commands = ctx.modules.commands,
     printFn = ctx.Print,
+    printNoLogFn = ctx.PrintNoLog,
     getL = ctx.GetL,
     statsController = ctx.statsController,
     getState = runtimeState.GetRuntimeFlags,
@@ -745,7 +746,6 @@ local function FinalizeFactoryRuntime(ctx)
     retryInterval = ctx.RETRY_INTERVAL,
     inspectDelay = ctx.INSPECT_DELAY,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
-    logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
     logRuntimeTracefDeep = ctx.runtimeLogController and ctx.runtimeLogController.LogfDeep or nil,
     -- Rule 168: new inspect work re-attaches the idle-detached inspect loop.
@@ -1102,24 +1102,10 @@ local function FinalizeFactoryRuntime(ctx)
   local runtimeSetupResult = isiLiveRuntimeSetup.Configure(runtimeSetupContext)
 
   ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
+  -- No init line here: this runs at file load, before SavedVariables exist,
+  -- so the runtime log is always off. The settings snapshot that used to be
+  -- logged here is part of the session_start header instead.
   ctx.Print(string.format(ctx.L.LOADED_HINT, ctx.GetAddonVersionRaw()))
-
-  if ctx.runtimeLogController and ctx.runtimeLogController.IsEnabled and ctx.runtimeLogController.IsEnabled() then
-    local db = rawget(_G, "IsiLiveDB") or {}
-    ctx.runtimeLogController.Log(
-      string.format(
-        "[INIT] addon_loaded version=%s locale=%s syncEnabled=%s "
-          .. "autoOpenOnQueue=%s autoCloseOnKeyStart=%s autoCloseOnSoloChange=%s autoShowOnStartup=%s",
-        tostring(ctx.GetAddonVersionRaw()),
-        tostring(db.locale or "default"),
-        tostring(db.syncEnabled),
-        tostring(db.autoOpenOnQueue),
-        tostring(db.autoCloseOnKeyStart),
-        tostring(db.autoCloseOnSoloChange),
-        tostring(db.autoShowMainFrameOnStartup)
-      )
-    )
-  end
 
   FinalizeFactorySettings(ctx)
 end

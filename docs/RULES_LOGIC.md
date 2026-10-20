@@ -1059,7 +1059,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-RUNTIME-LOG-TRACE-DIAGNOSE
 - Regelnummer: 56
 - Status: aktiv
-- Zusammenfassung: Runtime-Log-Eintraege werden nur bei aktivem Runtime-Logging geschrieben; jeder Eintrag traegt eine stabile Sequenznummer und einen praezisen Zeitstempel, `[TAG] action`-Nachrichten werden zu `[TAG] event=action` normalisiert, teure Formatierung und Trace-Builder duerfen bei ausgeschaltetem Log oder deaktivierter Deep-Stufe nicht laufen, und der Logspeicher muss seine Tail-Reihenfolge und den festen Cap von 800 Eintraegen auch bei grossen Log-, Sync- und Roster-Bursts behalten. Beim Start muessen uebergrosse persistierte oder mit einem alten Cap rotierte Ringe physisch auf die neuesten 800 Eintraege verdichtet werden. Gefilterte Tails muessen alle noch im Ring gespeicherten Eintraege durchsuchen und duerfen aeltere Treffer nicht durch ein kleineres internes Suchfenster unterschlagen.
+- Zusammenfassung: Runtime-Log-Eintraege werden nur bei aktivem Runtime-Logging geschrieben; jeder Eintrag traegt eine Sequenznummer, die auch ueber `/reload` hinweg monoton weiterzaehlt, und einen praezisen Zeitstempel, `[TAG] action`-Nachrichten werden zu `[TAG] event=action` normalisiert, teure Formatierung, Trace-Builder und die Aufloesung von Trace-Werten duerfen bei ausgeschaltetem Log oder deaktivierter Deep-Stufe nicht laufen (ein verdrahteter Logger ist kein aktiver Logger: Hot Paths pruefen `IsLevelEnabled` vorher), und der Logspeicher muss seine Tail-Reihenfolge und den festen Cap von 1500 Eintraegen auch bei grossen Log-, Sync- und Roster-Bursts behalten. Beim Start muessen uebergrosse persistierte oder mit einem alten Cap rotierte Ringe physisch auf die neuesten Eintraege verdichtet werden. Gefilterte Tails muessen alle noch im Ring gespeicherten Eintraege durchsuchen und duerfen aeltere Treffer nicht durch ein kleineres internes Suchfenster unterschlagen. Die Ausgabe von `log`/`qdebug`/`errorlog` darf nicht zurueck in den Runtime-Log fliessen (pro Befehl bleibt nur die `[CMD]`-Zeile), QDBG-Zeilen landen genau einmal im Runtime-Log, gespeicherte Texte behalten gueltiges UTF-8 (Spieler-/Realmnamen), ersetzen nur kaputte Bytefolgen durch `?` und entfernen WoW-Farb-/Link-/Textur-Markup sowie Zeilenumbrueche. Aktivierung und Stufe werden beim Laden immer auf aus/`normal` zurueckgesetzt; der `session_start`-Header traegt Version, Stufe, Cap und die relevanten Settings. Jeder `log*`-Handle, den die Factory an einen Controller uebergibt, muss von diesem auch gelesen werden. Wiederholte Sync-/LibKeystone-Nachrichten ohne Zustandsaenderung und Schritt-fuer-Schritt-Traces (Teleport-Button, Highlight) gehoeren auf die Deep-Stufe. Ein KillTrack-Driftbericht, den der ausgeschaltete Log verwirft, bleibt offen, bis er tatsaechlich geloggt wurde.
 - Erforderliche Tests:
   - Sync deep payload formatting waits for consumed trace builders
   - Runtime log controller appends entries only when enabled
@@ -1074,13 +1074,23 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Runtime log controller keeps cap and tail stable across 2000 entry burst
   - LogBuffer Normalize compacts an oversized rotated ring to newest entries
   - Runtime log controller normalizes persisted oversized storage to max entries
-  - Architecture runtime log factory keeps the documented 800 entry cap
+  - Architecture runtime log factory keeps the documented 1500 entry cap
   - Runtime log filtered tail searches the complete retained ring
   - Sync runtime logger keeps capped trace across 2000 message burst
   - Sync runtime trace logger passes a lazy builder to runtime logging
   - LFGDetect runtime trace logger passes a lazy builder to runtime logging
   - Group roster runtime logger stays capped across 2000 roster burst
   - Event handlers write ready check trace entries when runtime logging is available
+  - Runtime log controller keeps UTF-8, drops broken bytes, UI markup and line breaks
+  - Runtime log controller continues the sequence after a reload
+  - factory composition root: log and errorlog dumps do not feed back into the runtime log
+  - factory composition root: QDBG lines reach the runtime log exactly once
+  - factory composition root: group roster trace skips resolution while the runtime log is off
+  - factory composition root: LFGDetect builds no trace line while the runtime log is off
+  - factory composition root: session_start header carries the settings snapshot
+  - factory composition root: every log handle passed to a controller is read by it
+  - factory composition root: roster panel actions are wired into the runtime log
+  - KillTrack keeps a drift report pending while the runtime log drops it
 
 ### RULE-TESTMODE-DEMO-MODULE-VOLLSTAENDIG
 - Regelnummer: 57

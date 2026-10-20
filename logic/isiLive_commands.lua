@@ -7,8 +7,12 @@ addonTable.Commands = Commands
 
 local function BuildDeps(opts)
   opts = opts or {}
+  local printFn = opts.printFn or print
   return {
-    printFn = opts.printFn or print,
+    printFn = printFn,
+    -- Log/errorlog command output. Must bypass the runtime log, otherwise a
+    -- dump re-appends every printed line to the very buffer it reads.
+    printNoLogFn = type(opts.printNoLogFn) == "function" and opts.printNoLogFn or printFn,
     getL = opts.getL or function()
       return {}
     end,
@@ -177,7 +181,7 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
   local arg, restText = cmd:match("^" .. escapedPrefix .. "%s+(%S+)%s*(.-)%s*$")
   if not arg or arg == "status" then
     local levelText = cfg.getLevel and (" | level: " .. tostring(cfg.getLevel())) or ""
-    ctx.printFn(
+    ctx.printNoLogFn(
       cfg.label
         .. ": "
         .. (cfg.getEnabled() and "ON" or "OFF")
@@ -192,26 +196,26 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
     local requestedLevel = arg == "level" and tostring(restText or "") or arg
     if requestedLevel == "normal" or requestedLevel == "deep" then
       cfg.setLevel(requestedLevel)
-      ctx.printFn(cfg.label .. " level: " .. tostring(cfg.getLevel()))
+      ctx.printNoLogFn(cfg.label .. " level: " .. tostring(cfg.getLevel()))
       return
     end
-    ctx.printFn(cfg.label .. " level: " .. tostring(cfg.getLevel()))
+    ctx.printNoLogFn(cfg.label .. " level: " .. tostring(cfg.getLevel()))
     return
   end
 
   if ARG_ON[arg] or (cfg.extraOn and cfg.extraOn[arg]) then
     cfg.setEnabled(true)
-    ctx.printFn(cfg.label .. ": ON")
+    ctx.printNoLogFn(cfg.label .. ": ON")
     return
   end
   if ARG_OFF[arg] or (cfg.extraOff and cfg.extraOff[arg]) then
     cfg.setEnabled(false)
-    ctx.printFn(cfg.label .. ": OFF")
+    ctx.printNoLogFn(cfg.label .. ": OFF")
     return
   end
   if arg == "clear" then
     cfg.clearLog()
-    ctx.printFn(cfg.label .. ": cleared")
+    ctx.printNoLogFn(cfg.label .. ": cleared")
     return
   end
 
@@ -235,9 +239,9 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
     else
       header = header .. "/" .. tostring(cfg.getCount()) .. " entries"
     end
-    ctx.printFn(header)
+    ctx.printNoLogFn(header)
     for _, line in ipairs(lines) do
-      ctx.printFn(tostring(line))
+      ctx.printNoLogFn(tostring(line))
     end
     return
   end
@@ -248,7 +252,7 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
       if cfg.closeTraceChatFrame then
         cfg.closeTraceChatFrame()
       end
-      ctx.printFn(cfg.label .. ": watch OFF")
+      ctx.printNoLogFn(cfg.label .. ": watch OFF")
     else
       local inWatch = false
       local rawPrint = rawget(_G, "print") or print
@@ -256,12 +260,12 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
       if cfg.openTraceChatFrame and cfg.addTraceChatFrameMessage then
         cfg.openTraceChatFrame()
         sink = cfg.addTraceChatFrameMessage
-        ctx.printFn(cfg.label .. ": watch ON (entries stream to trace chat tab)")
+        ctx.printNoLogFn(cfg.label .. ": watch ON (entries stream to trace chat tab)")
       else
         sink = function(entry)
           rawPrint("[watch] " .. tostring(entry))
         end
-        ctx.printFn(cfg.label .. ": watch ON (new entries will be printed live)")
+        ctx.printNoLogFn(cfg.label .. ": watch ON (new entries will be printed live)")
       end
       cfg.setWatchFn(function(entry)
         if inWatch then
@@ -278,7 +282,7 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
     return
   end
 
-  ctx.printFn(cfg.usageStr)
+  ctx.printNoLogFn(cfg.usageStr)
 end
 
 local function HandleLogCommand(ctx, cmd)
@@ -328,7 +332,7 @@ local function HandleErrorLogCommand(ctx, cmd)
     local count = ctx.getErrorLogCount and ctx.getErrorLogCount() or 0
     local cap = ctx.getErrorLogMaxEntries and ctx.getErrorLogMaxEntries() or 100
     local installed = ctx.getErrorLogInstalled and ctx.getErrorLogInstalled() or false
-    ctx.printFn(
+    ctx.printNoLogFn(
       string.format("Error log: %s | entries: %d / %d", installed and "installed" or "NOT installed", count, cap)
     )
     return
@@ -337,7 +341,7 @@ local function HandleErrorLogCommand(ctx, cmd)
   if arg == "clear" then
     if ctx.clearErrorLog then
       ctx.clearErrorLog()
-      ctx.printFn("Error log: cleared")
+      ctx.printNoLogFn("Error log: cleared")
     end
     return
   end
@@ -352,19 +356,21 @@ local function HandleErrorLogCommand(ctx, cmd)
 
   local entries = ctx.getErrorLogTail and ctx.getErrorLogTail(limit) or {}
   if #entries == 0 then
-    ctx.printFn("Error log: no entries.")
+    ctx.printNoLogFn("Error log: no entries.")
     return
   end
 
-  ctx.printFn(string.format("Error log tail: %d entries", #entries))
+  ctx.printNoLogFn(string.format("Error log tail: %d entries", #entries))
   for _, entry in ipairs(entries) do
     if type(entry) == "table" then
       local countSuffix = entry.count and entry.count > 1 and string.format(" (x%d)", entry.count) or ""
       local firstStamp = entry.firstSeenDisplay or tostring(entry.firstSeen or "?")
       local lastStamp = entry.lastSeenDisplay or tostring(entry.lastSeen or "?")
-      ctx.printFn(string.format("[%s..%s%s] %s", firstStamp, lastStamp, countSuffix, tostring(entry.message or "")))
+      ctx.printNoLogFn(
+        string.format("[%s..%s%s] %s", firstStamp, lastStamp, countSuffix, tostring(entry.message or ""))
+      )
       if type(entry.fullText) == "string" and entry.fullText ~= entry.message then
-        ctx.printFn("    " .. entry.fullText)
+        ctx.printNoLogFn("    " .. entry.fullText)
       end
     end
   end

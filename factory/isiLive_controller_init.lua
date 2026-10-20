@@ -36,7 +36,9 @@ local function CreateKeySyncController(ctx)
     canRespondToRefreshRequest = ctx.canRespondToRefreshRequest,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
     getPlayerSyncSummary = ctx.getPlayerSyncSummary,
-    logRuntimeTrace = ctx.logRuntimeTrace,
+    -- KeySync reads the format variant; passing logRuntimeTrace left its
+    -- [KEYSYNC] applied line dead.
+    logRuntimeTracef = ctx.logRuntimeTracef,
   })
   return {
     keySyncController = controller,
@@ -61,7 +63,9 @@ local function CreateHighlightController(ctx)
     isInGroup = ctx.isInGroup,
     resolveTeleportSpellIDByMapID = ctx.resolveTeleportSpellIDByMapID,
     resolveMapIDByActivityID = ctx.resolveMapIDByActivityID,
-    logRuntimeTrace = ctx.logRuntimeTrace,
+    -- Runs on every teleport-button update: per-decision lines are deep-only.
+    logRuntimeTracef = ctx.logRuntimeTracefDeep,
+    isTraceActive = ctx.isRuntimeLogDeepActive,
   })
 end
 

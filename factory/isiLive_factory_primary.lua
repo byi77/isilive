@@ -122,6 +122,10 @@ local function InitializeFactoryPrimaryControllers(ctx)
     logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
     logRuntimeTraceDeep = ctx.runtimeLogController and ctx.runtimeLogController.TraceDeep or nil,
+    logRuntimeTracefDeep = ctx.runtimeLogController and ctx.runtimeLogController.LogfDeep or nil,
+    isRuntimeLogDeepActive = ctx.runtimeLogController and function()
+      return ctx.runtimeLogController.IsLevelEnabled("deep")
+    end or nil,
   })
 
   local runtimeLog = ctx.runtimeLogController
@@ -147,8 +151,8 @@ local function InitializeFactoryPrimaryControllers(ctx)
         or nil
     )
   end
-  if type(modules.sync.SetLogger) == "function" then
-    modules.sync.SetLogger(nil)
+  if modules.rosterPanel and type(modules.rosterPanel.SetTraceLogger) == "function" then
+    modules.rosterPanel.SetTraceLogger(runtimeLog and runtimeLog.Log or nil)
   end
   ctx.keySyncController = initResult.keySyncController
   ctx.MarkIsiLiveUser = initResult.markIsiLiveUser

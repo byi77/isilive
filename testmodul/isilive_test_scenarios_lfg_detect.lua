@@ -2167,8 +2167,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
     end)
   end)
 
-  test("LFGDetect Log helpers route through wired logger and trace-logger callbacks", function()
-    local logCalls = {}
+  test("LFGDetect Log helpers route through the trace-logger callbacks", function()
     local traceCalls = {}
     local deepTraceCalls = {}
     local globals, fire = BuildLFGDetectEnv({
@@ -2178,9 +2177,6 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
     })
     WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
-      addon.LFGDetect.SetLogger(function(msg)
-        table.insert(logCalls, msg)
-      end)
       addon.LFGDetect.SetTraceLogger(function(msg)
         table.insert(traceCalls, msg)
       end)
@@ -2191,7 +2187,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
       -- Drive any event that flows through Log; GROUP_ROSTER_UPDATE always fires.
       fire("GROUP_ROSTER_UPDATE")
     end)
-    Assert.True(#logCalls + #traceCalls + #deepTraceCalls > 0, "at least one logger callback must receive a line")
+    Assert.True(#traceCalls + #deepTraceCalls > 0, "at least one logger callback must receive a line")
   end)
 
   test("LFGDetect MapIDFromActivityIDs caches the resolved mapID for repeat lookups", function()

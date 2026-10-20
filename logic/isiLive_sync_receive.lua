@@ -73,16 +73,6 @@ addonTable.SyncReceiveFactory = function(deps)
       return nil
     end
 
-    if IsSyncLogActive() then
-      SyncLog(
-        "libkeystone_received",
-        "sender=%s mapID=%s level=%s rio=%s",
-        tostring(sender),
-        tostring(keyMapID),
-        tostring(keyLevel),
-        tostring(playerRating)
-      )
-    end
     local keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, keyMapID, keyLevel, nil, LIBKEYSTONE_SOURCE)
     local previousStats = Sync.GetPlayerStatsInfo(sender, nil)
     local statsUpdated = Sync.SetPlayerStatsInfo(
@@ -94,6 +84,22 @@ addonTable.SyncReceiveFactory = function(deps)
       nil,
       LIBKEYSTONE_SOURCE
     )
+
+    -- Peers' LibKeystone addons re-broadcast unchanged data constantly; only
+    -- a state change is worth a normal-level line.
+    local changed = keyUpdated or statsUpdated
+    local logFn = changed and SyncLog or SyncLogDeep
+    if (changed and IsSyncLogActive()) or (not changed and IsSyncLogDeepActive()) then
+      logFn(
+        "libkeystone_received",
+        "sender=%s mapID=%s level=%s rio=%s changed=%s",
+        tostring(sender),
+        tostring(keyMapID),
+        tostring(keyLevel),
+        tostring(playerRating),
+        tostring(changed and true or false)
+      )
+    end
 
     return {
       sender = sender,
@@ -135,8 +141,15 @@ addonTable.SyncReceiveFactory = function(deps)
       return nil
     end
 
-    if IsSyncLogActive() then
-      SyncLog("message_received", "sender=%s type=%s", tostring(sender), tostring(message:match("^(%a+)") or "unknown"))
+    -- Deep only: message_applied below already records every message that
+    -- changed state at normal level, this line would just double it.
+    if IsSyncLogDeepActive() then
+      SyncLogDeep(
+        "message_received",
+        "sender=%s type=%s",
+        tostring(sender),
+        tostring(message:match("^(%a+)") or "unknown")
+      )
     end
 
     local senderKey = Sync.NormalizePlayerKey(sender)
