@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-22 - Version 0.9.449 (patch)
+
+### Flags and role badges
+
+- Language flags are redrawn as 32x24 badges with rounded corners, a thin
+  border and a soft gloss, so they stay sharp at their small in-game sizes.
+  The designs are corrected: Union Jack with diagonals, Turkish crescent with
+  star, Portuguese armillary sphere and shield, simplified Spanish arms.
+- The roster's role icons are now isiLive's own tank (shield), healer (cross)
+  and damage (sword) badges on the dark isiLive surface; only the symbol and
+  rim carry the role color. They replace Blizzard's old round portrait icons.
+- The role badge matches the flag's 12 px height, sits on the flag's line and
+  is centered between the spec text and the flag.
+- Both sets are reproducible with `tools/generate_language_flags.py` and
+  `tools/generate_role_badges.py` (Pillow); provenance is documented in
+  `docs/ASSET_PROVENANCE.md`.
+
 ## 2026-10-22 - Version 0.9.448 (patch)
 
 ### Invite navigation

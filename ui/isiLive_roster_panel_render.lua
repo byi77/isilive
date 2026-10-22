@@ -77,10 +77,21 @@ local DPS_COL_WIDTH = RI.DPS_COL_WIDTH or 40
 local KICK_COL_X = RI.KICK_COL_X or (DPS_COL_X + DPS_COL_WIDTH + 4)
 local KICK_COL_WIDTH = RI.KICK_COL_WIDTH or 32
 local KICK_HOVER_WIDTH = KICK_COL_WIDTH
-local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
+-- Matches the 12 px language flag height in the realm column.
+local ROLE_ICON_SIZE = 12
+-- Centers the badge in the gap between the right-aligned spec text and the flag.
+local ROLE_ICON_FLAG_GAP = (SERVER_COL_X - (SPEC_COL_X + SPEC_COL_WIDTH) - ROLE_ICON_SIZE) / 2
 -- Mirrors the 4 px left inset every row starts at, so a full-width row tint
 -- keeps the same gap on both sides.
 local ROW_RIGHT_INSET = 4
+
+-- Project role badges (tools/generate_role_badges.py), 32 px sources
+-- downscaled so the 12 px icon stays sharp.
+local ROLE_ICON_TEXTURE = {
+  TANK = "Interface\\AddOns\\isiLive\\media\\role_tank",
+  HEALER = "Interface\\AddOns\\isiLive\\media\\role_healer",
+  DAMAGER = "Interface\\AddOns\\isiLive\\media\\role_dps",
+}
 
 -- Raid-target marker per role: 6 = Blue Square (Tank), 4 = Green Triangle (Healer).
 -- Right-click on the Mark-T/H button clears via marker 0.
@@ -285,8 +296,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   -- Mark-T/H panel button, so the icon takes no mouse input and the row's
   -- hoverFrame (tooltip, right-click whisper) handles the whole row.
   row.roleIcon = CreateFrame("Frame", nil, mainFrame)
-  row.roleIcon:SetSize(14, 14)
-  row.roleIcon:SetPoint("TOPLEFT", ROLE_BUTTON_X, yOffset - 1)
+  row.roleIcon:SetSize(ROLE_ICON_SIZE, ROLE_ICON_SIZE)
   -- Above the row's hoverFrame so its row tint never covers the icon.
   row.roleIcon:SetFrameLevel((mainFrame:GetFrameLevel() or 1) + 10)
   if type(row.roleIcon.EnableMouse) == "function" then
@@ -294,7 +304,11 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   end
   row.roleIcon.icon = row.roleIcon:CreateTexture(nil, "ARTWORK")
   row.roleIcon.icon:SetAllPoints()
-  row.roleIcon.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
+  -- Smooth downscaling instead of snapping texels to the pixel grid.
+  if type(row.roleIcon.icon.SetSnapToPixelGrid) == "function" then
+    row.roleIcon.icon:SetSnapToPixelGrid(false)
+    row.roleIcon.icon:SetTexelSnappingBias(0)
+  end
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
@@ -343,6 +357,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.realm:SetWidth(SERVER_COL_WIDTH)
   row.realm:SetJustifyH("LEFT")
   DisableFontStringWrapping(row.realm)
+  -- Mirror the language flag: same height, centered on its line, and
+  -- horizontally centered between the spec text and the flag.
+  row.roleIcon:SetPoint("RIGHT", row.realm, "LEFT", -ROLE_ICON_FLAG_GAP, 0)
 
   if type(UICommon.ApplyLocaleFont) == "function" then
     UICommon.ApplyLocaleFont(row.spec)
@@ -825,17 +842,11 @@ local function RenderRosterImpl(state, roster)
     if row.roleIcon then
       local role = info.role
       local icon = row.roleIcon.icon
-      local showIcon = false
+      local texture = ROLE_ICON_TEXTURE[role]
+      local showIcon = texture ~= nil
 
-      if role == "TANK" then
-        icon:SetTexCoord(0, 19 / 64, 22 / 64, 41 / 64)
-        showIcon = true
-      elseif role == "HEALER" then
-        icon:SetTexCoord(20 / 64, 39 / 64, 1 / 64, 20 / 64)
-        showIcon = true
-      elseif role == "DAMAGER" then
-        icon:SetTexCoord(20 / 64, 39 / 64, 22 / 64, 41 / 64)
-        showIcon = true
+      if texture then
+        icon:SetTexture(texture)
       end
 
       if info.isGhost then

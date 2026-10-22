@@ -753,7 +753,7 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
     local roleIcons = {}
     for _, frame in ipairs(createdFrames) do
       local texture = type(frame._textures) == "table" and frame._textures[1] or nil
-      if texture and texture.texture == "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES" then
+      if texture and type(texture.texture) == "string" and texture.texture:find("\\media\\role_", 1, true) then
         table.insert(roleIcons, frame)
       end
     end

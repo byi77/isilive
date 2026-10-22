@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.448`.
+Current version: `0.9.449`.
+
+Version 0.9.449: sharper, modern language flags and new
+role badges (tank, healer, damage) that match the isiLive look.
 
 Version 0.9.448: the invite navigation shows only the zone and, when the
 portal room has a portal there, a second line to use it.
@@ -33,9 +36,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.448 -->
+<!-- highlights-reviewed-for: 0.9.449 -->
 
 Highlights:
+- **Modern flags and role badges.** Language flags are sharp, rounded badges
+  with correct designs; the roster shows new subtle tank, healer and damage
+  badges, centered between spec and flag.
 - **Navigation for accepted invites.** The invite card names the dungeon's
   zone and, when the season portal room has a portal to it, tells you to use
   that portal.
@@ -47,7 +53,3 @@ Highlights:
   like the Blizzard Mythic+ tab, with or without Premade Groups Filter.
 - **New markers.** Glossy green plus signs mark useful group bonuses; a blue connection
   arrow marks other isiLive users.
-- **Bloodlust lockouts read directly.** The Sated/Exhaustion debuff is queried
-  by spell ID, so countdowns and ready alerts keep working when WoW blocks
-  aura lists. The ten-second warning, ready alert and 60-second reminder also
-  work with the main window hidden; the warning has its own toggle.

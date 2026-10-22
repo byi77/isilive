@@ -6,14 +6,15 @@ local Roster = {}
 addonTable.Roster = Roster
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
-local function CreateRoleIcon(coords)
-  return string.format("|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:%s|t", coords)
+-- Project role badges, same set as the roster panel row icons.
+local function CreateRoleIcon(name)
+  return string.format("|TInterface\\AddOns\\isiLive\\media\\role_%s:12:12|t", name)
 end
 
 local ROLE_ICONS = {
-  TANK = CreateRoleIcon("0:19:22:41"),
-  HEALER = CreateRoleIcon("20:39:1:20"),
-  DAMAGER = CreateRoleIcon("20:39:22:41"),
+  TANK = CreateRoleIcon("tank"),
+  HEALER = CreateRoleIcon("healer"),
+  DAMAGER = CreateRoleIcon("dps"),
 }
 
 local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
