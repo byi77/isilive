@@ -760,6 +760,42 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
 end
 
 local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster name shortens a long name so its markers fit the name column", function()
+    local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
+    local measures = 0
+    local name = {
+      SetText = function(self, value)
+        self.text = value
+      end,
+      -- 8 px per visible glyph, 16 px per inline texture.
+      GetUnboundedStringWidth = function(self)
+        measures = measures + 1
+        local visible = self.text:gsub("|T.-|t", "XX"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        return #visible * 8
+      end,
+    }
+    local displayData = {
+      readyCheckMarkup = "",
+      colorHex = "ffffffff",
+      displayName = "Zinmistress",
+      atDungeonMarker = "",
+      addonMarker = "|TCrown:12|t|TSync:12|t",
+    }
+    addon._RosterInternal.ApplyRowNameDisplay({ name = name }, displayData)
+    Assert.Equal(name.text, " |cffffffffZinmistres|r|TCrown:12|t|TSync:12|t")
+
+    local row = { name = name }
+    addon._RosterInternal.ApplyRowNameDisplay(row, displayData)
+    measures = 0
+    addon._RosterInternal.ApplyRowNameDisplay(row, displayData)
+    Assert.Equal(measures, 0, "unchanged rows reuse the fitted text")
+    Assert.Equal(name.text, " |cffffffffZinmistres|r|TCrown:12|t|TSync:12|t")
+
+    displayData.displayName = "Anelkaa"
+    addon._RosterInternal.ApplyRowNameDisplay(row, displayData)
+    Assert.Equal(name.text, " |cffffffffAnelkaa|r|TCrown:12|t|TSync:12|t")
+  end)
+
   test("Roster display truncates names to Blizzard 12-character limit", function()
     WithGlobals({
       GetReadyCheckStatus = function()

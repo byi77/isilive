@@ -31,10 +31,17 @@ return function(test, ctx)
     end)
   end
 
-  test("LFG personal best uses the highest completed current-season dungeon level", function()
+  test("LFG personal best uses the best-scoring current-season run like the Blizzard M+ tab", function()
     WithPersonalBest(function(addon, state)
       Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: +14")
-      state.overtime.level = 16
+      -- A higher depleted key does not replace the timed best without a better score.
+      state.overtime.level = 15
+      Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: +14")
+      state.timed.dungeonScore, state.overtime.dungeonScore = 378, 360
+      Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: +14")
+      state.overtime.level, state.overtime.dungeonScore = 16, 390
+      Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: +16")
+      state.timed = nil
       Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: +16")
       state.timed, state.overtime = nil, nil
       Assert.Equal(addon.LFGPersonalBest.GetText(1), "Du: -")

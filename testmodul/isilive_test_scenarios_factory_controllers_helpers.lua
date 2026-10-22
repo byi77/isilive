@@ -1194,6 +1194,52 @@ return function(test, ctx)
     Assert.Equal(captured.opts.fields[4].value, "LFG-DE", "source row must show the accepted invite source")
   end)
 
+  test(
+    "factory_controllers: RenderAcceptedInviteNotice adds the dungeon zone as navigation row below source",
+    function()
+      local addon = Load()
+      local render = addon._FactoryInternal.RenderAcceptedInviteNotice
+      local captured
+      local requestedFormat
+      local c = BuildAcceptedInviteCtx({
+        GetL = function()
+          return {
+            INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
+            INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION = "Navigation-DE:",
+            INVITE_ACCEPTED_NOTICE_NAVIGATION_COORDS_FMT = "%s [%.1f/%.1f]",
+          }
+        end,
+        ShowCenterNotice = function(_, _, _, _, opts)
+          captured = opts
+        end,
+      })
+      local text = "Zuldazar [37.5/40.0]"
+      addon.DungeonLocation = {
+        GetNavigationText = function(mapID, format)
+          Assert.Equal(mapID, 588, "the verified challenge mapID must be resolved")
+          requestedFormat = format
+          return text
+        end,
+      }
+      render(c, {}, { mapID = 588 })
+      Assert.Equal(requestedFormat, "%s [%.1f/%.1f]", "the localized coordinates format must be passed through")
+      local last = captured.fields[#captured.fields]
+      Assert.Equal(captured.fields[#captured.fields - 1].label, "Quelle-DE:", "navigation must follow the source row")
+      Assert.Equal(last.label, "Navigation-DE:")
+      Assert.Equal(last.value, "Zuldazar [37.5/40.0]")
+
+      text = nil
+      render(c, {}, { mapID = 588 })
+      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "an unresolved zone must omit the row")
+
+      addon.DungeonLocation.GetNavigationText = function()
+        error("boom")
+      end
+      render(c, {}, { mapID = 588 })
+      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "a failing lookup must omit the row")
+    end
+  )
+
   test("factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing", function()
     local addon = Load()
     local render = addon._FactoryInternal.RenderAcceptedInviteNotice

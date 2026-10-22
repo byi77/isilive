@@ -7,6 +7,11 @@ addonTable = addonTable or {}
 -- portal navigator layout, and one complete record per dungeon.
 -- Each dungeon record keeps the map, activity, portal spell, display order, level,
 -- localized name, short code, and optional verification metadata together.
+-- Optional `entrance` = { uiMapID, x, y, zoneNames }: outdoor zone UiMapID and
+-- entrance coordinates (0-100) for the accepted-invite "Navigation" row. The
+-- displayed zone name is read from C_Map.GetMapInfo(uiMapID) in the client
+-- language; `zoneNames` (enUS required, other locales optional) is only the
+-- fallback when the client returns no map info.
 --
 -- Maintenance workflow for a new season:
 -- 1. Add a new entry under `seasons`; do not overwrite historical season entries.
@@ -59,8 +64,8 @@ addonTable.SeasonManifest = {
           mapIDs = { 2266 },
           names = {
             "Millennia's Threshold",
-            "Die Jahrhunderschwelle",
-            "Jahrhunderschwelle",
+            "Die Jahrhundertschwelle",
+            "Jahrhundertschwelle",
             "The Timeways",
             "Timeways",
           },
@@ -169,8 +174,8 @@ addonTable.SeasonManifest = {
           mapIDs = { 2266 },
           names = {
             "Millennia's Threshold",
-            "Die Jahrhunderschwelle",
-            "Jahrhunderschwelle",
+            "Die Jahrhundertschwelle",
+            "Jahrhundertschwelle",
             "The Timeways",
             "Timeways",
           },
@@ -187,6 +192,8 @@ addonTable.SeasonManifest = {
           right = false,
         },
       },
+      -- Entrances: UiMapID + /way coordinates from method.gg "WoW Midnight Season 2:
+      -- Dungeon Entrance Locations", checked 2026-10-22.
       dungeons = {
         {
           mapID = 249,
@@ -195,6 +202,7 @@ addonTable.SeasonManifest = {
           displayOrder = 1,
           names = { enUS = "King's Rest", deDE = "Königsruh" },
           shortCodes = { default = "KR", deDE = "KR" },
+          entrance = { uiMapID = 1193, x = 37.90, y = 39.73, zoneNames = { enUS = "Zuldazar" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -208,6 +216,7 @@ addonTable.SeasonManifest = {
           displayOrder = 2,
           names = { enUS = "Temple of Sethraliss", deDE = "Tempel von Sethraliss" },
           shortCodes = { default = "TOS", deDE = "TVS" },
+          entrance = { uiMapID = 1195, x = 51.94, y = 26.53, zoneNames = { enUS = "Vol'dun" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -221,6 +230,7 @@ addonTable.SeasonManifest = {
           displayOrder = 3,
           names = { enUS = "Ruby Life Pools", deDE = "Rubinlebensbecken" },
           shortCodes = { default = "RLP", deDE = "RLB" },
+          entrance = { uiMapID = 2022, x = 59.84, y = 75.90, zoneNames = { enUS = "The Waking Shores" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -236,6 +246,7 @@ addonTable.SeasonManifest = {
           minimumPlayerLevel = 90,
           names = { enUS = "The Blinding Vale", deDE = "Das blendende Tal" },
           shortCodes = { default = "TBV", deDE = "DBT" },
+          entrance = { uiMapID = 2413, x = 27.43, y = 77.98, zoneNames = { enUS = "Harandar" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -250,6 +261,7 @@ addonTable.SeasonManifest = {
           minimumPlayerLevel = 90,
           names = { enUS = "Voidscar Arena", deDE = "Arena der Leerennarbe" },
           shortCodes = { default = "VA", deDE = "ADL" },
+          entrance = { uiMapID = 2405, x = 53.62, y = 35.45, zoneNames = { enUS = "Voidstorm" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -264,6 +276,7 @@ addonTable.SeasonManifest = {
           minimumPlayerLevel = 90,
           names = { enUS = "Den of Nalorakk", deDE = "Nalorakks Bau" },
           shortCodes = { default = "DON", deDE = "NB" },
+          entrance = { uiMapID = 2437, x = 29.99, y = 84.45, zoneNames = { enUS = "Zul'Aman" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -278,6 +291,7 @@ addonTable.SeasonManifest = {
           minimumPlayerLevel = 90,
           names = { enUS = "Murder Row", deDE = "Mördergasse" },
           shortCodes = { default = "MR", deDE = "MG" },
+          entrance = { uiMapID = 2393, x = 56.61, y = 61.10, zoneNames = { enUS = "Silvermoon City" } },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",
@@ -292,6 +306,12 @@ addonTable.SeasonManifest = {
           minimumPlayerLevel = 90,
           names = { enUS = "Altar of Fangs", deDE = "Der Altar der Fänge" },
           shortCodes = { default = "AOF", deDE = "ADF" },
+          entrance = {
+            uiMapID = 2509,
+            x = 47.29,
+            y = 68.16,
+            zoneNames = { enUS = "The Coiled Isle", deDE = "Die gewundene Insel" },
+          },
           verification = {
             status = "verified",
             verifiedAt = "2026-07-13",

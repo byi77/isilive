@@ -634,7 +634,7 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
       playerMapID = 100,
       mapNames = {
         [100] = "Valdrakken",
-        [2266] = "Jahrhunderschwelle",
+        [2266] = "Jahrhundertschwelle",
       },
     }
     local notices = {}
@@ -681,7 +681,7 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
       Assert.Equal(#notices, 0, "outdoor zone must not show the portal navigator")
       Assert.Equal(hides, 0, "outdoor zone must not hide the portal navigator before it was shown")
 
-      current.zoneText = "Jahrhunderschwelle"
+      current.zoneText = "Jahrhundertschwelle"
       current.playerMapID = 2266
       controller.MaybeShowPortalNavigatorNotice()
       Assert.Equal(#notices, 1, "portal room should show the navigator exactly once")
@@ -703,7 +703,7 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
 
     WithGlobals({
       GetZoneText = function()
-        return "Jahrhunderschwelle"
+        return "Jahrhundertschwelle"
       end,
       GetSubZoneText = function()
         return nil
@@ -717,7 +717,7 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
         end,
         GetMapInfo = function(mapID)
           if mapID == 2266 then
-            return { name = "Jahrhunderschwelle" }
+            return { name = "Jahrhundertschwelle" }
           end
           return nil
         end,
@@ -852,7 +852,7 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
         end,
       })
 
-      current.zoneText = "Jahrhunderschwelle"
+      current.zoneText = "Jahrhundertschwelle"
       controller.MaybeShowPortalNavigatorNotice()
 
       Assert.Equal(#notices, 1, "zone text should also trigger the portal navigator")
@@ -909,11 +909,11 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
 
   test("Portal navigator respects the settings toggle", function()
     local current = {
-      zoneText = "Jahrhunderschwelle",
+      zoneText = "Jahrhundertschwelle",
       playerMapID = 2266,
       enabled = false,
       mapNames = {
-        [2266] = "Jahrhunderschwelle",
+        [2266] = "Jahrhundertschwelle",
       },
     }
     local notices = {}

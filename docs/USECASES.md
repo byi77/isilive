@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.444`
-Zuletzt aktualisiert: `2026-10-20`
+Versionsbasis: `0.9.445`
+Zuletzt aktualisiert: `2026-10-22`
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten
 Sated-IDs zuerst ueber `GetPlayerAuraBySpellID` ab. Wenn beide Listen-APIs
@@ -753,7 +753,11 @@ sofort. Die vorhandenen Forces-/Kick-Ticker duerfen sich dabei nicht vermehren.
 
 ## Eigene Dungeon-Bestleistung in der Gruppensuche
 
-isiLive zeigt rechts `Du: +N` in Hellblau fuer die hoechste abgeschlossene Stufe des aktuellen Charakters in diesem Dungeon der laufenden Saison, einschliesslich zeitueberschrittener Abschluesse. Ohne Bestlauf steht `Du: -`; bei nicht lesbaren oder mehrdeutigen Daten bleibt die Anzeige aus. Sie funktioniert ohne PGF und bei ausgeschalteter PGF-Wertungsanzeige. Mit PGF ersetzt sie nur die Leiter-Stufe; die Gesamtwertung bleibt erhalten. Wiederverwendete Zeilen aktualisieren den Wert ohne Mouseover und erzeugen keine doppelten Labels. Die Dungeonname-Breite wird anhand lesbarer Bildschirmkoordinaten angepasst und bei fehlendem Wert wiederhergestellt; Gruppentitel und Rollenicons bleiben unveraendert.
+isiLive zeigt rechts `Du: +N` in Hellblau fuer die beste Stufe des aktuellen Charakters in diesem Dungeon der laufenden Saison. Wie im Blizzard-Mythic+-Reiter zaehlt ein zeitueberschrittener Lauf nur, wenn er mehr Wertung brachte als der Lauf in der Zeit (oder es keinen Lauf in der Zeit gibt); ein abgelaufenes +13 verdeckt also kein getimtes +12. Ohne Bestlauf steht `Du: -`; bei nicht lesbaren oder mehrdeutigen Daten bleibt die Anzeige aus. Sie funktioniert ohne PGF und bei ausgeschalteter PGF-Wertungsanzeige. Mit PGF ersetzt sie nur die Leiter-Stufe; die Gesamtwertung bleibt erhalten. Wiederverwendete Zeilen aktualisieren den Wert ohne Mouseover und erzeugen keine doppelten Labels. Die Dungeonname-Breite wird anhand lesbarer Bildschirmkoordinaten angepasst und bei fehlendem Wert wiederhergestellt; Gruppentitel und Rollenicons bleiben unveraendert.
+
+## Navigation in der Einladungskarte
+
+Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone, in der der Ziel-Dungeon liegt, z. B. `Zuldazar (37.5, 39.4)`. Fuer Saison-Dungeons stehen Zonen-UiMapID und Eingangskoordinaten im Saison-Manifest (`entrance`); den Zonennamen liefert der Client in seiner Sprache. Andere Dungeons werden ueber die Karten- und Dungeonjournal-API aufgeloest. Hat der Saison-Portalraum ein Portal zu diesem Dungeon, folgt `· Portal: <Portalraum>`. Ohne Eingangspin steht nur die Zone; kann keine Zone ermittelt werden, fehlt die Zeile.
 
 ## Audiovereinheitlichung 2026-10-20
 

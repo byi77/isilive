@@ -116,6 +116,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_lfg_detect.lua",
   "testmodul/isilive_test_scenarios_lfg_flags.lua",
   "testmodul/isilive_test_scenarios_lfg_personal_best.lua",
+  "testmodul/isilive_test_scenarios_dungeon_location.lua",
   "testmodul/isilive_test_scenarios_stress.lua",
   "testmodul/isilive_test_scenarios_roster_layout.lua",
   "testmodul/isilive_test_scenarios_controller_wiring.lua",

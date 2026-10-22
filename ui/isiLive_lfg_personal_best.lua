@@ -74,9 +74,20 @@ function PersonalBest.GetText(resultID)
   if (timed ~= nil and not timedLevel) or (overtime ~= nil and not overtimeLevel) then
     return nil
   end
-  local level = timedLevel
-  if overtimeLevel and (not level or overtimeLevel > level) then
-    level = overtimeLevel
+  -- Same pick as Blizzard's Mythic+ tab: an overtime run only counts when it
+  -- scored more than the timed one. A depleted +13 must not hide a timed +12.
+  local level = timedLevel or overtimeLevel
+  if timedLevel and overtimeLevel then
+    local timedScore, overtimeScore = rawget(timed, "dungeonScore"), rawget(overtime, "dungeonScore")
+    if
+      not IsSecret(timedScore)
+      and not IsSecret(overtimeScore)
+      and type(timedScore) == "number"
+      and type(overtimeScore) == "number"
+      and overtimeScore > timedScore
+    then
+      level = overtimeLevel
+    end
   end
   local format = addonTable.LFGBonusModel.ResolveLocalizedText("LFG_PERSONAL_BEST_FMT")
   if not format then

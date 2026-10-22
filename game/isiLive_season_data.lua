@@ -118,6 +118,7 @@ local function CompileSeason(source)
     mapToTeleport = {},
     displayOrder = {},
     minimumPlayerLevelByMapID = {},
+    entranceByMapID = {},
     shortCodesByLocale = { default = {}, deDE = {} },
     namesByLocale = { enUS = {}, deDE = {} },
     challengeMapAliases = {},
@@ -163,6 +164,32 @@ local function CompileSeason(source)
       ordered[#ordered + 1] = { mapID = mapID, order = order or math.huge }
       if dungeon.minimumPlayerLevel ~= nil then
         season.minimumPlayerLevelByMapID[mapID] = dungeon.minimumPlayerLevel
+      end
+      local entrance = dungeon.entrance
+      if entrance ~= nil then
+        local isTable = type(entrance) == "table"
+        local uiMapID = isTable and entrance.uiMapID or nil
+        local x = isTable and entrance.x or nil
+        local y = isTable and entrance.y or nil
+        if
+          not isTable
+          or type(uiMapID) ~= "number"
+          or uiMapID <= 0
+          or uiMapID ~= math.floor(uiMapID)
+          or type(x) ~= "number"
+          or type(y) ~= "number"
+          or x < 0
+          or x > 100
+          or y < 0
+          or y > 100
+          or type(entrance.zoneNames) ~= "table"
+          or type(entrance.zoneNames.enUS) ~= "string"
+          or entrance.zoneNames.enUS == ""
+        then
+          season.manifestErrors[#season.manifestErrors + 1] = string.format("mapID %d has an invalid entrance", mapID)
+        else
+          season.entranceByMapID[mapID] = { uiMapID = uiMapID, x = x, y = y, zoneNames = entrance.zoneNames }
+        end
       end
 
       for localeTag, name in pairs(type(dungeon.names) == "table" and dungeon.names or {}) do
@@ -849,6 +876,19 @@ function SeasonData.GetMinimumPlayerLevel(mapID, seasonID)
     return nil
   end
   return minimumLevel
+end
+
+-- Curated entrance of a season dungeon: { uiMapID, x, y, zoneNames } (x/y
+-- 0-100, zoneNames = fallback names by locale, enUS always present), or nil
+-- when the manifest has none.
+function SeasonData.GetDungeonEntrance(mapID, seasonID)
+  local numericMapID = SeasonData.NormalizeMapID(mapID, seasonID)
+  if not numericMapID then
+    return nil
+  end
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  local entrances = type(season) == "table" and season.entranceByMapID or nil
+  return type(entrances) == "table" and entrances[numericMapID] or nil
 end
 
 function SeasonData.GetMapIDByActivityID(activityID, seasonID)

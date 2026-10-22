@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-22 - Version 0.9.445 (patch)
+
+### Navigation in the accepted-invite card
+
+- The "Invite accepted" card shows a new "Navigation" row below "Source" with
+  the dungeon's zone and entrance coordinates, e.g.
+  `Zuldazar (37.9, 39.7)`. The zone name comes from the client, so it follows
+  the client language.
+- Season 2 entrances (zone UiMapID and `/way` coordinates) live in the season
+  manifest as `entrance`; dungeons without one are resolved through the map
+  and Encounter Journal APIs. Unresolved data hides the row.
+- When the season portal room has a portal to the dungeon (King's Rest, Ruby
+  Life Pools, Temple of Sethraliss), the row adds `· Portal: <portal room>`.
+
+### Fixes
+
+- Group Finder `You: +N` now matches the Blizzard Mythic+ tab: an overtime run
+  only counts when it scored more than the timed one, so a depleted +13 no
+  longer hides a timed +12.
+- Long roster names no longer push the leader, sync, bonus or death markers
+  into "...": the name is shortened instead so every marker stays visible.
+- Corrected the German portal room name to "Jahrhundertschwelle".
+
 ## 2026-10-20 - Version 0.9.444 (patch)
 
 ### Consistent German audio

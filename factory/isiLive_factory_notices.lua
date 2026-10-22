@@ -84,7 +84,7 @@ local function ResolveGroupTitleKeyLevel(groupName)
   return best
 end
 
-local function BuildAcceptedInviteFields(ctx, mapName, payload)
+local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
 
@@ -113,7 +113,30 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload)
     value = payload.sourceText or L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
   }
 
+  if type(navigationText) == "string" and navigationText ~= "" then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = navigationText }
+  end
+
   return fields
+end
+
+-- Zone (and entrance coordinates) of the target dungeon; nil hides the row.
+local function ResolveAcceptedInviteNavigationText(ctx, mapID)
+  local dungeonLocation = addonTable.DungeonLocation
+  if not mapID or type(dungeonLocation) ~= "table" or type(dungeonLocation.GetNavigationText) ~= "function" then
+    return nil
+  end
+  local L = ctx.GetL and ctx.GetL() or {}
+  local ok, text = pcall(
+    dungeonLocation.GetNavigationText,
+    mapID,
+    L.INVITE_ACCEPTED_NOTICE_NAVIGATION_COORDS_FMT,
+    L.INVITE_ACCEPTED_NOTICE_NAVIGATION_PORTAL_FMT
+  )
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  return text
 end
 
 local function IsAcceptedInviteNoticeEnabled()
@@ -142,7 +165,6 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoti
   local L = ctx.GetL and ctx.GetL() or {}
 
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
-  local fields = BuildAcceptedInviteFields(ctx, mapName, payload)
   local activityID = tonumber(payload.activityID)
   if activityID and activityID <= 0 then
     activityID = nil
@@ -151,6 +173,7 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoti
   if mapID and mapID <= 0 then
     mapID = nil
   end
+  local fields = BuildAcceptedInviteFields(ctx, mapName, payload, ResolveAcceptedInviteNavigationText(ctx, mapID))
   local hasTeleportContext = activityID ~= nil or mapID ~= nil
 
   ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {
@@ -344,6 +367,7 @@ FI.ResolveAcceptedInviteRoleName = ResolveAcceptedInviteRoleName
 FI.ResolveAcceptedInviteDungeonName = ResolveAcceptedInviteDungeonName
 FI.ResolveGroupTitleKeyLevel = ResolveGroupTitleKeyLevel
 FI.BuildAcceptedInviteFields = BuildAcceptedInviteFields
+FI.ResolveAcceptedInviteNavigationText = ResolveAcceptedInviteNavigationText
 FI.RenderAcceptedInviteNotice = RenderAcceptedInviteNotice
 FI.ShowJoinedTargetNotice = ShowJoinedTargetNotice
 FI.BuildAcceptedRaidInviteFields = BuildAcceptedRaidInviteFields

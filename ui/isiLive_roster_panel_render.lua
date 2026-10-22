@@ -418,6 +418,23 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
   return displayData
 end
 
+-- Full text width, not the column-clamped one: GetUnboundedStringWidth when
+-- the client has it, GetStringWidth as fallback.
+local function MeasureUnboundedWidth(fontString)
+  local measure = fontString.GetUnboundedStringWidth
+  if type(measure) ~= "function" then
+    measure = fontString.GetStringWidth
+  end
+  if type(measure) ~= "function" then
+    return nil
+  end
+  local ok, width = pcall(measure, fontString)
+  if not ok or IsSecretValue(width) or type(width) ~= "number" then
+    return nil
+  end
+  return width
+end
+
 local function ApplyRowNameDisplay(row, displayData)
   if not row or not row.name or type(row.name.SetText) ~= "function" then
     return
@@ -429,17 +446,42 @@ local function ApplyRowNameDisplay(row, displayData)
     rosterBonusMarker = ""
   end
 
-  SetReadableText(
-    row.name,
-    (displayData.readyCheckMarkup or "")
-      .. " |c"
-      .. displayData.colorHex
-      .. displayData.displayName
-      .. "|r"
-      .. rosterBonusMarker
-      .. displayData.atDungeonMarker
-      .. displayData.addonMarker
-  )
+  local prefix = (displayData.readyCheckMarkup or "") .. " |c" .. displayData.colorHex
+  local suffix = "|r" .. rosterBonusMarker .. displayData.atDungeonMarker .. displayData.addonMarker
+  local displayName = displayData.displayName
+  local fullText = prefix .. displayName .. suffix
+  -- Re-renders of an unchanged row reuse the fitted text instead of measuring again.
+  if row._isiLiveNameFullText == fullText and row._isiLiveNameFitText then
+    SetReadableText(row.name, row._isiLiveNameFitText)
+    return
+  end
+
+  SetReadableText(row.name, fullText)
+  local fitText = fullText
+  -- A long name plus its markers can overflow the column, and the FontString
+  -- then clips the markers into "...". Shorten the name instead so the
+  -- leader/sync/death markers stay visible.
+  local width = MeasureUnboundedWidth(row.name)
+  if not width then
+    row._isiLiveNameFullText, row._isiLiveNameFitText = nil, nil
+    return
+  end
+  if width > NAME_COL_WIDTH and type(displayName) == "string" then
+    local chars = {}
+    for char in displayName:gmatch("[\1-\127\194-\244][\128-\191]*") do
+      chars[#chars + 1] = char
+    end
+    for count = #chars - 1, 1, -1 do
+      fitText = prefix .. table.concat(chars, "", 1, count) .. suffix
+      SetReadableText(row.name, fitText)
+      width = MeasureUnboundedWidth(row.name)
+      if not width or width <= NAME_COL_WIDTH then
+        break
+      end
+    end
+  end
+  row._isiLiveNameFullText = fullText
+  row._isiLiveNameFitText = fitText
 end
 
 local function ApplyRowSpecDisplay(row, displayData)

@@ -280,6 +280,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 205. Die eigene Dungeon-Bestleistung ersetzt die PGF-Leiterstufe und bleibt ohne PGF oder bei deaktivierter PGF-Wertungsanzeige sichtbar.
 
+206. Passt ein Rostername samt Markern nicht in die Namensspalte, wird der Name gekuerzt; Leiter-, Sync-, Bonus- und Todesmarker bleiben sichtbar statt in "..." zu verschwinden.
+
+207. Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone des Ziel-Dungeons (und den Eingangskoordinaten, wenn Blizzard einen Eingangspin liefert); ohne aufgeloeste Zone entfaellt die Zeile.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -3078,10 +3082,33 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-EIGENE-BESTLEISTUNG-OHNE-PGF
 - Regelnummer: 205
 - Status: aktiv
-- Zusammenfassung: isiLive zeigt in jeder eindeutig aufgeloesten M+-Suchzeile die eigene hoechste abgeschlossene Dungeon-Stufe der laufenden Saison als hellblaues `Du: +N` in einer eigenen rechtsbuendigen Region. Die Anzeige funktioniert ohne PGF und bei ausgeschalteter PGF-Wertungsanzeige. Bei aktivem PGF wird nur dessen Leiter-Stufenzeile ausgeblendet; seine Gesamtwertung bleibt unveraendert. Die Datenquelle und Auswertung entsprechen Regel 204: aktueller Charakter, zeitueberschrittene Abschluesse zaehlen mit, kein Bestlauf erscheint als `Du: -`, unbekannte oder mehrdeutige Daten bleiben unsichtbar. Wiederverwendete Suchzeilen aktualisieren die eigene Anzeige auch ohne Mouseover, erzeugen keine doppelten Regionen und stellen bei fehlenden Daten die Dungeonname-Breite wieder her; Gruppentitel und Rollensymbole bleiben unveraendert.
+- Zusammenfassung: isiLive zeigt in jeder eindeutig aufgeloesten M+-Suchzeile die eigene beste Dungeon-Stufe der laufenden Saison als hellblaues `Du: +N` in einer eigenen rechtsbuendigen Region. Die Anzeige funktioniert ohne PGF und bei ausgeschalteter PGF-Wertungsanzeige. Bei aktivem PGF wird nur dessen Leiter-Stufenzeile ausgeblendet; seine Gesamtwertung bleibt unveraendert. Die Datenquelle und Auswertung entsprechen Regel 204: aktueller Charakter; liegen ein Lauf in der Zeit und ein zeitueberschrittener Lauf vor, gilt wie im Blizzard-Mythic+-Reiter der mit der hoeheren `dungeonScore` (ohne lesbare Wertung der Lauf in der Zeit), ein zeitueberschrittener Lauf allein zaehlt mit; kein Bestlauf erscheint als `Du: -`, unbekannte oder mehrdeutige Daten bleiben unsichtbar. Wiederverwendete Suchzeilen aktualisieren die eigene Anzeige auch ohne Mouseover, erzeugen keine doppelten Regionen und stellen bei fehlenden Daten die Dungeonname-Breite wieder her; Gruppentitel und Rollensymbole bleiben unveraendert.
 - Erforderliche Tests:
-  - LFG personal best uses the highest completed current-season dungeon level
+  - LFG personal best uses the best-scoring current-season run like the Blizzard M+ tab
   - LFG personal best leaves unavailable ambiguous and secret data unresolved
   - LFG personal best renders without PGF and clears recycled unresolved rows
   - LFG personal best replaces only the PGF leader level and survives disabled rating info
   - LFG personal best refreshes recycled Blizzard rows without PGF or mouseover
+
+
+### RULE-ROSTER-NAME-MARKER-PASSEN
+- Regelnummer: 206
+- Status: aktiv
+- Zusammenfassung: Die Namenszelle misst ihre volle Textbreite (`GetUnboundedStringWidth`, sonst `GetStringWidth`). Ueberschreiten Name und Marker die Namensspalte, kuerzt isiLive den Namen zeichenweise (UTF-8-sicher), bis alles passt; die Marker bleiben vollstaendig sichtbar und die FontString-Abschneidung mit "..." tritt nicht mehr auf. Unveraenderte Zeilen verwenden den gekuerzten Text ohne erneute Messung; ohne messbare Breite bleibt der volle Text stehen.
+- Erforderliche Tests:
+  - Roster name shortens a long name so its markers fit the name column
+
+
+### RULE-EINLADUNG-NAVIGATION-ZONE
+- Regelnummer: 207
+- Status: aktiv
+- Zusammenfassung: Die Karte "Einladung angenommen" haengt unter der Zeile "Quelle" eine Zeile "Navigation" an. Ihr Wert ist die vom Client gelieferte, bereits lokalisierte Zone des Ziel-Dungeons, mit Eingangskoordinaten als "Zone (x, y)", wenn ein Eingangspin existiert. Quelle ist zuerst der gepflegte `entrance`-Eintrag des Saison-Manifests (UiMapID, Koordinaten, Ersatznamen `zoneNames` je Sprache, enUS Pflicht); der angezeigte Zonenname kommt dabei aus `C_Map.GetMapInfo(uiMapID)` in Clientsprache. Nur Dungeons ohne Manifest-Eintrag nutzen die API-Kette: Challenge-Map-ID -> Instanz-ID (`C_ChallengeMode.GetMapUIInfo`) -> Journal-Instanz (`C_EncounterJournal.GetInstanceForGameMap`) -> zuerst Elternzone der `dungeonAreaMapID` aus `EJ_GetInstanceInfo`, sonst Suche des Eingangspins (`C_EncounterJournal.GetDungeonEntrancesForMap`) ueber alle Zonen unter Azeroth (946). Ungueltige `entrance`-Eintraege sind Manifest-Fehler. Aufgeloeste Zuordnungen werden zwischengespeichert, fehlgeschlagene nicht. Belegt der Dungeon einen Slot des Saison-Portalnavigators, folgt " · Portal: <Portalraum>" (Name aus `C_Map.GetMapInfo` der Hub-Zone, sonst erster Manifest-Zonenname); ohne Slot entfaellt der Hinweis. Fehlende, maskierte oder fehlerhafte Daten blenden die Zeile aus; die Karte bleibt sonst unveraendert.
+- Erforderliche Tests:
+  - Dungeon location scans zone entrances when the journal has no dungeon area map
+  - Dungeon location uses the parent zone of the dungeon area map first
+  - Dungeon location keeps the parent zone without coordinates when no entrance pin exists
+  - Dungeon location stays unresolved for unknown, masked or failing data
+  - factory_controllers: RenderAcceptedInviteNotice adds the dungeon zone as navigation row below source
+  - Dungeon location uses the curated season entrance with the client zone name
+  - Dungeon location has a valid curated entrance for every active season dungeon
+  - Dungeon location mentions the season portal room only for dungeons with a portal there
