@@ -914,7 +914,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       acceptedNotice.showOptions.fields[5].value,
-      "Zuldazar (37.9, 39.7) \194\183 Portal: Millennia's Threshold",
+      "Zuldazar\nUse the portal in Millennia's Threshold",
       "accepted-invite demo notice navigation must come from the curated season entrance"
     )
     Assert.Equal(

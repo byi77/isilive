@@ -1206,14 +1206,14 @@ return function(test, ctx)
           return {
             INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
             INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION = "Navigation-DE:",
-            INVITE_ACCEPTED_NOTICE_NAVIGATION_COORDS_FMT = "%s [%.1f/%.1f]",
+            INVITE_ACCEPTED_NOTICE_NAVIGATION_PORTAL_FMT = "Portal-DE %s",
           }
         end,
         ShowCenterNotice = function(_, _, _, _, opts)
           captured = opts
         end,
       })
-      local text = "Zuldazar [37.5/40.0]"
+      local text = "Zuldazar"
       addon.DungeonLocation = {
         GetNavigationText = function(mapID, format)
           Assert.Equal(mapID, 588, "the verified challenge mapID must be resolved")
@@ -1222,11 +1222,11 @@ return function(test, ctx)
         end,
       }
       render(c, {}, { mapID = 588 })
-      Assert.Equal(requestedFormat, "%s [%.1f/%.1f]", "the localized coordinates format must be passed through")
+      Assert.Equal(requestedFormat, "Portal-DE %s", "the localized portal sentence must be passed through")
       local last = captured.fields[#captured.fields]
       Assert.Equal(captured.fields[#captured.fields - 1].label, "Quelle-DE:", "navigation must follow the source row")
       Assert.Equal(last.label, "Navigation-DE:")
-      Assert.Equal(last.value, "Zuldazar [37.5/40.0]")
+      Assert.Equal(last.value, "Zuldazar")
 
       text = nil
       render(c, {}, { mapID = 588 })

@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.447`.
+Current version: `0.9.448`.
+
+Version 0.9.448: the invite navigation shows only the zone and, when the
+portal room has a portal there, a second line to use it.
 
 Version 0.9.447: the navigation row of the accepted-invite card is visible
 again; center cards show up to six rows.
@@ -30,12 +33,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.447 -->
+<!-- highlights-reviewed-for: 0.9.448 -->
 
 Highlights:
 - **Navigation for accepted invites.** The invite card names the dungeon's
-  zone with entrance coordinates and mentions when the season portal room has
-  a portal to it.
+  zone and, when the season portal room has a portal to it, tells you to use
+  that portal.
 - **One German announcer voice.** Ten concise voice alerts share the approved
   male voice, clear pronunciation and consistent loudness. Existing effects
   have matching loudness; the complete German voice pack is about 115 KiB.

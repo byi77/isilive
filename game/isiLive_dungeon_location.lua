@@ -296,28 +296,28 @@ function DungeonLocation.GetPortalRoomName(challengeMapID)
   return name
 end
 
---- Display text for the "Navigation" row: "Zone (x, y)" or just "Zone", plus
---- " · Portal: <portal room>" when the season portal room has this dungeon.
+--- Display text for the "Navigation" row: the zone name, plus a second line
+--- with the portal hint when the season portal room has this dungeon.
 --- @param challengeMapID any
---- @param coordinatesFormat string|nil -- format with %s, %.1f, %.1f
 --- @param portalFormat string|nil -- format with %s (portal room name)
 --- @return string|nil
-function DungeonLocation.GetNavigationText(challengeMapID, coordinatesFormat, portalFormat)
-  local parts = {}
+function DungeonLocation.GetNavigationText(challengeMapID, portalFormat)
+  local lines = {}
   local location = DungeonLocation.Resolve(challengeMapID)
-  if location and location.x and location.y then
-    parts[1] = string.format(coordinatesFormat or "%s (%.1f, %.1f)", location.zoneName, location.x, location.y)
-  elseif location then
-    parts[1] = location.zoneName
+  if location then
+    lines[1] = location.zoneName
   end
   local portalRoomName = DungeonLocation.GetPortalRoomName(challengeMapID)
   if portalRoomName then
-    parts[#parts + 1] = string.format(portalFormat or "Portal: %s", portalRoomName)
+    -- The German map name can carry its article ("Die Jahrhundertschwelle");
+    -- the localized sentence supplies its own ("in der %s").
+    portalRoomName = portalRoomName:gsub("^Die ", "")
+    lines[#lines + 1] = string.format(portalFormat or "Use the portal in %s", portalRoomName)
   end
-  if #parts == 0 then
+  if #lines == 0 then
     return nil
   end
-  return table.concat(parts, " · ")
+  return table.concat(lines, "\n")
 end
 
 return DungeonLocation

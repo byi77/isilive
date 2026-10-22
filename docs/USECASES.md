@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.447`
+Versionsbasis: `0.9.448`
 Zuletzt aktualisiert: `2026-10-22`
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten
@@ -757,7 +757,7 @@ isiLive zeigt rechts `Du: +N` in Hellblau fuer die beste Stufe des aktuellen Cha
 
 ## Navigation in der Einladungskarte
 
-Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone, in der der Ziel-Dungeon liegt, z. B. `Zuldazar (37.5, 39.4)`. Fuer Saison-Dungeons stehen Zonen-UiMapID und Eingangskoordinaten im Saison-Manifest (`entrance`); den Zonennamen liefert der Client in seiner Sprache. Andere Dungeons werden ueber die Karten- und Dungeonjournal-API aufgeloest. Hat der Saison-Portalraum ein Portal zu diesem Dungeon, folgt `· Portal: <Portalraum>`. Ohne Eingangspin steht nur die Zone; kann keine Zone ermittelt werden, fehlt die Zeile.
+Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone, in der der Ziel-Dungeon liegt, z. B. `Zuldazar`, ohne Koordinaten. Fuer Saison-Dungeons steht die Zonen-UiMapID im Saison-Manifest (`entrance`); den Zonennamen liefert der Client in seiner Sprache. Andere Dungeons werden ueber die Karten- und Dungeonjournal-API aufgeloest. Hat der Saison-Portalraum ein Portal zu diesem Dungeon, folgt darunter eine zweite Zeile, z. B. `Nutze das Portal in der Jahrhundertschwelle` (in allen fuenf Sprachen lokalisiert); die Karte wird dafuer hoeher. Kann weder Zone noch Portal ermittelt werden, fehlt die Zeile.
 
 ## Audiovereinheitlichung 2026-10-20
 

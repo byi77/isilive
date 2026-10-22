@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.447`
+Versionsbasis: `0.9.448`
 Zuletzt aktualisiert: `2026-10-22`
 
 Review-Fixes (2026-10-17): `UpdateCollapseState` merkt waehrend Kampf-Lockdown
@@ -425,7 +425,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.447                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.448                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -674,6 +674,6 @@ berechnet Sender-Byte-Dumps erst innerhalb des konsumierten Builders.
 
 `ui/isiLive_lfg_personal_best.lua` liest den eigenen Saison-Bestlauf ueber den gemeinsamen LFGEntryResolver und `C_MythicPlus.GetSeasonBestForMap`. Pro Suchzeile wird ein eigener FontString erstellt; eine Installation von PGF ist nicht erforderlich. Der gemeinsame View-Hook auf `LFGListSearchEntry_Update` aktualisiert wiederverwendete Zeilen auch ohne Hover. Bei PGF wird nur `ratingInfoFrames[row].ExtraText` ausgeblendet; dessen Gesamtwertung bleibt unberuehrt. Liegen ein Lauf in der Zeit und ein zeitueberschrittener Lauf vor, gilt wie im Blizzard-Mythic+-Reiter der mit der hoeheren `dungeonScore`. Der sichere Post-Hook auf PGFs `AddRatingInfo` aktualisiert die eigene Region nach Layout- und Einstellungswechseln. Die Dungeonname-Breite beruht auf lesbaren Live-Koordinaten, ohne das Gruppentitelbudget anzupassen.
 
-`game/isiLive_dungeon_location.lua` liefert der Einladungskarte die Zeile "Navigation". Saison-Dungeons nutzen den `entrance`-Eintrag des Manifests (Zonen-UiMapID, Eingangskoordinaten, `zoneNames` als Ersatz); der Zonenname kommt aus `C_Map.GetMapInfo` in Clientsprache. Dungeons ohne Eintrag werden ueber `C_ChallengeMode.GetMapUIInfo` -> `C_EncounterJournal.GetInstanceForGameMap` -> Elternzone der `dungeonAreaMapID` bzw. Eingangspin-Suche (`C_EncounterJournal.GetDungeonEntrancesForMap`) aufgeloest. Belegt der Dungeon einen Portalnavigator-Slot, folgt der Portalraum-Hinweis. Unaufgeloeste Daten blenden die Zeile aus.
+`game/isiLive_dungeon_location.lua` liefert der Einladungskarte die Zeile "Navigation". Saison-Dungeons nutzen den `entrance`-Eintrag des Manifests (Zonen-UiMapID, Eingangskoordinaten, `zoneNames` als Ersatz); der Zonenname kommt aus `C_Map.GetMapInfo` in Clientsprache. Dungeons ohne Eintrag werden ueber `C_ChallengeMode.GetMapUIInfo` -> `C_EncounterJournal.GetInstanceForGameMap` -> Elternzone der `dungeonAreaMapID` bzw. Eingangspin-Suche (`C_EncounterJournal.GetDungeonEntrancesForMap`) aufgeloest. Angezeigt wird nur die Zone, ohne Koordinaten. Belegt der Dungeon einen Portalnavigator-Slot, folgt der lokalisierte Portal-Satz als zweite Zeile; die Rich-Card (`ui/isiLive_notice_rich_layout.lua`, bis zu sechs Feldzeilen) misst die Zeilenhoehe und waechst mit. Unaufgeloeste Daten blenden die Zeile aus.
 
 `ui/isiLive_roster_panel_render.lua` misst die Namenszelle mit voller Textbreite und kuerzt bei Ueberlauf den Namen statt die Marker, sodass Leiter-, Sync-, Bonus- und Todesmarker nie in "..." verschwinden.

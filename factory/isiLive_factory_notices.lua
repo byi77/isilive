@@ -120,19 +120,14 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText)
   return fields
 end
 
--- Zone (and entrance coordinates) of the target dungeon; nil hides the row.
+-- Zone of the target dungeon (plus the portal hint); nil hides the row.
 local function ResolveAcceptedInviteNavigationText(ctx, mapID)
   local dungeonLocation = addonTable.DungeonLocation
   if not mapID or type(dungeonLocation) ~= "table" or type(dungeonLocation.GetNavigationText) ~= "function" then
     return nil
   end
   local L = ctx.GetL and ctx.GetL() or {}
-  local ok, text = pcall(
-    dungeonLocation.GetNavigationText,
-    mapID,
-    L.INVITE_ACCEPTED_NOTICE_NAVIGATION_COORDS_FMT,
-    L.INVITE_ACCEPTED_NOTICE_NAVIGATION_PORTAL_FMT
-  )
+  local ok, text = pcall(dungeonLocation.GetNavigationText, mapID, L.INVITE_ACCEPTED_NOTICE_NAVIGATION_PORTAL_FMT)
   if not ok or type(text) ~= "string" or text == "" then
     return nil
   end

@@ -63,17 +63,17 @@ return function(test, ctx)
 
   test("Dungeon location scans zone entrances when the journal has no dungeon area map", function()
     WithMaps({}, function(location, calls)
-      Assert.Equal(location.GetNavigationText(9588), "Testzone (37.5, 40.0)")
+      Assert.Equal(location.GetNavigationText(9588), "Testzone")
       Assert.Equal(calls.scans, 1)
       -- The dungeon -> zone mapping is static and cached.
-      Assert.Equal(location.GetNavigationText(9588, "%s [%.2f|%.2f]"), "Testzone [37.50|40.00]")
+      Assert.Equal(location.GetNavigationText(9588), "Testzone")
       Assert.Equal(calls.scans, 1)
     end)
   end)
 
   test("Dungeon location uses the parent zone of the dungeon area map first", function()
     WithMaps({ dungeonAreaMapID = 2401 }, function(location, calls)
-      Assert.Equal(location.GetNavigationText(9588), "Testzone (37.5, 40.0)")
+      Assert.Equal(location.GetNavigationText(9588), "Testzone")
       Assert.Equal(calls.scans, 0)
       Assert.Equal(calls.entrances, 1)
     end)
@@ -119,12 +119,12 @@ return function(test, ctx)
     WithMaps({
       coiledIsle = { mapID = 2509, name = "Die Gewundene Insel", mapType = 3 },
     }, function(location, calls)
-      Assert.Equal(location.GetNavigationText(588), "Die Gewundene Insel (47.3, 68.2)")
+      Assert.Equal(location.GetNavigationText(588), "Die Gewundene Insel")
       Assert.Equal(calls.scans, 0)
       Assert.Equal(calls.entrances, 0)
     end)
     WithMaps({}, function(location)
-      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle (47.3, 68.2)")
+      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle")
     end)
     WithMaps({
       globals = {
@@ -133,9 +133,9 @@ return function(test, ctx)
         end,
       },
     }, function(location)
-      Assert.Equal(location.GetNavigationText(588), "Die gewundene Insel (47.3, 68.2)")
+      Assert.Equal(location.GetNavigationText(588), "Die gewundene Insel")
       -- Locales without a manifest name fall back to English.
-      Assert.Equal(location.GetNavigationText(586), "Zul'Aman (30.0, 84.5)")
+      Assert.Equal(location.GetNavigationText(586), "Zul'Aman")
     end)
   end)
 
@@ -160,21 +160,31 @@ return function(test, ctx)
       -- Ruby Life Pools has a portal-room slot in Season 2.
       Assert.Equal(location.GetPortalRoomName(399), "Jahrhundertschwelle")
       Assert.Equal(
-        location.GetNavigationText(399, nil, "Portalraum: %s"),
-        "The Waking Shores (59.8, 75.9) · Portalraum: Jahrhundertschwelle"
+        location.GetNavigationText(399, "Nutze das Portal in der %s"),
+        "The Waking Shores\nNutze das Portal in der Jahrhundertschwelle"
       )
       -- Altar of Fangs has no portal there.
       Assert.Nil(location.GetPortalRoomName(588))
-      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle (47.3, 68.2)")
+      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle")
       Assert.Nil(location.GetPortalRoomName(nil))
       addon.SeasonData.GetPortalNavigatorConfig = function()
         error("unavailable")
       end
       Assert.Nil(location.GetPortalRoomName(399))
     end)
+    WithMaps({
+      hub = { mapID = 2266, name = "Die Jahrhundertschwelle", mapType = 3 },
+    }, function(location)
+      -- The sentence supplies its own article; the map name's one is dropped.
+      Assert.Equal(
+        location.GetNavigationText(399, "Nutze das Portal in der %s"),
+        "The Waking Shores\nNutze das Portal in der Jahrhundertschwelle"
+      )
+    end)
     WithMaps({}, function(location)
       -- Without client map info the manifest's first hub name is used.
       Assert.Equal(location.GetPortalRoomName(399), "Millennia's Threshold")
+      Assert.Equal(location.GetNavigationText(399), "The Waking Shores\nUse the portal in Millennia's Threshold")
     end)
   end)
 end

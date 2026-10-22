@@ -282,7 +282,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 206. Passt ein Rostername samt Markern nicht in die Namensspalte, wird der Name gekuerzt; Leiter-, Sync-, Bonus- und Todesmarker bleiben sichtbar statt in "..." zu verschwinden.
 
-207. Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone des Ziel-Dungeons (und den Eingangskoordinaten, wenn Blizzard einen Eingangspin liefert); ohne aufgeloeste Zone entfaellt die Zeile.
+207. Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone des Ziel-Dungeons ohne Koordinaten und, wenn der Saison-Portalraum ein Portal dorthin hat, darunter den lokalisierten Satz "Nutze das Portal in der <Portalraum>"; die Karte waechst mit der zweiten Zeile, ohne aufgeloeste Daten entfaellt die Zeile.
 
 ## Regelbloecke
 
@@ -3103,7 +3103,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-EINLADUNG-NAVIGATION-ZONE
 - Regelnummer: 207
 - Status: aktiv
-- Zusammenfassung: Die Karte "Einladung angenommen" haengt unter der Zeile "Quelle" eine Zeile "Navigation" an. Ihr Wert ist die vom Client gelieferte, bereits lokalisierte Zone des Ziel-Dungeons, mit Eingangskoordinaten als "Zone (x, y)", wenn ein Eingangspin existiert. Quelle ist zuerst der gepflegte `entrance`-Eintrag des Saison-Manifests (UiMapID, Koordinaten, Ersatznamen `zoneNames` je Sprache, enUS Pflicht); der angezeigte Zonenname kommt dabei aus `C_Map.GetMapInfo(uiMapID)` in Clientsprache. Nur Dungeons ohne Manifest-Eintrag nutzen die API-Kette: Challenge-Map-ID -> Instanz-ID (`C_ChallengeMode.GetMapUIInfo`) -> Journal-Instanz (`C_EncounterJournal.GetInstanceForGameMap`) -> zuerst Elternzone der `dungeonAreaMapID` aus `EJ_GetInstanceInfo`, sonst Suche des Eingangspins (`C_EncounterJournal.GetDungeonEntrancesForMap`) ueber alle Zonen unter Azeroth (946). Ungueltige `entrance`-Eintraege sind Manifest-Fehler. Aufgeloeste Zuordnungen werden zwischengespeichert, fehlgeschlagene nicht. Belegt der Dungeon einen Slot des Saison-Portalnavigators, folgt " · Portal: <Portalraum>" (Name aus `C_Map.GetMapInfo` der Hub-Zone, sonst erster Manifest-Zonenname); ohne Slot entfaellt der Hinweis. Fehlende, maskierte oder fehlerhafte Daten blenden die Zeile aus; die Karte bleibt sonst unveraendert.
+- Zusammenfassung: Die Karte "Einladung angenommen" haengt unter der Zeile "Quelle" eine Zeile "Navigation" an. Ihr Wert ist die vom Client gelieferte, bereits lokalisierte Zone des Ziel-Dungeons, ohne Eingangskoordinaten. Quelle ist zuerst der gepflegte `entrance`-Eintrag des Saison-Manifests (UiMapID, Koordinaten, Ersatznamen `zoneNames` je Sprache, enUS Pflicht); der angezeigte Zonenname kommt dabei aus `C_Map.GetMapInfo(uiMapID)` in Clientsprache. Nur Dungeons ohne Manifest-Eintrag nutzen die API-Kette: Challenge-Map-ID -> Instanz-ID (`C_ChallengeMode.GetMapUIInfo`) -> Journal-Instanz (`C_EncounterJournal.GetInstanceForGameMap`) -> zuerst Elternzone der `dungeonAreaMapID` aus `EJ_GetInstanceInfo`, sonst Suche des Eingangspins (`C_EncounterJournal.GetDungeonEntrancesForMap`) ueber alle Zonen unter Azeroth (946). Ungueltige `entrance`-Eintraege sind Manifest-Fehler. Aufgeloeste Zuordnungen werden zwischengespeichert, fehlgeschlagene nicht. Belegt der Dungeon einen Slot des Saison-Portalnavigators, folgt in einer eigenen Zeile der lokalisierte Satz `INVITE_ACCEPTED_NOTICE_NAVIGATION_PORTAL_FMT` (deDE "Nutze das Portal in der %s", enUS "Use the portal in %s", frFR/ruRU/trTR artikelneutral) mit dem Portalraum (Name aus `C_Map.GetMapInfo` der Hub-Zone ohne fuehrendes "Die ", sonst erster Manifest-Zonenname); ohne Slot entfaellt der Hinweis. Die Feldzeile bricht um, und Kartenhoehe sowie Teleport-Button wachsen mit der zusaetzlichen Zeile. Fehlende, maskierte oder fehlerhafte Daten blenden die Zeile aus; die Karte bleibt sonst unveraendert.
 - Erforderliche Tests:
   - Dungeon location scans zone entrances when the journal has no dungeon area map
   - Dungeon location uses the parent zone of the dungeon area map first
@@ -3113,3 +3113,4 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Dungeon location uses the curated season entrance with the client zone name
   - Dungeon location has a valid curated entrance for every active season dungeon
   - Dungeon location mentions the season portal room only for dungeons with a portal there
+  - Center notice rich layout grows the card for a two-line navigation value

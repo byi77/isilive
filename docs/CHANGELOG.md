@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-22 - Version 0.9.448 (patch)
+
+### Invite navigation
+
+- The "Navigation" row of the "Invite accepted" card shows only the dungeon's
+  zone; entrance coordinates are no longer displayed.
+- When the season portal room has a portal to the dungeon, a second line
+  follows, e.g. "Nutze das Portal in der Jahrhundertschwelle" /
+  "Use the portal in Millennia's Threshold". The sentence is localized in all
+  five UI languages; French, Russian and Turkish use an article-neutral form,
+  and a leading "Die " of the German map name is dropped.
+- The card measures the wrapped row height and grows with the second line,
+  including the teleport button.
+
 ## 2026-10-22 - Version 0.9.447 (patch)
 
 ### Fixes

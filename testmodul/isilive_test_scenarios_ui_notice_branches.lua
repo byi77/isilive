@@ -99,9 +99,12 @@ local function CreateFontStringStub()
       return 14
     end
     local charsPerLine = math.max(8, math.floor(width / 7))
-    local textLength = #(self._text or "")
-    local lines = math.max(1, math.ceil(textLength / charsPerLine))
-    return lines * 14
+    local lines = 0
+    -- Explicit line breaks start a new line; each segment wraps on its own.
+    for segment in ((self._text or "") .. "\n"):gmatch("([^\n]*)\n") do
+      lines = lines + math.max(1, math.ceil(#segment / charsPerLine))
+    end
+    return math.max(1, lines) * 14
   end
   return fs
 end
@@ -1179,6 +1182,39 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         Assert.Equal(centerNotice.fieldRows[i].value:GetText(), "V" .. i, "field row " .. i .. " value")
       end
       Assert.Nil(centerNotice.fieldRows[maxRows + 1], "surplus fields must not allocate extra rows")
+    end)
+  end)
+
+  test("Center notice rich layout grows the card for a two-line navigation value", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = RequireValue(addon.Notice, "Notice module should load").CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+      local function ShowNavigation(value)
+        centerNotice.Show(nil, 12, nil, nil, {
+          title = "Invite accepted",
+          frameWidth = 680,
+          fields = {
+            { label = "Dungeon:", value = "Ruby Life Pools +15" },
+            { label = "Navigation:", value = value },
+          },
+        })
+        return centerNotice.frame:GetHeight(), centerNotice.fieldRows[2].value:GetStringHeight()
+      end
+      local oneLineHeight, oneLineRow = ShowNavigation("The Waking Shores")
+      local twoLineHeight, twoLineRow = ShowNavigation("The Waking Shores\nUse the portal in Millennia's Threshold")
+      Assert.Equal(twoLineRow, oneLineRow * 2, "the portal hint must render as its own line")
+      Assert.True(twoLineHeight > oneLineHeight, "the card must grow for the second navigation line")
     end)
   end)
 
