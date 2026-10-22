@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-22 - Version 0.9.447 (patch)
+
+### Fixes
+
+- The "Navigation" row of the "Invite accepted" card was cut off: center cards
+  rendered at most four field rows, while the accepted-invite card has up to
+  five (dungeon, title, leader, source, navigation) and the accepted raid
+  invite card up to six. Cards now render up to six rows; this also applies
+  to the demo card.
+
 ## 2026-10-22 - Version 0.9.446 (patch)
 
 ### Settings

@@ -24,7 +24,9 @@ local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82
 local SUBLINE_GAP = 4
 
 local FIELD_LABEL_WIDTH = 144
-local MAX_FIELD_ROWS = 4
+-- Largest cards: accepted invite (dungeon, title, leader, source, navigation)
+-- and accepted raid invite (up to six rows). Surplus fields are dropped.
+local MAX_FIELD_ROWS = 6
 -- Field labels and values follow the shared supporting and heading text roles.
 local FIELD_LABEL_COLOR = Colors.TEXT_SUPPORTING or { 0.58, 0.65, 0.74 }
 local FIELD_VALUE_COLOR = Colors.TEXT_HEADING or { 0.93, 0.96, 1 }

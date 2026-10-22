@@ -543,7 +543,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.NotNil(centerNotice.titleSeparator, "titleSeparator must be exposed")
       Assert.NotNil(centerNotice.teleportHeader, "teleportHeader must be exposed")
       Assert.NotNil(centerNotice.fieldRows, "fieldRows must be exposed")
-      Assert.Equal(#centerNotice.fieldRows, 4, "should pre-allocate 4 field rows")
+      Assert.Equal(#centerNotice.fieldRows, 6, "should pre-allocate 6 field rows")
       Assert.False(centerNotice.titleText._shown, "titleText hidden by default")
       Assert.False(centerNotice.eyebrowText._shown, "eyebrowText hidden by default")
       Assert.False(centerNotice.fieldRows[1].label._shown, "first field row hidden by default")
@@ -1166,6 +1166,8 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       })
       local maxRows = richLayout.MAX_FIELD_ROWS
       Assert.Equal(#centerNotice.fieldRows, maxRows, "facade must pre-allocate exactly MAX_FIELD_ROWS rows")
+      -- The accepted-invite card needs five rows; its navigation row comes last.
+      Assert.True(maxRows >= 5, "the accepted-invite card must render its navigation row")
 
       local fields = {}
       for i = 1, maxRows + 2 do
