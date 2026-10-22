@@ -610,6 +610,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
     local addon = LoadAddonModules({
       "isiLive_season_data.lua",
       "isiLive_status.lua",
+      "isiLive_dungeon_location.lua",
       "isiLive_factory_controllers.lua",
       "isiLive_factory_kick_tracker.lua",
     }, {
@@ -905,6 +906,16 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       acceptedNotice.showOptions.fields[4].value,
       "LFG accepted invite",
       "accepted-invite demo notice must render the source row"
+    )
+    Assert.Equal(
+      acceptedNotice.showOptions.fields[5].label,
+      "Navigation:",
+      "accepted-invite demo notice must render the live navigation row"
+    )
+    Assert.Equal(
+      acceptedNotice.showOptions.fields[5].value,
+      "Zuldazar (37.9, 39.7) \194\183 Portal: Millennia's Threshold",
+      "accepted-invite demo notice navigation must come from the curated season entrance"
     )
     Assert.Equal(
       difficultyNotice.showOptions.title,

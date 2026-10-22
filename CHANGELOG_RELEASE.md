@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.445`.
+Current version: `0.9.446`.
+
+Version 0.9.446: the 60-second Bloodlust-ready reminder gets a sound preview
+in the settings; the demo mode shows the invite navigation row, isiLive
+markers on group members and spec-accurate bonus markers.
 
 Version 0.9.445: the accepted-invite card shows where the dungeon is (zone,
 entrance coordinates, portal room hint); Group Finder best matches the Blizzard
@@ -23,7 +27,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.445 -->
+<!-- highlights-reviewed-for: 0.9.446 -->
 
 Highlights:
 - **Navigation for accepted invites.** The invite card names the dungeon's

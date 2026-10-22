@@ -285,6 +285,16 @@ local function DescriptionOptions(descriptionText)
   }
 end
 
+-- Rows with an inline preview button reserve its column for label and description.
+local function PreviewRowOptions(descriptionText)
+  local options = DescriptionOptions(descriptionText)
+  options.labelOffsetX = PREVIEW_BUTTON_WIDTH + 8
+  options.descriptionOffsetX = 24 + options.labelOffsetX
+  options.width = DESCRIPTION_WIDTH - PREVIEW_BUTTON_WIDTH - 4
+  options.descriptionWidth = options.width
+  return options
+end
+
 local function SetDescription(control, text)
   if type(control) == "table" and control.description and type(control.description.SetText) == "function" then
     control.description:SetText(text or "")
@@ -467,14 +477,16 @@ local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, con
       db[BLOODLUST_READY_REMINDER_SETTING.settingKey] = checked == true
     end,
     BLOODLUST_READY_REMINDER_SETTING.labelKey,
-    DescriptionOptions(
-      labels[BLOODLUST_READY_REMINDER_SETTING.descKey] or BLOODLUST_READY_REMINDER_SETTING.descFallback
-    )
+    PreviewRowOptions(labels[BLOODLUST_READY_REMINDER_SETTING.descKey] or BLOODLUST_READY_REMINDER_SETTING.descFallback)
   )
 
   if checkbox and checkbox.check then
     checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
     checkbox.check._soundKey = "bloodlust_ready_reminder"
+    -- The reminder repeats the Bloodlust-ready alert, so its preview plays that sound.
+    controls.bloodlustReadyReminderPreviewButton = CreateSoundPreviewButton(canvas, checkbox, "bloodlust_ready")
+    controls.bloodlustReadyReminderPreviewButton._soundPreviewRow = "bloodlust_ready_reminder"
+    SetPreviewTooltip(controls.bloodlustReadyReminderPreviewButton, labels)
   end
   controls.bloodlustReadyReminderCheck = checkbox
   return nextY
@@ -590,11 +602,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
 
   for _, entry in ipairs(SettingsSound.GetSoundSettingEntries()) do
     -- Reserve the inline preview column for both text regions on every reflow.
-    local options = DescriptionOptions(labels[entry.descKey] or entry.descFallback)
-    options.labelOffsetX = PREVIEW_BUTTON_WIDTH + 8
-    options.descriptionOffsetX = 24 + options.labelOffsetX
-    options.width = DESCRIPTION_WIDTH - PREVIEW_BUTTON_WIDTH - 4
-    options.descriptionWidth = options.width
+    local options = PreviewRowOptions(labels[entry.descKey] or entry.descFallback)
     local checkbox, nextY = CreateSettingsCheckbox(
       canvas,
       yOffset,
@@ -970,6 +978,9 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
       nextValue = stored == true
     end
     controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
+  end
+  if controls.bloodlustReadyReminderPreviewButton then
+    SetPreviewTooltip(controls.bloodlustReadyReminderPreviewButton, labels)
   end
 
   for _, loop in pairs(LOOP_SETTINGS_BY_SOUND_KEY) do

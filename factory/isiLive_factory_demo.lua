@@ -65,6 +65,16 @@ local function FormatDemoTargetWithLevel(name)
   return name and (name .. " +15") or nil
 end
 
+-- Same navigation row (zone, entrance coordinates, portal room) as the live
+-- accepted-invite card; without location data the row stays hidden there too.
+local function AppendDemoNavigationField(ctx, L, fields, mapID)
+  local resolve = FI.ResolveAcceptedInviteNavigationText
+  local text = mapID and type(resolve) == "function" and resolve(ctx, mapID) or nil
+  if text then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = text }
+  end
+end
+
 local function CaptureDemoFeatureSnapshot(db)
   local snapshot = {}
   for _, key in ipairs(DEMO_FEATURE_DB_KEYS) do
@@ -304,6 +314,7 @@ local function BuildDemoAcceptedInviteNoticePayload(ctx, L)
     label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
     value = L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
   }
+  AppendDemoNavigationField(ctx, L, fields, targetMapID)
   return {
     message = nil,
     durationSeconds = nil,
@@ -430,6 +441,7 @@ local function ShowSimulationJoinedTargetNotice(ctx, L)
     label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
     value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
   }
+  AppendDemoNavigationField(ctx, L, fields, targetMapID)
   fields[#fields + 1] = {
     label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
     value = L.SIM_JOINED_TARGET_HINT or "Local center notice only; no real chat post was sent.",

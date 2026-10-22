@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-22 - Version 0.9.446 (patch)
+
+### Settings
+
+- The "Repeat Bloodlust-ready alert every 60 seconds" row in the sound
+  settings has its own preview button. It plays the Bloodlust-ready alert that
+  the reminder repeats, also while the reminder is switched off, on the
+  configured output channel.
+
+### Demo mode
+
+- The demo "Invite accepted" card and the simulator's "Joined target group"
+  notice show the same navigation row as the live card (zone, entrance
+  coordinates, portal room).
+- Demo group members with sync data carry the blue isiLive arrow; the healer
+  stays a plain member for contrast.
+- Demo members carry spec IDs, so the green bonus plus signs are spec-accurate.
+
 ## 2026-10-22 - Version 0.9.445 (patch)
 
 ### Navigation in the accepted-invite card

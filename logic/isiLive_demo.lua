@@ -8,6 +8,9 @@ addonTable.Demo = Demo
 local SeasonData = addonTable.SeasonData or {}
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
+-- specID makes the roster bonus markers spec-accurate; hasIsiLive marks the
+-- dummies that carry sync data as isiLive users (blue sync arrow), while the
+-- healer stays a plain group member for contrast.
 local DUMMY_MEMBERS = {
   tank = {
     name = "Stormbreaker",
@@ -16,6 +19,8 @@ local DUMMY_MEMBERS = {
     class = "DRUID",
     role = "TANK",
     spec = "Wachter",
+    specID = 104,
+    hasIsiLive = true,
     ilvl = 272,
     rio = 3120,
     keyMapSlot = 1,
@@ -30,6 +35,7 @@ local DUMMY_MEMBERS = {
     class = "PRIEST",
     role = "HEALER",
     spec = "Holy",
+    specID = 257,
     ilvl = 268,
     rio = 2980,
     keyMapSlot = 2,
@@ -43,6 +49,8 @@ local DUMMY_MEMBERS = {
     class = "MAGE",
     role = "DAMAGER",
     spec = "Frost",
+    specID = 64,
+    hasIsiLive = true,
     ilvl = 275,
     rio = 3210,
     keyMapSlot = 3,
@@ -58,7 +66,9 @@ local DUMMY_MEMBERS = {
     language = "IT",
     class = "PALADIN",
     role = "DAMAGER",
-    spec = "Retri",
+    spec = "Retribution",
+    specID = 70,
+    hasIsiLive = true,
     ilvl = 269,
     rio = 2870,
     keyMapSlot = 4,
@@ -78,6 +88,8 @@ local DUMMY_MEMBERS = {
     class = "HUNTER",
     role = "DAMAGER",
     spec = "Marksmanship",
+    specID = 254,
+    hasIsiLive = true,
     ilvl = 271,
     rio = 3050,
     keyMapSlot = 5,
@@ -342,6 +354,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Ironclad",
       role = "DAMAGER",
       spec = "Arms",
+      specID = 71,
       syncDps = 149000,
       syncKickOnCooldown = false,
     },
@@ -350,6 +363,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Shadowstep",
       role = "DAMAGER",
       spec = "Assassination",
+      specID = 259,
       syncDps = 153000,
       syncKickOnCooldown = true,
       syncKickRemain = 9,
@@ -359,6 +373,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Frostmourne",
       role = "DAMAGER",
       spec = "Frost",
+      specID = 251,
       syncDps = 147000,
       syncKickOnCooldown = false,
     },
@@ -367,6 +382,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Serenova",
       role = "DAMAGER",
       spec = "Windwalker",
+      specID = 269,
       syncDps = 150000,
       syncKickOnCooldown = false,
     },
@@ -375,6 +391,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Felstrike",
       role = "DAMAGER",
       spec = "Havoc",
+      specID = 577,
       syncDps = 154000,
       syncKickOnCooldown = true,
       syncKickRemain = 3,
@@ -384,6 +401,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Stormbind",
       role = "DAMAGER",
       spec = "Enhancement",
+      specID = 263,
       syncDps = 146000,
       syncKickOnCooldown = false,
     },
@@ -392,6 +410,7 @@ function Demo.BuildDummyRoster(opts)
       name = "Ashwing",
       role = "DAMAGER",
       spec = "Devastation",
+      specID = 1467,
       syncDps = 151000,
       syncKickOnCooldown = false,
     },
@@ -405,6 +424,7 @@ function Demo.BuildDummyRoster(opts)
           replacement.name = fb.name
           replacement.role = fb.role
           replacement.spec = fb.spec
+          replacement.specID = fb.specID
           replacement.syncDps = fb.syncDps
           replacement.syncKickOnCooldown = fb.syncKickOnCooldown
           replacement.syncKickRemain = fb.syncKickRemain

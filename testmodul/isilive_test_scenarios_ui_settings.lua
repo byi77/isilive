@@ -2407,7 +2407,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           soundChannelSfxButton = frame
         end
         if frame._soundPreviewKey then
-          soundPreviewButtons[frame._soundPreviewKey] = frame
+          soundPreviewButtons[frame._soundPreviewRow or frame._soundPreviewKey] = frame
         end
       end
 
@@ -2573,6 +2573,23 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         "leader-transfer preview should play the configured sound asset"
       )
       Assert.Equal(previewCalls[1].channel, "SFX", "sound previews should use the configured SFX channel")
+
+      local reminderPreview = Assert.NotNil(
+        soundPreviewButtons.bloodlust_ready_reminder,
+        "the bloodlust-ready reminder row should have its own preview button"
+      )
+      Assert.Equal(
+        reminderPreview._point[2],
+        bloodlustReadyReminderCheck,
+        "the reminder preview button must sit next to the reminder checkbox"
+      )
+      reminderPreview._scripts.OnClick(reminderPreview, "LeftButton")
+      Assert.Equal(#previewCalls, 2, "previewing the disabled reminder should still play once")
+      Assert.Equal(
+        previewCalls[2].path,
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "the reminder preview should play the repeated Bloodlust-ready alert"
+      )
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")

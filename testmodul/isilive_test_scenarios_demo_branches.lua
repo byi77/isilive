@@ -387,6 +387,33 @@ return function(test, ctx)
     end)
   end)
 
+  test("BuildDummyRoster dummies carry manifest spec IDs and isiLive markers", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_specs.lua", "isiLive_demo.lua" })
+      local specs = addon.SpecManifest.specs
+      local opts = BuildDemoRosterOpts()
+      -- Mage player: dd1 (Frost Mage) is replaced by a class fallback.
+      opts.getUnitClass = function()
+        return "Mage", "MAGE"
+      end
+      local roster = addon.Demo.BuildDummyRoster(opts)
+      local replaced = true
+      for index = 1, 4 do
+        local entry = roster["party" .. index]
+        local spec = specs[entry.specID]
+        Assert.NotNil(spec, "dummy " .. index .. " must carry a known spec ID")
+        Assert.Equal(spec.class, entry.class, "dummy " .. index .. " spec ID must belong to its class")
+        if entry.role == "HEALER" then
+          Assert.Nil(entry.hasIsiLive, "the healer dummy stays a plain group member")
+        else
+          Assert.True(entry.hasIsiLive == true, "dummy " .. index .. " with sync data must be an isiLive user")
+        end
+        replaced = replaced and entry.name ~= "Zephyrax"
+      end
+      Assert.True(replaced, "a class fallback must have replaced the clashing dummy")
+    end)
+  end)
+
   test("BuildDummyRoster drops dummy keys when the active season has no dungeons", function()
     WithGlobals({}, function()
       local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_demo.lua" })
