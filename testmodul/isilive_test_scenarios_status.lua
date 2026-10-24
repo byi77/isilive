@@ -1278,7 +1278,7 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
       end
       Assert.Equal(#prints, 1, "deferred timer firing after the +N announce must stay silent (lock-in)")
 
-      -- Clearing the target resets the lock; a fresh +N for the same name announces again.
+      -- Transient nil target while still grouped (zone-in flicker) keeps the lock.
       current.targetInfo = nil
       controller.MaybeAnnounceTargetDungeonChat()
       current.targetInfo = {
@@ -1286,7 +1286,19 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
         level = 14,
       }
       controller.MaybeAnnounceTargetDungeonChat()
-      Assert.Equal(#prints, 2, "clearing the target must allow a fresh grouped key announce later")
+      Assert.Equal(#prints, 1, "transient nil target while grouped must not re-announce (zone-in spam)")
+
+      -- Group leave clears the lock; a fresh +N for the same name announces again.
+      current.inGroup = false
+      current.targetInfo = nil
+      controller.MaybeAnnounceTargetDungeonChat()
+      current.inGroup = true
+      current.targetInfo = {
+        name = "Ara-Kara",
+        level = 14,
+      }
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 2, "leaving the group must allow a fresh grouped key announce later")
       Assert.Equal(
         prints[2],
         "Target Dungeon: |cffffd200Ara-Kara +14|r",

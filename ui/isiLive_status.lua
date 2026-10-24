@@ -433,7 +433,16 @@ local function MaybeAnnounceTargetDungeonChat(state, deps)
   -- the function.
   local info = ResolveConcreteTargetDungeonInfo(deps)
   if type(info) ~= "table" then
-    ResetTargetDungeonChatState(state)
+    -- Transient nil while still grouped (zone-in / loading screen / queue-
+    -- state handoff) must NOT reset the lock-in, otherwise the same
+    -- "Ziel-Dungeon: X +N" line re-fires on every flicker (chat spam on
+    -- dungeon entry). Only a real group-leave clears it.
+    if type(deps.isInGroup) == "function" and deps.isInGroup() == true then
+      state.pendingTargetDungeonAnnouncementName = nil
+      state.pendingTargetDungeonAnnouncementAt = nil
+    else
+      ResetTargetDungeonChatState(state)
+    end
     return
   end
 

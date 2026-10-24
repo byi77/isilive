@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.449`.
+Current version: `0.9.450`.
+
+Version 0.9.450: the "Target dungeon" chat line no longer repeats when you
+enter the dungeon.
 
 Version 0.9.449: sharper, modern language flags and new
 role badges (tank, healer, damage) that match the isiLive look.
@@ -36,7 +39,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.449 -->
+<!-- highlights-reviewed-for: 0.9.450 -->
 
 Highlights:
 - **Modern flags and role badges.** Language flags are sharp, rounded badges

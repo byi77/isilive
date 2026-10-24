@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-24 - Version 0.9.450 (patch)
+
+### Target dungeon chat
+
+- The "Target dungeon: X +N" chat line no longer repeats on dungeon entry.
+  The target info can be briefly empty while zoning in (loading screen,
+  queue-state handoff); that used to reset the announce lock-in, so every
+  flicker re-posted the same line. While still grouped, an empty target now
+  only drops the pending deferred announce; the lock-in is cleared only on
+  a real group leave.
+
 ## 2026-10-22 - Version 0.9.449 (patch)
 
 ### Flags and role badges
