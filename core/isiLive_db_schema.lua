@@ -28,7 +28,7 @@ local DBSchema = {}
 addonTable.DBSchema = DBSchema
 
 -- Bump every time MIGRATIONS gains a new step.
-local LATEST_SCHEMA_VERSION = 3
+local LATEST_SCHEMA_VERSION = 4
 local FRAME_ANCHOR_POINTS = {
   "TOPLEFT",
   "TOP",
@@ -85,6 +85,16 @@ local MIGRATIONS = {
     end
     db.vipAstralAurochsSoundEnabled = nil
     log("migrated vipAstralAurochsSoundEnabled -> vipAstralAurochsSoundMuted")
+    return true
+  end,
+  -- The reduced-motion checkbox left the settings; a stored `true` would
+  -- otherwise stay on with no way to switch it off.
+  [4] = function(db, log)
+    if rawget(db, "reduceMotion") ~= true then
+      return false
+    end
+    db.reduceMotion = false
+    log("reset reduceMotion: setting no longer offered")
     return true
   end,
 }

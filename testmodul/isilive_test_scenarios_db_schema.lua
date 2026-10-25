@@ -605,6 +605,18 @@ return function(test, ctx)
     Assert.Equal(known.inviteListEnabled, nil, "removed invite-list setting must NOT be in schema")
   end)
 
+  test("DBSchema migration resets a stored reduced-motion preference", function()
+    local DBSchema = LoadSchema()
+    local db = { __schemaVersion = 3, reduceMotion = true }
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.reduceMotion, false, "reduced motion can no longer be switched on, so it must be off")
+    Assert.Equal(db.__schemaVersion, 4, "the migration stamps the new schema version")
+
+    local untouched = { __schemaVersion = 3, reduceMotion = false }
+    DBSchema.Sanitize(untouched)
+    Assert.Equal(untouched.reduceMotion, false, "an already-off preference stays off")
+  end)
+
   test("DBSchema.GetSchemaVersion returns the current LATEST_SCHEMA_VERSION", function()
     local DBSchema = LoadSchema()
     Assert.Equal(type(DBSchema.GetSchemaVersion()), "number", "schema version must be a number")

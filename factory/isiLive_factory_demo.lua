@@ -13,6 +13,9 @@ local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
 local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
 local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
 local SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS = 30
+-- The demo killtracker alternates between a running key and the pulsing
+-- pre-key target, so both states are visible.
+local DEMO_KILLTRACK_PHASE_SECONDS = 6
 local DEMO_FEATURE_PI_CASTER_NAME = "Velindra-Hyjal"
 local DEMO_FEATURE_PI_RECIPIENT_NAME = "Player-Realm"
 local DEMO_FEATURE_DB_KEYS = {
@@ -586,6 +589,41 @@ local function ClearDemoFeatureData(ctx)
   end
 end
 
+local function StopDemoKillTrackCycle(ctx)
+  local ticker = ctx._demoKillTrackTicker
+  ctx._demoKillTrackTicker = nil
+  if type(ticker) == "table" and type(ticker.Cancel) == "function" then
+    ticker:Cancel()
+  end
+end
+
+-- Shows `runData` (running key) or, with `preKey`, an inactive killtracker so
+-- the row falls back to the pulsing target dungeon.
+local function ApplyDemoKillTrackPhase(ctx, runData, preKey)
+  local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
+  if type(KillTrack) ~= "table" or type(KillTrack.SetDemoData) ~= "function" then
+    return
+  end
+  KillTrack.SetDemoData(preKey and { active = false } or runData)
+  if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
+    ctx.rosterPanelController.RefreshKillTrackRow()
+  end
+end
+
+local function StartDemoKillTrackCycle(ctx, runData)
+  StopDemoKillTrackCycle(ctx)
+  local preKey = false
+  ApplyDemoKillTrackPhase(ctx, runData, preKey)
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.NewTicker) ~= "function" then
+    return
+  end
+  ctx._demoKillTrackTicker = timer.NewTicker(DEMO_KILLTRACK_PHASE_SECONDS, function()
+    preKey = not preKey
+    ApplyDemoKillTrackPhase(ctx, runData, preKey)
+  end)
+end
+
 local function SetDemoTimerData(ctx, runtimeState)
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.SetDemoData) == "function" then
@@ -606,26 +644,20 @@ local function SetDemoTimerData(ctx, runtimeState)
   if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
     runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
   end
-  local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
-  if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
-    KillTrack.SetDemoData({
-      active = true,
-      percent = 47.34,
-      rawCount = 204,
-      total = 431,
-      mapID = targetMapID,
-      inCombat = true,
-      pullPercent = 3.21,
-      -- Learned forces target for the next boss: shows the pace tick. The
-      -- live pull keeps the text slot, as it does in a real run.
-      paceTarget = 45.1,
-      -- Time pace line under the bar: ahead of the slowest timed +12.
-      timePace = { mode = "reference", delta = -72, keyLevel = 12 },
-    })
-  end
-  if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
-    ctx.rosterPanelController.RefreshKillTrackRow()
-  end
+  StartDemoKillTrackCycle(ctx, {
+    active = true,
+    percent = 47.34,
+    rawCount = 204,
+    total = 431,
+    mapID = targetMapID,
+    inCombat = true,
+    pullPercent = 3.21,
+    -- Learned forces target for the next boss: shows the pace tick. The
+    -- live pull keeps the text slot, as it does in a real run.
+    paceTarget = 45.1,
+    -- Time pace delta on the bar: ahead of the slowest timed +12.
+    timePace = { mode = "reference", delta = -72, keyLevel = 12 },
+  })
   -- cdTrackerController is created after testModeController, so always defer.
   local C_Timer_ref = rawget(_G, "C_Timer")
   if type(C_Timer_ref) == "table" and type(C_Timer_ref.After) == "function" then
@@ -644,6 +676,7 @@ local function SetDemoTimerData(ctx, runtimeState)
 end
 
 local function ClearDemoTimerData(ctx)
+  StopDemoKillTrackCycle(ctx)
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
     MplusTimer.ClearDemoData()

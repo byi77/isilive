@@ -757,6 +757,33 @@ addonTable._FactorySecondaryTests = addonTable._FactorySecondaryTests or {}
 addonTable._FactorySecondaryTests.BuildFactorySecondaryControllerState = BuildFactorySecondaryControllerState
 
 local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Factory demo alternates the killtracker between a running key and the pre-key target", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { powerInfusionTextEnabled = false },
+    })
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+      local cycle
+      for _, ticker in ipairs(state.tickers) do
+        if ticker.interval == 6 then
+          cycle = ticker
+        end
+      end
+      cycle = Assert.NotNil(cycle, "demo must schedule the killtracker phase cycle")
+      Assert.True(state.killTrackDemoData.active, "the demo starts with the running key")
+
+      cycle.callback()
+      Assert.False(state.killTrackDemoData.active, "the next phase shows the pulsing pre-key target")
+      Assert.Equal(state.killTrackRowRefreshes, 2, "each phase refreshes the kill-track row")
+      cycle.callback()
+      Assert.True(state.killTrackDemoData.active, "the cycle returns to the running key")
+
+      state.testModeOpts.clearDemoTimerData()
+      Assert.True(cycle.cancelled, "leaving the demo cancels the cycle")
+    end)
+  end)
+
   test("Factory test mode populates timer, cooldown and kill-track demo data", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,

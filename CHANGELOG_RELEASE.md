@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.456`.
+Current version: `0.9.457`.
+
+Version 0.9.457: the killtracker shows `100%` cleanly, time pace sits on
+the bar as a +/- delta, and the target dungeon pulses until the key starts.
 
 Version 0.9.456: safer sync retries and payload validation, reliable key-owner
 selection, inspect retries without lost stats, and stricter TTK combat/target state.
@@ -60,9 +63,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.456 -->
+<!-- highlights-reviewed-for: 0.9.457 -->
 
 Highlights:
+- **Cleaner killtracker.** Complete forces read `100%` instead of a cut-off
+  number, and the target dungeon pulses until the key starts, so you see at
+  a glance which key the group is about to run.
 - **Pace and TTK fixes.** Small forces gains build reliable time-pace samples;
   missing boss checkpoints never use later forces readings. TTK recovers after
   reload or enabling mid-fight, stops in raids, and keeps its larger text.
@@ -73,13 +79,13 @@ Highlights:
   in the timer's colour; the gap to the forces is green while you lead the
   clock and red while you fall behind.
 - **Time to kill (TTK).** During a Mythic+ fight your target shows roughly
-  how many seconds it has left, inside its health bar and in the killtracker
-  line, for bosses, minibosses and casters. Good for deciding whether a
+  how many seconds it has left, inside its health bar and under the
+  killtracker bar, for bosses, minibosses and casters. Good for deciding whether a
   cooldown, stop or target swap is still worth it and when to start your
   burst. Preview it on a training dummy with `/isilive ttktest`.
-- **Time pace.** A line under the killtracker bar shows whether the key is on
-  time: compared with your own slowest timed run on that dungeon and key
-  level, or as a finish forecast.
+- **Time pace.** A +/- delta on the killtracker bar shows whether the key is
+  on time: against your own slowest timed run on that dungeon and key level,
+  or how far the forecast finish lies from the time limit.
 - **Modern flags and role badges.** Language flags are sharp, rounded badges
   with correct designs; the roster shows new subtle tank, healer and damage
   badges, centered between spec and flag.

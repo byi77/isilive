@@ -349,14 +349,10 @@ return function(test, ctx)
       },
       frFR = {
         SETTINGS_NAMEPLATE_POSITION = true,
-        SETTINGS_REDUCE_MOTION = true,
-        SETTINGS_REDUCE_MOTION_DESC = true,
         -- French uses "Raid" for raids, same as English.
         SETTINGS_NAV_RAID = true,
         SETTINGS_SECTION_RAID = true,
       },
-      ruRU = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
-      trTR = { SETTINGS_REDUCE_MOTION = true, SETTINGS_REDUCE_MOTION_DESC = true },
     }
 
     for _, localeName in ipairs(checkedLocales) do

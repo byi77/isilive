@@ -92,6 +92,40 @@ local function NewFontStringStub()
   return fs
 end
 
+local function NewPulseGroupStub()
+  local group = { plays = 0, stops = 0, _playing = false }
+  function group.SetLooping(g, mode)
+    g._looping = mode
+  end
+  function group.CreateAnimation(g)
+    local anim = {}
+    function anim.SetFromAlpha(a, v)
+      a._from = v
+    end
+    function anim.SetToAlpha(a, v)
+      a._to = v
+    end
+    function anim.SetDuration(a, v)
+      a._duration = v
+    end
+    function anim.SetSmoothing() end
+    g._anim = anim
+    return anim
+  end
+  function group.IsPlaying(g)
+    return g._playing
+  end
+  function group.Play(g)
+    g.plays = g.plays + 1
+    g._playing = true
+  end
+  function group.Stop(g)
+    g.stops = g.stops + 1
+    g._playing = false
+  end
+  return group
+end
+
 local function NewCreateFrameRecorder()
   local createdFrames = {}
   local createdFontStrings = {}
@@ -198,6 +232,17 @@ local function NewCreateFrameRecorder()
     function frame.Show(self)
       self._shown = true
     end
+    function frame.SetAlpha(self, alpha)
+      self._alpha = alpha
+    end
+    function frame.SetScript(self, name, fn)
+      self._scripts = self._scripts or {}
+      self._scripts[name] = fn
+    end
+    function frame.CreateAnimationGroup(self)
+      self._animGroup = NewPulseGroupStub()
+      return self._animGroup
+    end
     table.insert(createdFrames, frame)
     return frame
   end
@@ -231,8 +276,8 @@ local function NewRow(barContainerWidth)
     killTrackBarPull = NewBarStub(),
     killTrackTargetText = NewFontStringStub(),
     killTrackTargetLevelText = NewFontStringStub(),
-    killTrackActiveDungeonBackdrop = NewBarStub(),
-    killTrackActiveDungeonText = NewFontStringStub(),
+    killTrackTargetPulse = NewBarStub(),
+    killTrackTargetPulseGroup = NewPulseGroupStub(),
     killTrackPctText = NewFontStringStub(),
     killTrackPullText = NewFontStringStub(),
   }
@@ -257,7 +302,7 @@ return function(test, ctx)
     return addon
   end
 
-  test("CreateKillTrackRow anchors active dungeon text to the full row overlay", function()
+  test("CreateKillTrackRow puts the time pace text on an overlay above the bar", function()
     local recorder = NewCreateFrameRecorder()
     WithGlobals({
       CreateFrame = recorder.createFrame,
@@ -265,33 +310,48 @@ return function(test, ctx)
       local addon = LoadAddonModules({ "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" })
       local mainFrame = recorder.createFrame("Frame", nil, nil)
       local row = addon._RosterInternal.CreateKillTrackRow(mainFrame)
-      local overlay = row.killTrackActiveDungeonOverlay
-      local backdrop = row.killTrackActiveDungeonBackdrop
-      local activeText = row.killTrackActiveDungeonText
+      local overlay = Assert.NotNil(row.killTrackBarOverlay, "bar overlay frame must be created")
+      local paceText = row.killTrackTimePaceText
 
-      Assert.NotNil(overlay, "active dungeon context overlay frame must be created")
-      Assert.NotNil(backdrop, "active dungeon context contrast backdrop must be created")
-      Assert.NotNil(activeText, "active dungeon context fontstring must be created")
+      Assert.Nil(row.killTrackActiveDungeonText, "an active run shows no dungeon name on the bar")
       Assert.True(
         overlay._frameLevel > row.killTrackBarContainer._frameLevel,
-        "active dungeon context overlay must be above the bar container frame"
+        "bar overlay must be above the bar container frame"
       )
       Assert.True(
         overlay._points[1][2] ~= row.killTrackBarContainer,
-        "active dungeon context overlay must not be anchored to the 8px bar container"
+        "bar overlay must not be anchored to the 8px bar container"
       )
-      Assert.Equal(activeText._points[1][1], "LEFT", "active dungeon context keeps a left anchor")
-      Assert.Equal(activeText._points[1][2], overlay, "active dungeon context anchors inside the overlay frame")
-      Assert.Equal(backdrop._points[1][2], overlay, "active dungeon backdrop anchors inside the overlay frame")
-      Assert.Equal(backdrop._width, 146, "active dungeon backdrop reserves a stable contrast label width")
-      Assert.Equal(backdrop._color[4], 0.5, "active dungeon backdrop must subtly darken the bar below the label")
-      Assert.True(backdrop._shown == false, "active dungeon backdrop starts hidden until text is available")
-      Assert.Equal(activeText._justifyV, "MIDDLE", "active dungeon context must be vertically centered in the row")
-      Assert.Equal(activeText._drawLayer[1], "OVERLAY", "active dungeon context must render above bar textures")
-      Assert.Equal(activeText._drawLayer[2], 7, "active dungeon context uses a high overlay sublayer")
-      Assert.Equal(activeText._alpha, 0.92, "active dungeon context starts with the configured default alpha")
+      Assert.Equal(paceText._parent, overlay, "time pace text lives on the bar overlay")
+      Assert.Equal(paceText._points[1][1], "RIGHT", "time pace text is right-aligned on the bar")
+      Assert.Equal(paceText._drawLayer[1], "OVERLAY", "time pace text must render above bar textures")
+      Assert.Equal(paceText._drawLayer[2], 7, "time pace text uses a high overlay sublayer")
       Assert.Equal(row._points[2][1], "BOTTOMRIGHT", "kill tracker row must expose an explicit right anchor")
       Assert.Equal(row._points[2][2], -6, "kill tracker row must end at the shared M+ right edge")
+    end)
+  end)
+
+  test("CreateKillTrackRow groups the pre-key target under one pulse frame", function()
+    local recorder = NewCreateFrameRecorder()
+    WithGlobals({
+      CreateFrame = recorder.createFrame,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" })
+      local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
+      local pulse = Assert.NotNil(row.killTrackTargetPulse, "pulse frame must be created")
+      local group = Assert.NotNil(row.killTrackTargetPulseGroup, "pulse animation must be created")
+      Assert.Equal(row.killTrackTargetText._parent, pulse, "dungeon name pulses with the frame")
+      Assert.Equal(row.killTrackTargetLevelText._parent, pulse, "key level pulses with the frame")
+      Assert.Equal(group._looping, "BOUNCE", "pulse loops back and forth")
+      Assert.Equal(group._anim._from, 1, "pulse starts fully visible")
+      Assert.True(group._anim._to > 0, "pulse never fades the target out completely")
+      Assert.False(group._playing, "pulse does not run before an update")
+
+      row._targetPulseWanted = true
+      pulse._scripts.OnShow()
+      Assert.True(group._playing, "showing the frame resumes a wanted pulse")
+      pulse._scripts.OnHide()
+      Assert.False(group._playing, "hiding the frame stops the pulse")
     end)
   end)
 
@@ -342,7 +402,7 @@ return function(test, ctx)
       Assert.True(row.killTrackBarPull._shown == false, "pull bar must hide")
       Assert.Equal(row.killTrackTargetText._text, "", "target text must clear")
       Assert.Equal(row.killTrackTargetLevelText._text, "", "target level text must clear")
-      Assert.Equal(row.killTrackActiveDungeonText._text, "", "active dungeon context must clear")
+      Assert.False(row.killTrackTargetPulseGroup._playing, "no target means no pulse")
       Assert.Equal(row.killTrackPctText._text, "--.--", "pct text must reset to the enUS placeholder")
       Assert.Equal(row.killTrackPullText._text, "", "pull text must clear")
     end)
@@ -384,11 +444,7 @@ return function(test, ctx)
         Assert.True(row.killTrackBarBg._shown == false, "pre-key target must hide static bar background")
         Assert.Equal(row.killTrackTargetText._text, "Windlaeufer Turm", "pre-key target must show the dungeon name")
         Assert.Equal(row.killTrackTargetLevelText._text, "+14", "pre-key target must show the colored key level")
-        Assert.Equal(
-          row.killTrackActiveDungeonText._text,
-          "",
-          "pre-key target must not duplicate active dungeon context"
-        )
+        Assert.True(row.killTrackTargetPulseGroup._playing, "pre-key target must pulse until the key starts")
         Assert.Equal(row.killTrackTargetText._color[1], 1.0, "pre-key dungeon text must be gold-tinted")
         Assert.Equal(row.killTrackTargetLevelText._color[3], 1.0, "pre-key level text must be blue-tinted")
         Assert.Equal(row.killTrackTargetText._justifyH, "RIGHT", "pre-key target must be right-aligned")
@@ -510,7 +566,7 @@ return function(test, ctx)
       })
       Assert.Equal(row.killTrackTargetText._text, "", "key-start boundary must clear pre-key target text")
       Assert.Equal(row.killTrackTargetLevelText._text, "", "key-start boundary must clear pre-key level text")
-      Assert.Equal(row.killTrackActiveDungeonText._text, "", "inactive post-start row must not show active context")
+      Assert.False(row.killTrackTargetPulseGroup._playing, "key-start boundary must stop the target pulse")
       Assert.Equal(row.killTrackPctText._text, "--.--", "inactive post-start row must use the percent placeholder")
       Assert.True(row.killTrackBarContainer._shown == true, "post-start placeholder must restore the percent bar")
     end)
@@ -545,117 +601,50 @@ return function(test, ctx)
     end)
   end)
 
-  test("UpdateKillTrackRow keeps dungeon context visible while active percent data is visible", function()
+  test("UpdateKillTrackRow stops the pulse and shows no dungeon name once the key runs", function()
     WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 42 })
-      addon.MplusTimer = {
-        GetTimerData = function()
-          return { running = true, keyLevel = 16 }
-        end,
-      }
+      local killTrackData = { active = false, percent = 0 }
+      local addon = LoadKillRow(killTrackData)
       local row = NewRow(200)
-      addon._RosterInternal.UpdateKillTrackRow(row, {
+      local deps = {
         getTargetDungeonInfo = function()
-          return {
-            name = "  Nexuspunkt Xenas  ",
-            level = 14,
-          }
+          return { name = "Nexuspunkt Xenas", level = 14 }
         end,
         isInChallengeMode = function()
-          return true
+          return false
         end,
-      })
-      Assert.True(row.killTrackBarContainer._shown == true, "active percent bar must stay visible")
-      Assert.Equal(row.killTrackTargetText._text, "", "active percent view must clear pre-key dungeon text")
-      Assert.Equal(row.killTrackTargetLevelText._text, "", "active percent view must clear pre-key level text")
-      Assert.Equal(
-        row.killTrackActiveDungeonText._text,
-        "Nexuspunkt Xenas +16",
-        "active percent view must append the started key level from MplusTimer"
-      )
-      Assert.Equal(
-        row.killTrackActiveDungeonText._justifyH,
-        "LEFT",
-        "active dungeon context must be left-aligned on the progress row"
-      )
-      Assert.Equal(
-        row.killTrackActiveDungeonText._color[1],
-        1.0,
-        "active dungeon context must use bright outline text for bar legibility"
-      )
-      Assert.True(row.killTrackActiveDungeonBackdrop._shown == true, "active dungeon backdrop must show behind text")
-      Assert.Equal(row.killTrackPctText._text, "42.00%", "active percent text must stay primary")
+      }
+      addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.True(row.killTrackTargetPulseGroup._playing, "pre-key target pulses")
+
+      killTrackData.active = true
+      killTrackData.percent = 42
+      addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.False(row.killTrackTargetPulseGroup._playing, "a running key stops the pulse")
+      Assert.Equal(row.killTrackTargetPulse._alpha, 1, "a stopped pulse leaves the target opaque")
+      Assert.Equal(row.killTrackTargetText._text, "", "a running key shows no dungeon name")
+      Assert.Equal(row.killTrackTargetLevelText._text, "", "a running key shows no target level")
+      Assert.Equal(row.killTrackPctText._text, "42.00%", "active percent text stays primary")
     end)
   end)
 
-  test("UpdateKillTrackRow appends death count behind active dungeon name", function()
+  test("UpdateKillTrackRow keeps the pre-key target steady with reduced motion", function()
     WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 42 })
-      addon.MplusTimer = {
-        GetTimerData = function()
-          return { running = true, keyLevel = 16 }
-        end,
-      }
-      addon.DeathWatch = {
-        GetAllDeathSummaries = function()
-          return {
-            { name = "Tankadin", count = 1 },
-            { name = "Magey", count = 2 },
-          }
-        end,
-      }
+      local addon = LoadKillRow({ active = false, percent = 0 })
+      addon.UICommon.IsReducedMotionEnabled = function()
+        return true
+      end
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row, {
         getTargetDungeonInfo = function()
-          return {
-            name = "Nexuspunkt Xenas",
-          }
+          return { name = "Nexuspunkt Xenas", level = 14 }
         end,
         isInChallengeMode = function()
-          return true
+          return false
         end,
       })
-
-      Assert.True(
-        row.killTrackActiveDungeonText._text:find("Nexuspunkt Xenas +16", 1, true) == 1,
-        "active dungeon name and started key level must stay first"
-      )
-      Assert.True(
-        row.killTrackActiveDungeonText._text:find("UI%-RaidTargetingIcon_8", 1, false) ~= nil,
-        "active dungeon name must append the skull marker"
-      )
-      Assert.True(
-        row.killTrackActiveDungeonText._text:find("|cffff60603|r", 1, true) ~= nil,
-        "active dungeon name must append the summed death count"
-      )
-    end)
-  end)
-
-  test("UpdateKillTrackRow omits active key level when MplusTimer has no started level", function()
-    WithGlobals({}, function()
-      local addon = LoadKillRow({ active = true, percent = 42 })
-      addon.MplusTimer = {
-        GetTimerData = function()
-          return { running = true, keyLevel = 0 }
-        end,
-      }
-      local row = NewRow(200)
-      addon._RosterInternal.UpdateKillTrackRow(row, {
-        getTargetDungeonInfo = function()
-          return {
-            name = "  Nexuspunkt Xenas  ",
-            level = 14,
-          }
-        end,
-        isInChallengeMode = function()
-          return true
-        end,
-      })
-      Assert.Equal(
-        row.killTrackActiveDungeonText._text,
-        "Nexuspunkt Xenas",
-        "target-dungeon level must not be used as an active-key fallback"
-      )
+      Assert.Equal(row.killTrackTargetText._text, "Nexuspunkt Xenas", "the target still shows")
+      Assert.False(row.killTrackTargetPulseGroup._playing, "reduced motion keeps the target steady")
     end)
   end)
 
@@ -796,7 +785,16 @@ return function(test, ctx)
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(row.killTrackBarFill._width, 200, "clamped percent must yield full width")
-      Assert.Equal(row.killTrackPctText._text, "100.00%", "pct text must be clamped to 100")
+      Assert.Equal(row.killTrackPctText._text, "100%", "pct text must be clamped to a short 100%")
+    end)
+  end)
+
+  test("UpdateKillTrackRow never rounds open forces up to 100%", function()
+    WithGlobals({}, function()
+      local addon = LoadKillRow({ active = true, percent = 99.997 })
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackPctText._text, "99.99%", "open forces must stay below 100%")
     end)
   end)
 

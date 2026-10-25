@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.456`
+Versionsbasis: `0.9.457`
 Zuletzt aktualisiert: `2026-10-25`
 
 Folgeaudit (0.9.456): Deterministische Regressionen pruefen numerische Sendeablehnung mit erfolgreichem Retry, leere KEY-/HELLO-Felder, Ghost-Owner-Hinweise, partielle Inspect-Antworten mit spaeterem RIO 0, maskierten Ziel-Todesstatus und ein beim Weltwechsel nachgeholtes Kampfende. Ein synthetisches Regeldokument beweist die Ablehnung fehlender Detailbloecke; die Center-Notice prueft Artwork und Zauber-Icon-Fallback.
@@ -626,8 +626,8 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemes
 1. Trigger: dieselben `KillTrack`-Ereignisse wie UC-29; `KillTrack` reicht jeden Snapshot an `TimePace` weiter, verstrichene Zeit, Zeitlimit und Keystufe kommen aus `MplusTimer`.
 2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf.
 3. Regel: Gespeichert wird bei `CHALLENGE_MODE_COMPLETED` nur ein ab Start verfolgter, getimter Run (`GetChallengeCompletionInfo().onTime`) ohne vorab tote Bosse mit passender Map und Keystufe; je Season, Dungeon und Keystufe bleibt der langsamste. `CHALLENGE_MODE_RESET` verwirft den Run.
-4. Output: Unter dem Killtracker-Balken steht `-1:12 vs. +12 timed` (gruen, vor der Referenz) beziehungsweise `+0:40 vs. +12 timed` (rot), ohne Referenz `Forecast 31:40 / 33:00` (gruen bis zum Zeitlimit, sonst rot).
-5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys ohne Referenz (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Zeile leer.
+4. Output: Rechts auf dem Killtracker-Balken steht `-1:12` (gruen, vor der Referenz) beziehungsweise `+0:40` (rot), ohne Referenz der Abstand der Prognose zum Zeitlimit, z. B. `-1:20` fuer Prognose 31:40 bei 33:00 (gruen bis zum Zeitlimit, sonst rot).
+5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys ohne Referenz (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Anzeige leer.
 
 ## UC-31 Time to Kill des Ziels
 
@@ -635,7 +635,7 @@ Ziel: Der Spieler sieht im Key-Kampf, wie lange sein Ziel noch etwa lebt (Regel 
 
 1. Trigger: Kampfbeginn im laufenden Key startet einen 0,5-s-Ticker; Zielwechsel, erster Schaden auf eine Nameplate (`UNIT_HEALTH`), `ENCOUNTER_START`/`_END`, Kampfende und Key-Ende.
 2. Verarbeitung: Uhr ab Bosspull (Boss-Ziel), ab dem ersten Schaden auf die Ziel-Nameplate oder ab Kampfbeginn; gemessen wird beim letzten Treffer, dazwischen zaehlt die Anzeige gleichmaessig herunter; die Formel `t * p / (1 - p) - d` geht als Curve an `UnitHealthPercent`, der Secret-Wert direkt an `SetFormattedText`.
-3. Output: `18s` ueber der Ziel-Nameplate und `TTK 18s` rechts in der Zeit-Tempo-Zeile; unter drei Sekunden `…` bzw. `TTK …`.
+3. Output: `18s` ueber der Ziel-Nameplate und `TTK 18s` rechts unter dem Killtracker-Balken; unter drei Sekunden `…` bzw. `TTK …`.
 4. Erfolgskriterium: Ausserhalb von Key-Kaempfen, ohne lebendes angreifbares Ziel oder bei ausgeschaltetem `ttkEnabled` ist nichts zu sehen; das M+-Regressionsbudget bleibt unveraendert.
 
 ## Nichtfunktionale Regeln
@@ -731,7 +731,7 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 
 ## UI-Vertrag fuer reduzierte Bewegung und kompakte M+-Run-Zeile ab 0.9.404
 
-1. `reduceMotion` hat den Schema-Default `false`. Bei `true` werden laufende Center-Notice-Uebergaenge gestoppt und kuenftige Notice-Fades sowie Portal-Zielpulse unterdrueckt; Notice-Inhalt und statische aktive Portal-Zielmarkierung bleiben sichtbar. Der Anzeige-Standardwert-Reset setzt die Option auf `false` und wendet den Wert live an.
+1. `reduceMotion` hat den Schema-Default `false`. Bei `true` werden laufende Center-Notice-Uebergaenge gestoppt und kuenftige Notice-Fades sowie Portal-Zielpulse unterdrueckt; Notice-Inhalt und statische aktive Portal-Zielmarkierung bleiben sichtbar. Der Anzeige-Standardwert-Reset setzt die Option auf `false` und wendet den Wert live an. Die Option ist nicht mehr in den Settings sichtbar; eine Schema-Migration setzt einen gespeicherten Wert `true` auf `false`.
 2. Die kompakte M+-Run-Zeile verwendet fuer den Prozentwert 14 px und fuer den Fortschrittsbalken 10 px bei unveraenderter Zeilenhoehe, Datenquelle und Farbsemantik.
 3. Deterministische Abdeckung: `UICommon notice kind and reduced motion use semantic markers and brief transitions`, `TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled`, `Settings display preview follows live values and reset restores display defaults only`, `DBSchema.Sanitize fills all defaults on an empty db` und `CreateKillTrackRow uses readable section color for its run label`.
 

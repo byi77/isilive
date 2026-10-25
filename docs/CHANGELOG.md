@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.457 (patch)
+
+- Killtracker: complete forces read `100%` instead of a truncated `100,0...`;
+  open forces never round up to 100 and stay at `99.99%` until done.
+- Time pace moved from the line under the box onto the right end of the
+  killtracker bar as a signed delta: `-1:12` green / `+0:40` red against
+  your slowest timed run, otherwise the forecast end time minus the time
+  limit (e.g. `+1:58`). The `TIME_PACE_*_FMT` texts were removed.
+- Before the key starts, the target dungeon and key level in the killtracker
+  pulse gently (never fully hidden); once the key runs, the bar no longer
+  shows the dungeon name, key level or skull counter.
+- The demo alternates the killtracker every 6 seconds between a running key
+  and the pulsing pre-key target.
+- The "Reduce decorative animations" option is no longer offered in the
+  settings; schema migration 4 switches a stored `true` back off.
+
 ## 2026-10-25 - Version 0.9.456 (patch)
 
 - Rejected numeric addon-send results no longer consume payload deduplication.

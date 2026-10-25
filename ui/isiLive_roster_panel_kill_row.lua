@@ -25,22 +25,24 @@ local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
 local CD_TRACKER_FONT_SIZE = 12
-local ACTIVE_DUNGEON_FONT_SIZE = 11
 local PREKEY_LEVEL_WIDTH = 42
-local ACTIVE_DUNGEON_RIGHT_OFFSET = 122
-local ACTIVE_DUNGEON_LABEL_WIDTH = 146
-local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
+local BAR_OVERLAY_RIGHT_OFFSET = 122
+-- Pre-key target pulse: name and level fade between full and this alpha,
+-- so the target never disappears.
+local PREKEY_PULSE_MIN_ALPHA = 0.35
+local PREKEY_PULSE_SECONDS = 0.8
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 local FormatMplusTime = RI.FormatMplusTime
   or function(seconds)
     local abs = math.abs(seconds)
     return string.format("%d:%02d", math.floor(abs / 60), math.floor(abs % 60))
   end
--- Time pace line under the bar: it uses the frame's bottom padding below the
--- 12 px row offset, so the run-zone geometry stays untouched.
-local TIME_PACE_FONT_SIZE = 10
-local TIME_PACE_LEFT_OFFSET = 94
--- Right end of the same line: the target's time to kill (game/isiLive_ttk.lua).
+-- Time pace delta: right end of the forces bar, outlined like the dungeon name.
+local TIME_PACE_FONT_SIZE = 11
+local TIME_PACE_RIGHT_INSET = 2
+-- Line under the bar in the frame's bottom padding: the target's time to kill
+-- (game/isiLive_ttk.lua).
+local TTK_FONT_SIZE = 10
 local TTK_TEXT_WIDTH = 76
 local FILL_MOTION_TOKEN = "normal"
 local FILL_MOTION_FALLBACK_SECONDS = 0.2
@@ -51,6 +53,16 @@ local function FormatPercentText(value)
   local format = type(UICommon.FormatDecimal) == "function" and UICommon.FormatDecimal or nil
   local text = format and format(value, 2) or string.format("%.2f", value)
   return (text or "") .. "%"
+end
+
+-- Forces percent for the fixed-width column: "100,00%" does not fit and got
+-- truncated to "100,0...", so complete forces read "100%". An open run never
+-- rounds up to 100 and stays at "99,99%" until the forces are really done.
+local function FormatForcesPercentText(pct)
+  if pct >= 100 then
+    return "100%"
+  end
+  return FormatPercentText(math.min(pct, 99.99))
 end
 
 local PACE_TICK_WIDTH = 2
@@ -134,9 +146,19 @@ local function LocalizedText(key, fallback)
   return fallback
 end
 
--- Time pace of the run (see game/isiLive_time_pace.lua) as text plus
--- "ontime" or "late", or nil when nothing is shown. Without the TimePace
--- module the setting cannot be read: fail closed.
+-- Signed whole-second delta: whole seconds decide the sign, so a run exactly
+-- on target reads "0:00" and counts as on time.
+local function FormatTimeDelta(delta)
+  local seconds = math.floor(math.abs(delta) + 0.5)
+  local sign = seconds == 0 and "" or (delta < 0 and "-" or "+")
+  return sign .. FormatMplusTime(seconds), (sign == "+") and "late" or "ontime"
+end
+
+-- Time pace of the run (see game/isiLive_time_pace.lua) as a signed delta
+-- plus "ontime" or "late", or nil when nothing is shown: against the
+-- reference run at the same progress, otherwise the forecast end time against
+-- the time limit. Without the TimePace module the setting cannot be read:
+-- fail closed.
 local function BuildTimePaceText(data)
   local status = type(data) == "table" and data.timePace or nil
   if type(status) ~= "table" then
@@ -147,32 +169,18 @@ local function BuildTimePaceText(data)
     return nil
   end
   if status.mode == "reference" then
-    local delta, level = status.delta, status.keyLevel
-    if type(delta) ~= "number" or delta ~= delta or type(level) ~= "number" then
+    local delta = status.delta
+    if type(delta) ~= "number" or delta ~= delta then
       return nil
     end
-    -- Whole seconds decide the sign, so a run exactly on the reference
-    -- reads "0:00" and counts as on time.
-    local seconds = math.floor(math.abs(delta) + 0.5)
-    local sign = seconds == 0 and "" or (delta < 0 and "-" or "+")
-    local text = string.format(
-      LocalizedText("TIME_PACE_REFERENCE_FMT", "%s vs. +%d timed"),
-      sign .. FormatMplusTime(seconds),
-      level
-    )
-    return text, (sign == "+") and "late" or "ontime"
+    return FormatTimeDelta(delta)
   end
   if status.mode == "projection" then
     local projected, limit = status.projected, status.timeLimit
     if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
       return nil
     end
-    local text = string.format(
-      LocalizedText("TIME_PACE_PROJECTION_FMT", "Forecast %s / %s"),
-      FormatMplusTime(projected),
-      FormatMplusTime(limit)
-    )
-    return text, projected <= limit and "ontime" or "late"
+    return FormatTimeDelta(projected - limit)
   end
   return nil
 end
@@ -469,66 +477,57 @@ local function CreateKillTrackRow(mainFrame)
   end
   paceTick:Hide()
 
-  local targetText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  -- The pre-key target pulses until the key starts; name and level share one
+  -- frame so a single alpha animation drives both.
+  local targetPulse = CreateFrame("Frame", nil, box)
+  targetPulse:SetPoint("LEFT", box, "LEFT", 0, 0)
+  targetPulse:SetPoint("RIGHT", box, "RIGHT", 0, 0)
+  targetPulse:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  local targetPulseGroup = type(targetPulse.CreateAnimationGroup) == "function" and targetPulse:CreateAnimationGroup()
+    or nil
+  if targetPulseGroup then
+    targetPulseGroup:SetLooping("BOUNCE")
+    local fade = targetPulseGroup:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(PREKEY_PULSE_MIN_ALPHA)
+    fade:SetDuration(PREKEY_PULSE_SECONDS)
+    fade:SetSmoothing("IN_OUT")
+  end
+  -- Rule 168: no looping animation while hidden; OnShow resumes it.
+  if targetPulseGroup and type(targetPulse.SetScript) == "function" then
+    targetPulse:SetScript("OnHide", function()
+      targetPulseGroup:Stop()
+    end)
+    targetPulse:SetScript("OnShow", function()
+      if row._targetPulseWanted and not targetPulseGroup:IsPlaying() then
+        targetPulseGroup:Play()
+      end
+    end)
+  end
+
+  local targetText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   targetText:SetPoint("LEFT", box, "LEFT", 94, 0)
   targetText:SetPoint("RIGHT", box, "RIGHT", -(PREKEY_LEVEL_WIDTH + 10), 0)
   targetText:SetJustifyH("RIGHT")
   SetReadableText(targetText, "")
   ApplyFontStringSize(targetText, CD_TRACKER_FONT_SIZE)
 
-  local targetLevelText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local targetLevelText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   targetLevelText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
   targetLevelText:SetWidth(PREKEY_LEVEL_WIDTH)
   targetLevelText:SetJustifyH("RIGHT")
   targetLevelText:SetText("")
   ApplyFontStringSize(targetLevelText, CD_TRACKER_FONT_SIZE)
 
-  local activeDungeonOverlay = CreateFrame("Frame", nil, box)
-  activeDungeonOverlay:SetPoint("LEFT", box, "LEFT", 98, 0)
-  activeDungeonOverlay:SetPoint("RIGHT", box, "RIGHT", -ACTIVE_DUNGEON_RIGHT_OFFSET, 0)
-  activeDungeonOverlay:SetHeight(CD_TRACKER_ROW_HEIGHT)
-  if type(activeDungeonOverlay.SetFrameLevel) == "function" then
+  -- Frame above the bar container for text drawn on the bar.
+  local barOverlay = CreateFrame("Frame", nil, box)
+  barOverlay:SetPoint("LEFT", box, "LEFT", 98, 0)
+  barOverlay:SetPoint("RIGHT", box, "RIGHT", -BAR_OVERLAY_RIGHT_OFFSET, 0)
+  barOverlay:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  if type(barOverlay.SetFrameLevel) == "function" then
     local baseLevel = type(barContainer.GetFrameLevel) == "function" and tonumber(barContainer:GetFrameLevel()) or nil
-    activeDungeonOverlay:SetFrameLevel((baseLevel or 1) + 5)
+    barOverlay:SetFrameLevel((baseLevel or 1) + 5)
   end
-
-  local activeDungeonBackdrop = activeDungeonOverlay:CreateTexture(nil, "ARTWORK")
-  if type(activeDungeonBackdrop.SetPoint) == "function" then
-    activeDungeonBackdrop:SetPoint("LEFT", activeDungeonOverlay, "LEFT", -3, 0)
-  end
-  if type(activeDungeonBackdrop.SetWidth) == "function" then
-    activeDungeonBackdrop:SetWidth(ACTIVE_DUNGEON_LABEL_WIDTH)
-  end
-  if type(activeDungeonBackdrop.SetHeight) == "function" then
-    activeDungeonBackdrop:SetHeight(CD_TRACKER_ROW_HEIGHT - 4)
-  end
-  if type(activeDungeonBackdrop.SetTexture) == "function" then
-    activeDungeonBackdrop:SetTexture("Interface\\Buttons\\WHITE8X8")
-  end
-  if type(activeDungeonBackdrop.SetVertexColor) == "function" then
-    activeDungeonBackdrop:SetVertexColor(
-      unpack((UICommon.Colors and UICommon.Colors.BLACK_OVERLAY_50) or { 0, 0, 0, 0.5 })
-    )
-  end
-  if type(activeDungeonBackdrop.Hide) == "function" then
-    activeDungeonBackdrop:Hide()
-  end
-
-  local activeDungeonText = activeDungeonOverlay:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
-  activeDungeonText:SetPoint("LEFT", activeDungeonOverlay, "LEFT", 2, 0)
-  activeDungeonText:SetPoint("RIGHT", activeDungeonOverlay, "RIGHT", 0, 0)
-  activeDungeonText:SetJustifyH("LEFT")
-  if type(activeDungeonText.SetJustifyV) == "function" then
-    activeDungeonText:SetJustifyV("MIDDLE")
-  end
-  if type(activeDungeonText.SetDrawLayer) == "function" then
-    activeDungeonText:SetDrawLayer("OVERLAY", 7)
-  end
-  if type(activeDungeonText.SetAlpha) == "function" then
-    activeDungeonText:SetAlpha(0.92)
-  end
-  SetReadableText(activeDungeonText, "")
-  ApplyFontStringSize(activeDungeonText, ACTIVE_DUNGEON_FONT_SIZE)
 
   local pctText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   pctText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
@@ -537,10 +536,13 @@ local function CreateKillTrackRow(mainFrame)
   pctText:SetText(BuildPercentPlaceholder())
   ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE + 2)
 
-  local timePaceText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  timePaceText:SetPoint("TOPLEFT", box, "BOTTOMLEFT", TIME_PACE_LEFT_OFFSET, -1)
-  timePaceText:SetPoint("TOPRIGHT", box, "BOTTOMRIGHT", -(TTK_TEXT_WIDTH + 10), -1)
-  timePaceText:SetJustifyH("LEFT")
+  -- Lives on the bar overlay so it draws above fill, gap and strip.
+  local timePaceText = barOverlay:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
+  timePaceText:SetPoint("RIGHT", barOverlay, "RIGHT", -TIME_PACE_RIGHT_INSET, 0)
+  timePaceText:SetJustifyH("RIGHT")
+  if type(timePaceText.SetDrawLayer) == "function" then
+    timePaceText:SetDrawLayer("OVERLAY", 7)
+  end
   SetReadableText(timePaceText, "")
   ApplyFontStringSize(timePaceText, TIME_PACE_FONT_SIZE)
 
@@ -570,7 +572,7 @@ local function CreateKillTrackRow(mainFrame)
   ttkText:SetWidth(TTK_TEXT_WIDTH)
   ttkText:SetJustifyH("RIGHT")
   ttkText:SetText("")
-  ApplyFontStringSize(ttkText, TIME_PACE_FONT_SIZE)
+  ApplyFontStringSize(ttkText, TTK_FONT_SIZE)
   if type(ttkText.SetTextColor) == "function" then
     ttkText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 }))
   end
@@ -593,9 +595,9 @@ local function CreateKillTrackRow(mainFrame)
   row.killTrackPaceTick = paceTick
   row.killTrackTargetText = targetText
   row.killTrackTargetLevelText = targetLevelText
-  row.killTrackActiveDungeonOverlay = activeDungeonOverlay
-  row.killTrackActiveDungeonBackdrop = activeDungeonBackdrop
-  row.killTrackActiveDungeonText = activeDungeonText
+  row.killTrackBarOverlay = barOverlay
+  row.killTrackTargetPulse = targetPulse
+  row.killTrackTargetPulseGroup = targetPulseGroup
   row.killTrackPctText = pctText
   row.killTrackPullText = pullText
   row.killTrackTimePaceText = timePaceText
@@ -640,59 +642,25 @@ local function ResolvePreKeyTargetInfo(deps, data)
   }
 end
 
-local function ResolveActiveKeyLevel()
-  local MplusTimer = addonTable.MplusTimer
-  if type(MplusTimer) == "table" and type(MplusTimer.GetKeyLevel) == "function" then
-    local keyLevel = tonumber(MplusTimer.GetKeyLevel())
-    if not keyLevel or keyLevel <= 0 then
-      return nil
+-- Starts or stops the pre-key target pulse. Reduced motion keeps the target
+-- steady; a stopped pulse leaves name and level fully opaque.
+local function SetTargetPulse(row, wanted)
+  row._targetPulseWanted = wanted and true or false
+  local group = row.killTrackTargetPulseGroup
+  if not group then
+    return
+  end
+  if wanted and not IsReducedMotionEnabled() then
+    if not group:IsPlaying() then
+      group:Play()
     end
-    return math.floor(keyLevel)
+    return
   end
-  local timerData = type(MplusTimer) == "table"
-      and type(MplusTimer.GetTimerData) == "function"
-      and MplusTimer.GetTimerData()
-    or nil
-  local level = type(timerData) == "table" and tonumber(timerData.keyLevel) or nil
-  if not level or level <= 0 then
-    return nil
+  group:Stop()
+  local frame = row.killTrackTargetPulse
+  if frame and type(frame.SetAlpha) == "function" then
+    frame:SetAlpha(1)
   end
-  return math.floor(level)
-end
-
-local function ResolveTotalDeathCount()
-  local deathWatch = addonTable.DeathWatch
-  if type(deathWatch) == "table" and type(deathWatch.GetTotalDeathCount) == "function" then
-    return tonumber(deathWatch.GetTotalDeathCount()) or 0
-  end
-  if type(deathWatch) ~= "table" or type(deathWatch.GetAllDeathSummaries) ~= "function" then
-    return 0
-  end
-  local summaries = deathWatch.GetAllDeathSummaries()
-  if type(summaries) ~= "table" then
-    return 0
-  end
-  local total = 0
-  for _, entry in ipairs(summaries) do
-    if type(entry) == "table" then
-      local count = tonumber(entry.count)
-      if count and count > 0 then
-        total = total + math.floor(count)
-      end
-    end
-  end
-  return total
-end
-
-local function AppendDeathCountToActiveDungeonName(activeDungeonName)
-  if type(activeDungeonName) ~= "string" or activeDungeonName == "" then
-    return activeDungeonName
-  end
-  local deathCount = ResolveTotalDeathCount()
-  if deathCount <= 0 then
-    return activeDungeonName
-  end
-  return activeDungeonName .. DEATH_MARKER_ICON .. "|cffff6060" .. tostring(deathCount) .. "|r"
 end
 
 local function UpdateKillTrackRow(row, deps)
@@ -711,33 +679,8 @@ local function UpdateKillTrackRow(row, deps)
   local barPull = row.killTrackBarPull
   local targetText = row.killTrackTargetText
   local targetLevelText = row.killTrackTargetLevelText
-  local activeDungeonBackdrop = row.killTrackActiveDungeonBackdrop
-  local activeDungeonText = row.killTrackActiveDungeonText
   local pctText = row.killTrackPctText
   local pullText = row.killTrackPullText
-
-  local function SetActiveDungeonContext(text)
-    if not activeDungeonText then
-      return
-    end
-    SetReadableText(activeDungeonText, text or "")
-    if text and text ~= "" then
-      if activeDungeonBackdrop and type(activeDungeonBackdrop.Show) == "function" then
-        activeDungeonBackdrop:Show()
-      end
-      if type(activeDungeonText.SetJustifyH) == "function" then
-        activeDungeonText:SetJustifyH("LEFT")
-      end
-      if type(activeDungeonText.SetTextColor) == "function" then
-        activeDungeonText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1.0, 1.0, 1.0 }))
-      end
-      if type(activeDungeonText.SetAlpha) == "function" then
-        activeDungeonText:SetAlpha(1.0)
-      end
-    elseif activeDungeonBackdrop and type(activeDungeonBackdrop.Hide) == "function" then
-      activeDungeonBackdrop:Hide()
-    end
-  end
 
   if data and data.active then
     if barContainer and type(barContainer.Show) == "function" then
@@ -752,17 +695,7 @@ local function UpdateKillTrackRow(row, deps)
     if targetLevelText then
       targetLevelText:SetText("")
     end
-    local activeInfo = type(deps) == "table"
-        and type(deps.getTargetDungeonInfo) == "function"
-        and deps.getTargetDungeonInfo()
-      or nil
-    local activeDungeonName = ResolveTargetDungeonNameFromInfo(activeInfo)
-    local activeKeyLevel = activeDungeonName and ResolveActiveKeyLevel() or nil
-    if activeDungeonName and activeKeyLevel then
-      activeDungeonName = activeDungeonName .. " +" .. tostring(activeKeyLevel)
-    end
-    activeDungeonName = AppendDeathCountToActiveDungeonName(activeDungeonName)
-    SetActiveDungeonContext(activeDungeonName)
+    SetTargetPulse(row, false)
     local pct = math.max(0, math.min(data.percent, 100))
     row._killTrackActive = true
     row._killTrackPercent = pct
@@ -804,7 +737,7 @@ local function UpdateKillTrackRow(row, deps)
       end
     end
     if pctText then
-      pctText:SetText(FormatPercentText(pct))
+      pctText:SetText(FormatForcesPercentText(pct))
       if type(pctText.SetTextColor) == "function" then
         pctText:SetTextColor(textColor[1], textColor[2], textColor[3])
       end
@@ -874,7 +807,7 @@ local function UpdateKillTrackRow(row, deps)
         )
       end
     end
-    SetActiveDungeonContext(nil)
+    SetTargetPulse(row, true)
     if pctText then
       pctText:SetText("")
       if type(pctText.SetTextColor) == "function" then
@@ -906,7 +839,7 @@ local function UpdateKillTrackRow(row, deps)
     if targetLevelText then
       targetLevelText:SetText("")
     end
-    SetActiveDungeonContext(nil)
+    SetTargetPulse(row, false)
     if pctText then
       pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then

@@ -247,8 +247,6 @@ local function NewRow(barWidth)
     killTrackPaceTick = NewTextureStub(),
     killTrackTargetText = NewTextStub(),
     killTrackTargetLevelText = NewTextStub(),
-    killTrackActiveDungeonBackdrop = NewTextureStub(),
-    killTrackActiveDungeonText = NewTextStub(),
     killTrackPctText = NewTextStub(),
     killTrackPullText = NewTextStub(),
   }

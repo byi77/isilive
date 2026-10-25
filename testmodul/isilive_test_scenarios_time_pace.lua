@@ -198,8 +198,6 @@ local function NewRow()
     killTrackPaceTick = NewTextureStub(),
     killTrackTargetText = NewTextStub(),
     killTrackTargetLevelText = NewTextStub(),
-    killTrackActiveDungeonBackdrop = NewTextureStub(),
-    killTrackActiveDungeonText = NewTextStub(),
     killTrackPctText = NewTextStub(),
     killTrackPullText = NewTextStub(),
     killTrackTimePaceText = NewTextStub(),
@@ -453,7 +451,7 @@ end
 local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   local ROW_FILES = { "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" }
 
-  test("UpdateKillTrackRow shows the reference delta under the bar in green or red", function()
+  test("UpdateKillTrackRow shows the reference delta on the bar in green or red", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = Load(LoadAddonModules, ROW_FILES)
@@ -463,17 +461,17 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       local row = NewRow()
       addon._RosterInternal.UpdateKillTrackRow(row)
       local line = row.killTrackTimePaceText
-      Assert.Equal(line._text, "-1:12 vs. +10 timed", "ahead of the reference shows a minus delta")
+      Assert.Equal(line._text, "-1:12", "ahead of the reference shows a minus delta")
       Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "ahead is green")
 
       Advance(addon, env, 875, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "+1:15 vs. +10 timed", "behind the reference shows a plus delta")
+      Assert.Equal(line._text, "+1:15", "behind the reference shows a plus delta")
       Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "behind is red")
     end)
   end)
 
-  test("UpdateKillTrackRow shows the projection, and clears the line outside a run or when off", function()
+  test("UpdateKillTrackRow shows the forecast delta, and clears it outside a run or when off", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = Load(LoadAddonModules, ROW_FILES)
@@ -482,7 +480,7 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       local row = NewRow()
       addon._RosterInternal.UpdateKillTrackRow(row)
       local line = row.killTrackTimePaceText
-      Assert.Equal(line._text, "Forecast 31:34 / 30:00", "the projection names forecast and time limit")
+      Assert.Equal(line._text, "+1:35", "the forecast shows its delta to the time limit")
       Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "over the limit is red")
 
       Advance(addon, env, 600, 150, 2)
