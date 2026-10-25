@@ -84,61 +84,8 @@ local function CopyColor(r, g, b, a)
   return { tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1, tonumber(a) or 1 }
 end
 
-function Widgets.New(opts)
-  opts = opts or {}
-  local clock = assert(opts.clock, "widgets: clock required")
-  local onUnknownMethod = opts.onUnknownMethod or function() end
-  local onScriptError = opts.onScriptError or function() end
-  local screenW = opts.screenW or 1920
-  local screenH = opts.screenH or 1080
-
-  local engine = {
-    all = {}, -- every widget ever created, in creation order
-    byName = {}, -- global names
-    eventFrames = {}, -- frame -> true for frames with registered events
-    nextId = 1,
-    fontObjects = {},
-  }
-
-  local env = opts.env -- client global table; named frames are published there
-
-  local function SafeCall(fn, ...)
-    local ok, err = Compat.XCall(fn, ...)
-    if not ok then
-      onScriptError(err)
-    end
-    return ok
-  end
-
-  ---------------------------------------------------------------------------
-  -- Base object with the method catch-all
-  ---------------------------------------------------------------------------
-  local methodsByType = {}
-
-  local function MakeObject(objectType, methods)
-    local obj = { _type = objectType, _id = engine.nextId }
-    engine.nextId = engine.nextId + 1
-    setmetatable(obj, {
-      __index = function(t, key)
-        local m = methods[key]
-        if m ~= nil then
-          return m
-        end
-        -- Unknown PascalCase widget method: record it and hand back a no-op
-        -- returning nil, so a missing API surfaces in the report instead of
-        -- crashing the composition. Fields (lowercase / _prefixed) stay nil.
-        if type(key) == "string" and key:match("^[A-Z]") then
-          onUnknownMethod(objectType, key)
-          local fn = function() end
-          rawset(t, key, fn)
-          return fn
-        end
-        return nil
-      end,
-    })
-    return obj
-  end
-
+local function DefineRegion(engine, M)
+  local env = M.env
   ---------------------------------------------------------------------------
   -- ScriptObject / Region shared methods
   ---------------------------------------------------------------------------
@@ -427,7 +374,11 @@ function Widgets.New(opts)
   function Region:IsDragging()
     return false
   end
+  M.Region = Region
+end
 
+local function DefineTexture(engine, M)
+  local Region = M.Region
   ---------------------------------------------------------------------------
   -- Texture
   ---------------------------------------------------------------------------
@@ -514,7 +465,13 @@ function Widgets.New(opts)
   function Texture:SetThickness(t)
     self._thickness = t
   end
+  M.Texture = Texture
+end
 
+local function DefineFonts(engine, M)
+  local env = M.env
+  local MakeObject = M.MakeObject
+  local Region = M.Region
   ---------------------------------------------------------------------------
   -- Fonts: FontString and font objects
   ---------------------------------------------------------------------------
@@ -694,7 +651,14 @@ function Widgets.New(opts)
     end
     return obj
   end
+  M.FontInstance = FontInstance
+  M.FontString = FontString
+  M.FontObject = FontObject
+end
 
+local function DefineFrame(engine, M)
+  local SafeCall = M.SafeCall
+  local Region = M.Region
   ---------------------------------------------------------------------------
   -- Frame
   ---------------------------------------------------------------------------
@@ -944,7 +908,12 @@ function Widgets.New(opts)
     self._hyperlinks = v
   end
   function Frame:SetHyperlinkPropagateToParent() end
+  M.Frame = Frame
+end
 
+local function DefineButtons(engine, M)
+  local SafeCall = M.SafeCall
+  local Frame = M.Frame
   ---------------------------------------------------------------------------
   -- Button / CheckButton
   ---------------------------------------------------------------------------
@@ -1102,7 +1071,23 @@ function Widgets.New(opts)
     return self._checkedTex or SetStateTexture(self, "_checkedTex", nil, "OVERLAY", false)
   end
   function CheckButton:SetDisabledCheckedTexture() end
+  M.Button = Button
+  M.EnsureButtonText = EnsureButtonText
+  M.SetStateTexture = SetStateTexture
+  M.CheckButton = CheckButton
+end
 
+local function DefineWidgetTypes(engine, M)
+  local clock = M.clock
+  local SafeCall = M.SafeCall
+  local methodsByType = M.methodsByType
+  local Texture = M.Texture
+  local FontInstance = M.FontInstance
+  local FontString = M.FontString
+  local Frame = M.Frame
+  local Button = M.Button
+  local SetStateTexture = M.SetStateTexture
+  local CheckButton = M.CheckButton
   ---------------------------------------------------------------------------
   -- StatusBar / Slider / Cooldown / EditBox / ScrollFrame / tooltips
   ---------------------------------------------------------------------------
@@ -1427,7 +1412,23 @@ function Widgets.New(opts)
   methodsByType.ItemButton = Button
   engine.methodsByType = methodsByType
   engine.FontInstance = FontInstance
+  M.StatusBar = StatusBar
+  M.Slider = Slider
+  M.Cooldown = Cooldown
+  M.EditBox = EditBox
+  M.ScrollFrame = ScrollFrame
+  M.GameTooltip = GameTooltip
+  M.TooltipLine = TooltipLine
+  M.MessageFrame = MessageFrame
+end
 
+local function DefineCreation(engine, M)
+  local env = M.env
+  local onUnknownMethod = M.onUnknownMethod
+  local methodsByType = M.methodsByType
+  local MakeObject = M.MakeObject
+  local Texture = M.Texture
+  local Frame = M.Frame
   ---------------------------------------------------------------------------
   -- Creation
   ---------------------------------------------------------------------------
@@ -1499,7 +1500,14 @@ function Widgets.New(opts)
     end
     return frame
   end
+  M.Publish = Publish
+  M.templateHandlers = templateHandlers
+end
 
+local function DefineAnimations(engine, M)
+  local clock = M.clock
+  local SafeCall = M.SafeCall
+  local MakeObject = M.MakeObject
   ---------------------------------------------------------------------------
   -- Animations (time-based on the simulated clock)
   ---------------------------------------------------------------------------
@@ -1696,7 +1704,12 @@ function Widgets.New(opts)
     owner._animGroups[#owner._animGroups + 1] = group
     return group
   end
+  M.AnimationGroup = AnimationGroup
+  M.Animation = Animation
+end
 
+local function DefineVisibility(engine, M)
+  local SafeCall = M.SafeCall
   ---------------------------------------------------------------------------
   -- Visibility propagation (OnShow / OnHide)
   ---------------------------------------------------------------------------
@@ -1718,7 +1731,12 @@ function Widgets.New(opts)
     end
     Walk(root)
   end
+end
 
+local function DefineLayoutAndSnapshot(engine, M)
+  local screenW = M.screenW
+  local screenH = M.screenH
+  local SafeCall = M.SafeCall
   ---------------------------------------------------------------------------
   -- Layout: anchor resolution to absolute screen rectangles
   ---------------------------------------------------------------------------
@@ -2016,6 +2034,91 @@ function Widgets.New(opts)
     resolveCache = nil
     return out
   end
+  M.resolveCache = resolveCache
+  M.resolving = resolving
+  M.IntrinsicSize = IntrinsicSize
+  M.UnitMatches = UnitMatches
+  M.OwnerFrame = OwnerFrame
+  M.ClipRect = ClipRect
+  M.Round1 = Round1
+end
+
+function Widgets.New(opts)
+  opts = opts or {}
+  local clock = assert(opts.clock, "widgets: clock required")
+  local onUnknownMethod = opts.onUnknownMethod or function() end
+  local onScriptError = opts.onScriptError or function() end
+  local screenW = opts.screenW or 1920
+  local screenH = opts.screenH or 1080
+
+  local engine = {
+    all = {}, -- every widget ever created, in creation order
+    byName = {}, -- global names
+    eventFrames = {}, -- frame -> true for frames with registered events
+    nextId = 1,
+    fontObjects = {},
+  }
+
+  local env = opts.env -- client global table; named frames are published there
+
+  local function SafeCall(fn, ...)
+    local ok, err = Compat.XCall(fn, ...)
+    if not ok then
+      onScriptError(err)
+    end
+    return ok
+  end
+
+  ---------------------------------------------------------------------------
+  -- Base object with the method catch-all
+  ---------------------------------------------------------------------------
+  local methodsByType = {}
+
+  local function MakeObject(objectType, methods)
+    local obj = { _type = objectType, _id = engine.nextId }
+    engine.nextId = engine.nextId + 1
+    setmetatable(obj, {
+      __index = function(t, key)
+        local m = methods[key]
+        if m ~= nil then
+          return m
+        end
+        -- Unknown PascalCase widget method: record it and hand back a no-op
+        -- returning nil, so a missing API surfaces in the report instead of
+        -- crashing the composition. Fields (lowercase / _prefixed) stay nil.
+        if type(key) == "string" and key:match("^[A-Z]") then
+          onUnknownMethod(objectType, key)
+          local fn = function() end
+          rawset(t, key, fn)
+          return fn
+        end
+        return nil
+      end,
+    })
+    return obj
+  end
+
+  local M = {
+    clock = clock,
+    env = env,
+    onUnknownMethod = onUnknownMethod,
+    onScriptError = onScriptError,
+    screenW = screenW,
+    screenH = screenH,
+    SafeCall = SafeCall,
+    methodsByType = methodsByType,
+    MakeObject = MakeObject,
+  }
+  DefineRegion(engine, M)
+  DefineTexture(engine, M)
+  DefineFonts(engine, M)
+  DefineFrame(engine, M)
+  DefineButtons(engine, M)
+  DefineWidgetTypes(engine, M)
+  DefineCreation(engine, M)
+  DefineAnimations(engine, M)
+  DefineVisibility(engine, M)
+  DefineLayoutAndSnapshot(engine, M)
 
   -- Root frames
   local uiParent = engine.CreateFrame("Frame", "UIParent", nil)

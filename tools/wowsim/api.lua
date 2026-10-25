@@ -174,13 +174,9 @@ local STD_LIB_NAMES = {
   "coroutine",
 }
 
-function Api.Build(opts)
-  local world = assert(opts.world)
-  local client = assert(opts.client)
-  local engine = assert(opts.engine)
-  local env = assert(opts.env)
-  local clock = world.clock
-
+local function InstallLuaCore(ctx)
+  local world = ctx.world
+  local env = ctx.env
   for _, name in ipairs(STD_LIB_NAMES) do
     env[name] = _G[name]
   end
@@ -226,7 +222,13 @@ function Api.Build(opts)
     or function(source, chunkName)
       return load(source, chunkName, "t", env)
     end
+end
 
+local function InstallWowLuaExtensions(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local engine = ctx.engine
+  local env = ctx.env
   -- WoW Lua extensions -------------------------------------------------------
   env.bit = Compat.bit
   env.format = string.format
@@ -520,7 +522,12 @@ function Api.Build(opts)
   env.GetMouseFocus = function()
     return nil
   end
+end
 
+local function InstallOutput(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Output ---------------------------------------------------------------------
   env.print = function(...)
     local parts = {}
@@ -529,7 +536,13 @@ function Api.Build(opts)
     end
     world.Log("print", table.concat(parts, " "), client)
   end
+end
 
+local function InstallFramesAndFonts(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local engine = ctx.engine
+  local env = ctx.env
   -- Frames and fonts -----------------------------------------------------------
   env.CreateFrame = engine.CreateFrame
   env.UIParent = engine.UIParent
@@ -839,7 +852,11 @@ function Api.Build(opts)
   }
   env.SlashCmdList = env.SlashCmdList or {}
   env.hash_SlashCmdList = {}
+end
 
+local function InstallConstants(ctx)
+  local world = ctx.world
+  local env = ctx.env
   -- Constants ------------------------------------------------------------------
   env.YES, env.NO, env.OKAY, env.CANCEL, env.CLOSE, env.ACCEPT = "Yes", "No", "Okay", "Cancel", "Close", "Accept"
   env.NONE = "None"
@@ -914,7 +931,10 @@ function Api.Build(opts)
   }
   env.C_Constants = {}
   env.Constants = {}
+end
 
+local function InstallCVarsAndBindings(ctx)
+  local env = ctx.env
   -- CVars and bindings ----------------------------------------------------------
   local cvars = {
     uiScale = "1",
@@ -959,9 +979,12 @@ function Api.Build(opts)
   env.GetCurrentBindingSet = function()
     return 1
   end
+end
 
+local function InstallAddons(ctx)
+  local env = ctx.env
   -- Addons -----------------------------------------------------------------------
-  local addonMeta = opts.addonMeta or {}
+  local addonMeta = ctx.addonMeta or {}
   local function GetAddOnMetadata(name, field)
     if name == "isiLive" or name == 1 then
       return addonMeta[field]
@@ -1003,7 +1026,12 @@ function Api.Build(opts)
     return env.C_AddOns.GetAddOnEnableState(name)
   end
   env.LibStub = nil
+end
 
+local function InstallSound(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Sound ------------------------------------------------------------------------
   local soundHandle = 0
   env.PlaySound = function(kit, channel)
@@ -1042,7 +1070,12 @@ function Api.Build(opts)
       return 100
     end,
   }
+end
 
+local function InstallTimers(ctx)
+  local client = ctx.client
+  local env = ctx.env
+  local clock = ctx.world.clock
   -- Timers -----------------------------------------------------------------------
   local function NewTimerHandle(timer)
     local handle = {}
@@ -1102,7 +1135,12 @@ function Api.Build(opts)
       return handle
     end,
   }
+end
 
+local function InstallUnits(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Units ------------------------------------------------------------------------
   local function MemberByUnit(unit)
     if type(unit) ~= "string" then
@@ -1417,7 +1455,14 @@ function Api.Build(opts)
     end,
   }
   env.C_PlayerMythicPlus = env.C_PlayerInfo
+end
 
+local function InstallSpecs(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
+  local clock = ctx.world.clock
+  local MemberByUnit = ctx.client.MemberByUnit
   -- Specs ----------------------------------------------------------------------
   local function SpecInfo(specID)
     local spec = world.specManifest[specID] or {}
@@ -1510,7 +1555,13 @@ function Api.Build(opts)
       return nil
     end,
   }
+end
 
+local function InstallGroup(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
+  local MemberByUnit = ctx.client.MemberByUnit
   -- Group --------------------------------------------------------------------
   local function GroupSize()
     if not client.member.inGroup then
@@ -1614,7 +1665,11 @@ function Api.Build(opts)
       return 0
     end,
   }
+end
 
+local function InstallZonesAndInstances(ctx)
+  local world = ctx.world
+  local env = ctx.env
   -- Zones and instances ----------------------------------------------------------
   env.GetZoneText = function()
     return world.instance and world.instance.name or world.zone
@@ -1669,7 +1724,12 @@ function Api.Build(opts)
       return nil
     end,
   }
+end
 
+local function InstallChallengeMode(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Challenge mode / Mythic+ ---------------------------------------------------
   local function ChallengeMapInfo(mapID)
     local maps = world.challengeMaps or {}
@@ -1870,7 +1930,13 @@ function Api.Build(opts)
       return world.scenario and (world.scenario.title or "Mythic+") or nil
     end,
   }
+  ctx.ChallengeMapInfo = ChallengeMapInfo
+end
 
+local function InstallBagsAndItems(ctx)
+  local client = ctx.client
+  local env = ctx.env
+  local ChallengeMapInfo = ctx.ChallengeMapInfo
   -- Bags and items -------------------------------------------------------------
   local function KeystoneLink()
     local k = client.member.key
@@ -2014,7 +2080,11 @@ function Api.Build(opts)
   }
   env.GetAchievementCriteriaInfo = function() end
   env.GetAchievementInfo = function() end
+end
 
+local function InstallSpells(ctx)
+  local client = ctx.client
+  local env = ctx.env
   -- Spells -------------------------------------------------------------------
   env.C_Spell = {
     GetSpellInfo = function(id)
@@ -2247,7 +2317,12 @@ function Api.Build(opts)
     return false
   end
   env.GetGuildInfo = function() end
+end
 
+local function InstallChatAndAddonMessages(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Chat and addon messages -------------------------------------------------------
   client.prefixes = client.prefixes or {}
   env.C_ChatInfo = {
@@ -2302,7 +2377,12 @@ function Api.Build(opts)
     return 0
   end
   env.C_Club = {}
+end
 
+local function InstallMisc(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local env = ctx.env
   -- Misc -------------------------------------------------------------------------
   env.ReloadUI = function()
     world.Log("note", "ReloadUI()", client)
@@ -2404,8 +2484,36 @@ function Api.Build(opts)
   env.HasFullControl = function()
     return true
   end
+end
+
+function Api.Build(opts)
+  local ctx = {
+    world = assert(opts.world),
+    client = assert(opts.client),
+    engine = assert(opts.engine),
+    env = assert(opts.env),
+    addonMeta = opts.addonMeta or {},
+  }
+  InstallLuaCore(ctx)
+  InstallWowLuaExtensions(ctx)
+  InstallOutput(ctx)
+  InstallFramesAndFonts(ctx)
+  InstallConstants(ctx)
+  InstallCVarsAndBindings(ctx)
+  InstallAddons(ctx)
+  InstallSound(ctx)
+  InstallTimers(ctx)
+  InstallUnits(ctx)
+  InstallSpecs(ctx)
+  InstallGroup(ctx)
+  InstallZonesAndInstances(ctx)
+  InstallChallengeMode(ctx)
+  InstallBagsAndItems(ctx)
+  InstallSpells(ctx)
+  InstallChatAndAddonMessages(ctx)
+  InstallMisc(ctx)
   -- Last: wraps tostring / string.format after every helper above captured them.
-  Compat.ApplyLua51NumberSemantics(env)
+  Compat.ApplyLua51NumberSemantics(ctx.env)
 end
 
 return Api
