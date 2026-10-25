@@ -13,6 +13,10 @@
   mode; excluded fights do not scan nameplates through diagnostics.
 - TTK nameplate text keeps its two-point font bonus across updates and
   overlay font-size changes, including the rendered text height.
+- The M+ timer box no longer draws its own timeline; the spent time is shown
+  by the strip on the killtracker bar. The grade emphasis stays.
+- The demo mode turns on "M+ Killtracker: Time pace" for the preview, so
+  the time strip and pace line always show; your setting comes back on exit.
 
 ## 2026-10-25 - Version 0.9.454 (patch)
 

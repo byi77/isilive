@@ -762,6 +762,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       mainFrameShown = true,
       db = {
         powerInfusionTextEnabled = false,
+        timePaceEnabled = false,
       },
     })
 
@@ -813,6 +814,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.readyCheckRefreshes, 1, "demo mode must refresh ready-check row decoration")
     Assert.Equal(state.shareKeysCooldownSeconds, 18, "demo mode must show the mirrored share-keys cooldown state")
     Assert.True(state.db.powerInfusionTextEnabled == true, "demo mode must enable the PI text preview setting")
+    Assert.True(state.db.timePaceEnabled == true, "demo mode must show the time strip on the forces bar")
     Assert.True(state.simulationTabletShown == true, "demo mode must show the simulation tablet")
     Assert.Equal(state.simulationTabletShowCalls, 1, "demo mode must show the simulation tablet once")
     Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
@@ -956,6 +958,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.shareKeysCooldownCleared, 1, "test mode exit must clear the demo share-keys cooldown")
     Assert.Nil(state.shareKeysCooldownSeconds, "test mode exit must leave no demo share-keys cooldown")
     Assert.Equal(state.db.powerInfusionTextEnabled, false, "test mode exit must restore the previous PI text setting")
+    Assert.Equal(state.db.timePaceEnabled, false, "test mode exit must restore the previous time pace setting")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
     Assert.False(state.simulationTabletShown, "test mode exit must hide the simulation tablet")

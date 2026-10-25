@@ -18,29 +18,13 @@ local CD_TRACKER_FONT_SIZE = 12
 local MPLUS_TIMER_TEXT_WIDTH = 48
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 
--- Timeline along the bottom edge of the M+ timer box. It lives inside the
--- existing 20 px box, so the run-zone geometry stays untouched.
-local TIMELINE_HEIGHT = 2
-local TIMELINE_TICK_HEIGHT = 4
--- 1 px backdrop border plus 1 px air.
-local TIMELINE_INSET = 2
--- +3 and +2 cutoffs as fractions of the time limit (see MplusTimer.StartTimer).
-local TIMELINE_TICK_FRACTIONS = { 0.6, 0.8 }
 local INACTIVE_GRADE_ALPHA = 0.5
 local GRADE_ELEMENTS = {
   [3] = { badge = "mp3Icon", text = "mp3Text" },
   [2] = { badge = "mp2Icon", text = "mp2Text" },
   [1] = { badge = "mp1Icon", text = "mp1Text" },
 }
--- Fail-closed fallbacks for harness loads without UICommon.Colors.
-local FALLBACK_TIMELINE_COLORS = {
-  MPLUS_TIMELINE_TRACK = { 0, 0, 0, 0.45 },
-  MPLUS_TIMELINE_TICK = { 0.9, 0.95, 1, 0.6 },
-  MPLUS_GRADE3_FILL = { 0.3, 0.85, 0.4, 0.9 },
-  MPLUS_GRADE2_FILL = { 1, 0.82, 0.2, 0.9 },
-  MPLUS_GRADE1_FILL = { 0.85, 0.88, 0.95, 0.85 },
-  MPLUS_OVERTIME_FILL = { 1, 0.3, 0.3, 0.9 },
-}
+-- Reachable-grade colors of the time strip on the killtracker bar.
 local GRADE_FILL_COLOR_KEYS = {
   [3] = "MPLUS_GRADE3_FILL",
   [2] = "MPLUS_GRADE2_FILL",
@@ -134,51 +118,6 @@ local function CallIfPresent(target, method, ...)
   return nil
 end
 
-local function ResolveTimelineColor(key)
-  local common = addonTable.UICommon
-  local colors = type(common) == "table" and common.Colors or nil
-  local color = type(colors) == "table" and colors[key] or nil
-  return type(color) == "table" and color or FALLBACK_TIMELINE_COLORS[key]
-end
-
--- The timeline repaints on every 1 Hz timer tick, but its colors only change
--- with the reachable grade. Keyed by the resolved color table, so a palette
--- that is swapped out at runtime is still picked up.
-local function PaintTimelineTexture(texture, colorKey)
-  local color = ResolveTimelineColor(colorKey)
-  if type(color) == "table" and type(texture) == "table" and texture._isiLivePaintedColor ~= color then
-    texture._isiLivePaintedColor = color
-    CallIfPresent(texture, "SetColorTexture", color[1], color[2], color[3], color[4] or 1)
-  end
-end
-
-local function CreateMplusTimeline(box)
-  if type(box) ~= "table" or type(box.CreateTexture) ~= "function" then
-    return nil
-  end
-
-  local track = box:CreateTexture(nil, "ARTWORK")
-  CallIfPresent(track, "SetPoint", "BOTTOMLEFT", box, "BOTTOMLEFT", TIMELINE_INSET, TIMELINE_INSET)
-  CallIfPresent(track, "SetPoint", "BOTTOMRIGHT", box, "BOTTOMRIGHT", -TIMELINE_INSET, TIMELINE_INSET)
-  CallIfPresent(track, "SetHeight", TIMELINE_HEIGHT)
-  CallIfPresent(track, "Hide")
-
-  local fill = box:CreateTexture(nil, "ARTWORK", nil, 1)
-  CallIfPresent(fill, "SetPoint", "BOTTOMLEFT", track, "BOTTOMLEFT", 0, 0)
-  CallIfPresent(fill, "SetHeight", TIMELINE_HEIGHT)
-  CallIfPresent(fill, "Hide")
-
-  local ticks = {}
-  for index = 1, #TIMELINE_TICK_FRACTIONS do
-    local tick = box:CreateTexture(nil, "OVERLAY")
-    CallIfPresent(tick, "SetSize", 1, TIMELINE_TICK_HEIGHT)
-    CallIfPresent(tick, "Hide")
-    ticks[index] = tick
-  end
-
-  return { track = track, fill = fill, ticks = ticks }
-end
-
 local function ReadPlainTimerNumber(value)
   local validators = addonTable.Validators
   if
@@ -189,20 +128,6 @@ local function ReadPlainTimerNumber(value)
     return nil
   end
   return type(value) == "number" and value or nil
-end
-
--- Share of the time limit already spent, clamped to [0, 1]; nil when the
--- snapshot carries no usable timer or limit.
-local function ResolveTimelineFraction(data)
-  if type(data) ~= "table" then
-    return nil
-  end
-  local timer = ReadPlainTimerNumber(data.timer)
-  local limit = ReadPlainTimerNumber(data.timeLimit)
-  if not timer or not limit or limit <= 0 or timer < 0 then
-    return nil
-  end
-  return math.min(timer / limit, 1)
 end
 
 -- Highest chest grade that is still reachable: 3, 2 or 1, and 0 once the
@@ -216,54 +141,6 @@ local function ResolveActiveGrade(data)
     return 1
   end
   return 0
-end
-
-local function HideMplusTimeline(timeline)
-  if not timeline then
-    return
-  end
-  CallIfPresent(timeline.track, "Hide")
-  CallIfPresent(timeline.fill, "Hide")
-  for _, tick in ipairs(timeline.ticks) do
-    CallIfPresent(tick, "Hide")
-  end
-end
-
-local function UpdateMplusTimeline(timeline, box, data, activeGrade)
-  if not timeline then
-    return
-  end
-  local fraction = ResolveTimelineFraction(data)
-  local width = fraction and tonumber(CallIfPresent(box, "GetWidth")) or nil
-  local innerWidth = width and (width - (TIMELINE_INSET * 2)) or 0
-  if not fraction or innerWidth <= 0 then
-    HideMplusTimeline(timeline)
-    return
-  end
-
-  PaintTimelineTexture(timeline.track, "MPLUS_TIMELINE_TRACK")
-  CallIfPresent(timeline.track, "Show")
-
-  local fillWidth = math.floor((innerWidth * fraction) + 0.5)
-  if fillWidth > 0 then
-    CallIfPresent(timeline.fill, "SetWidth", fillWidth)
-    PaintTimelineTexture(timeline.fill, GRADE_FILL_COLOR_KEYS[activeGrade] or "MPLUS_GRADE1_FILL")
-    CallIfPresent(timeline.fill, "Show")
-  else
-    CallIfPresent(timeline.fill, "Hide")
-  end
-
-  for index, tick in ipairs(timeline.ticks) do
-    local x = math.floor((innerWidth * TIMELINE_TICK_FRACTIONS[index]) + 0.5)
-    -- The cutoffs only move when the box width changes.
-    if tick._isiLiveAnchorX ~= x then
-      tick._isiLiveAnchorX = x
-      CallIfPresent(tick, "ClearAllPoints")
-      CallIfPresent(tick, "SetPoint", "BOTTOMLEFT", timeline.track, "BOTTOMLEFT", x, 0)
-    end
-    PaintTimelineTexture(tick, "MPLUS_TIMELINE_TICK")
-    CallIfPresent(tick, "Show")
-  end
 end
 
 -- Keeps the reachable grade at full opacity and dims the others. In overtime
@@ -557,8 +434,6 @@ local function CreateCdTrackerRow(mainFrame, opts)
   row.mpDeathText:SetText("")
   ApplyFontStringSize(row.mpDeathText, CD_TRACKER_FONT_SIZE)
 
-  row.mpTimeline = CreateMplusTimeline(mplusBox)
-
   return row
 end
 
@@ -681,7 +556,6 @@ local function UpdateCdTrackerRow(row, cdController)
 
       local activeGrade = ResolveActiveGrade(data)
       ApplyGradeEmphasis(row, activeGrade)
-      UpdateMplusTimeline(row.mpTimeline, row.mplusBox, data, activeGrade)
       timerSnapshot, timerGrade = data, activeGrade
     else
       -- no active key: show --:-- for all
@@ -695,7 +569,6 @@ local function UpdateCdTrackerRow(row, cdController)
       row._deathTimeLost = 0
       row.mpDeathText:SetText("--")
       ApplyGradeEmphasis(row, nil)
-      HideMplusTimeline(row.mpTimeline)
     end
   end
   return timerSnapshot, timerGrade

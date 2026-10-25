@@ -1092,8 +1092,6 @@ return function(test, ctx)
     ["ACCENT_NOTICE_TOP|BORDER_ACTION_PRIMARY"] = true,
     -- Notice fallback card vs. compact layout overlay: unrelated surfaces.
     ["BG_NOTICE_CARD|SURFACE_COMPACT_OVERLAY"] = true,
-    -- M+ timeline track vs. generic black overlay: named for rule 126.
-    ["BLACK_OVERLAY_50|MPLUS_TIMELINE_TRACK"] = true,
     -- Killtracker level/progress text (rule 127) vs. section headings.
     ["LIGHT_BLUE_LEVEL_TEXT|TEXT_SECTION"] = true,
   }

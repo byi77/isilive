@@ -542,7 +542,7 @@ return function(test, ctx)
     Assert.True(row.mp1Text:GetText():sub(1, 1) == "-", "+1 overshoot must render with leading '-'")
   end)
 
-  -- M+ timer timeline + grade emphasis. Driven through the real
+  -- M+ timer box grade emphasis. Driven through the real
   -- CreateCdTrackerRow and UpdateCdTrackerRow, with the snapshot shape that
   -- MplusTimer.GetTimerData returns (1800 s limit: +3 at 1080 s, +2 at 1440 s).
   local NO_CD_CONTROLLER = {
@@ -569,7 +569,7 @@ return function(test, ctx)
     }
   end
 
-  local function BuildTimelineHarness(globals)
+  local function BuildTimerRowHarness(globals)
     local harness = { snapshot = nil }
     WithGlobals(globals or {}, function()
       WithGlobals({
@@ -581,8 +581,6 @@ return function(test, ctx)
         harness.row = harness.addon._RosterInternal.CreateCdTrackerRow(MakeFrameStub(), {})
       end)
     end)
-    -- 204 px box leaves a 200 px track between the 2 px insets.
-    harness.row.mplusBox._layoutWidth = 204
     harness.addon.MplusTimer = {
       GetTimerData = function()
         return harness.snapshot
@@ -595,39 +593,20 @@ return function(test, ctx)
     return harness
   end
 
-  local function AssertColor(texture, color, message)
-    Assert.Equal(texture._colorTexture[1], color[1], message .. " (r)")
-    Assert.Equal(texture._colorTexture[2], color[2], message .. " (g)")
-    Assert.Equal(texture._colorTexture[3], color[3], message .. " (b)")
-  end
-
-  test("CreateCdTrackerRow places a slim hidden timeline inside the M+ timer box", function()
-    local harness = BuildTimelineHarness()
-    local timeline = harness.row.mpTimeline
-    Assert.NotNil(timeline, "timer row must carry a timeline")
-    Assert.Equal(timeline.track._height, 2, "timeline must stay a slim 2 px strip")
-    Assert.Equal(timeline.track._points[1][1], "BOTTOMLEFT", "timeline must sit on the bottom edge")
-    Assert.Equal(timeline.track._points[1][2], harness.row.mplusBox, "timeline must live inside the timer box")
-    Assert.Equal(timeline.track._points[1][4], 2, "timeline must clear the box border on the left")
-    Assert.Equal(timeline.track._points[2][4], -2, "timeline must clear the box border on the right")
-    Assert.Equal(#timeline.ticks, 2, "timeline must mark the +3 and +2 cutoffs")
-    Assert.False(timeline.track._shown, "timeline must stay hidden until a key runs")
-    Assert.Equal(harness.row.mp3Text._width, 48, "timeline must not change the 48 px timer fields")
-  end)
-
-  test("UpdateCdTrackerRow draws elapsed time and cutoff ticks and emphasizes the reachable grade", function()
-    local harness = BuildTimelineHarness()
-    local row = harness.row
-    local timeline = row.mpTimeline
-    local Colors = harness.addon.UICommon.Colors
+  test("CreateCdTrackerRow keeps the M+ timer box free of a timeline", function()
+    local harness = BuildTimerRowHarness()
+    Assert.Nil(harness.row.mpTimeline, "the timer box must not carry a timeline; the forces bar shows the time")
+    Assert.Equal(harness.row.mp3Text._width, 48, "timer fields must stay 48 px wide")
 
     harness.Render(BuildTimerSnapshot(540))
-    Assert.True(timeline.track._shown, "timeline must show during a running key")
-    Assert.Equal(timeline.fill._width, 60, "fill must cover 30% of the 200 px track at 540 of 1800 s")
-    AssertColor(timeline.fill, Colors.MPLUS_GRADE3_FILL, "fill must use the +3 color while +3 is reachable")
-    Assert.Equal(timeline.ticks[1]._points[1][4], 120, "+3 tick must sit at 60% of the track")
-    Assert.Equal(timeline.ticks[2]._points[1][4], 160, "+2 tick must sit at 80% of the track")
-    Assert.True(timeline.ticks[1]._shown and timeline.ticks[2]._shown, "cutoff ticks must be visible")
+    Assert.Nil(harness.row.mpTimeline, "a running key must not add a timeline to the timer box")
+  end)
+
+  test("UpdateCdTrackerRow emphasizes the reachable grade", function()
+    local harness = BuildTimerRowHarness()
+    local row = harness.row
+
+    harness.Render(BuildTimerSnapshot(540))
     Assert.Equal(row.mp3Text._alpha, 1, "reachable +3 time must stay at full opacity")
     Assert.Equal(row.mp3Icon._alpha, 1, "reachable +3 badge must stay at full opacity")
     Assert.Equal(row.mp2Text._alpha, 0.5, "+2 must be dimmed while +3 is still reachable")
@@ -635,77 +614,21 @@ return function(test, ctx)
     Assert.Nil(row.mp3Text._animGroup, "the first render must not flash a grade")
 
     harness.Render(BuildTimerSnapshot(1200))
-    Assert.Equal(timeline.fill._width, 133, "fill must follow the elapsed time")
-    AssertColor(timeline.fill, Colors.MPLUS_GRADE2_FILL, "fill must switch to the +2 color once +3 is missed")
     Assert.Equal(row.mp2Text._alpha, 1, "+2 must take the emphasis once +3 is missed")
     Assert.Equal(row.mp3Text._alpha, 0.5, "the missed +3 must be dimmed")
     Assert.Equal(row.mp2Text._animGroup.plays, 1, "a grade change must briefly fade the new grade in")
 
     harness.Render(BuildTimerSnapshot(1900))
-    Assert.Equal(timeline.fill._width, 200, "fill must stop at the end of the track in overtime")
-    AssertColor(timeline.fill, Colors.MPLUS_OVERTIME_FILL, "fill must turn red in overtime")
     Assert.Equal(row.mp1Text._alpha, 1, "the red +1 overshoot must stay emphasized in overtime")
     Assert.Equal(row.mp2Text._alpha, 0.5, "+2 must be dimmed in overtime")
 
     harness.Render(nil)
-    Assert.False(timeline.track._shown, "timeline must hide without an active key")
-    Assert.False(timeline.fill._shown, "timeline fill must hide without an active key")
     Assert.Equal(row.mp3Text._alpha, 1, "every grade must return to full opacity without a key")
     Assert.Equal(row.mp2Icon._alpha, 1, "every badge must return to full opacity without a key")
   end)
 
-  test("UpdateCdTrackerRow re-anchors and repaints the timeline only when it changes", function()
-    local harness = BuildTimelineHarness()
-    local timeline = harness.row.mpTimeline
-    local anchorWrites, colorWrites = 0, 0
-    local function Count(texture)
-      local originalSetPoint, originalPaint = texture.SetPoint, texture.SetColorTexture
-      texture.SetPoint = function(...)
-        anchorWrites = anchorWrites + 1
-        return originalSetPoint(...)
-      end
-      texture.SetColorTexture = function(...)
-        colorWrites = colorWrites + 1
-        return originalPaint(...)
-      end
-    end
-    Count(timeline.track)
-    for _, tick in ipairs(timeline.ticks) do
-      Count(tick)
-    end
-
-    for second = 540, 599 do
-      harness.Render(BuildTimerSnapshot(second))
-    end
-    Assert.Equal(anchorWrites, #timeline.ticks, "a minute of timer ticks anchors each cutoff tick once")
-    Assert.Equal(colorWrites, 1 + #timeline.ticks, "track and ticks are painted once, not every second")
-    Assert.True(timeline.ticks[1]._shown and timeline.track._shown, "the timeline stays visible")
-
-    harness.row.mplusBox._layoutWidth = 304
-    harness.Render(BuildTimerSnapshot(600))
-    Assert.Equal(anchorWrites, #timeline.ticks * 2, "a wider box re-anchors every cutoff tick")
-    Assert.Equal(timeline.ticks[1]._points[#timeline.ticks[1]._points][4], 180, "+3 tick follows the new width")
-
-    harness.Render(nil)
-    harness.Render(BuildTimerSnapshot(601))
-    Assert.True(timeline.ticks[1]._shown and timeline.track._shown, "a timeline hidden in between shows again")
-  end)
-
-  test("UpdateCdTrackerRow hides the timeline for snapshots without a usable limit", function()
-    local harness = BuildTimelineHarness()
-    local snapshot = BuildTimerSnapshot(300)
-    snapshot.timeLimit = 0
-    harness.Render(snapshot)
-    Assert.False(harness.row.mpTimeline.track._shown, "a zero time limit must not draw a timeline")
-    Assert.Equal(harness.row.mp3Text:GetText(), "13:00", "the text timers must still render")
-
-    harness.row.mplusBox._layoutWidth = 0
-    harness.Render(BuildTimerSnapshot(300))
-    Assert.False(harness.row.mpTimeline.track._shown, "an unmeasured box must not draw a timeline")
-  end)
-
   test("UpdateCdTrackerRow draws BR and BL cooldown swipes and greys out an empty BR", function()
-    local harness = BuildTimelineHarness()
+    local harness = BuildTimerRowHarness()
     local row = harness.row
     local now = 1000
     local bres = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 }
@@ -760,7 +683,7 @@ return function(test, ctx)
 
   test("UpdateCdTrackerRow grade change skips the fade when reduced motion is enabled", function()
     local db = { reduceMotion = true }
-    local harness = BuildTimelineHarness({ IsiLiveDB = db })
+    local harness = BuildTimerRowHarness({ IsiLiveDB = db })
     WithGlobals({ IsiLiveDB = db }, function()
       harness.Render(BuildTimerSnapshot(540))
       harness.Render(BuildTimerSnapshot(1200))

@@ -93,9 +93,8 @@ UICommon.Colors = {
   SURFACE_COMPACT_OVERLAY = { 0.025, 0.04, 0.06, 0.78 },
   TEXT_ALERT_DANGER = { 1, 0.14, 0.16 },
 
-  -- M+ timer timeline: quiet track and cutoff ticks, fill in the color of the
-  -- chest grade that is still reachable.
-  MPLUS_TIMELINE_TRACK = { 0, 0, 0, 0.45 },
+  -- M+ time strip on the killtracker bar: quiet marker ticks, fill in the
+  -- color of the chest grade that is still reachable.
   MPLUS_TIMELINE_TICK = { 0.9, 0.95, 1, 0.6 },
   MPLUS_GRADE3_FILL = { 0.3, 0.85, 0.4, 0.9 },
   MPLUS_GRADE2_FILL = { 1, 0.82, 0.2, 0.9 },

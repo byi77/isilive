@@ -34,6 +34,7 @@ local DEMO_FEATURE_DB_KEYS = {
   "soundReadyCheckCompleteEnabled",
   "deathAlertEnabled",
   "powerInfusionTextEnabled",
+  "timePaceEnabled",
 }
 
 local function GetDemoSeasonData(ctx)
@@ -120,6 +121,9 @@ local function ApplyDemoFeatureDbOverrides(ctx)
   db.soundReadyCheckCompleteEnabled = true
   db.deathAlertEnabled = true
   db.powerInfusionTextEnabled = true
+  -- The spent-time strip on the forces bar is the only time display left
+  -- besides the timer texts, so the preview always shows it.
+  db.timePaceEnabled = true
 
   return db
 end
