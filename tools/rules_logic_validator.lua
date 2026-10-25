@@ -111,6 +111,8 @@ local function ParseRulesFile(path)
   local currentRule = nil
   local inRequiredTests = false
   local lineNumber = 0
+  local inOverview = false
+  local overviewNumbers = {}
 
   local function PushCurrentRule()
     if currentRule then
@@ -121,6 +123,17 @@ local function ParseRulesFile(path)
 
   for rawLine in file:lines() do
     lineNumber = lineNumber + 1
+    if rawLine:match("^##%s+Regeluebersicht%s*$") then
+      inOverview = true
+    elseif rawLine:match("^##%s+") then
+      inOverview = false
+    end
+    if inOverview then
+      local number = rawLine:match("^(%d+)%.%s+")
+      if number then
+        overviewNumbers[tonumber(number)] = lineNumber
+      end
+    end
 
     local ruleID = rawLine:match("^###%s+([%w%-%._]+)%s*$")
     if ruleID then
@@ -134,6 +147,10 @@ local function ParseRulesFile(path)
       }
       inRequiredTests = false
     elseif currentRule then
+      local number = rawLine:match("^%-%s*Regelnummer:%s*(%d+)%s*$")
+      if number then
+        currentRule.number = tonumber(number)
+      end
       local statusValue = rawLine:match("^%-%s*[Ss]tatus:%s*(.-)%s*$")
       if statusValue then
         currentRule.status = NormalizeStatus(statusValue)
@@ -175,6 +192,18 @@ local function ParseRulesFile(path)
 
   file:close()
   PushCurrentRule()
+
+  local detailedNumbers = {}
+  for _, rule in ipairs(rules) do
+    if rule.number then
+      detailedNumbers[rule.number] = true
+    end
+  end
+  for number, overviewLine in pairs(overviewNumbers) do
+    if not detailedNumbers[number] then
+      table.insert(errors, string.format("%s:%d overview rule %d has no detail block", path, overviewLine, number))
+    end
+  end
 
   if #rules == 0 then
     table.insert(warnings, string.format("rules: no rule blocks found in %s (add headings like '### RULE-ID').", path))

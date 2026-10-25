@@ -803,14 +803,19 @@ local function FindRosterUnitByHint(roster, preferredOwnerName)
   if not hintName then
     return nil
   end
+  local ghostHint = false
   for unit, info in pairs(roster or {}) do
     if type(info) == "table" and info.name == hintName then
       if hintRealm == nil or info.realm == nil or info.realm == hintRealm then
-        return unit
+        if info.isGhost then
+          ghostHint = true
+        else
+          return unit
+        end
       end
     end
   end
-  return nil
+  return nil, ghostHint
 end
 
 -- preferredOwnerName is an optional LFG-leader hint (e.g. "Mematiwow-Blackmoore"
@@ -832,7 +837,10 @@ local function ResolveActiveKeyOwnerUnit(roster, activeJoinedKeyMapID, preferred
     return nil
   end
 
-  local hintedUnit = FindRosterUnitByHint(roster, preferredOwnerName)
+  local hintedUnit, ghostHint = FindRosterUnitByHint(roster, preferredOwnerName)
+  if ghostHint then
+    return nil
+  end
   if hintedUnit then
     local hintedInfo = roster[hintedUnit]
     if type(hintedInfo) == "table" and tonumber(hintedInfo.keyMapID) == targetMapID then

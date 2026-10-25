@@ -247,7 +247,7 @@ local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, Lo
       Assert.NotNil(entry, "entry info should be present even when inactive")
       Assert.Equal(entry.active, false, "struct active=false must propagate through TryGet normalization")
 
-      local spellID = controller.ResolveActiveListingTeleportSpellID(entry)
+      local spellID = controller.ResolveActiveListingTarget(entry)
       Assert.Nil(spellID, "inactive struct listing must not produce active highlight spell")
     end)
   end)
@@ -280,7 +280,7 @@ local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, Lo
     local addon = LoadAddonModules({ "isiLive_highlight.lua" })
     local controller = BuildHighlightController(addon)
 
-    local spellID = controller.ResolveActiveListingTeleportSpellID({
+    local spellID = controller.ResolveActiveListingTarget({
       active = false,
       mapID = 2441,
       activityID = 1001,
@@ -378,17 +378,17 @@ local function RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAdd
       end,
     })
 
-    local ambiguous = controller.ResolveActiveListingTeleportSpellID({
+    local ambiguous = controller.ResolveActiveListingTarget({
       active = true,
       activityIDs = { 1001, 1002 },
     })
     Assert.Nil(ambiguous, "ambiguous activity map sets must not produce a highlight")
 
-    local unique = controller.ResolveActiveListingTeleportSpellID({
+    local unique = controller.ResolveActiveListingTarget({
       active = true,
       activityIDs = { 1001 },
     })
-    Assert.Equal(unique, 367416, "unique activity map should produce deterministic highlight")
+    Assert.Equal(unique and unique.spellID, 367416, "unique activity map should produce deterministic highlight")
   end)
 
   test("Highlight listing resolver rejects partially unresolved activity maps", function()
@@ -402,7 +402,7 @@ local function RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAdd
       end,
     })
 
-    local partiallyUnresolved = controller.ResolveActiveListingTeleportSpellID({
+    local partiallyUnresolved = controller.ResolveActiveListingTarget({
       active = true,
       activityIDs = { 1001, 9999 },
     })

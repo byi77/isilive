@@ -322,11 +322,6 @@ function Highlight.CreateController(opts)
     return ResolveActiveListingTarget(deps, entryInfo)
   end
 
-  function controller.ResolveActiveListingTeleportSpellID(entryInfo)
-    local target = controller.ResolveActiveListingTarget(entryInfo)
-    return target and target.spellID or nil
-  end
-
   function controller.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
     local function getActiveListingTarget()
       local entryInfo = controller.GetNormalizedActiveEntryInfo()

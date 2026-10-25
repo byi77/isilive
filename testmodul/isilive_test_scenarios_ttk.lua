@@ -480,6 +480,51 @@ local function RegisterGatingTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TTK requires a verified living target", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick = Setup(env, LoadAddonModules)
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f", placeholder = "pending" })
+      Fire("PLAYER_REGEN_DISABLED")
+      Tick()
+      Assert.Equal(text._text, "pending", "verified living target renders")
+      env.target.dead = Secret(true)
+      Tick()
+      Assert.Equal(text._text, "", "masked death status stays unresolved")
+      env.target.dead = nil
+      Tick()
+      Assert.Equal(text._text, "", "missing death status stays unresolved")
+      env.target.dead = false
+      Tick()
+      Assert.Equal(text._text, "pending", "verified living state recovers")
+    end)
+  end)
+
+  test("TTK world refresh clears a combat end missed by events", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick, frame = Setup(env, LoadAddonModules)
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { placeholder = "pending" })
+      Fire("PLAYER_REGEN_DISABLED")
+      Tick()
+      env.inCombat = false
+      Fire("PLAYER_ENTERING_WORLD")
+      for _, callback in ipairs(env.after) do
+        callback()
+      end
+      Assert.Nil(addon.TTK.GetTargetClock(), "verified combat end clears the old clock")
+      Assert.Equal(text._text, "", "stale display is cleared")
+      Assert.True(env.tickers[1].cancelled, "stale ticker is cancelled")
+      Assert.False(frame._events.UNIT_HEALTH == true, "health listening stops")
+      env.now = 150
+      Fire("PLAYER_REGEN_DISABLED")
+      Assert.Equal(addon.TTK.GetTargetClock(), 150, "new fight starts with a fresh clock")
+      Assert.Equal(#env.tickers, 2, "new fight creates exactly one replacement ticker")
+    end)
+  end)
+
   test("TTK resumes a verified ongoing fight after reload regardless of timer event order", function()
     local env = BuildEnv()
     env.inCombat = true

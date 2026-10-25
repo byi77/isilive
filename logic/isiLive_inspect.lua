@@ -201,8 +201,9 @@ local function OnInspectReady(
   end
 
   local rio = getUnitRio and getUnitRio(inspectedUnit) or nil
+  local rioResolved = addonTable.Validators.IsFiniteNumber(rio) and rio >= 0
   local rioChanged = false
-  if roster[inspectedUnit] then
+  if roster[inspectedUnit] and rioResolved then
     if roster[inspectedUnit].rio ~= rio then
       rioChanged = true
     end
@@ -211,7 +212,7 @@ local function OnInspectReady(
       roster[inspectedUnit]._localRioFresh = true
     end
   end
-  if rio and rio > 0 then
+  if rioResolved then
     controller.rioCache[guid] = rio
   end
 
@@ -219,8 +220,9 @@ local function OnInspectReady(
   if not specName and inspectedUnit == "player" and getPlayerSpecName then
     specName = getPlayerSpecName()
   end
+  local specResolved = type(specName) == "string" and specName ~= ""
   local specChanged = false
-  if roster[inspectedUnit] then
+  if roster[inspectedUnit] and specResolved then
     if roster[inspectedUnit].spec ~= specName then
       specChanged = true
     end
@@ -229,7 +231,7 @@ local function OnInspectReady(
       roster[inspectedUnit]._localSpecFresh = true
     end
   end
-  if specName and specName ~= "" then
+  if specResolved then
     controller.specCache[guid] = specName
   end
 
@@ -247,12 +249,23 @@ local function OnInspectReady(
     roleChanged = true
   end
 
-  if roster[inspectedUnit] then
-    roster[inspectedUnit]._refreshQueued = nil
-  end
   controller.isInspecting = nil
   local getTimeFn = rawget(_G, "GetTime")
   controller.lastInspectTime = type(getTimeFn) == "function" and getTimeFn() or 0
+  local incomplete = (type(getUnitRio) == "function" and not rioResolved)
+    or (type(getInspectSpecName) == "function" and not specResolved)
+    or not (ilvl and ilvl > 0)
+  if roster[inspectedUnit] then
+    -- A readable item level alone is not a completed inspect. Preserve last
+    -- known values and retry missing fields instead of marking the work done.
+    roster[inspectedUnit]._refreshQueued = incomplete and true or nil
+    if incomplete then
+      table.insert(controller.retryQueue, {
+        unit = inspectedUnit,
+        nextRetry = controller.lastInspectTime + controller.retryInterval,
+      })
+    end
+  end
 
   local dataChanged = ilvlChanged or rioChanged or specChanged or roleChanged
   if controller.logRuntimeTracef then

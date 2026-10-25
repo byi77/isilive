@@ -170,6 +170,17 @@ local function BuildController(loadAddonModules, sync, overrides)
 end
 
 local function RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
+  test("KeySync ghost owner hint never selects a ghost or another holder", function()
+    local ctrl = BuildController(LoadAddonModules, BuildMockSync())
+    local roster = {
+      player = { name = "Me", realm = "Realm", keyMapID = 200 },
+      ["ghost:Leader-Realm"] = { name = "Leader", realm = "Realm", isGhost = true, keyMapID = 200 },
+    }
+    Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-Realm"), "departed owner stays unresolved")
+    roster.party1 = { name = "Leader", realm = "Realm", keyMapID = 200 }
+    Assert.Equal(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-Realm"), "party1", "active matching owner wins")
+  end)
+
   test("KeySync MarkIsiLiveUser delegates to sync.MarkUser", function()
     local sync = BuildMockSync()
     local ctrl = BuildController(LoadAddonModules, sync)

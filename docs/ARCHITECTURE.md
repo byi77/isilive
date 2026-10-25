@@ -1,7 +1,9 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.455`
+Versionsbasis: `0.9.456`
 Zuletzt aktualisiert: `2026-10-25`
+
+Folgeaudit (0.9.456): Sync wertet numerische Sendeergebnisse transaktional aus und erhaelt leere Payload-Felder. KeySync schliesst Ghost-Hinweise aus. Inspect behaelt bekannte Felder bei partiellen Antworten und plant Retries. TTK akzeptiert nur verifiziert lebende Ziele und beendet veraltete Kampfzustaende beim Refresh. Status nutzt die gemeinsame RuntimeMode-Difficulty-Policy; ungenutzte Queue-, Highlight- und Command-Helfer entfallen. Der Regelparser prueft Uebersicht gegen Detailbloecke.
 
 Pace-/TTK-Audit (0.9.455, 2026-10-25): ForcesPace sperrt Lernen und
 Tempoziel fuer einen Run, dessen neu beobachtetem Bosskill der verifizierte
@@ -437,7 +439,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.455                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.456                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

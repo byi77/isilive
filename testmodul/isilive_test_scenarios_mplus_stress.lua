@@ -1000,6 +1000,25 @@ return function(test, ctx, fixtures)
         return inspector.isInspecting ~= nil or #inspector.inspectQueue > 0 or #inspector.retryQueue > 0
       end
       local notified = {}
+      -- Model a complete INSPECT_READY reply for scheduler lifecycle checks.
+      local oldPaper, oldPlayer = _G.C_PaperDollInfo, _G.C_PlayerInfo
+      local oldInspectSpec, oldSpecInfo = _G.GetInspectSpecialization, _G.GetSpecializationInfoByID
+      _G.C_PaperDollInfo = {
+        GetInspectItemLevel = function()
+          return 620
+        end,
+      }
+      _G.C_PlayerInfo = {
+        GetPlayerMythicPlusRatingSummary = function()
+          return { currentSeasonScore = 0 }
+        end,
+      }
+      _G.GetInspectSpecialization = function()
+        return 62
+      end
+      _G.GetSpecializationInfoByID = function()
+        return 62, "Arcane", nil, nil, "DAMAGER"
+      end
       local answer = true
       _G.UnitIsVisible = function()
         return true
@@ -1051,14 +1070,15 @@ return function(test, ctx, fixtures)
         Assert.Nil(frame:GetScript("OnUpdate"), "a drained inspect queue must detach the per-frame loop")
 
         -- New work wakes the loop through the real enqueue path (the roster
-        -- rebuild after the key); an unanswered inspect still times out and
+        -- rebuild after the key and an explicit refresh); an unanswered inspect still times out and
         -- is retried.
         answer = false
         local notifiedBefore = #notified
         session.active = false
         session.Dispatch("CHALLENGE_MODE_COMPLETED")
         session.Dispatch("GROUP_ROSTER_UPDATE")
-        Assert.True(HasPendingWork(), "the roster update must queue fresh inspect work")
+        inspector.QueueForceRefreshData(session.runtime.GetRoster())
+        Assert.True(HasPendingWork(), "an explicit refresh must queue fresh inspect work")
         Assert.Equal(type(frame:GetScript("OnUpdate")), "function", "new inspect work must re-attach the loop")
         RunFrames(10)
         Assert.True(#notified > notifiedBefore, "the woken loop must dispatch the new inspect")
@@ -1071,6 +1091,8 @@ return function(test, ctx, fixtures)
         Assert.False(HasPendingWork(), "hiding must clear the inspect work")
       end)
       _G.UnitIsVisible, _G.CanInspect, _G.NotifyInspect = nil, nil, nil
+      _G.C_PaperDollInfo, _G.C_PlayerInfo = oldPaper, oldPlayer
+      _G.GetInspectSpecialization, _G.GetSpecializationInfoByID = oldInspectSpec, oldSpecInfo
       assert(ok, err)
     end)
   end)
@@ -1079,6 +1101,25 @@ return function(test, ctx, fixtures)
     Stress.WithKey(ctx, fixtures, function(session)
       local frame = session.runtime.mainFrame
       local notified = {}
+      -- Model a complete INSPECT_READY reply for scheduler lifecycle checks.
+      local oldPaper, oldPlayer = _G.C_PaperDollInfo, _G.C_PlayerInfo
+      local oldInspectSpec, oldSpecInfo = _G.GetInspectSpecialization, _G.GetSpecializationInfoByID
+      _G.C_PaperDollInfo = {
+        GetInspectItemLevel = function()
+          return 620
+        end,
+      }
+      _G.C_PlayerInfo = {
+        GetPlayerMythicPlusRatingSummary = function()
+          return { currentSeasonScore = 0 }
+        end,
+      }
+      _G.GetInspectSpecialization = function()
+        return 62
+      end
+      _G.GetSpecializationInfoByID = function()
+        return 62, "Arcane", nil, nil, "DAMAGER"
+      end
       local outOfRange = { party2 = true }
       _G.UnitIsVisible = function(unit)
         return not outOfRange[unit]
@@ -1141,6 +1182,8 @@ return function(test, ctx, fixtures)
         Assert.True(WasInspected("party2"), "a member back in range must still be inspected")
       end)
       _G.UnitIsVisible, _G.CanInspect, _G.NotifyInspect = nil, nil, nil
+      _G.C_PaperDollInfo, _G.C_PlayerInfo = oldPaper, oldPlayer
+      _G.GetInspectSpecialization, _G.GetSpecializationInfoByID = oldInspectSpec, oldSpecInfo
       assert(ok, err)
     end)
   end)

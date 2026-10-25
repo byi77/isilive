@@ -333,7 +333,9 @@ addonTable.SyncReceiveFactory = function(deps)
         peerProtocolVersion = ToFiniteNumber(parts[3])
         peerCapturedAt = ToFiniteNumber(parts[4])
         peerSource = parts[5]
-        local metadataValid = not IsExplicitNonFiniteNumber(parts[3]) and not IsExplicitNonFiniteNumber(parts[4])
+        local metadataValid = (peerAddonVersion or "") ~= ""
+          and not IsExplicitNonFiniteNumber(parts[3])
+          and not IsExplicitNonFiniteNumber(parts[4])
         if metadataValid then
           payloadValid = true
           Sync.SetPlayerHelloInfo(sender, nil, peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource)

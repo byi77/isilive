@@ -265,7 +265,7 @@ local MAX_PAYLOAD_FIELDS = 10
 
 local function SplitPayload(message)
   local parts = {}
-  for part in tostring(message or ""):gmatch("([^:]+)") do
+  for part in (tostring(message or "") .. ":"):gmatch("(.-):") do
     if #parts >= MAX_PAYLOAD_FIELDS then
       break
     end
@@ -1466,7 +1466,9 @@ local function DispatchAddonMessage(prefix, payload, channel, priority, target)
   local chatInfo = rawget(_G, "C_ChatInfo")
   if type(chatInfo) == "table" and type(chatInfo.SendAddonMessage) == "function" then
     local ok, result = pcall(chatInfo.SendAddonMessage, prefix, payload, channel, target)
-    return ok and result ~= false
+    -- Enum.SendAddonMessageResult.Success is 0. Every other numeric result
+    -- is an explicit rejection (including throttling), not a Lua exception.
+    return ok and result ~= false and (type(result) ~= "number" or result == 0)
   end
   return false
 end

@@ -465,10 +465,6 @@ local function TryHandleTestCommands(ctx, L, state, cmd)
   return false
 end
 
-local function TryHandleStateCommands(_ctx, _L, _state, _cmd)
-  return false
-end
-
 local function TryHandleLockCommands(ctx, L, cmd)
   if cmd == "lock" then
     ctx.setMainFrameLocked(true)
@@ -620,9 +616,6 @@ local function ExecuteSlashCommand(ctx, msg)
   end
 
   if TryHandleTestCommands(ctx, L, state, cmd) then
-    return
-  end
-  if TryHandleStateCommands(ctx, L, state, cmd) then
     return
   end
   if TryHandleLockCommands(ctx, L, cmd) then

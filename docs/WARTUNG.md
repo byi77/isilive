@@ -607,7 +607,7 @@ Wichtig:
 - bei neuen aktiven Regeln immer Testnamen im selben Change ergaenzen
 - ein geloeschter Git-Tag loescht kein bereits erzeugtes CurseForge-Paket; das muss dort separat archiviert/entfernt werden
 - `.pkgmeta` und die GitHub/WowUp-Ausschlussliste halten PNG-Screenshots, Logo-Dateien, die grosse `CHANGELOG.md`, `TODO.md` und die `.claude/`-Helper aus Nutzerpaketen raus; der Paritaetstest muss bei jeder Aenderung beider Listen gruen bleiben. Die Release-Notiz nutzt stattdessen `CHANGELOG_RELEASE.md` als kurzen Link-Hinweis auf das Repo.
-- `CHANGELOG_RELEASE.md` ist kurz, aber nicht leer: bei user-visible Features gehoeren 3-5 Release-Highlights hinein.
+- `CHANGELOG_RELEASE.md` beschreibt relevante Release-Highlights; ihre Anzahl ist unbegrenzt und wird ohne Mindest- oder Hoechstzahl gepflegt (User-Entscheidung vom 2026-10-25).
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
 

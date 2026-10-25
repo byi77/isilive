@@ -4,10 +4,6 @@ addonTable = addonTable or {}
 
 local Queue = {}
 addonTable.Queue = Queue
--- Lua 5.1 exposes unpack as a global; Lua 5.4 only via table.unpack. Pick
--- whichever WoW's runtime publishes, defensively going through rawget so a
--- sandboxed _G can't smuggle nil into the bare global lookup.
-local unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local queueDebugEnabled = false
@@ -296,18 +292,6 @@ local function GetSearchResultInfoSafe(searchResultID)
   return info
 end
 
-local function GetApplicationInfoSafe(appID)
-  local lfgListApi = rawget(_G, "C_LFGList")
-  if type(lfgListApi) ~= "table" or type(lfgListApi.GetApplicationInfo) ~= "function" then
-    return
-  end
-  local results = { pcall(lfgListApi.GetApplicationInfo, appID) }
-  if not results[1] then
-    return
-  end
-  return unpack(results, 2)
-end
-
 local function ResolveActivityIDFromSearchResultID(searchResultID, resolveTeleportSpellIDByActivityID)
   local searchResultInfo = GetSearchResultInfoSafe(searchResultID)
   if not searchResultInfo then
@@ -531,81 +515,6 @@ local function ShouldSkipDuplicateApply(signature)
   lastApplySignature = signature
   lastApplyAt = now
   return false
-end
-
--- Explicit helper for callers that deliberately want to rescan the application list.
--- The automatic candidate path avoids this scan because third-party LFG addons can taint applicant tables.
-function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveTeleportSpellIDByActivityID)
-  local lfgListApi = rawget(_G, "C_LFGList")
-  if
-    type(lfgListApi) ~= "table"
-    or type(lfgListApi.GetApplications) ~= "function"
-    or type(lfgListApi.GetApplicationInfo) ~= "function"
-  then
-    return
-  end
-
-  local ok, appIDs = pcall(lfgListApi.GetApplications)
-  if not ok then
-    DebugLog("applications: pcall failed")
-    return
-  end
-  if type(appIDs) ~= "table" then
-    DebugLog("applications: unexpected type=%s", type(appIDs))
-    return
-  end
-
-  DebugLog("applications: count=%d", #appIDs)
-
-  for _, appID in ipairs(appIDs) do
-    local values = { GetApplicationInfoSafe(appID) }
-    if #values == 0 then
-      DebugLog("skip application info failure id=%s", tostring(appID))
-    else
-      local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, {
-        defaultApplicationID = appID,
-      })
-
-      local status = tostring(values[2])
-      local pending = tostring(values[3])
-      DebugLog(
-        "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s stableID=%s",
-        tostring(appID),
-        status,
-        pending,
-        tostring(snap.isInviteLike),
-        tostring(snap.isAccepted),
-        tostring(snap.groupName),
-        tostring(snap.activityID),
-        tostring(snap.stableQueueEventID)
-      )
-
-      if snap.isInviteLike and not snap.pendingStatus and snap.activityID then
-        local dungeonName = Queue.GetActivityName(snap.activityID)
-        local priority = snap.isAccepted and 2 or 1
-        local signature = table.concat({
-          tostring(appID),
-          tostring(snap.stableQueueEventID),
-          tostring(snap.isAccepted),
-          tostring(priority),
-          tostring(snap.groupName),
-          tostring(snap.activityID),
-        }, "|")
-        local skipApply = ShouldSkipDuplicateApply(signature)
-        if skipApply then
-          DebugLog("skip duplicate apply app id=%s", tostring(appID))
-        else
-          DebugLog("apply app id=%s priority=%s dungeon=%s", tostring(appID), tostring(priority), tostring(dungeonName))
-          updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID, {
-            stableQueueEventID = snap.stableQueueEventID,
-            applicationID = snap.applicationID,
-            searchResultID = snap.searchResultID,
-            listingID = snap.listingID,
-          })
-        end
-      end
-    end
-  end
 end
 
 function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleportSpellIDByActivityID, ...)

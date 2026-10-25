@@ -355,51 +355,6 @@ local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, Load
       "search-result driven captures must forward stable search dedup ID"
     )
   end)
-
-  test("Queue application capture forwards stable app dedup ID", function()
-    local appliedMeta = { stableQueueEventID = nil }
-
-    WithGlobals({
-      C_LFGList = {
-        GetApplications = function()
-          return { 77 }
-        end,
-        GetApplicationInfo = function(appID)
-          if appID == 77 then
-            return {
-              applicationStatus = "accepted",
-              groupName = "Stable App Group",
-              activityID = 312,
-            }
-          end
-          return nil
-        end,
-        GetActivityInfoTable = function(activityID)
-          if activityID == 312 then
-            return { fullName = "Dawnbreaker", mapID = 2662, isMythicPlusActivity = true }
-          end
-          return nil
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_queue.lua" })
-      addon.Queue.CaptureQueueJoinFromApplications(function(_groupName, _dungeonName, _priority, _activityID, meta)
-        appliedMeta = meta
-      end, function(activityID)
-        if activityID == 312 then
-          return 1216786
-        end
-        return nil
-      end)
-    end)
-
-    Assert.NotNil(appliedMeta, "application capture callback should receive metadata table")
-    Assert.Equal(
-      appliedMeta.stableQueueEventID,
-      "app:77",
-      "application-driven capture must forward stable app dedup ID"
-    )
-  end)
 end
 
 -- Branch coverage for queue debug-logger plumbing and the application-list
@@ -475,56 +430,6 @@ local function RegisterQueueDebugAndBailOutTests(test, Assert, WithGlobals, Load
       addon.Queue.SetDebugEnabled(false)
     end)
   end)
-
-  test("Queue.CaptureQueueJoinFromApplications returns silently when C_LFGList APIs are missing", function()
-    WithGlobals({
-      C_LFGList = nil,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_queue.lua" })
-      local applyCalls = 0
-      addon.Queue.CaptureQueueJoinFromApplications(function()
-        applyCalls = applyCalls + 1
-      end, function() end)
-      Assert.Equal(applyCalls, 0, "no apply when C_LFGList is missing")
-    end)
-  end)
-
-  test(
-    "Queue.CaptureQueueJoinFromApplications logs unexpected-type DebugLog when GetApplications returns non-table",
-    function()
-      local captured = {}
-      WithGlobals({
-        C_LFGList = {
-          GetApplications = function()
-            return "not-a-table"
-          end,
-          GetApplicationInfo = function() end,
-        },
-      }, function()
-        local addon = LoadAddonModules({ "isiLive_queue.lua" })
-        addon.Queue.SetDebugLogger(function(msg)
-          table.insert(captured, msg)
-        end)
-        addon.Queue.SetDebugEnabled(true)
-        local applyCalls = 0
-        addon.Queue.CaptureQueueJoinFromApplications(function()
-          applyCalls = applyCalls + 1
-        end, function() end)
-
-        Assert.Equal(applyCalls, 0, "non-table GetApplications must short-circuit before any apply")
-        local found = false
-        for _, msg in ipairs(captured) do
-          if msg:find("applications: unexpected type=string", 1, true) then
-            found = true
-            break
-          end
-        end
-        Assert.True(found, "DebugLog must surface the unexpected-type message with formatted varargs")
-        addon.Queue.SetDebugEnabled(false)
-        addon.Queue.SetDebugLogger(nil)
-      end)
-    end
-  )
 end
 
 return function(test, ctx)

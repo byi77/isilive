@@ -217,9 +217,15 @@ function TTK.GetTargetClock()
 end
 
 local function IsTargetAlive()
-  return PlainTrue(rawget(_G, "UnitExists"), "target")
+  local unitIsDead = rawget(_G, "UnitIsDead")
+  if type(unitIsDead) ~= "function" then
+    return false
+  end
+  local dead = unitIsDead("target")
+  return not IsSecretValue(dead)
+    and dead == false
+    and PlainTrue(rawget(_G, "UnitExists"), "target")
     and PlainTrue(rawget(_G, "UnitCanAttack"), "player", "target")
-    and not PlainTrue(rawget(_G, "UnitIsDead"), "target")
 end
 
 -- Plain value of a unit query, nil when missing or secret.
@@ -640,7 +646,16 @@ function TTK.RefreshRuntime()
     HideDisplays()
     return
   end
-  if not state.inCombat and PlainTrue(rawget(_G, "UnitAffectingCombat"), "player") then
+  local inCombat = PlainValue(rawget(_G, "UnitAffectingCombat"), "player")
+  if inCombat == false and state.inCombat then
+    state.inCombat = false
+    state.combatStart = nil
+    state.encounterStart = nil
+    state.plateClock = {}
+    state.lastHit = {}
+    state.targetLastHit = nil
+    state.targetDirty = true
+  elseif not state.inCombat and inCombat == true then
     BeginCombat()
   end
   local enabled = TTK.IsEnabled() and IsKeyActive()

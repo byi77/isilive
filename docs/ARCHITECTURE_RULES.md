@@ -100,6 +100,7 @@ Darstellungsvertraege und Regressionstests stehen in den aktiven Regeln 27,
 - Status: aktiv
 - Zusammenfassung: Der Rule-Validator muss Testdateien aus dem Szenario-Manifest sowie statisch eingebundene Split-Dateien aus `dofile` und `require` indizieren.
 - Erforderliche Tests:
+  - Rule validator rejects overview entries without detail blocks
   - Architecture rules validator indexes split scenario files from dofile and require
 
 ### RULE-ARCH-HIDDEN-GATE-CONFIG-BUILDERS

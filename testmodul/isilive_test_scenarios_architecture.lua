@@ -704,16 +704,6 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md",
       "release changelog stub must point back to the repository changelog"
     )
-    local highlightCount = 0
-    for line in changelogStub:gmatch("[^\r\n]+") do
-      if line:match("^%- ") then
-        highlightCount = highlightCount + 1
-      end
-    end
-    Assert.True(
-      highlightCount >= 3 and highlightCount <= 5,
-      "release changelog stub must contain between three and five top-level highlights"
-    )
   end)
 
   test("Architecture release workflow verifies the tag version against the packaged TOC", function()
@@ -2419,6 +2409,63 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
 end
 
 return function(test, ctx)
+  test("Rule validator rejects overview entries without detail blocks", function()
+    local lines = {
+      "## Regeluebersicht",
+      "1. First",
+      "2. Second",
+      "## Details",
+      "### RULE-FIRST",
+      "- Regelnummer: 1",
+      "- Status: aktiv",
+      "- Zusammenfassung: First",
+      "- Erforderliche Tests:",
+      "  - Known test",
+    }
+    Harness.WithGlobals({
+      io = {
+        open = function()
+          local index = 0
+          return {
+            lines = function()
+              return function()
+                index = index + 1
+                return lines[index]
+              end
+            end,
+            close = function() end,
+          }
+        end,
+      },
+    }, function()
+      local validator = dofile("tools/rules_logic_validator.lua")
+      local messages = {}
+      local options = {
+        rulesPath = "fixture",
+        testsByName = { ["Known test"] = true },
+        printFn = function(message)
+          messages[#messages + 1] = message
+        end,
+      }
+      ctx.assert.False(validator.Run(options), "missing detail must fail the real parser")
+      ctx.assert.True(
+        table.concat(messages, "\n"):find("overview rule 2 has no detail block", 1, true) ~= nil,
+        "diagnostic identifies the missing rule"
+      )
+      for _, line in ipairs({
+        "### RULE-SECOND",
+        "- Regelnummer: 2",
+        "- Status: aktiv",
+        "- Zusammenfassung: Second",
+        "- Erforderliche Tests:",
+        "  - Known test",
+      }) do
+        lines[#lines + 1] = line
+      end
+      ctx.assert.True(validator.Run(options), "complete overview and details must pass")
+    end)
+  end)
+
   RegisterArchitectureSourceBoundaryTests(test, ctx.assert)
   RegisterArchitectureQueueWiringTests(test, ctx.assert)
   RegisterArchitectureTeleportWiringTests(test, ctx.assert)

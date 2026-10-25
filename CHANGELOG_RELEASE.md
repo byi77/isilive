@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.455`.
+Current version: `0.9.456`.
+
+Version 0.9.456: safer sync retries and payload validation, reliable key-owner
+selection, inspect retries without lost stats, and stricter TTK combat/target state.
 
 Version 0.9.455: reliable forces/time pace learning, TTK recovery
 after reload or enabling during a fight, raid suppression, and stable larger
@@ -57,7 +60,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.455 -->
+<!-- highlights-reviewed-for: 0.9.456 -->
 
 Highlights:
 - **Pace and TTK fixes.** Small forces gains build reliable time-pace samples;

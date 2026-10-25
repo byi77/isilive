@@ -1,6 +1,64 @@
 ---@diagnostic disable: undefined-global
 
 local function RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Inspect partial replies preserve known stats and retry until complete including zero score", function()
+    local now, notifications = 10, 0
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      UnitExists = function()
+        return true
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. unit
+      end,
+      UnitIsVisible = function()
+        return true
+      end,
+      CanInspect = function()
+        return true
+      end,
+      NotifyInspect = function()
+        notifications = notifications + 1
+      end,
+      C_PaperDollInfo = {
+        GetInspectItemLevel = function()
+          return 620
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local ctrl = addon.Inspect.CreateController({ inspectDelay = 0, retryInterval = 1 })
+      local roster = { party1 = { spec = "Frost", rio = 3210, ilvl = 620 } }
+      ctrl.InvalidateMember("party1", roster)
+      ctrl.OnUpdate()
+      ctrl.OnInspectReady("guid-party1", roster, function()
+        return nil
+      end, function()
+        return nil
+      end)
+      Assert.Equal(roster.party1.spec, "Frost", "missing spec preserves last known value")
+      Assert.Equal(roster.party1.rio, 3210, "missing score preserves last known value")
+      Assert.True(roster.party1._refreshQueued, "partial reply remains pending")
+      Assert.Equal(#ctrl.retryQueue, 1, "partial reply schedules retry")
+      now = 11
+      ctrl.OnUpdate()
+      ctrl.OnUpdate()
+      Assert.Equal(notifications, 2, "retry dispatches a second real inspect")
+      ctrl.OnInspectReady("guid-party1", roster, function()
+        return 0
+      end, function()
+        return "Fire"
+      end)
+      Assert.Equal(roster.party1.rio, 0, "zero score is valid data")
+      Assert.Equal(ctrl.rioCache["guid-party1"], 0, "zero score is cached")
+      Assert.Equal(roster.party1.spec, "Fire", "complete spec replaces historical value")
+      Assert.Nil(roster.party1._refreshQueued, "complete reply ends refresh")
+      Assert.False(ctrl.HasPendingWork(), "no retry remains after completion")
+    end)
+  end)
+
   test("Inspect retry queue requeues inspectable unit without CheckInteractDistance", function()
     local now = 0
     local canInspect = false

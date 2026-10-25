@@ -3,6 +3,36 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
+  test("Sync enum send rejection preserves dedupe for recovery", function()
+    local result, calls = 3, 0
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function()
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function()
+          calls = calls + 1
+          return result
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      local payload = { isVisible = true, specID = 72, ilvl = 615, rio = 3210, onlyIfChanged = true }
+      addon.Sync.SendStats(payload)
+      result = 0
+      addon.Sync.SendStats(payload)
+      Assert.Equal(calls, 2, "rejected payload must be retried immediately")
+      addon.Sync.SendStats(payload)
+      Assert.Equal(calls, 2, "successful enum result must establish dedupe")
+    end)
+  end)
+
   test("Sync raw dispatch failure is contained and does not consume payload dedupe", function()
     local shouldRaise = true
     local sentMessages = {}
@@ -91,6 +121,12 @@ return function(test, ctx)
       addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:not-a-map:not-a-level", "Malformed-Realm", "Me", "Realm")
       Assert.False(addon.Sync.IsUserKnown("Unknown", "Realm"), "unknown payload must not mark its sender")
       Assert.False(addon.Sync.IsUserKnown("Malformed", "Realm"), "malformed payload must not mark its sender")
+      addon.Sync.ProcessAddonMessage("ISILIVE", "KEY::2649:15", "EmptyKey-Realm", "Me", "Realm")
+      addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:", "EmptyHello-Realm", "Me", "Realm")
+      Assert.False(addon.Sync.IsUserKnown("EmptyKey", "Realm"), "empty fields must keep their positions")
+      Assert.False(addon.Sync.IsUserKnown("EmptyHello", "Realm"), "HELLO requires a version")
+      addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "Legacy-Realm", "Me", "Realm")
+      Assert.True(addon.Sync.IsUserKnown("Legacy", "Realm"), "legacy version-only HELLO remains valid")
 
       addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:1.0:2:100:test", "Valid-Realm", "Me", "Realm")
       Assert.True(addon.Sync.IsUserKnown("Valid", "Realm"), "valid recognized payload must establish peer trust")

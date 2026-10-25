@@ -10,7 +10,9 @@ local function CreateTextureStub()
     self._allPoints = true
   end
   tex.SetColorTexture = function() end
-  tex.SetTexture = function() end
+  tex.SetTexture = function(self, texture)
+    self._texture = texture
+  end
   tex.SetSize = function(self, w, h)
     self._width = w
     self._height = h
@@ -25,7 +27,9 @@ local function CreateTextureStub()
     self._points = {}
     self._allPoints = false
   end
-  tex.SetTexCoord = function() end
+  tex.SetTexCoord = function(self, ...)
+    self._texCoord = { ... }
+  end
   tex.SetBlendMode = function() end
   tex.SetVertexColor = function() end
   tex.SetRotation = function() end
@@ -823,6 +827,52 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         "Fonts\\ARIALN.TTF",
         "Cyrillic leader names should use a Cyrillic-capable font in the center notice"
       )
+    end)
+  end)
+
+  test("Center notice uses journal artwork only above the native icon size and falls back without artwork", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+      C_Spell = {
+        GetSpellTexture = function()
+          return 123
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local artwork = { texture = 456, left = 0.25, right = 0.75, top = 0, bottom = 1 }
+      local notice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        resolveDungeonArtwork = function()
+          return artwork
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+      notice.Show(nil, 12, "Dungeon", nil, { title = "Invite", fields = {} })
+      Assert.Equal(notice.teleportButton.icon._texture, 456, "large rich icon uses journal artwork")
+      Assert.Equal(notice.teleportButton.icon._texCoord[1], 0.25, "square crop comes from artwork")
+      artwork = nil
+      notice.Show(nil, 12, "Dungeon", nil, { title = "Invite", fields = {} })
+      Assert.Equal(notice.teleportButton.icon._texture, 123, "missing artwork falls back to spell icon")
+      artwork = { texture = 456 }
+      notice.Show("Plain", 12, "Dungeon", nil)
+      Assert.Equal(notice.teleportButton.icon._texture, 123, "native icon size keeps the spell icon")
     end)
   end)
 

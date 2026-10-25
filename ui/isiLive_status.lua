@@ -8,15 +8,7 @@ local StringUtils = addonTable.StringUtils
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
--- 8 = Mythic Keystone, 23 = Mythic. Both carry the full runtime profile; see
--- FULL_PROFILE_PARTY_DIFFICULTY_IDS in core/isiLive_runtime_mode.lua for why
--- M0 and a not-yet-inserted keystone share difficultyID 23.
-local MYTHIC_DIFFICULTY_IDS = {
-  [8] = true,
-  [23] = true,
-}
-
--- 24 is Timewalking, not Mythic. It used to sit in MYTHIC_DIFFICULTY_IDS, which
+-- 24 is Timewalking, not Mythic. It used to sit in the Mythic mapping, which
 -- both mislabelled the status line ("Mythic" next to "M+: no") and suppressed
 -- the dungeon-entry notice, because that notice skips party dungeons reported
 -- as mythic. Timewalking is a reduced-profile dungeon like normal and heroic.
@@ -565,7 +557,7 @@ local function GetDungeonDifficultyLabel(getL)
   if TIMEWALKING_DIFFICULTY_IDS[difficultyID] then
     return L.DUNGEON_DIFF_TIMEWALKING, false, true, instanceType, difficultyID, instanceName
   end
-  if MYTHIC_DIFFICULTY_IDS[difficultyID] then
+  if addonTable.RuntimeMode.IsFullProfileDifficulty(difficultyID) then
     return L.DUNGEON_DIFF_MYTHIC, true, true, instanceType, difficultyID, instanceName
   end
 

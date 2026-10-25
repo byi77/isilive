@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.456 (patch)
+
+- Rejected numeric addon-send results no longer consume payload deduplication.
+- Sync parsing preserves empty fields and rejects HELLO without a version.
+- Departed ghost members cannot become the active key owner or redirect its hint.
+- Partial inspect replies preserve known stats and retry missing data; zero RIO is cached.
+- TTK requires a verified living target and clears stale combat state on runtime refresh.
+- Rule validation rejects overview entries without detail blocks; rule 210 now has its artwork contract and regression coverage.
+- Removed unused queue, highlight and slash-command helpers; instance status shares the RuntimeMode difficulty policy.
+- Release notes no longer impose a minimum or maximum number of highlights.
+
 ## 2026-10-25 - Version 0.9.455 (patch)
 
 - Forces pace no longer learns a later forces percentage for a boss killed

@@ -1,7 +1,9 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.455`
+Versionsbasis: `0.9.456`
 Zuletzt aktualisiert: `2026-10-25`
+
+Folgeaudit (0.9.456): Deterministische Regressionen pruefen numerische Sendeablehnung mit erfolgreichem Retry, leere KEY-/HELLO-Felder, Ghost-Owner-Hinweise, partielle Inspect-Antworten mit spaeterem RIO 0, maskierten Ziel-Todesstatus und ein beim Weltwechsel nachgeholtes Kampfende. Ein synthetisches Regeldokument beweist die Ablehnung fehlender Detailbloecke; die Center-Notice prueft Artwork und Zauber-Icon-Fallback.
 
 Pace-/TTK-Fixes (0.9.455): Ein Bosskill ohne lesbaren Forces-Checkpoint
 sperrt Lernen und Tempoziel fuer diesen Run; bestehende Referenzen bleiben
