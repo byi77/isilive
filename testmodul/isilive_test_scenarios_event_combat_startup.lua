@@ -995,6 +995,42 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
     end)
   end)
 
+  -- Regression (0.9.454, found with tools/wowsim): the schema sanitizer ran
+  -- before the client-locale fallback and filled a fixed "enUS".
+  test("ADDON_LOADED starts a fresh install in the client language", function()
+    local appliedTable = nil
+    -- An empty table is what `IsiLiveDB = IsiLiveDB or {}` produces for a
+    -- fresh install (a nil value would not override the global at all).
+    local db = {}
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetLocale = function()
+        return "deDE"
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_db_schema.lua",
+        "isiLive_event_handlers.lua",
+        "isiLive_languages.lua",
+        "isiLive_texts.lua",
+      })
+      local locales = addon.Texts.GetLocaleTables()
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        locales = locales,
+        resolveLocaleTag = addon.Languages.ResolveTag,
+        setLocaleTable = function(value)
+          appliedTable = value
+        end,
+      })
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+
+      Assert.Equal(db.locale, "deDE", "a fresh install on a German client must store deDE")
+      Assert.True(appliedTable == locales.deDE, "the deDE locale table must be applied")
+    end)
+  end)
+
   test("Event handlers restore Rio baseline from DB on ADDON_LOADED", function()
     local restoreCalls = 0
 

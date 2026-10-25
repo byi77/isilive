@@ -21,6 +21,8 @@ return {
   run = function(sim)
     sim.Login()
     sim.Step("Idle after login")
+    -- Fresh install (no SavedVariables) on a German client must start German.
+    sim.ExpectText("Keys teilen", "fresh install follows the deDE client locale")
 
     sim.Slash("/il sim")
     sim.Wait(1)

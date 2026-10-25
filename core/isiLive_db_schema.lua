@@ -151,7 +151,23 @@ local SCHEMA = {
   statsBoxShowAvoidance = { type = "boolean", default = false },
 
   -- Locale + addon-level toggles.
-  locale = { type = "string", default = "enUS" },
+  -- A fresh install follows the client language. Sanitize runs before
+  -- ADDON_LOADED resolves the stored tag, so a fixed "enUS" here used to win
+  -- over the client locale for every new user; ADDON_LOADED maps clients
+  -- without an isiLive translation (esES, ptBR, itIT, ...) to enUS.
+  locale = {
+    type = "string",
+    default = function()
+      local getLocale = rawget(_G, "GetLocale")
+      if type(getLocale) == "function" then
+        local ok, clientLocale = pcall(getLocale)
+        if ok and type(clientLocale) == "string" and clientLocale ~= "" then
+          return clientLocale
+        end
+      end
+      return "enUS"
+    end,
+  },
   syncEnabled = { type = "boolean", default = true },
 
   -- Auto-show / auto-close behaviour.

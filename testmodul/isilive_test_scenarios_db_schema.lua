@@ -70,6 +70,24 @@ return function(test, ctx)
     Assert.Nil(db.inviteHintEnabled, "removed pre-accept invite hint must not create a DB default")
   end)
 
+  -- Regression (0.9.454, found with tools/wowsim): a fixed "enUS" default made
+  -- every fresh install start in English regardless of the client language.
+  test("DBSchema.Sanitize defaults the locale of a fresh install to the client locale", function()
+    ctx.with_globals({
+      GetLocale = function()
+        return "deDE"
+      end,
+    }, function()
+      local db = {}
+      LoadSchema().Sanitize(db)
+      Assert.Equal(db.locale, "deDE", "fresh install on a German client must default to deDE")
+
+      local stored = { locale = "frFR" }
+      LoadSchema().Sanitize(stored)
+      Assert.Equal(stored.locale, "frFR", "a stored addon language must not be replaced by the client locale")
+    end)
+  end)
+
   test("DBSchema.Sanitize resets an unusable stored schema version instead of looping", function()
     -- A persisted -1000000000 made the migration loop count up from there:
     -- around a billion iterations before the UI appeared. This test finishing
