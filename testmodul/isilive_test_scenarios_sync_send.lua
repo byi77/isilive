@@ -314,6 +314,51 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     end)
   end)
 
+  -- Regression (0.9.454): the local caster arrives without a realm
+  -- (GetUnitName("player", true)). The payload qualifies bare names with the
+  -- local realm so receivers on other realms -- older builds included --
+  -- match the caster to the sender.
+  test("Sync announce senders qualify bare names with the local realm", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(category)
+        return category ~= 2
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      GetNormalizedRealmName = function()
+        return "MyRealm"
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, { prefix = prefix, message = message, channel = channel })
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendCombatAnnounce({ kind = "LUST", caster = "Shaman", spellID = 2825 })
+      addon.Sync.SendCombatAnnounce({ kind = "BR", caster = "Druid-OtherRealm", spellID = 20484 })
+      addon.Sync.SendPowerInfusionAnnounce({ caster = "Priest", recipient = "Mage", spellID = 10060 })
+
+      Assert.Equal(#sentMessages, 3, "all three announces must be sent")
+      Assert.Equal(sentMessages[1].message, "BRLUST:LUST:Shaman-MyRealm:2825", "bare caster gets the local realm")
+      Assert.Equal(
+        sentMessages[2].message,
+        "BRLUST:BR:Druid-OtherRealm:20484",
+        "a realm-qualified caster is sent unchanged"
+      )
+      Assert.Equal(
+        sentMessages[3].message,
+        "PI:Priest-MyRealm:Mage-MyRealm:10060",
+        "bare PI caster and recipient get the local realm"
+      )
+    end)
+  end)
+
   test("Sync SendShareKeysCooldown publishes SKCD with ceiled and clamped remain", function()
     local sentMessages = {}
 

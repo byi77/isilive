@@ -1,13 +1,13 @@
 -- Regression: BR / Bloodlust / Power Infusion announces from a cross-realm
 -- isiLive peer must reach the other isiLive clients.
 --
--- The caster broadcasts "BRLUST:<kind>:<caster>:<spellID>" with its own name
--- from GetUnitName("player", true), which carries no realm for the local
--- player. The receiver accepts the payload only when the caster name
--- normalizes to the sender key; on a different realm the bare name picks up
--- the receiver's realm and the announce is dropped silently.
+-- The caster names itself through GetUnitName("player", true), which carries
+-- no realm. Up to 0.9.453 the receiver normalized that bare name with its own
+-- realm, so every announce from a cross-realm caster was dropped silently.
 -- Found with wowsim on 2026-10-25 (mplus_run: Zidane-Thrall's Bloodlust never
--- reached Isiplayer-Blackrock, the same-realm battle res did).
+-- reached Isiplayer-Blackrock, the same-realm battle res did); fixed in
+-- 0.9.454 on both ends (sender qualifies the name, receiver resolves bare
+-- names against the sender's realm).
 return {
   name = "cross_realm_announce",
   description = "Regression: BR / Lust announces from a cross-realm peer reach the group",

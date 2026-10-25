@@ -134,6 +134,65 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  -- Regression (0.9.454, found with tools/wowsim): a peer names itself through
+  -- GetUnitName("player", true), which carries no realm. Resolving that bare
+  -- name against the receiver's realm dropped every BR / Lust / PI announce
+  -- from a cross-realm caster.
+  test("Sync ProcessAddonMessage resolves bare payload names against the sender's realm", function()
+    WithGlobals({
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local lust = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "BRLUST:LUST:Shaman:2825",
+        "Shaman-OtherRealm",
+        "MyPlayer",
+        "Realm",
+        "PARTY"
+      )
+      Assert.NotNil(lust.combatAnnounce, "a bare cross-realm caster name must surface the announce")
+      Assert.Equal(lust.combatAnnounce.caster, "Shaman", "the announce keeps the transmitted caster name")
+
+      local spoof = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "BRLUST:BR:Victim:20484",
+        "Attacker-OtherRealm",
+        "MyPlayer",
+        "Realm",
+        "PARTY"
+      )
+      Assert.Nil(spoof.combatAnnounce, "a bare name that is not the sender must still be rejected")
+
+      local piToMe = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:Priest:MyPlayer-Realm:10060",
+        "Priest-OtherRealm",
+        "MyPlayer",
+        "Realm",
+        "PARTY"
+      )
+      Assert.NotNil(piToMe.powerInfusionAnnounce, "a bare cross-realm PI caster must surface the announce")
+      Assert.True(piToMe.powerInfusionAnnounce.isLocalRecipient, "a realm-qualified local recipient stays local")
+
+      local piToSenderRealm = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:Priest:MyPlayer:10060",
+        "Priest-OtherRealm",
+        "MyPlayer",
+        "Realm",
+        "PARTY"
+      )
+      Assert.False(
+        piToSenderRealm.powerInfusionAnnounce.isLocalRecipient,
+        "a bare recipient is the sender's realm-mate, not the same-named local player"
+      )
+    end)
+  end)
+
   test("Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos", function()
     WithGlobals({
       strsplit = function(sep, str, max)

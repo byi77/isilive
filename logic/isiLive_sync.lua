@@ -1811,6 +1811,33 @@ function Sync.SendTarget(opts)
   )
 end
 
+-- GetUnitName(unit, true) omits the realm for players on the local realm, the
+-- local player included. Announce payloads carry the realm explicitly so
+-- receivers on another realm -- including builds older than 0.9.454, which
+-- resolve a bare name against their own realm -- match the caster to the
+-- sender.
+local function QualifyAnnounceName(name)
+  if string.find(name, "-", 1, true) then
+    return name
+  end
+  local getRealm = rawget(_G, "GetNormalizedRealmName")
+  local ok, realm = false, nil
+  if type(getRealm) == "function" then
+    ok, realm = pcall(getRealm)
+  end
+  if not ok or type(realm) ~= "string" or realm == "" then
+    getRealm = rawget(_G, "GetRealmName")
+    ok, realm = false, nil
+    if type(getRealm) == "function" then
+      ok, realm = pcall(getRealm)
+    end
+  end
+  if not ok or type(realm) ~= "string" or realm == "" or realm:find("[:|%c]") then
+    return name
+  end
+  return name .. "-" .. realm
+end
+
 --- Broadcasts a BR / Bloodlust combat announcement to all isiLive peers.
 -- Sender-side dedup is handled upstream by combat_events.HandleUnitSpellcastSucceeded
 -- (per source+spellID, 3 s window), so this function does not gate again. Suppressed
@@ -1832,6 +1859,7 @@ function Sync.SendCombatAnnounce(opts)
   if caster == "" or string.find(caster, ":", 1, true) then
     return
   end
+  caster = QualifyAnnounceName(caster)
   local spellID = ToFiniteNumber(opts.spellID) or 0
   local payload = string.format("BRLUST:%s:%s:%d", kind, caster, spellID)
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
@@ -1862,6 +1890,8 @@ function Sync.SendPowerInfusionAnnounce(opts)
   if caster == "" or recipient == "" or string.find(caster, ":", 1, true) or string.find(recipient, ":", 1, true) then
     return
   end
+  caster = QualifyAnnounceName(caster)
+  recipient = QualifyAnnounceName(recipient)
   local spellID = ToFiniteNumber(opts.spellID) or POWER_INFUSION_SPELL_ID
   if spellID ~= POWER_INFUSION_SPELL_ID then
     return
