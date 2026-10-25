@@ -92,6 +92,7 @@ function FrameBridge.CreateContext(opts)
     applyCooldownFrameSafe = opts.applyCooldownFrameSafe,
     formatCooldownSeconds = formatCooldownSeconds,
     getDungeonName = getDungeonName,
+    resolveDungeonArtwork = opts.resolveDungeonArtwork,
     getL = getL,
   })
 

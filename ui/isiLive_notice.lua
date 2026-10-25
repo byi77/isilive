@@ -38,6 +38,9 @@ local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = unpack(
 local FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B = unpack(NoticeRichLayout.FIELD_WARNING_COLOR)
 local SUBLINE_GAP = NoticeRichLayout.SUBLINE_GAP
 local RICH_TELEPORT_STATUS_FONT_DELTA = 4
+-- Above the spell icon's native 64 px the button shows the dungeon artwork.
+local TELEPORT_ARTWORK_MIN_ICON_SIZE = 64
+local TELEPORT_FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 -- Sandbox-safe GetTime read: WoW always exposes the global, but the test
 -- _G can omit it. Falling back to 0 keeps endsAt arithmetic numeric on a
@@ -108,6 +111,9 @@ local function BuildCenterNoticeConfig(opts)
     getCooldownFrameStartForRemaining = opts.getCooldownFrameStartForRemaining,
     applyCooldownFrameSafe = opts.applyCooldownFrameSafe,
     getDungeonName = opts.getDungeonName or function(_mapID, _localeTag)
+      return nil
+    end,
+    resolveDungeonArtwork = opts.resolveDungeonArtwork or function(_mapID)
       return nil
     end,
     getL = opts.getL or function()
@@ -222,7 +228,8 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   end
   button.icon:SetPoint("CENTER", button, "CENTER", 0, 0)
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+  button.icon:SetTexture(TELEPORT_FALLBACK_ICON)
+  button.iconSize = config.buttonHeight
   button.overlay = button:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(unpack(Colors.TRANSPARENT or { 0, 0, 0, 0 }))
@@ -295,16 +302,29 @@ local function SetCenterNoticeVisible(state, visible)
   end
 end
 
+local function ApplyCenterNoticeTeleportButtonIcon(state)
+  local button = state.teleportButton
+  local artwork
+  if (tonumber(button.iconSize) or 0) > TELEPORT_ARTWORK_MIN_ICON_SIZE and type(button.mapID) == "number" then
+    artwork = state.config.resolveDungeonArtwork(button.mapID)
+  end
+  if type(artwork) == "table" and artwork.texture then
+    button.icon:SetTexture(artwork.texture)
+    button.icon:SetTexCoord(artwork.left or 0, artwork.right or 1, artwork.top or 0, artwork.bottom or 1)
+    return
+  end
+  button.icon:SetTexture(button.spellIcon or TELEPORT_FALLBACK_ICON)
+  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+end
+
 local function UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled, inCombatBlocked)
   local icon
   local spellApi = rawget(_G, "C_Spell")
   if spellID and type(spellApi) == "table" and type(spellApi.GetSpellTexture) == "function" then
     icon = spellApi.GetSpellTexture(spellID)
   end
-  if not icon then
-    icon = "Interface\\Icons\\INV_Misc_QuestionMark"
-  end
-  state.teleportButton.icon:SetTexture(icon)
+  state.teleportButton.spellIcon = icon
+  ApplyCenterNoticeTeleportButtonIcon(state)
 
   if inCombatBlocked then
     state.teleportButton.overlay:SetColorTexture(unpack(Colors.RED_DANGER_OVERLAY or { 0.4, 0.05, 0.05, 0.55 }))
@@ -396,6 +416,10 @@ local function SetCenterNoticeTeleportButtonSize(state, width, height, iconSize)
   end
   if state.teleportButton.icon and type(state.teleportButton.icon.SetSize) == "function" then
     state.teleportButton.icon:SetSize(iconDimension, iconDimension)
+  end
+  state.teleportButton.iconSize = iconDimension
+  if state.teleportButton.icon then
+    ApplyCenterNoticeTeleportButtonIcon(state)
   end
   if state.teleportButton.overlay and type(state.teleportButton.overlay.ClearAllPoints) == "function" then
     state.teleportButton.overlay:ClearAllPoints()

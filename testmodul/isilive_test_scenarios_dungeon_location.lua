@@ -37,7 +37,8 @@ return function(test, ctx)
         end,
       },
       EJ_GetInstanceInfo = function()
-        return "Altar", "", 0, 0, 0, 0, overrides.dungeonAreaMapID or 0
+        calls.instanceInfo = (calls.instanceInfo or 0) + 1
+        return "Altar", "", 0, overrides.buttonImage or 0, overrides.loreImage or 0, 0, overrides.dungeonAreaMapID or 0
       end,
       C_Map = {
         GetMapInfo = function(uiMapID)
@@ -185,6 +186,30 @@ return function(test, ctx)
       -- Without client map info the manifest's first hub name is used.
       Assert.Equal(location.GetPortalRoomName(399), "Millennia's Threshold")
       Assert.Equal(location.GetNavigationText(399), "The Waking Shores\nUse the portal in Millennia's Threshold")
+    end)
+  end)
+
+  test("Dungeon artwork prefers the journal lore image cropped to a square", function()
+    WithMaps({ loreImage = 1500001, buttonImage = 1500002 }, function(location, calls)
+      local artwork = location.GetArtwork(9588)
+      Assert.Equal(artwork.texture, 1500001)
+      Assert.Equal(artwork.left, 91 / 512)
+      Assert.Equal(artwork.right, 277 / 512)
+      Assert.Equal(artwork.bottom, 186 / 256)
+      local infoCalls = calls.instanceInfo
+      Assert.Equal(location.GetArtwork(9588), artwork)
+      Assert.Equal(calls.instanceInfo, infoCalls)
+    end)
+    WithMaps({ buttonImage = "UI-EJ-DUNGEONBUTTON-Test" }, function(location)
+      local artwork = location.GetArtwork(9588)
+      Assert.Equal(artwork.texture, "UI-EJ-DUNGEONBUTTON-Test")
+      Assert.Equal(artwork.right, 135 / 256)
+    end)
+    WithMaps({}, function(location)
+      -- No journal art and unknown maps leave the spell icon in place.
+      Assert.Nil(location.GetArtwork(9588))
+      Assert.Nil(location.GetArtwork(4242))
+      Assert.Nil(location.GetArtwork(nil))
     end)
   end)
 end

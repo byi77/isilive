@@ -459,6 +459,15 @@ local function InitializeFactoryFrameBridge(ctx)
     return type(inCombatFn) == "function" and inCombatFn() == true
   end
 
+  ctx.ResolveDungeonArtwork = function(mapID)
+    local dungeonLocation = addonTable.DungeonLocation
+    if type(dungeonLocation) ~= "table" or type(dungeonLocation.GetArtwork) ~= "function" then
+      return nil
+    end
+    local ok, artwork = pcall(dungeonLocation.GetArtwork, mapID)
+    return ok and artwork or nil
+  end
+
   local frameBridgeContext = modules.frameBridge.CreateContext({
     createCenterNotice = modules.notice.CreateCenterNotice,
     createMainFrame = modules.ui.CreateMainFrame,
@@ -507,6 +516,7 @@ local function InitializeFactoryFrameBridge(ctx)
     applyCooldownFrameSafe = ctx.ApplyCooldownFrameSafe,
     formatCooldownSeconds = ctx.FormatCooldownSeconds,
     getDungeonName = ctx.GetDungeonName,
+    resolveDungeonArtwork = ctx.ResolveDungeonArtwork,
     getL = ctx.GetL,
     onOpenSettings = function()
       local blizzardSettings = rawget(_G, "Settings")
@@ -564,6 +574,7 @@ local function InitializeFactoryFrameBridge(ctx)
       applyCooldownFrameSafe = ctx.ApplyCooldownFrameSafe,
       formatCooldownSeconds = ctx.FormatCooldownSeconds,
       getDungeonName = ctx.GetDungeonName,
+      resolveDungeonArtwork = ctx.ResolveDungeonArtwork,
       getL = ctx.GetL,
     }),
     modules.notice.CreateCenterNotice({
@@ -591,6 +602,7 @@ local function InitializeFactoryFrameBridge(ctx)
       applyCooldownFrameSafe = ctx.ApplyCooldownFrameSafe,
       formatCooldownSeconds = ctx.FormatCooldownSeconds,
       getDungeonName = ctx.GetDungeonName,
+      resolveDungeonArtwork = ctx.ResolveDungeonArtwork,
       getL = ctx.GetL,
     }),
   }

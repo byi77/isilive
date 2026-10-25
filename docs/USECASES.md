@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.451`
-Zuletzt aktualisiert: `2026-10-22`
+Versionsbasis: `0.9.452`
+Zuletzt aktualisiert: `2026-10-25`
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten
 Sated-IDs zuerst ueber `GetPlayerAuraBySpellID` ab. Wenn beide Listen-APIs
@@ -777,6 +777,8 @@ isiLive zeigt rechts `Du: +N` in Hellblau fuer die beste Stufe des aktuellen Cha
 ## Navigation in der Einladungskarte
 
 Die Karte "Einladung angenommen" zeigt unter "Quelle" eine Zeile "Navigation" mit der Zone, in der der Ziel-Dungeon liegt, z. B. `Zuldazar`, ohne Koordinaten. Fuer Saison-Dungeons steht die Zonen-UiMapID im Saison-Manifest (`entrance`); den Zonennamen liefert der Client in seiner Sprache. Andere Dungeons werden ueber die Karten- und Dungeonjournal-API aufgeloest. Hat der Saison-Portalraum ein Portal zu diesem Dungeon, folgt darunter eine zweite Zeile, z. B. `Nutze das Portal in der Jahrhundertschwelle` (in allen fuenf Sprachen lokalisiert); die Karte wird dafuer hoeher. Kann weder Zone noch Portal ermittelt werden, fehlt die Zeile.
+
+Der grosse Teleport-Button der Karte zeigt seit 0.9.452 das Bild des Dungeons aus dem Dungeonjournal (zentriert quadratisch zugeschnitten) statt des vergroesserten, unscharfen Teleport-Icons. Fehlt ein Journal-Bild, bleibt das Teleport-Icon.
 
 ## Audiovereinheitlichung 2026-10-20
 

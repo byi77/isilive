@@ -320,4 +320,66 @@ function DungeonLocation.GetNavigationText(challengeMapID, portalFormat)
   return table.concat(lines, "\n")
 end
 
+--- Encounter Journal art for the dungeon, cropped to a centered square. The
+--- teleport spell icon is only 64x64 and turns blurry on the large notice
+--- button; the journal lore image carries a 368x186 art area in a 512x256
+--- texture, the dungeon button image 174x96 in 256x128.
+--- @param challengeMapID any
+--- @return table|nil -- { texture, left, right, top, bottom }
+local ARTWORK_CANDIDATES = {
+  -- EJ_GetInstanceInfo return index, then the crop in texture coordinates.
+  { index = 5, left = 91 / 512, right = 277 / 512, top = 0, bottom = 186 / 256 }, -- loreImage
+  { index = 4, left = 39 / 256, right = 135 / 256, top = 0, bottom = 96 / 128 }, -- buttonImage1
+}
+local artworkByChallengeMapID = {}
+
+local function ReadTexture(value)
+  if IsSecret(value) then
+    return nil
+  end
+  if type(value) == "number" and value > 0 then
+    return value
+  end
+  if type(value) == "string" and value ~= "" then
+    return value
+  end
+  return nil
+end
+
+function DungeonLocation.GetArtwork(challengeMapID)
+  challengeMapID = ReadPositiveNumber(challengeMapID)
+  if not challengeMapID then
+    return nil
+  end
+  local cached = artworkByChallengeMapID[challengeMapID]
+  if cached then
+    return cached
+  end
+  local getInstanceInfo = rawget(_G, "EJ_GetInstanceInfo")
+  local journalInstanceID = type(getInstanceInfo) == "function" and ResolveJournalInstanceID(challengeMapID) or nil
+  local artwork
+  if journalInstanceID then
+    local results = { pcall(getInstanceInfo, journalInstanceID) }
+    if results[1] then
+      for _, candidate in ipairs(ARTWORK_CANDIDATES) do
+        -- results[1] is pcall's status, so return N sits at N + 1.
+        local texture = ReadTexture(results[candidate.index + 1])
+        if texture then
+          artwork = {
+            texture = texture,
+            left = candidate.left,
+            right = candidate.right,
+            top = candidate.top,
+            bottom = candidate.bottom,
+          }
+          break
+        end
+      end
+    end
+  end
+  -- Misses stay uncached: the journal can be unready right after login.
+  artworkByChallengeMapID[challengeMapID] = artwork
+  return artwork
+end
+
 return DungeonLocation

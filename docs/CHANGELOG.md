@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.452 (patch)
+
+### Sharper dungeon picture on the invite card
+
+- The large teleport button on the "Invite accepted" card now shows the
+  dungeon's artwork from the Adventure Guide instead of the small teleport
+  spell icon stretched to many times its size. The picture is cut to a
+  centered square; clicking, the cooldown swipe and the "Portal" label stay
+  as before.
+- Small teleport buttons keep the familiar spell icon. Without journal
+  artwork the spell icon is used as before.
+
 ## 2026-10-25 - Version 0.9.451 (patch)
 
 ### Time to kill

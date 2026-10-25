@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.451`.
+Current version: `0.9.452`.
+
+Version 0.9.452: the invite card shows a sharp dungeon picture from the
+Adventure Guide instead of the blurry, enlarged teleport icon.
 
 Version 0.9.451: time to kill for your target above its nameplate and in the
 killtracker line, plus a time-pace line that tells you whether the key is on

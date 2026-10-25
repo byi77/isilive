@@ -288,6 +288,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 209. Im aktiven M+-Key zeigt isiLive waehrend eines Kampfes fuer das aktuelle Ziel eine geschaetzte Restlebensdauer (Time to Kill) an der Ziel-Nameplate und rechts in der Zeit-Tempo-Zeile des Killtrackers (Setting `ttkEnabled`, Default an). Die Schaetzung `t * p / (1 - p) - d` (t = Sekunden vom Uhrstart bis zum letzten Treffer, d = Sekunden seit dem letzten Treffer, p = Lebensanteil) laeuft vollstaendig ueber eine Blizzard-Curve; isiLive liest, vergleicht oder verrechnet den Secret-Lebenswert nie.
 
+210. Ist der Teleport-Button der Center-Notice groesser als 64 px (natives Format des Zauber-Icons), zeigt er statt des Teleport-Icons das Dungeonjournal-Bild des Ziel-Dungeons (`EJ_GetInstanceInfo`: zuerst das Lore-Bild, sonst das Dungeon-Button-Bild), als zentriertes Quadrat zugeschnitten; kleinere Buttons und Dungeons ohne Journal-Bild behalten das Zauber-Icon. Klick, Cooldown-Swipe und Status-Text bleiben unveraendert.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
