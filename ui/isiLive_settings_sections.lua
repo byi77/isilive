@@ -32,6 +32,11 @@ local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green plus signs for relevant non
   .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
   .. "Atrophic Poison."
 
+local FALLBACK_TIME_PACE_DESC = "Shows under the killtracker bar whether the key is on time: compared with"
+  .. " your slowest timed run on the same dungeon and key level, otherwise as a forecast."
+local FALLBACK_TTK_DESC = "Shows in a Mythic+ key fight roughly how many seconds your target has left, above"
+  .. " its nameplate and in the killtracker line: fight time x health left / health lost, taken at the last"
+  .. " hit and counted down evenly in between. A guide, not exact."
 local FALLBACK_FORCES_PACE_DESC = "Learns from your own completed keys how much enemy forces you had at each boss kill"
   .. " and shows on the killtracker bar whether the group is ahead of or short of that target for the next boss."
 
@@ -276,6 +281,29 @@ local function CreateForcesPaceCheckbox(canvas, yOffset, labels, config)
   )
 end
 
+local function CreateTimePaceCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(canvas, yOffset, labels.SETTINGS_TIME_PACE or "M+ Killtracker: Time pace", function()
+    local db = config.getDB()
+    return db.timePaceEnabled ~= false
+  end, function(checked)
+    local db = config.getDB()
+    db.timePaceEnabled = checked
+    if type(config.onTimePaceToggle) == "function" then
+      config.onTimePaceToggle(checked)
+    end
+  end, "SETTINGS_TIME_PACE", CheckboxDescriptionOptions(labels.SETTINGS_TIME_PACE_DESC or FALLBACK_TIME_PACE_DESC))
+end
+
+local function CreateTtkCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(canvas, yOffset, labels.SETTINGS_TTK or "M+: Time to Kill (TTK)", function()
+    local db = config.getDB()
+    return db.ttkEnabled ~= false
+  end, function(checked)
+    local db = config.getDB()
+    db.ttkEnabled = checked
+  end, "SETTINGS_TTK", CheckboxDescriptionOptions(labels.SETTINGS_TTK_DESC or FALLBACK_TTK_DESC))
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -294,6 +322,8 @@ local DISPLAY_DEFAULTS = {
   showMinimapButton = false,
   showPortalNavigator = true,
   forcesPaceEnabled = true,
+  timePaceEnabled = true,
+  ttkEnabled = true,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -313,6 +343,7 @@ local DISPLAY_CALLBACKS = {
   showMinimapButton = "onMinimapButtonToggle",
   showPortalNavigator = "onPortalNavigatorToggle",
   forcesPaceEnabled = "onForcesPaceToggle",
+  timePaceEnabled = "onTimePaceToggle",
   lfgFlagsEnabled = "onLfgFlagsToggle",
   lfgGroupBonusesEnabled = "onLfgGroupBonusesToggle",
   tooltipFlagsEnabled = "onTooltipFlagsToggle",
@@ -335,6 +366,8 @@ local DISPLAY_DEFAULT_ORDER = {
   "showMinimapButton",
   "showPortalNavigator",
   "forcesPaceEnabled",
+  "timePaceEnabled",
+  "ttkEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -784,6 +817,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   )
 
   controls.forcesPace, yOffset = CreateForcesPaceCheckbox(canvas, yOffset, labels, config)
+  controls.timePace, yOffset = CreateTimePaceCheckbox(canvas, yOffset, labels, config)
+  controls.ttk, yOffset = CreateTtkCheckbox(canvas, yOffset, labels, config)
 
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1015,6 +1050,16 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.forcesPace.label:SetText(labels.SETTINGS_FORCES_PACE or "M+ Killtracker: Forces pace")
     SetCheckboxDescription(controls.forcesPace, labels.SETTINGS_FORCES_PACE_DESC or FALLBACK_FORCES_PACE_DESC)
     controls.forcesPace.check:SetChecked(db.forcesPaceEnabled ~= false)
+  end
+  if controls.timePace then
+    controls.timePace.label:SetText(labels.SETTINGS_TIME_PACE or "M+ Killtracker: Time pace")
+    SetCheckboxDescription(controls.timePace, labels.SETTINGS_TIME_PACE_DESC or FALLBACK_TIME_PACE_DESC)
+    controls.timePace.check:SetChecked(db.timePaceEnabled ~= false)
+  end
+  if controls.ttk then
+    controls.ttk.label:SetText(labels.SETTINGS_TTK or "M+: Time to Kill (TTK)")
+    SetCheckboxDescription(controls.ttk, labels.SETTINGS_TTK_DESC or FALLBACK_TTK_DESC)
+    controls.ttk.check:SetChecked(db.ttkEnabled ~= false)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.450`.
+Current version: `0.9.451`.
+
+Version 0.9.451: time to kill for your target above its nameplate and in the
+killtracker line, plus a time-pace line that tells you whether the key is on
+time.
 
 Version 0.9.450: the "Target dungeon" chat line no longer repeats when you
 enter the dungeon.
@@ -39,20 +43,23 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.450 -->
+<!-- highlights-reviewed-for: 0.9.451 -->
 
 Highlights:
+- **Time to kill (TTK).** During a Mythic+ fight your target shows roughly
+  how many seconds it has left, above its nameplate and in the killtracker
+  line. Good for deciding whether a cooldown, stop or target swap is still
+  worth it and when to start your burst. Preview it on a training dummy with
+  `/isilive ttktest`.
+- **Time pace.** A line under the killtracker bar shows whether the key is on
+  time: compared with your own slowest timed run on that dungeon and key
+  level, or as a finish forecast.
 - **Modern flags and role badges.** Language flags are sharp, rounded badges
   with correct designs; the roster shows new subtle tank, healer and damage
   badges, centered between spec and flag.
 - **Navigation for accepted invites.** The invite card names the dungeon's
   zone and, when the season portal room has a portal to it, tells you to use
   that portal.
-- **One German announcer voice.** Ten concise voice alerts share the approved
-  male voice, clear pronunciation and consistent loudness. Existing effects
-  have matching loudness; the complete German voice pack is about 115 KiB.
 - **Your own dungeon best in Group Finder.** Search results show your current
   character's best level for that dungeon this season (`You: +14`), picked
   like the Blizzard Mythic+ tab, with or without Premade Groups Filter.
-- **New markers.** Glossy green plus signs mark useful group bonuses; a blue connection
-  arrow marks other isiLive users.

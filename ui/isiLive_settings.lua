@@ -105,6 +105,8 @@ local function ResolveSettingsOptions(opts)
     onRaidTransitionBehaviorChange = opts.onRaidTransitionBehaviorChange,
     onPortalNavigatorToggle = opts.onPortalNavigatorToggle,
     onForcesPaceToggle = opts.onForcesPaceToggle,
+    -- Both pace toggles only refresh the killtracker row.
+    onTimePaceToggle = opts.onTimePaceToggle or opts.onForcesPaceToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
     onRosterColumnGuidesToggle = opts.onRosterColumnGuidesToggle,

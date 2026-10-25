@@ -1,0 +1,487 @@
+---@diagnostic disable: undefined-global
+
+-- Time pace for the M+ killtracker (rule 191).
+--
+-- End-to-end through the real modules: KillTrack reads the scenario criteria
+-- stubs and hands its snapshots to the real TimePace, which reads elapsed
+-- time, time limit and key level from the real MplusTimer and learns into a
+-- real IsiLiveDB table; the kill row renders whatever the real
+-- KillTrack.GetData() returns. Events enter through the modules' HandleEvent
+-- entry points, the ones the controller wiring dispatches to.
+
+local helpersChunk, helpersErr = loadfile("testmodul/isilive_test_ui_helpers.lua")
+if not helpersChunk then
+  error("cannot load UI helpers: " .. tostring(helpersErr))
+end
+local helpers = helpersChunk()
+local BuildCreateFrameStub = helpers.BuildCreateFrameStub
+
+local MAP_ID = 2649
+local TIME_LIMIT = 1800
+local KEY_LEVEL = 10
+
+local function BuildEnv(opts)
+  opts = opts or {}
+  local env = {
+    db = opts.db or {},
+    clock = 5000,
+    elapsed = 0,
+    keyLevel = opts.keyLevel or KEY_LEVEL,
+    bosses = {},
+    forces = { isWeightedProgress = true, criteriaID = 9001, totalQuantity = 300, quantity = 0, completed = false },
+    completion = nil,
+  }
+  for i = 1, 3 do
+    env.bosses[i] = { isWeightedProgress = false, completed = false, criteriaID = 100 + i }
+  end
+  local function List()
+    local list = {}
+    for _, boss in ipairs(env.bosses) do
+      list[#list + 1] = boss
+    end
+    list[#list + 1] = env.forces
+    return list
+  end
+  env.globals = {
+    C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return MAP_ID
+      end,
+      GetActiveKeystoneInfo = function()
+        return env.keyLevel, {}, 0
+      end,
+      GetMapUIInfo = function()
+        return "Dungeon", 1, TIME_LIMIT
+      end,
+      GetDeathCount = function()
+        return 0, 0
+      end,
+      GetChallengeCompletionInfo = function()
+        return env.completion
+      end,
+    },
+    C_ScenarioInfo = {
+      GetScenarioStepInfo = function()
+        return { numCriteria = #List() }
+      end,
+      GetCriteriaInfo = function(i)
+        return List()[i]
+      end,
+    },
+    C_Timer = {
+      After = function() end,
+      NewTicker = function()
+        return { Cancel = function() end }
+      end,
+    },
+    GetWorldElapsedTime = function()
+      return 1, env.elapsed
+    end,
+    GetTime = function()
+      return 1000
+    end,
+    time = function()
+      return env.clock
+    end,
+    IsiLiveDB = env.db,
+  }
+  return env
+end
+
+local function Load(LoadAddonModules, extraFiles)
+  local files = { "isiLive_season_data.lua", "isiLive_mplus_timer.lua", "isiLive_killtrack.lua" }
+  for _, file in ipairs(extraFiles or {}) do
+    files[#files + 1] = file
+  end
+  return LoadAddonModules(files)
+end
+
+local function Dispatch(addon, event)
+  addon.MplusTimer.HandleEvent(event)
+  addon.KillTrack.HandleEvent(event)
+end
+
+local function StartRun(addon, env)
+  for _, boss in ipairs(env.bosses) do
+    boss.completed = false
+  end
+  env.forces.quantity = 0
+  env.elapsed = 0
+  Dispatch(addon, "CHALLENGE_MODE_START")
+end
+
+-- Moves the run to `elapsed` seconds with `forces` of 300 and `kills` bosses.
+local function Advance(addon, env, elapsed, forces, kills)
+  env.elapsed = elapsed
+  env.forces.quantity = forces
+  for i = 1, #env.bosses do
+    env.bosses[i].completed = i <= kills
+  end
+  Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+end
+
+-- A full run reaching 100% forces and all three bosses at `duration`.
+local function PlayRun(addon, env, duration, onTime, level)
+  StartRun(addon, env)
+  Advance(addon, env, duration * 0.25, 75, 1)
+  Advance(addon, env, duration * 0.5, 150, 1)
+  Advance(addon, env, duration * 0.75, 225, 2)
+  Advance(addon, env, duration, 300, 3)
+  env.completion = {
+    mapChallengeModeID = MAP_ID,
+    level = level or env.keyLevel,
+    time = duration * 1000,
+    onTime = onTime ~= false,
+  }
+  Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+end
+
+local function GetReference(addon, db, level)
+  local root = db.timePace
+  local seasonBucket = type(root) == "table" and root[addon.SeasonData.GetActiveSeasonID()] or nil
+  local levels = type(seasonBucket) == "table" and seasonBucket[MAP_ID] or nil
+  return type(levels) == "table" and levels[level or KEY_LEVEL] or nil
+end
+
+local function NewTextStub()
+  local fs = { _text = "" }
+  function fs.SetText(self, text)
+    self._text = text
+  end
+  function fs.SetTextColor(self, r, g, b)
+    self._color = { r, g, b }
+  end
+  function fs.SetJustifyH() end
+  function fs.SetAlpha() end
+  return fs
+end
+
+local function NewTextureStub()
+  local tex = { _shown = true, _points = {} }
+  function tex.Show(self)
+    self._shown = true
+  end
+  function tex.Hide(self)
+    self._shown = false
+  end
+  function tex.SetWidth() end
+  function tex.SetVertexColor() end
+  function tex.ClearAllPoints(self)
+    self._points = {}
+  end
+  function tex.SetPoint(self, ...)
+    table.insert(self._points, { ... })
+  end
+  function tex.SetAlpha() end
+  function tex.GetAlpha()
+    return 1
+  end
+  return tex
+end
+
+local function NewRow()
+  return {
+    killTrackBarContainer = {
+      GetWidth = function()
+        return 200
+      end,
+      Show = function() end,
+      Hide = function() end,
+    },
+    killTrackBarBg = NewTextureStub(),
+    killTrackBarFill = NewTextureStub(),
+    killTrackBarPull = NewTextureStub(),
+    killTrackPaceTick = NewTextureStub(),
+    killTrackTargetText = NewTextStub(),
+    killTrackTargetLevelText = NewTextStub(),
+    killTrackActiveDungeonBackdrop = NewTextureStub(),
+    killTrackActiveDungeonText = NewTextStub(),
+    killTrackPctText = NewTextStub(),
+    killTrackPullText = NewTextStub(),
+    killTrackTimePaceText = NewTextStub(),
+  }
+end
+
+local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TimePace stores a timed run as the reference for its dungeon and key level", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1500)
+      local entry = Assert.NotNil(GetReference(addon, env.db), "a timed run must be stored per season, map and level")
+      Assert.Equal(entry.duration, 1500, "the duration comes from the completion info in seconds")
+      Assert.Equal(entry.lastSeen, 5000, "lastSeen must come from time()")
+      Assert.Equal(#entry.times, #entry.progress, "times and progress must stay paired")
+      Assert.Equal(entry.times[#entry.times], 1500, "the reference ends at the completion time")
+      Assert.Equal(entry.progress[#entry.progress], 1, "the reference ends at full progress")
+      -- 75/300 forces and 1 of 3 bosses: 0.5 * 0.25 + 0.5 / 3.
+      Assert.Equal(entry.times[1], 375, "the first sample is the first progress change")
+      Assert.Equal(entry.progress[1], 0.2917, "progress is half forces, half bosses, four decimals")
+    end)
+  end)
+
+  test("TimePace keeps the slowest timed run per level and ignores untimed runs", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1500)
+      env.clock = 6000
+      PlayRun(addon, env, 1400)
+      local entry = GetReference(addon, env.db)
+      Assert.Equal(entry.duration, 1500, "a faster timed run must not replace the slower reference")
+      Assert.Equal(entry.lastSeen, 6000, "a faster timed run still refreshes lastSeen")
+
+      PlayRun(addon, env, 1700)
+      Assert.Equal(GetReference(addon, env.db).duration, 1700, "a slower timed run becomes the reference")
+
+      PlayRun(addon, env, 1790, false)
+      Assert.Equal(GetReference(addon, env.db).duration, 1700, "an untimed run is never a reference")
+    end)
+  end)
+
+  test("TimePace does not learn a reset, mismatched or already started run", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      StartRun(addon, env)
+      Advance(addon, env, 600, 150, 2)
+      Dispatch(addon, "CHALLENGE_MODE_RESET")
+      env.completion = { mapChallengeModeID = MAP_ID, level = KEY_LEVEL, time = 1500000, onTime = true }
+      Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+      Assert.Nil(GetReference(addon, env.db), "a reset run must never be learned")
+
+      PlayRun(addon, env, 1500, true, KEY_LEVEL + 1)
+      Assert.Nil(GetReference(addon, env.db), "a completion for another key level must not be learned")
+      Assert.Nil(GetReference(addon, env.db, KEY_LEVEL + 1), "nor stored under the completion's level")
+
+      -- A boss is already dead when tracking begins.
+      env.bosses[1].completed = true
+      env.elapsed = 0
+      Dispatch(addon, "CHALLENGE_MODE_START")
+      Advance(addon, env, 1500, 300, 3)
+      env.completion = { mapChallengeModeID = MAP_ID, level = KEY_LEVEL, time = 1500000, onTime = true }
+      Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+      Assert.Nil(GetReference(addon, env.db), "a run with a boss dead at start must not be learned")
+    end)
+  end)
+
+  test("TimePace ignores a corrupt stored reference and falls back to the projection", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      env.db.timePace = {
+        [addon.SeasonData.GetActiveSeasonID()] = {
+          [MAP_ID] = { [KEY_LEVEL] = { duration = 1500, times = { 900, 300 }, progress = { 0.5, 1 } } },
+        },
+      }
+      StartRun(addon, env)
+      Advance(addon, env, 600, 90, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the run must still get a pace answer")
+      Assert.Equal(status.mode, "projection", "a non-monotonic reference must be ignored")
+    end)
+  end)
+end
+
+local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TimePace projects the finish time from forces and bosses without a reference", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      StartRun(addon, env)
+      Advance(addon, env, 30, 15, 0)
+      Assert.Nil(addon.KillTrack.GetData().timePace, "the projection waits for 5% progress and 60 seconds")
+
+      Advance(addon, env, 600, 90, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a projection must exist mid-run")
+      Assert.Equal(status.mode, "projection", "without a reference the answer is a projection")
+      -- progress = 0.5 * 0.3 + 0.5 / 3 = 0.31667 -> 600 / 0.31667 = 1894.7 s
+      Assert.Equal(math.floor(status.projected), 1894, "projected = elapsed / progress")
+      Assert.Equal(status.timeLimit, TIME_LIMIT, "the time limit comes from MplusTimer")
+    end)
+  end)
+
+  test("TimePace compares against the reference at the same progress", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      StartRun(addon, env)
+      -- 150/300 forces and 1 boss: the reference was here at 800 s.
+      Advance(addon, env, 700, 150, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a reference answer must exist")
+      Assert.Equal(status.mode, "reference", "a stored reference wins over the projection")
+      Assert.Equal(status.keyLevel, KEY_LEVEL, "the answer names the compared key level")
+      Assert.True(math.abs(status.delta + 100) < 0.5, "100 s earlier than the reference at the same progress")
+
+      -- Between samples the reference time is interpolated: progress 0.4917
+      -- lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 902.9 s.
+      Advance(addon, env, 1000, 195, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.delta - (1000 - 902.9)) < 0.5, "the reference time is interpolated")
+    end)
+  end)
+
+  test("TimePace uses the projection for a key level without a reference", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      env.keyLevel = KEY_LEVEL + 2
+      StartRun(addon, env)
+      Advance(addon, env, 700, 150, 1)
+      Assert.Equal(addon.KillTrack.GetData().timePace.mode, "projection", "references are per key level")
+    end)
+  end)
+
+  test("TimePace compares a run picked up after a reload but does not learn it", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      -- Fresh load mid-key: no CHALLENGE_MODE_START in this session.
+      addon = Load(LoadAddonModules)
+      env.elapsed = 700
+      env.forces.quantity = 150
+      env.bosses[1].completed = true
+      Dispatch(addon, "PLAYER_ENTERING_WORLD")
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a reloaded run must still be compared")
+      Assert.Equal(status.mode, "reference", "progress does not depend on the kill order")
+      Advance(addon, env, 1650, 300, 3)
+      env.completion = { mapChallengeModeID = MAP_ID, level = KEY_LEVEL, time = 1650000, onTime = true }
+      Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+      Assert.Equal(GetReference(addon, env.db).duration, 1600, "a reloaded run must not become the reference")
+    end)
+  end)
+end
+
+local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
+  local ROW_FILES = { "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" }
+
+  test("UpdateKillTrackRow shows the reference delta under the bar in green or red", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules, ROW_FILES)
+      PlayRun(addon, env, 1600)
+      StartRun(addon, env)
+      Advance(addon, env, 728, 150, 1)
+      local row = NewRow()
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      local line = row.killTrackTimePaceText
+      Assert.Equal(line._text, "-1:12 vs. +10 timed", "ahead of the reference shows a minus delta")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "ahead is green")
+
+      Advance(addon, env, 875, 150, 1)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "+1:15 vs. +10 timed", "behind the reference shows a plus delta")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "behind is red")
+    end)
+  end)
+
+  test("UpdateKillTrackRow shows the projection, and clears the line outside a run or when off", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules, ROW_FILES)
+      StartRun(addon, env)
+      Advance(addon, env, 600, 90, 1)
+      local row = NewRow()
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      local line = row.killTrackTimePaceText
+      Assert.Equal(line._text, "Forecast 31:34 / 30:00", "the projection names forecast and time limit")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "over the limit is red")
+
+      Advance(addon, env, 600, 150, 2)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "within the limit is green")
+
+      env.db.timePaceEnabled = false
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "", "the setting turns the line off")
+      env.db.timePaceEnabled = nil
+
+      Dispatch(addon, "CHALLENGE_MODE_RESET")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "", "no line outside a run")
+    end)
+  end)
+end
+
+local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Settings time-pace toggle is default-on, persists and refreshes the kill row", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local toggles = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_db_schema.lua",
+        "isiLive_ui_common.lua",
+        "isiLive_time_pace.lua",
+        "isiLive_settings.lua",
+      })
+      local fresh = {}
+      addon.DBSchema.Sanitize(fresh)
+      Assert.True(fresh.timePaceEnabled, "the schema default must be on")
+      Assert.Equal(type(fresh.timePace), "table", "the schema must provide the reference storage table")
+      Assert.True(addon.TimePace.IsEnabled(), "a fresh install reads the setting as on")
+
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return { SETTINGS_TIME_PACE = "M+ Killtracker: Time pace" }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        -- The factory wires only the forces-pace refresh; the time-pace
+        -- toggle shares it.
+        onForcesPaceToggle = function(enabled)
+          toggles[#toggles + 1] = enabled
+        end,
+      })
+
+      local check = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "CheckButton" and frame._settingKey == "SETTINGS_TIME_PACE" then
+          check = frame
+        end
+      end
+      check = Assert.NotNil(check, "the display section must render the time-pace toggle")
+      Assert.True(check:GetChecked(), "the toggle must default to on")
+      Assert.Nil(db.timePaceEnabled, "opening settings must not persist the default")
+
+      check:SetChecked(false)
+      check._scripts.OnClick(check)
+      Assert.False(db.timePaceEnabled, "turning it off must persist false")
+      Assert.False(addon.TimePace.IsEnabled(), "the module must read the persisted off state")
+      Assert.Equal(toggles[1], false, "the toggle must live-apply through the kill-row refresh")
+
+      panel.Refresh()
+      Assert.False(check:GetChecked(), "refresh must mirror the stored off state")
+    end)
+  end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
+end

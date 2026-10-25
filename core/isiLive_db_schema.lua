@@ -215,6 +215,8 @@ local SCHEMA = {
 
   -- M+ killtracker forces pace (learned per-boss forces targets).
   forcesPaceEnabled = { type = "boolean", default = true },
+  timePaceEnabled = { type = "boolean", default = true },
+  ttkEnabled = { type = "boolean", default = true },
 
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
@@ -309,6 +311,17 @@ local SCHEMA = {
   -- per-dungeon route count is bounded by game/isiLive_forces_pace.lua, which
   -- also validates every route on read.
   forcesPace = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 20,
+  },
+  -- Slowest timed reference run per dungeon and key level:
+  -- timePace[seasonID][mapID][keyLevel]. Keyed by season first like
+  -- forcesPace; game/isiLive_time_pace.lua bounds the levels per dungeon and
+  -- validates every entry on read.
+  timePace = {
     type = "table",
     default = function()
       return {}

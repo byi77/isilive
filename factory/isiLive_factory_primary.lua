@@ -154,6 +154,20 @@ local function InitializeFactoryPrimaryControllers(ctx)
   if modules.rosterPanel and type(modules.rosterPanel.SetTraceLogger) == "function" then
     modules.rosterPanel.SetTraceLogger(runtimeLog and runtimeLog.Log or nil)
   end
+  -- TTK: own event frame, then the nameplate text that registers with it,
+  -- plus the [TTK] reason trace while the runtime log is on.
+  for _, key in ipairs({ "TTK", "TTKNameplate", "TTKTestPanel" }) do
+    local module = addonTable[key]
+    if type(module) == "table" and type(module.Install) == "function" then
+      module.Install()
+    end
+  end
+  local ttk = addonTable.TTK
+  if type(ttk) == "table" and type(ttk.SetTraceLogger) == "function" and runtimeLog then
+    ttk.SetTraceLogger(runtimeLog.Trace, function()
+      return type(runtimeLog.IsLevelEnabled) == "function" and runtimeLog.IsLevelEnabled("normal")
+    end)
+  end
   ctx.keySyncController = initResult.keySyncController
   ctx.MarkIsiLiveUser = initResult.markIsiLiveUser
   ctx.UnitHasIsiLive = initResult.unitHasIsiLive

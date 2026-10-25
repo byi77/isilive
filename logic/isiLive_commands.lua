@@ -84,6 +84,14 @@ local function BuildDeps(opts)
         return false
       end,
     dumpNameplateState = type(opts.dumpNameplateState) == "function" and opts.dumpNameplateState or function() end,
+    -- Session-only TTK test mode (game/isiLive_ttk.lua); returns the new state.
+    toggleTtkTestMode = type(opts.toggleTtkTestMode) == "function" and opts.toggleTtkTestMode or function()
+      local ttk = addonTable.TTK
+      if type(ttk) ~= "table" or type(ttk.SetTestMode) ~= "function" then
+        return false
+      end
+      return ttk.SetTestMode(not ttk.IsTestMode())
+    end,
     openSettings = type(opts.openSettings) == "function" and opts.openSettings or function()
       return false
     end,
@@ -115,6 +123,7 @@ local HELP_KEYS = {
   "HELP_UNLOCK",
   "HELP_RESETUI",
   "HELP_SETTINGS",
+  "HELP_TTKTEST",
   "HELP_ADMIN",
 }
 
@@ -569,6 +578,13 @@ local function TryHandleUtilityCommands(ctx, cmd)
     else
       ctx.printFn("Nameplate test mode OFF.")
     end
+    return true
+  end
+
+  if cmd == "ttktest" then
+    local L = type(ctx.getL) == "function" and ctx.getL() or {}
+    local active = ctx.toggleTtkTestMode()
+    ctx.printFn(active and (L.TTK_TEST_ON or "TTK test mode ON") or (L.TTK_TEST_OFF or "TTK test mode OFF"))
     return true
   end
 

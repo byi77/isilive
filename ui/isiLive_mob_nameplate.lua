@@ -1124,6 +1124,26 @@ local diagnostics = Diagnostics.Create({
 MobNameplate.DumpFrames = diagnostics.DumpFrames
 MobNameplate.DumpState = diagnostics.DumpState
 
+--- Anchor for the TTK text above the target's nameplate (ui/isiLive_ttk_nameplate.lua):
+-- the same health bar the forces overlay finds (Platynator widget included).
+-- @param token string|nil the target's nameplate token (TTK.GetTargetPlateToken);
+--   "target" is only the fallback, its plate lookup may be empty in a key
+-- @return table|nil region whose TOP the text sits above
+function MobNameplate.ResolveTtkAnchor(token)
+  if IsSecretValue(token) or type(token) ~= "string" or token == "" then
+    token = nil
+  end
+  local plate = GetNameplate(token or "target")
+  if not plate then
+    return nil
+  end
+  local anchor = ResolveAnchorTarget(plate)
+  return anchor
+end
+
+--- Applies the overlay font (family and size setting) to another FontString.
+MobNameplate.ApplyOverlayFont = ApplyFont
+
 function MobNameplate.Register()
   if registered then
     return true

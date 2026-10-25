@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.451 (patch)
+
+### Time to kill
+
+- New: during a Mythic+ fight your target shows roughly how many seconds it
+  has left, above its nameplate and as "TTK" in the killtracker line. Use it
+  to judge whether a cooldown, a stop or a target swap is still worth it, to
+  time your burst for the end of a pack or boss, and to see which mob is
+  about to die.
+- The estimate follows how fast the mob has lost health so far: bosses from
+  the pull, other mobs from their first damage. It is measured at the last hit
+  and counts down evenly in between, updated twice per second. Bloodlust,
+  target swaps or immunity phases change the pace, so it is a guide.
+- Enemy health stays protected in keys: the game evaluates the estimate
+  itself, isiLive never reads the health value.
+- Display settings: "M+: Time to Kill (TTK)", on by default, with an
+  explanation of how it works.
+- `/isilive ttktest` turns on a test mode until reload: a sample value above
+  your target's nameplate outside combat, the real estimate in any fight (for
+  example on a training dummy), and a centre-screen test panel with the state
+  behind the number.
+
+### Time pace
+
+- New line under the killtracker bar: whether the key is on time. When you
+  have already timed the dungeon on the same key level, it compares against
+  your own slowest timed run there (the slowest pace that still made it), for
+  example "-1:12 vs. +12 timed" in green when you are ahead. Otherwise it
+  shows a finish forecast from enemy forces and killed bosses against the
+  time limit.
+- The reference runs are learned automatically from your completed keys per
+  season, dungeon and key level.
+- Display settings: "M+ Killtracker: Time pace", on by default.
+
 ## 2026-10-24 - Version 0.9.450 (patch)
 
 ### Target dungeon chat

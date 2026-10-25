@@ -111,6 +111,38 @@ local function GetPaceRunRevision()
   return nil
 end
 
+-- Time pace of the active run (game/isiLive_time_pace.lua), or nil.
+local function ResolveTimePace()
+  if not state.active then
+    return nil
+  end
+  local pace = addonTable.TimePace
+  if type(pace) ~= "table" or type(pace.GetStatus) ~= "function" then
+    return nil
+  end
+  -- GetStatus validates every input and guards its only Blizzard read
+  -- (inside MplusTimer); a direct call keeps the per-tick pcall budget.
+  local status = pace.GetStatus(state.mapID)
+  if type(status) == "table" then
+    return status
+  end
+  return nil
+end
+
+-- The time pace moves with the clock, not with forces: its shown value is
+-- whole seconds, so the ticker notifies at most once per second for it.
+local function GetTimePaceKey()
+  local status = ResolveTimePace()
+  if not status then
+    return nil
+  end
+  local value = status.mode == "reference" and status.delta or status.projected
+  if type(value) ~= "number" then
+    return nil
+  end
+  return tostring(status.mode) .. ":" .. tostring(math.floor(value))
+end
+
 -- Last state the subscribers saw. The 0.5 s ticker re-reads live forces for
 -- the whole key (rule 60), but between pulls nothing changes; it notifies only
 -- when a value KillTrack.GetData() exposes may have moved. The pace target is
@@ -126,11 +158,13 @@ function RememberNotifiedState(displayPull)
   notified.displayPull = displayPull
   notified.pullPercent = displayPull and pull.pullPercent or 0
   notified.paceRevision = GetPaceRunRevision()
+  notified.timePaceKey = GetTimePaceKey()
 end
 
 local function HasStateChangedSinceNotify()
   local displayPull = ShouldDisplayPull()
-  return notified.active ~= state.active
+  if
+    notified.active ~= state.active
     or notified.percent ~= state.percent
     or notified.rawCount ~= state.rawCount
     or notified.total ~= state.total
@@ -138,6 +172,11 @@ local function HasStateChangedSinceNotify()
     or notified.displayPull ~= displayPull
     or notified.pullPercent ~= (displayPull and pull.pullPercent or 0)
     or notified.paceRevision ~= GetPaceRunRevision()
+  then
+    return true
+  end
+  -- Only between other changes: the clock-driven time pace is checked last.
+  return notified.timePaceKey ~= GetTimePaceKey()
 end
 
 -- Enemy-forces criteria ID of the current key. Some boss fights add their own
@@ -266,6 +305,10 @@ local function ObservePace(snapshot)
   local pace = addonTable.ForcesPace
   if type(pace) == "table" and type(pace.Observe) == "function" then
     pcall(pace.Observe, snapshot)
+  end
+  local timePace = addonTable.TimePace
+  if type(timePace) == "table" and type(timePace.Observe) == "function" then
+    pcall(timePace.Observe, snapshot)
   end
 end
 
@@ -515,10 +558,15 @@ local function ResolvePaceTarget()
   return nil
 end
 
+-- Run lifecycle (BeginRun / CommitRun / DiscardRun) for both pace modules.
 local function CallPace(method)
   local pace = addonTable.ForcesPace
   if type(pace) == "table" and type(pace[method]) == "function" then
     pcall(pace[method])
+  end
+  local timePace = addonTable.TimePace
+  if type(timePace) == "table" and type(timePace[method]) == "function" then
+    pcall(timePace[method])
   end
 end
 
@@ -536,6 +584,7 @@ function KillTrack.GetData()
     inCombat = displayPull,
     pullPercent = displayPull and pull.pullPercent or 0,
     paceTarget = ResolvePaceTarget(),
+    timePace = ResolveTimePace(),
   }
 end
 

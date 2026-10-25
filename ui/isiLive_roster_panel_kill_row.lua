@@ -31,6 +31,17 @@ local ACTIVE_DUNGEON_RIGHT_OFFSET = 122
 local ACTIVE_DUNGEON_LABEL_WIDTH = 146
 local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
+local FormatMplusTime = RI.FormatMplusTime
+  or function(seconds)
+    local abs = math.abs(seconds)
+    return string.format("%d:%02d", math.floor(abs / 60), math.floor(abs % 60))
+  end
+-- Time pace line under the bar: it uses the frame's bottom padding below the
+-- 12 px row offset, so the run-zone geometry stays untouched.
+local TIME_PACE_FONT_SIZE = 10
+local TIME_PACE_LEFT_OFFSET = 94
+-- Right end of the same line: the target's time to kill (game/isiLive_ttk.lua).
+local TTK_TEXT_WIDTH = 76
 local FILL_MOTION_TOKEN = "normal"
 local FILL_MOTION_FALLBACK_SECONDS = 0.2
 
@@ -111,6 +122,74 @@ local function ShowPaceTick(row, barWidth, target)
     tick._isiLivePaceAnchor = container
   end
   tick:Show()
+end
+
+local function LocalizedText(key, fallback)
+  if type(UICommon.GetLocalizedText) == "function" then
+    local text = UICommon.GetLocalizedText(key, fallback)
+    if type(text) == "string" and text ~= "" then
+      return text
+    end
+  end
+  return fallback
+end
+
+-- Time pace of the run (see game/isiLive_time_pace.lua) as text plus
+-- "ontime" or "late", or nil when nothing is shown. Without the TimePace
+-- module the setting cannot be read: fail closed.
+local function BuildTimePaceText(data)
+  local status = type(data) == "table" and data.timePace or nil
+  if type(status) ~= "table" then
+    return nil
+  end
+  local pace = addonTable.TimePace
+  if type(pace) ~= "table" or type(pace.IsEnabled) ~= "function" or pace.IsEnabled() ~= true then
+    return nil
+  end
+  if status.mode == "reference" then
+    local delta, level = status.delta, status.keyLevel
+    if type(delta) ~= "number" or delta ~= delta or type(level) ~= "number" then
+      return nil
+    end
+    -- Whole seconds decide the sign, so a run exactly on the reference
+    -- reads "0:00" and counts as on time.
+    local seconds = math.floor(math.abs(delta) + 0.5)
+    local sign = seconds == 0 and "" or (delta < 0 and "-" or "+")
+    local text = string.format(
+      LocalizedText("TIME_PACE_REFERENCE_FMT", "%s vs. +%d timed"),
+      sign .. FormatMplusTime(seconds),
+      level
+    )
+    return text, (sign == "+") and "late" or "ontime"
+  end
+  if status.mode == "projection" then
+    local projected, limit = status.projected, status.timeLimit
+    if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
+      return nil
+    end
+    local text = string.format(
+      LocalizedText("TIME_PACE_PROJECTION_FMT", "Forecast %s / %s"),
+      FormatMplusTime(projected),
+      FormatMplusTime(limit)
+    )
+    return text, projected <= limit and "ontime" or "late"
+  end
+  return nil
+end
+
+local function UpdateTimePaceText(row, data)
+  local fontString = row.killTrackTimePaceText
+  if not fontString then
+    return
+  end
+  local text, paceState = BuildTimePaceText(data)
+  SetReadableText(fontString, text or "")
+  if text and type(fontString.SetTextColor) == "function" then
+    local colors = UICommon.Colors or {}
+    local color = paceState == "late" and (colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 })
+      or (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
+    fontString:SetTextColor(color[1], color[2], color[3])
+  end
 end
 
 local function BuildPercentPlaceholder()
@@ -363,6 +442,34 @@ local function CreateKillTrackRow(mainFrame)
   pctText:SetText(BuildPercentPlaceholder())
   ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE + 2)
 
+  local timePaceText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  timePaceText:SetPoint("TOPLEFT", box, "BOTTOMLEFT", TIME_PACE_LEFT_OFFSET, -1)
+  timePaceText:SetPoint("TOPRIGHT", box, "BOTTOMRIGHT", -(TTK_TEXT_WIDTH + 10), -1)
+  timePaceText:SetJustifyH("LEFT")
+  SetReadableText(timePaceText, "")
+  ApplyFontStringSize(timePaceText, TIME_PACE_FONT_SIZE)
+
+  local ttkText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  ttkText:SetPoint("TOPRIGHT", box, "BOTTOMRIGHT", -6, -1)
+  ttkText:SetWidth(TTK_TEXT_WIDTH)
+  ttkText:SetJustifyH("RIGHT")
+  ttkText:SetText("")
+  ApplyFontStringSize(ttkText, TIME_PACE_FONT_SIZE)
+  if type(ttkText.SetTextColor) == "function" then
+    ttkText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 }))
+  end
+  local ttk = addonTable.TTK
+  if type(ttk) == "table" and type(ttk.RegisterDisplay) == "function" then
+    ttk.RegisterDisplay(ttkText, {
+      format = function()
+        return LocalizedText("TTK_WINDOW_FMT", "TTK %.0fs")
+      end,
+      placeholder = function()
+        return LocalizedText("TTK_WINDOW_PENDING", "TTK …")
+      end,
+    })
+  end
+
   row.killTrackBarContainer = barContainer
   row.killTrackBarBg = barBg
   row.killTrackBarFill = barFill
@@ -375,6 +482,8 @@ local function CreateKillTrackRow(mainFrame)
   row.killTrackActiveDungeonText = activeDungeonText
   row.killTrackPctText = pctText
   row.killTrackPullText = pullText
+  row.killTrackTimePaceText = timePaceText
+  row.killTrackTtkText = ttkText
   return row
 end
 
@@ -587,6 +696,7 @@ local function UpdateKillTrackRow(row, deps)
     else
       HidePaceTick(row)
     end
+    UpdateTimePaceText(row, data)
     if pullText then
       if data.inCombat and pullPct > 0 then
         pullText:SetText("+" .. FormatPercentText(pullPct))
@@ -611,6 +721,7 @@ local function UpdateKillTrackRow(row, deps)
     end
   elseif targetInfo then
     HidePaceTick(row)
+    UpdateTimePaceText(row, nil)
     if barContainer and type(barContainer.Hide) == "function" then
       barContainer:Hide()
     end
@@ -656,6 +767,7 @@ local function UpdateKillTrackRow(row, deps)
     end
   else
     HidePaceTick(row)
+    UpdateTimePaceText(row, nil)
     if barContainer and type(barContainer.Show) == "function" then
       barContainer:Show()
     end

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.450`
+Versionsbasis: `0.9.451`
 Zuletzt aktualisiert: `2026-10-22`
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten
@@ -604,6 +604,25 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe fuer den naechsten Boss 
 5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Boss und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang.
 6. Erfolgskriterium: Ohne gelernte passende Route, nach dem letzten Boss oder bei ausgeschaltetem Setting sieht die Killtracker-Zeile genau wie bisher aus.
 
+## UC-30 Zeit-Tempo im M+-Killtracker
+
+Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemessen an seinem langsamsten getimten Run im selben Dungeon auf derselben Keystufe oder, ohne solchen Run, an einer Hochrechnung (Regel 208).
+
+1. Trigger: dieselben `KillTrack`-Ereignisse wie UC-29; `KillTrack` reicht jeden Snapshot an `TimePace` weiter, verstrichene Zeit, Zeitlimit und Keystufe kommen aus `MplusTimer`.
+2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf.
+3. Regel: Gespeichert wird bei `CHALLENGE_MODE_COMPLETED` nur ein ab Start verfolgter, getimter Run (`GetChallengeCompletionInfo().onTime`) ohne vorab tote Bosse mit passender Map und Keystufe; je Season, Dungeon und Keystufe bleibt der langsamste. `CHALLENGE_MODE_RESET` verwirft den Run.
+4. Output: Unter dem Killtracker-Balken steht `-1:12 vs. +12 timed` (gruen, vor der Referenz) beziehungsweise `+0:40 vs. +12 timed` (rot), ohne Referenz `Forecast 31:40 / 33:00` (gruen bis zum Zeitlimit, sonst rot).
+5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys ohne Referenz (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Zeile leer.
+
+## UC-31 Time to Kill des Ziels
+
+Ziel: Der Spieler sieht im Key-Kampf, wie lange sein Ziel noch etwa lebt (Regel 209).
+
+1. Trigger: Kampfbeginn im laufenden Key startet einen 0,5-s-Ticker; Zielwechsel, erster Schaden auf eine Nameplate (`UNIT_HEALTH`), `ENCOUNTER_START`/`_END`, Kampfende und Key-Ende.
+2. Verarbeitung: Uhr ab Bosspull (Boss-Ziel), ab dem ersten Schaden auf die Ziel-Nameplate oder ab Kampfbeginn; gemessen wird beim letzten Treffer, dazwischen zaehlt die Anzeige gleichmaessig herunter; die Formel `t * p / (1 - p) - d` geht als Curve an `UnitHealthPercent`, der Secret-Wert direkt an `SetFormattedText`.
+3. Output: `18s` ueber der Ziel-Nameplate und `TTK 18s` rechts in der Zeit-Tempo-Zeile; unter drei Sekunden `…` bzw. `TTK …`.
+4. Erfolgskriterium: Ausserhalb von Key-Kaempfen, ohne lebendes angreifbares Ziel oder bei ausgeschaltetem `ttkEnabled` ist nichts zu sehen; das M+-Regressionsbudget bleibt unveraendert.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -719,7 +738,7 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_party_run.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Versteckter Non-Challenge-PartyRun-Utility-Kontext | `isiLive_runtime_state.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_party_run.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_factory.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_factory_death_alert.lua` |
-| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_forces_pace.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_forces_pace.lua`, `isiLive_time_pace.lua`, `isiLive_ttk.lua`, `isiLive_ttk_nameplate.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | VIP-DK-Hilfen | `isiLive_vip_dk_assist.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | VIP-Bloodlust-Debuff-Button-Warnung | `isiLive_bloodlust_button_warning.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |

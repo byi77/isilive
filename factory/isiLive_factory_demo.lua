@@ -615,6 +615,8 @@ local function SetDemoTimerData(ctx, runtimeState)
       -- Learned forces target for the next boss: shows the pace tick. The
       -- live pull keeps the text slot, as it does in a real run.
       paceTarget = 45.1,
+      -- Time pace line under the bar: ahead of the slowest timed +12.
+      timePace = { mode = "reference", delta = -72, keyLevel = 12 },
     })
   end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
