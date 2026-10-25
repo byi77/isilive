@@ -65,3 +65,6 @@ tools/cache/
 TODO.md
 AGENTS.md
 CLAUDE.md
+
+# wowsim output (tools/wowsim/wowsim.lua)
+tools/wowsim/out/

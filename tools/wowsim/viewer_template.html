@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wowsim viewer</title>
+<style>
+:root { --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2b303b; --fg:#d7dbe3; --dim:#8a92a3; --acc:#4aa8ff; --pin:#ffb02e; --err:#ff4d4d; }
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:13px/1.35 "Segoe UI", system-ui, sans-serif; }
+body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+button, input { font:inherit; color:inherit; }
+button { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:2px 8px; cursor:pointer; }
+button:hover { border-color:var(--acc); }
+button.on { background:#24405e; border-color:var(--acc); }
+input[type=text] { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:2px 6px; width:150px; }
+label { cursor:pointer; white-space:nowrap; }
+header { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:6px 10px; background:var(--panel); border-bottom:1px solid var(--line); }
+header h1 { font-size:14px; margin:0; }
+.dim { color:var(--dim); }
+.sp { flex:1; }
+.badge { padding:1px 8px; border-radius:10px; font-weight:600; background:#2a2f3a; }
+.badge.err { background:var(--err); color:#fff; }
+main { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 390px; min-height:0; }
+#left { display:flex; flex-direction:column; min-width:0; min-height:0; }
+#vp { flex:1; overflow:auto; padding:10px; min-height:0; background:#0b0c10; }
+#wrap { position:relative; }
+#stage { position:absolute; left:0; top:0; transform-origin:0 0; background:#14171d; background-image:linear-gradient(#1b1f27 1px,transparent 1px),linear-gradient(90deg,#1b1f27 1px,transparent 1px); background-size:100px 100px; overflow:hidden; }
+.w { position:absolute; overflow:visible; }
+#stage.bounds .w { outline:1px solid rgba(74,168,255,.35); outline-offset:-1px; }
+.w.hl { outline:2px solid #ffe600 !important; outline-offset:-1px; }
+.hlbox { position:absolute; pointer-events:none; display:none; border:2px solid var(--acc); box-shadow:0 0 0 1px #000 inset; }
+.hlbox.pin { border-color:var(--pin); }
+.fill { position:absolute; left:0; top:0; right:0; bottom:0; }
+.ph { border:1px dashed rgba(255,255,255,.4); background:rgba(255,255,255,.05); color:#aab; font:9px/1.1 monospace; overflow:hidden; word-break:break-all; padding:1px; }
+.txt { position:absolute; left:0; top:0; right:0; bottom:0; display:flex; pointer-events:none; }
+.txt > div { width:100%; }
+.itex { display:inline-block; vertical-align:middle; flex:none; background-repeat:no-repeat; }
+#tl { border-top:1px solid var(--line); background:var(--panel); padding:6px 10px; }
+#tl .row { display:flex; gap:8px; align-items:center; }
+#tl input[type=range] { flex:1; }
+#tlabel { font-weight:600; }
+#steps { margin-top:6px; max-height:132px; overflow:auto; display:flex; flex-wrap:wrap; gap:4px; }
+.step { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:1px 7px; cursor:pointer; white-space:nowrap; }
+.step.cur { background:#24405e; border-color:var(--acc); }
+.step .d { font-size:11px; margin-left:4px; }
+.add { color:#6c6; } .rem { color:#e77; }
+aside { display:flex; flex-direction:column; border-left:1px solid var(--line); background:var(--panel); min-height:0; overflow:hidden; }
+.panel { padding:6px 10px; border-bottom:1px solid var(--line); }
+.panel h2, summary { font-size:12px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); cursor:default; }
+#selp { max-height:30%; overflow:auto; flex:none; }
+#logp { flex:1; display:flex; flex-direction:column; min-height:120px; }
+#log { flex:1; overflow:auto; font:11.5px/1.4 Consolas, monospace; }
+.le { padding:1px 4px; border-left:3px solid #555; white-space:pre-wrap; word-break:break-word; }
+.le .lt { color:var(--dim); margin-right:6px; }
+.k-event{border-color:#6cf;color:#9cf}.k-chat{border-color:#7d7;color:#9d9}.k-addon{border-color:#fc6;color:#fd8}.k-sound{border-color:#c9f;color:#d6f}
+.k-print{border-color:#ccc;color:#ddd}.k-note{border-color:#777;color:#999}.k-timer{border-color:#5cc;color:#7dd}
+.k-error{border-color:var(--err);background:rgba(255,77,77,.18);color:#ff9a9a;font-weight:600}
+#kf { display:flex; flex-wrap:wrap; gap:2px 10px; margin-bottom:4px; }
+#treep { flex:none; max-height:34%; overflow:auto; padding:6px 10px; }
+#tree { font:11.5px/1.5 Consolas, monospace; }
+.tr { cursor:pointer; white-space:nowrap; padding:0 2px; }
+.tr:hover { background:#242a36; } .tr.sel { background:#4a3513; }
+.tr .tg { display:inline-block; width:12px; color:var(--dim); }
+#tip { position:fixed; z-index:50; display:none; pointer-events:none; max-width:380px; background:rgba(10,12,16,.96); border:1px solid var(--acc); border-radius:4px; padding:6px 8px; font-size:11.5px; }
+.kv { display:grid; grid-template-columns:78px 1fr; gap:0 8px; }
+.kv .k { color:var(--dim); } .kv .v { word-break:break-all; }
+#nodata { display:none; margin:60px auto; max-width:520px; text-align:center; color:var(--dim); font-size:15px; }
+.sw { display:inline-block; width:10px; height:10px; border:1px solid #666; vertical-align:middle; margin-right:3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>wowsim viewer</h1>
+  <span id="meta" class="dim"></span>
+  <span id="errbadge" class="badge" title="Total error log entries across all steps">0 errors</span>
+  <span class="sp"></span>
+  <span class="dim">Zoom</span>
+  <button data-z="0.5">50%</button><button data-z="1">100%</button><button data-z="fit" class="on">Fit</button>
+  <span id="scl" class="dim"></span>
+  <label><input type="checkbox" id="cbBounds"> bounds</label>
+  <label><input type="checkbox" id="cbNamed"> only named</label>
+  <input type="text" id="filter" placeholder="highlight name/text...">
+  <span id="stats" class="dim"></span>
+</header>
+<div id="nodata">No simulation data embedded.<br>Build this page with <code>lua tools/wowsim/build_viewer.lua &lt;input.json&gt; &lt;output.html&gt;</code>.</div>
+<main id="main">
+  <section id="left">
+    <div id="vp"><div id="wrap"><div id="stage"></div></div></div>
+    <div id="tl">
+      <div class="row">
+        <button id="bPrev" title="Previous (Left)">&#9664;</button>
+        <button id="bPlay" title="Play / pause (1 step per second)">&#9654;</button>
+        <button id="bNext" title="Next (Right)">&#9654;&#9654;</button>
+        <input type="range" id="range" min="0" max="0" value="0">
+        <span id="ttime" class="dim"></span>
+        <span id="tlabel"></span>
+      </div>
+      <div id="steps"></div>
+    </div>
+  </section>
+  <aside>
+    <div class="panel" id="selp"><h2>Selection (click to pin)</h2><div id="sel" class="dim">nothing pinned</div></div>
+    <div class="panel" id="logp">
+      <h2>Log <label style="text-transform:none;letter-spacing:0"><input type="checkbox" id="cbCum"> cumulative</label></h2>
+      <div id="kf"></div>
+      <div id="log"></div>
+    </div>
+    <details open id="treep"><summary>Frame tree <span id="treecnt"></span></summary><div id="tree"></div></details>
+  </aside>
+</main>
+<div id="tip"></div>
+
+<script>
+const SIM_DATA = /*__SIM_DATA__*/null;
+const SIM_ASSETS = /*__SIM_ASSETS__*/{};
+
+// <tga-decoder>
+// Decodes a TGA file (Uint8Array) to {w,h,rgba}. Supports uncompressed + RLE
+// truecolor (16/24/32 bit) and grayscale (8/16 bit); honors origin bits.
+function decodeTGA(buf) {
+  if (!buf || buf.length < 18) throw new Error("TGA too short");
+  const idLen = buf[0], cmType = buf[1], type = buf[2];
+  const cmLen = buf[5] | (buf[6] << 8), cmDepth = buf[7];
+  const w = buf[12] | (buf[13] << 8), h = buf[14] | (buf[15] << 8);
+  const bpp = buf[16], desc = buf[17];
+  const rle = type === 10 || type === 11;
+  const gray = type === 3 || type === 11;
+  if (!(type === 2 || type === 10 || gray)) throw new Error("TGA type " + type + " unsupported");
+  if (!(w > 0 && h > 0)) throw new Error("TGA bad size");
+  if (gray ? !(bpp === 8 || bpp === 16) : !(bpp === 16 || bpp === 24 || bpp === 32)) throw new Error("TGA bpp " + bpp + " unsupported");
+  const Bp = bpp >> 3;
+  let pos = 18 + idLen + (cmType ? cmLen * ((cmDepth + 7) >> 3) : 0);
+  const out = new Uint8ClampedArray(w * h * 4);
+  const n = w * h, xFlip = (desc & 0x10) !== 0, topDown = (desc & 0x20) !== 0;
+  function put(s, o) {
+    const sx = s % w, sy = (s - sx) / w;
+    const dx = xFlip ? w - 1 - sx : sx, dy = topDown ? sy : h - 1 - sy;
+    const p = (dy * w + dx) * 4;
+    let r, g, b, a = 255;
+    if (gray) { r = g = b = buf[o]; if (bpp === 16) a = buf[o + 1]; }
+    else if (bpp === 16) {
+      const v = buf[o] | (buf[o + 1] << 8);
+      r = Math.round(((v >> 10) & 31) * 255 / 31); g = Math.round(((v >> 5) & 31) * 255 / 31); b = Math.round((v & 31) * 255 / 31);
+      a = (desc & 15) ? ((v & 0x8000) ? 255 : 0) : 255;
+    } else { b = buf[o]; g = buf[o + 1]; r = buf[o + 2]; if (bpp === 32) a = buf[o + 3]; }
+    out[p] = r; out[p + 1] = g; out[p + 2] = b; out[p + 3] = a;
+  }
+  if (!rle) {
+    if (pos + n * Bp > buf.length) throw new Error("TGA truncated");
+    for (let s = 0; s < n; s++, pos += Bp) put(s, pos);
+  } else {
+    let s = 0;
+    while (s < n && pos < buf.length) {
+      const hd = buf[pos++], cnt = (hd & 0x7f) + 1;
+      if (hd & 0x80) { for (let k = 0; k < cnt && s < n; k++) put(s++, pos); pos += Bp; }
+      else { for (let k = 0; k < cnt && s < n; k++, pos += Bp) put(s++, pos); }
+    }
+  }
+  return { w: w, h: h, rgba: out };
+}
+// </tga-decoder>
+
+(function () {
+"use strict";
+const STRATA = ["BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP"];
+const LAYERS = ["BACKGROUND", "BORDER", "ARTWORK", "OVERLAY", "HIGHLIGHT"];
+const KINDS = ["event", "chat", "addon", "sound", "print", "error", "note", "timer"];
+const REGION_TYPES = { Texture: 1, FontString: 1, Line: 1, MaskTexture: 1 };
+const $ = (id) => document.getElementById(id);
+const isObj = (v) => v !== null && typeof v === "object";
+const num = (v, d) => (typeof v === "number" && isFinite(v) ? v : d);
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+function mk(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = String(text);
+  return e;
+}
+function fmtT(t) {
+  const tt = Math.round(num(t, 0) * 10), m = Math.floor(tt / 600), s = (tt % 600) / 10;
+  return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s.toFixed(1);
+}
+function rgba(c, mul) {
+  const a = Array.isArray(c) ? c : [1, 1, 1, 1], m = Array.isArray(mul) ? mul : [1, 1, 1, 1];
+  const f = (i) => Math.round(clamp01(num(a[i], 1) * num(m[i], 1)) * 255);
+  return "rgba(" + f(0) + "," + f(1) + "," + f(2) + "," + clamp01(num(a[3], 1) * num(m[3], 1)).toFixed(3) + ")";
+}
+function normPath(p) { return String(p).replace(/\\/g, "/").toLowerCase(); }
+function lastSeg(p) { const s = String(p).split(/[\\/]/); return s[s.length - 1]; }
+
+// ---------------------------------------------------------------- data / assets
+const DATA = isObj(SIM_DATA) ? SIM_DATA : null;
+const STEPS = DATA && Array.isArray(DATA.steps) ? DATA.steps.filter(isObj) : [];
+const META = (DATA && isObj(DATA.meta)) ? DATA.meta : {};
+const ASSETS = Object.assign({}, DATA && isObj(DATA.assets) ? DATA.assets : {}, isObj(SIM_ASSETS) ? SIM_ASSETS : {});
+const SCREEN = { w: num(META.screen && META.screen.w, 1920), h: num(META.screen && META.screen.h, 1080) };
+
+if (!STEPS.length) {
+  $("main").style.display = "none"; $("nodata").style.display = "block";
+  $("meta").textContent = "no data";
+  return;
+}
+
+const assetIndex = {};
+Object.keys(ASSETS).forEach((k) => { assetIndex[normPath(k)] = ASSETS[k]; });
+function findAsset(path) {
+  if (typeof path !== "string" || !path) return null;
+  const k = normPath(path), base = k.replace(/\.(tga|png|blp)$/, "");
+  const cand = [k, base + ".tga", base + ".png", base];
+  const strip = /^interface\/addons\/isilive\//;
+  for (let i = 0; i < cand.length; i++) { if (assetIndex[cand[i]]) return { key: cand[i], a: assetIndex[cand[i]] }; }
+  for (let i = 0; i < cand.length; i++) { const c = cand[i].replace(strip, ""); if (assetIndex[c]) return { key: c, a: assetIndex[c] }; }
+  return null;
+}
+const baseCache = {}, tintCache = {};
+function b64ToBytes(b64) {
+  const bin = atob(b64), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+// Returns a base record {canvas,w,h,ready,fail,cbs}; PNG decodes asynchronously.
+function getBase(hit) {
+  let b = baseCache[hit.key];
+  if (b) return b;
+  b = baseCache[hit.key] = { ready: false, fail: false, cbs: [] };
+  const done = () => { b.ready = true; const l = b.cbs; b.cbs = []; l.forEach((f) => f()); };
+  try {
+    if (hit.a.type === "png") {
+      const img = new Image();
+      img.onload = () => {
+        const c = mk("canvas"); c.width = img.naturalWidth || 1; c.height = img.naturalHeight || 1;
+        c.getContext("2d").drawImage(img, 0, 0); b.canvas = c; b.w = c.width; b.h = c.height; done();
+      };
+      img.onerror = () => { b.fail = true; done(); };
+      img.src = "data:image/png;base64," + hit.a.b64;
+    } else {
+      const d = decodeTGA(b64ToBytes(hit.a.b64));
+      const c = mk("canvas"); c.width = d.w; c.height = d.h;
+      c.getContext("2d").putImageData(new ImageData(d.rgba, d.w, d.h), 0, 0);
+      b.canvas = c; b.w = d.w; b.h = d.h; b.ready = true;
+    }
+  } catch (e) { b.fail = true; b.ready = true; }
+  return b;
+}
+function tintedUrl(hit, base, vertex, desat) {
+  const v = Array.isArray(vertex) ? vertex : [1, 1, 1, 1];
+  const plain = !desat && v.every((x, i) => i > 3 || num(x, 1) === 1);
+  const key = hit.key + "|" + (plain ? "" : v.join(",") + "|" + (desat ? 1 : 0));
+  if (tintCache[key]) return tintCache[key];
+  let url;
+  if (plain) url = base.canvas.toDataURL();
+  else {
+    const c = mk("canvas"); c.width = base.w; c.height = base.h;
+    const ctx = c.getContext("2d"); ctx.drawImage(base.canvas, 0, 0);
+    const id = ctx.getImageData(0, 0, c.width, c.height), d = id.data;
+    const r = num(v[0], 1), g = num(v[1], 1), bl = num(v[2], 1), al = num(v[3], 1);
+    for (let i = 0; i < d.length; i += 4) {
+      let R = d[i], G = d[i + 1], B = d[i + 2];
+      if (desat) R = G = B = 0.299 * R + 0.587 * G + 0.114 * B;
+      d[i] = R * r; d[i + 1] = G * g; d[i + 2] = B * bl; d[i + 3] = d[i + 3] * al;
+    }
+    ctx.putImageData(id, 0, 0); url = c.toDataURL();
+  }
+  return (tintCache[key] = url);
+}
+// Calls cb(url) once the (tinted) image is available.
+function withImage(hit, vertex, desat, cb) {
+  const base = getBase(hit);
+  const go = () => { if (!base.fail && base.canvas) { try { cb(tintedUrl(hit, base, vertex, desat)); } catch (e) { /* ignore */ } } };
+  if (base.ready) go(); else base.cbs.push(go);
+}
+
+// ---------------------------------------------------------------- state
+const S = { step: 0, pin: null, zoom: "fit", cum: false, kinds: {}, bounds: false, named: false, filter: "", play: null, collapsed: {}, failed: 0, skipped: 0, shown: 0 };
+KINDS.forEach((k) => { S.kinds[k] = true; });
+let cur = { frames: [], byId: {}, kids: {} };
+const stage = $("stage");
+const hoverBox = mk("div", "hlbox"), pinBox = mk("div", "hlbox pin");
+
+// ---------------------------------------------------------------- rich text
+function plainText(s) {
+  return String(s).replace(/\|c[0-9a-fA-F]{8}/g, "").replace(/\|r/g, "").replace(/\|T.*?\|t/g, "").replace(/\|A.*?\|a/g, "")
+    .replace(/\|H.*?\|h/g, "").replace(/\|h/g, "").replace(/\|n/g, " ").replace(/\|\|/g, "|");
+}
+function placeholder(el, label, w, h, title) {
+  const p = mk("div", "fill ph");
+  if (w >= 24 && h >= 24 && label) p.textContent = label;
+  p.title = title || label || "";
+  el.appendChild(p);
+}
+function inlineTex(parent, kind, body, size) {
+  const parts = body.split(":");
+  let h = parseFloat(parts[1]), w = parseFloat(parts[2]);
+  if (!(h > 0)) h = size;
+  if (!(w > 0)) w = h;
+  const sp = mk("span", "itex");
+  sp.style.width = w + "px"; sp.style.height = h + "px";
+  const hit = kind === "T" ? findAsset(parts[0]) : null;
+  if (hit) {
+    sp.style.backgroundSize = "100% 100%";
+    withImage(hit, null, false, (u) => { sp.style.backgroundImage = "url(" + u + ")"; });
+  } else {
+    sp.style.border = "1px dashed rgba(255,255,255,.5)"; sp.style.background = "rgba(255,255,255,.08)";
+    sp.title = (kind === "T" ? "texture " : "atlas ") + parts[0];
+  }
+  parent.appendChild(sp);
+}
+// Renders WoW escape-coded text into parent as spans.
+function renderRich(parent, s, size) {
+  const stack = []; let buf = "", underline = 0;
+  function flush() {
+    if (!buf) return;
+    const sp = mk("span", null, buf);
+    if (stack.length) sp.style.color = stack[stack.length - 1];
+    if (underline) sp.style.textDecoration = "underline";
+    parent.appendChild(sp); buf = "";
+  }
+  function run(str) {
+    let i = 0; const n = str.length;
+    while (i < n) {
+      const ch = str[i];
+      if (ch !== "|") { buf += ch; i++; continue; }
+      const nx = str[i + 1];
+      if (nx === "|") { buf += "|"; i += 2; }
+      else if (nx === "n") { flush(); parent.appendChild(mk("br")); i += 2; }
+      else if (nx === "c") {
+        if (/^[0-9a-fA-F]{8}$/.test(str.substr(i + 2, 8))) { flush(); stack.push("#" + str.substr(i + 4, 6)); i += 10; } else i += 2;
+      }
+      else if (nx === "r") { flush(); stack.pop(); i += 2; }
+      else if (nx === "T" || nx === "A") {
+        let e = str.indexOf(nx === "T" ? "|t" : "|a", i + 2); if (e < 0) e = n;
+        flush(); inlineTex(parent, nx, str.substring(i + 2, e), size); i = e + 2;
+      }
+      else if (nx === "H") {
+        const e1 = str.indexOf("|h", i + 2);
+        if (e1 < 0) { i = n; continue; }
+        const e2 = str.indexOf("|h", e1 + 2), end = e2 < 0 ? n : e2;
+        flush(); underline++; run(str.substring(e1 + 2, end)); flush(); underline--; i = e2 < 0 ? n : e2 + 2;
+      }
+      else if (nx === "h") i += 2;
+      else { buf += "|"; i++; }
+    }
+  }
+  run(String(s)); flush();
+}
+function fontFamily(font) {
+  const f = String(font || "").toUpperCase();
+  if (f.indexOf("ARIALN") >= 0) return '"Arial Narrow", Arial, sans-serif';
+  return '"Friz Quadrata TT", "Palatino Linotype", Georgia, serif';
+}
+
+// ---------------------------------------------------------------- frame rendering
+function applyTex(el, tex, w, h) {
+  if (tex.color) { el.style.background = rgba(tex.color, tex.vertex); return; }
+  if (tex.atlas) { placeholder(el, String(tex.atlas), w, h, "atlas " + tex.atlas); return; }
+  const hit = findAsset(tex.path);
+  if (!hit) {
+    const full = typeof tex.path === "number" ? "fileID " + tex.path : String(tex.path === undefined ? "?" : tex.path);
+    placeholder(el, typeof tex.path === "number" ? String(tex.path) : lastSeg(full), w, h, full);
+    return;
+  }
+  const c = tex.coords, ch = mk("div", "fill");
+  let u0 = 0, u1 = 1, v0 = 0, v1 = 1;
+  if (Array.isArray(c) && c.length >= 4) { u0 = num(c[0], 0); u1 = num(c[1], 1); v0 = num(c[2], 0); v1 = num(c[3], 1); }
+  if (Array.isArray(c) && c.length >= 8) {
+    const xs = [c[0], c[2], c[4], c[6]].map((x) => num(x, 0)), ys = [c[1], c[3], c[5], c[7]].map((x) => num(x, 0));
+    u0 = Math.min.apply(null, xs); u1 = Math.max.apply(null, xs); v0 = Math.min.apply(null, ys); v1 = Math.max.apply(null, ys);
+  }
+  const fu = Math.abs(u1 - u0) || 1, fv = Math.abs(v1 - v0) || 1, bw = w / fu, bh = h / fv;
+  ch.style.backgroundRepeat = "no-repeat";
+  ch.style.backgroundSize = bw + "px " + bh + "px";
+  ch.style.backgroundPosition = -Math.min(u0, u1) * bw + "px " + -Math.min(v0, v1) * bh + "px";
+  const sx = u1 < u0 ? -1 : 1, sy = v1 < v0 ? -1 : 1;
+  if (sx < 0 || sy < 0) ch.style.transform = "scale(" + sx + "," + sy + ")";
+  el.appendChild(ch);
+  withImage(hit, tex.vertex, !!tex.desaturated, (u) => { ch.style.backgroundImage = "url(" + u + ")"; });
+}
+function renderText(el, t) {
+  const size = num(t.size, 12) > 0 ? num(t.size, 12) : 12;
+  const box = mk("div", "txt"), inner = mk("div");
+  const v = String(t.v || "MIDDLE").toUpperCase(), hh = String(t.h || "LEFT").toUpperCase();
+  box.style.alignItems = v === "TOP" ? "flex-start" : v === "BOTTOM" ? "flex-end" : "center";
+  inner.style.textAlign = hh === "RIGHT" ? "right" : hh === "CENTER" ? "center" : "left";
+  inner.style.whiteSpace = t.wrap === false ? "pre" : "pre-wrap";
+  inner.style.fontSize = size + "px"; inner.style.lineHeight = "1.15";
+  inner.style.fontFamily = fontFamily(t.font);
+  inner.style.color = rgba(t.color || [1, 1, 1, 1]);
+  const fl = String(t.flags || "").toUpperCase();
+  if (fl.indexOf("OUTLINE") >= 0) {
+    const o = fl.indexOf("THICK") >= 0 ? 2 : 1, c = "#000";
+    inner.style.textShadow = [[-o, -o], [o, -o], [-o, o], [o, o], [0, -o], [0, o], [-o, 0], [o, 0]].map((p) => p[0] + "px " + p[1] + "px 0 " + c).join(",");
+  }
+  renderRich(inner, t.s === undefined || t.s === null ? "" : t.s, size);
+  box.appendChild(inner); el.appendChild(box);
+}
+function buildEl(f, idx) {
+  const w = num(f.w, 0), h = num(f.h, 0);
+  const el = mk("div", "w");
+  el.dataset.i = idx;
+  el.style.left = num(f.x, 0) + "px"; el.style.top = num(f.y, 0) + "px";
+  el.style.width = w + "px"; el.style.height = h + "px";
+  el.style.opacity = clamp01(num(f.alpha, 1));
+  if (Array.isArray(f.bg)) el.style.background = rgba(f.bg);
+  if (Array.isArray(f.border)) {
+    const e = num(f.edge, 1) > 0 ? num(f.edge, 1) : 1;
+    el.style.border = e + "px solid " + rgba(f.border);
+  }
+  if (isObj(f.tex)) applyTex(el, f.tex, w, h);
+  if (isObj(f.bar)) {
+    const mn = num(f.bar.min, 0), mx = num(f.bar.max, 1), rng = mx - mn || 1;
+    const fill = mk("div", "fill");
+    fill.style.right = "auto"; fill.style.width = clamp01((num(f.bar.value, 0) - mn) / rng) * 100 + "%";
+    fill.style.background = rgba(f.bar.color || [0, 1, 0, 1]);
+    el.appendChild(fill);
+  }
+  if (isObj(f.text)) renderText(el, f.text);
+  return el;
+}
+function sortKey(f, idx, byIdIdx) {
+  const region = REGION_TYPES[f.type] || f.layer !== undefined && f.layer !== null;
+  let st = STRATA.indexOf(String(f.strata || "MEDIUM").toUpperCase()); if (st < 0) st = 2;
+  let owner = idx;
+  if (region && f.parent !== null && f.parent !== undefined && byIdIdx[f.parent] !== undefined) owner = byIdIdx[f.parent];
+  const ly = region ? Math.max(0, LAYERS.indexOf(String(f.layer || "ARTWORK").toUpperCase())) : -1;
+  return [st, num(f.level, 0), owner, ly, num(f.sublevel, 0), idx];
+}
+function cmpKeys(a, b) { for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] - b[i]; } return 0; }
+function matches(f) {
+  const q = S.filter.trim().toLowerCase();
+  if (!q) return false;
+  return String(f.name || "").toLowerCase().indexOf(q) >= 0 || String(f.type || "").toLowerCase() === q ||
+    (isObj(f.text) && plainText(f.text.s === undefined ? "" : f.text.s).toLowerCase().indexOf(q) >= 0);
+}
+function renderStage() {
+  const st = STEPS[S.step], frames = Array.isArray(st.frames) ? st.frames : [];
+  const byId = {}, kids = {}, byIdIdx = {};
+  frames.forEach((f, i) => { if (isObj(f) && f.id !== undefined && f.id !== null) { byId[f.id] = f; byIdIdx[f.id] = i; } });
+  frames.forEach((f) => {
+    if (!isObj(f)) return;
+    const p = f.parent !== undefined && f.parent !== null && byId[f.parent] ? f.parent : "root";
+    (kids[p] = kids[p] || []).push(f);
+  });
+  cur = { frames: frames, byId: byId, kids: kids };
+  stage.textContent = "";
+  stage.style.width = SCREEN.w + "px"; stage.style.height = SCREEN.h + "px";
+  S.failed = 0; S.skipped = 0; S.shown = 0;
+  const order = [];
+  frames.forEach((f, i) => {
+    if (!isObj(f)) { S.failed++; return; }
+    if (!(num(f.w, 0) > 0 && num(f.h, 0) > 0) || f.shown === false) { S.skipped++; return; }
+    if (S.named && !f.name) return;
+    try { order.push({ i: i, k: sortKey(f, i, byIdIdx) }); } catch (e) { S.failed++; }
+  });
+  order.sort((a, b) => cmpKeys(a.k, b.k));
+  const frag = document.createDocumentFragment();
+  order.forEach((o) => {
+    const f = frames[o.i];
+    try {
+      const el = buildEl(f, o.i);
+      // clip = [x, y, w, h] in screen px: the visible part inside clipping
+      // ancestors (ScrollFrame / SetClipsChildren), expressed as an inset.
+      if (Array.isArray(f.clip) && f.clip.length === 4) {
+        const t = Math.max(0, f.clip[1] - f.y), l = Math.max(0, f.clip[0] - f.x);
+        const b = Math.max(0, f.y + f.h - (f.clip[1] + f.clip[3])), r = Math.max(0, f.x + f.w - (f.clip[0] + f.clip[2]));
+        el.style.clipPath = "inset(" + t + "px " + r + "px " + b + "px " + l + "px)";
+      }
+      if (matches(f)) el.classList.add("hl");
+      frag.appendChild(el); S.shown++;
+    } catch (e) { S.failed++; }
+  });
+  stage.appendChild(frag); stage.appendChild(hoverBox); stage.appendChild(pinBox);
+  stage.classList.toggle("bounds", S.bounds);
+  $("stats").textContent = S.shown + " shown, " + S.skipped + " skipped" + (S.failed ? ", " + S.failed + " FAILED" : "");
+  placeBox(pinBox, S.pin !== null ? byId[S.pin] : null);
+  hoverBox.style.display = "none";
+}
+function placeBox(box, f) {
+  if (!f || !(num(f.w, 0) > 0 && num(f.h, 0) > 0)) { box.style.display = "none"; return; }
+  box.style.display = "block"; box.style.left = num(f.x, 0) + "px"; box.style.top = num(f.y, 0) + "px";
+  box.style.width = num(f.w, 0) + "px"; box.style.height = num(f.h, 0) + "px";
+}
+
+// ---------------------------------------------------------------- scale
+function applyScale() {
+  const vp = $("vp");
+  let sc = S.zoom === "fit" ? (vp.clientWidth - 20) / SCREEN.w : S.zoom;
+  if (!(sc > 0.05)) sc = 0.05;
+  stage.style.transform = "scale(" + sc + ")";
+  $("wrap").style.width = SCREEN.w * sc + "px"; $("wrap").style.height = SCREEN.h * sc + "px";
+  $("scl").textContent = Math.round(sc * 100) + "%" + (S.zoom === "fit" ? " (fit)" : "");
+  document.querySelectorAll("[data-z]").forEach((b) => b.classList.toggle("on", b.dataset.z === String(S.zoom)));
+  S.scale = sc;
+}
+
+// ---------------------------------------------------------------- info panel
+function chain(f) {
+  const names = []; let p = f.parent, guard = 0;
+  while (p !== null && p !== undefined && guard++ < 60) {
+    const pf = cur.byId[p];
+    if (!pf) { names.push("#" + p + "?"); break; }
+    names.push(pf.name || (pf.type || "?") + "#" + pf.id); p = pf.parent;
+  }
+  return names.join(" < ") || "(root)";
+}
+function infoRows(f) {
+  const r = [];
+  r.push(["id", f.id], ["name", f.name === null || f.name === undefined ? "(anonymous)" : f.name], ["type", f.type]);
+  r.push(["parent", chain(f)]);
+  r.push(["rect", "x " + f.x + "  y " + f.y + "  w " + f.w + "  h " + f.h]);
+  r.push(["strata", (f.strata || "?") + " / level " + num(f.level, 0) + (f.layer ? " / " + f.layer + ":" + num(f.sublevel, 0) : "")]);
+  r.push(["alpha", f.alpha]);
+  if (f.bg) r.push(["bg", JSON.stringify(f.bg)]);
+  if (f.border) r.push(["border", JSON.stringify(f.border) + " edge " + f.edge]);
+  if (isObj(f.tex)) {
+    const t = f.tex;
+    r.push(["tex", t.color ? "color " + JSON.stringify(t.color) : t.atlas ? "atlas " + t.atlas : "path " + t.path]);
+    if (t.vertex) r.push(["vertex", JSON.stringify(t.vertex) + (t.desaturated ? " desaturated" : "")]);
+    if (t.coords) r.push(["coords", JSON.stringify(t.coords)]);
+    if (!t.color && !t.atlas) r.push(["asset", findAsset(t.path) ? "embedded" : "missing (placeholder)"]);
+  }
+  if (isObj(f.text)) {
+    const t = f.text;
+    r.push(["text", t.s], ["font", num(t.size, 12) + "px " + (t.font || "") + " " + (t.flags || "") + " " + (t.h || "") + "/" + (t.v || "") + (t.wrap === false ? " nowrap" : "")]);
+  }
+  if (isObj(f.bar)) r.push(["bar", f.bar.value + " in [" + f.bar.min + ", " + f.bar.max + "]"]);
+  return r;
+}
+function fillInfo(box, f) {
+  box.textContent = "";
+  const kv = mk("div", "kv");
+  infoRows(f).forEach((p) => { kv.appendChild(mk("div", "k", p[0])); kv.appendChild(mk("div", "v", p[1] === undefined ? "" : p[1])); });
+  box.appendChild(kv);
+}
+function frameAt(e) {
+  const t = e.target.closest ? e.target.closest("[data-i]") : null;
+  return t ? cur.frames[+t.dataset.i] : null;
+}
+stage.addEventListener("mousemove", (e) => {
+  const f = frameAt(e), tip = $("tip");
+  if (!f) { tip.style.display = "none"; hoverBox.style.display = "none"; return; }
+  placeBox(hoverBox, f); fillInfo(tip, f); tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = e.clientX + 16, y = e.clientY + 16;
+  if (x + tw > window.innerWidth - 4) x = e.clientX - tw - 16;
+  if (y + th > window.innerHeight - 4) y = Math.max(4, window.innerHeight - th - 4);
+  tip.style.left = Math.max(4, x) + "px"; tip.style.top = y + "px";
+});
+stage.addEventListener("mouseleave", () => { $("tip").style.display = "none"; hoverBox.style.display = "none"; });
+stage.addEventListener("click", (e) => { const f = frameAt(e); select(f ? f.id : null); });
+function select(id) {
+  S.pin = id === undefined ? null : id;
+  const f = S.pin !== null ? cur.byId[S.pin] : null, sel = $("sel");
+  if (f) { sel.className = ""; fillInfo(sel, f); } else { sel.className = "dim"; sel.textContent = "nothing pinned"; }
+  placeBox(pinBox, f); renderTree();
+}
+
+// ---------------------------------------------------------------- tree
+function renderTree() {
+  const host = $("tree"); host.textContent = "";
+  let count = 0; const seen = {};
+  function walk(f, depth) {
+    if (seen[f.id] || depth > 40) return;
+    seen[f.id] = 1; count++;
+    const ch = cur.kids[f.id] || [];
+    const row = mk("div", "tr" + (S.pin === f.id ? " sel" : ""));
+    row.style.paddingLeft = depth * 12 + 2 + "px";
+    const tg = mk("span", "tg", ch.length ? (S.collapsed[f.id] ? "+" : "-") : "");
+    tg.addEventListener("click", (e) => { e.stopPropagation(); S.collapsed[f.id] = !S.collapsed[f.id]; renderTree(); });
+    row.appendChild(tg);
+    const hidden = !(num(f.w, 0) > 0 && num(f.h, 0) > 0);
+    row.appendChild(mk("span", null, f.name || (f.type || "?") + "#" + f.id));
+    row.appendChild(mk("span", "dim", " " + (f.type || "") + (hidden ? " (0-size)" : "")));
+    row.addEventListener("click", () => select(f.id));
+    host.appendChild(row);
+    if (!S.collapsed[f.id]) ch.forEach((c) => walk(c, depth + 1));
+  }
+  (cur.kids.root || []).forEach((f) => walk(f, 0));
+  $("treecnt").textContent = "(" + cur.frames.length + ")";
+}
+
+// ---------------------------------------------------------------- log
+function renderLog() {
+  const host = $("log"); host.textContent = "";
+  const from = S.cum ? 0 : S.step;
+  let n = 0;
+  for (let i = from; i <= S.step; i++) {
+    const lg = Array.isArray(STEPS[i].log) ? STEPS[i].log : [];
+    lg.forEach((e) => {
+      if (!isObj(e)) return;
+      const k = String(e.kind || "note");
+      if (S.kinds[k] === false) return;
+      const row = mk("div", "le k-" + k);
+      row.appendChild(mk("span", "lt", fmtT(e.t)));
+      row.appendChild(mk("span", null, "[" + k + "] " + (e.text === undefined ? "" : e.text)));
+      host.appendChild(row); n++;
+    });
+  }
+  if (!n) host.appendChild(mk("div", "dim", "no log entries"));
+}
+function buildKindFilters() {
+  const kinds = KINDS.slice();
+  STEPS.forEach((s) => (Array.isArray(s.log) ? s.log : []).forEach((e) => {
+    if (isObj(e) && e.kind && kinds.indexOf(e.kind) < 0) { kinds.push(e.kind); S.kinds[e.kind] = true; }
+  }));
+  const host = $("kf");
+  kinds.forEach((k) => {
+    const l = mk("label"), cb = mk("input"); cb.type = "checkbox"; cb.checked = true;
+    cb.addEventListener("change", () => { S.kinds[k] = cb.checked; renderLog(); });
+    l.appendChild(cb); l.appendChild(mk("span", "k-" + k, " " + k)); l.lastChild.style.cssText = "border:0;background:none;font-weight:normal";
+    host.appendChild(l);
+  });
+}
+
+// ---------------------------------------------------------------- timeline
+const idSets = STEPS.map((s) => { const o = {}; (Array.isArray(s.frames) ? s.frames : []).forEach((f) => { if (isObj(f)) o[f.id] = 1; }); return o; });
+function buildSteps() {
+  const host = $("steps"); host.textContent = "";
+  STEPS.forEach((s, i) => {
+    const b = mk("span", "step" + (i === S.step ? " cur" : ""));
+    b.appendChild(mk("span", "dim", fmtT(s.t) + " "));
+    b.appendChild(mk("span", null, s.label === undefined ? "step " + i : s.label));
+    if (i > 0) {
+      let add = 0, rem = 0;
+      Object.keys(idSets[i]).forEach((k) => { if (!idSets[i - 1][k]) add++; });
+      Object.keys(idSets[i - 1]).forEach((k) => { if (!idSets[i][k]) rem++; });
+      if (add || rem) {
+        const d = mk("span", "d");
+        if (add) d.appendChild(mk("span", "add", "+" + add + " "));
+        if (rem) d.appendChild(mk("span", "rem", "-" + rem));
+        d.title = add + " frame(s) appeared, " + rem + " disappeared vs previous step";
+        b.appendChild(d);
+      }
+    }
+    b.addEventListener("click", () => go(i));
+    host.appendChild(b);
+  });
+}
+function go(i) {
+  i = Math.max(0, Math.min(STEPS.length - 1, i | 0));
+  S.step = i;
+  const s = STEPS[i];
+  $("range").value = i; $("ttime").textContent = fmtT(s.t) + "  (" + (i + 1) + "/" + STEPS.length + ")"; $("tlabel").textContent = s.label === undefined ? "" : s.label;
+  document.querySelectorAll(".step").forEach((e, k) => e.classList.toggle("cur", k === i));
+  const curEl = document.querySelectorAll(".step")[i]; if (curEl && curEl.scrollIntoView) curEl.scrollIntoView({ block: "nearest" });
+  renderStage(); renderLog();
+  const pinned = S.pin !== null && cur.byId[S.pin];
+  if (!pinned) S.pin = null;
+  select(S.pin);
+}
+function setPlay(on) {
+  if (S.play) { clearInterval(S.play); S.play = null; }
+  if (on) {
+    if (S.step >= STEPS.length - 1) go(0);
+    S.play = setInterval(() => { if (S.step >= STEPS.length - 1) setPlay(false); else go(S.step + 1); }, 1000);
+  }
+  $("bPlay").innerHTML = S.play ? "&#10074;&#10074;" : "&#9654;";
+}
+
+// ---------------------------------------------------------------- init
+function init() {
+  $("meta").textContent = [META.addon, META.version && "v" + META.version, META.scenario, SCREEN.w + "x" + SCREEN.h, META.generatedAt].filter(Boolean).join(" | ");
+  let errs = 0;
+  STEPS.forEach((s) => (Array.isArray(s.log) ? s.log : []).forEach((e) => { if (isObj(e) && e.kind === "error") errs++; }));
+  const eb = $("errbadge"); eb.textContent = errs + (errs === 1 ? " error" : " errors"); if (errs) eb.classList.add("err");
+  $("range").max = STEPS.length - 1;
+  buildKindFilters(); buildSteps();
+  document.querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
+    S.zoom = b.dataset.z === "fit" ? "fit" : parseFloat(b.dataset.z); applyScale();
+  }));
+  $("cbBounds").addEventListener("change", (e) => { S.bounds = e.target.checked; stage.classList.toggle("bounds", S.bounds); });
+  $("cbNamed").addEventListener("change", (e) => { S.named = e.target.checked; renderStage(); });
+  $("cbCum").addEventListener("change", (e) => { S.cum = e.target.checked; renderLog(); });
+  $("filter").addEventListener("input", (e) => { S.filter = e.target.value; renderStage(); });
+  $("range").addEventListener("input", (e) => go(+e.target.value));
+  $("bPrev").addEventListener("click", () => go(S.step - 1));
+  $("bNext").addEventListener("click", () => go(S.step + 1));
+  $("bPlay").addEventListener("click", () => setPlay(!S.play));
+  document.addEventListener("keydown", (e) => {
+    const t = e.target, tag = t && t.tagName, type = t && t.type;
+    if (tag === "INPUT" && (type === "text" || type === "range")) return;
+    if (e.key === "ArrowLeft") { go(S.step - 1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { go(S.step + 1); e.preventDefault(); }
+  });
+  window.addEventListener("resize", applyScale);
+  // Deep link: #step=N&zoom=Z&frame=GlobalName opens a step, sets the zoom and
+  // scrolls the named frame into view.
+  const hp = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  const z = hp.get("zoom");
+  if (z) S.zoom = z === "fit" ? "fit" : parseFloat(z) || "fit";
+  applyScale(); go(parseInt(hp.get("step") || "1", 10) - 1);
+  const fname = hp.get("frame");
+  if (fname) {
+    const f = cur.frames.find((x) => isObj(x) && x.name === fname);
+    if (f) {
+      const vp = $("vp");
+      vp.scrollLeft = Math.max(0, f.x * S.scale - 10);
+      vp.scrollTop = Math.max(0, f.y * S.scale - 10);
+    }
+  }
+}
+try { init(); } catch (err) {
+  const m = mk("div", null, "viewer error: " + (err && err.message)); m.style.cssText = "color:#f66;padding:20px"; document.body.appendChild(m);
+}
+})();
+</script>
+</body>
+</html>

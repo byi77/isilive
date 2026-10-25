@@ -52,6 +52,18 @@ return {
         "212",
       },
     },
+    -- wowsim runs on the host Lua 5.4 (table.unpack, utf8, math.type), not in
+    -- the WoW client; its widget stubs intentionally match WoW signatures.
+    ["tools/wowsim/"] = {
+      std = "lua54",
+      globals = { "WOWSIM_BUILD_VIEWER_AS_LIB" },
+      ignore = { "212" },
+    },
+    ["tools\\wowsim\\"] = {
+      std = "lua54",
+      globals = { "WOWSIM_BUILD_VIEWER_AS_LIB" },
+      ignore = { "212" },
+    },
     -- Optional event-handler callback stubs intentionally accept and discard
     -- the WoW event vararg signature so live handlers can be drop-in
     -- replacements without the call sites checking arity.
