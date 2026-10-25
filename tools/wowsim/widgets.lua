@@ -2046,8 +2046,8 @@ end
 function Widgets.New(opts)
   opts = opts or {}
   local clock = assert(opts.clock, "widgets: clock required")
-  local onUnknownMethod = opts.onUnknownMethod or function() end
-  local onScriptError = opts.onScriptError or function() end
+  local onUnknownMethod = opts.onUnknownMethod or function(...) end
+  local onScriptError = opts.onScriptError or function(...) end
   local screenW = opts.screenW or 1920
   local screenH = opts.screenH or 1080
 
