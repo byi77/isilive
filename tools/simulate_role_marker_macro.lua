@@ -312,7 +312,7 @@ local function RunRoleIconScenarios(RI, addon)
     Check(markButton:GetAttribute("macrotext1") == macroBefore, "in combat: the macro is unchanged")
     Check(markButton._blockedCalls == 0, "in combat: no protected call is attempted on the Mark-T/H button")
     local healRow = FindRowForUnit(memberRows, "party1")
-    Check(healRow ~= nil and healRow.roleIcon._shown == false, "in combat: the ghost's display icon hides")
+    Check(healRow ~= nil and healRow.roleIcon._shown == true, "in combat: the ghost keeps its display icon")
 
     SetCombat(false)
     RI.RenderRosterImpl(state, {

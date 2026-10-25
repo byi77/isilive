@@ -757,30 +757,34 @@ addonTable._FactorySecondaryTests = addonTable._FactorySecondaryTests or {}
 addonTable._FactorySecondaryTests.BuildFactorySecondaryControllerState = BuildFactorySecondaryControllerState
 
 local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Factory demo alternates the killtracker between a running key and the pre-key target", function()
+  test("Simulation tablet before-key-start action idles the timer and keeps the demo target", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,
       db = { powerInfusionTextEnabled = false },
     })
     WithGlobals(BuildGlobalsEnv(state), function()
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
       state.ctx.EnterFullDummyPreview()
-      local cycle
-      for _, ticker in ipairs(state.tickers) do
-        if ticker.interval == 6 then
-          cycle = ticker
+      state.ctx.ToggleSimulationTablet()
+      local preKey
+      for _, action in ipairs(state.simulationTabletOpts.getActions()) do
+        if action.id == "C5" then
+          preKey = action
         end
       end
-      cycle = Assert.NotNil(cycle, "demo must schedule the killtracker phase cycle")
-      Assert.True(state.killTrackDemoData.active, "the demo starts with the running key")
-
-      cycle.callback()
-      Assert.False(state.killTrackDemoData.active, "the next phase shows the pulsing pre-key target")
-      Assert.Equal(state.killTrackRowRefreshes, 2, "each phase refreshes the kill-track row")
-      cycle.callback()
-      Assert.True(state.killTrackDemoData.active, "the cycle returns to the running key")
-
+      preKey = Assert.NotNil(preKey, "the M+ tab must offer the before-key-start action")
+      Assert.Equal(preKey.category, "mplus", "the action sits on the M+ tab")
+      local refreshesBefore = state.killTrackRowRefreshes or 0
+      preKey.run()
+      Assert.False(state.killTrackDemoData.active, "before the key the killtracker is idle")
+      Assert.Equal(state.killTrackDemoData.mapID, 249, "the idle killtracker keeps the demo target map")
+      Assert.Equal(state.mplusDemoCleared, 1, "before the key the M+ timer shows no run")
+      Assert.Equal(state.latestQueueState.mapID, 249, "the demo target stays set for the pulsing name")
+      Assert.Equal(state.killTrackRowRefreshes, refreshesBefore + 1, "the action refreshes the kill-track row")
+      Assert.Equal(state.ctx._demoTargetKey.mapID, 249, "the demo target key names the demo dungeon")
+      Assert.Equal(state.ctx._demoTargetKey.level, 15, "the demo target key carries the demo key level")
       state.testModeOpts.clearDemoTimerData()
-      Assert.True(cycle.cancelled, "leaving the demo cancels the cycle")
+      Assert.Nil(state.ctx._demoTargetKey, "leaving the preview drops the demo target level")
     end)
   end)
 
@@ -1064,7 +1068,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 23, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 24, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -1086,7 +1090,11 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       "share-keys cooldown action must use the simulator lock"
     )
     Assert.Equal(state.shareKeysCooldownCleared, 2, "share-keys cleanup must run from D2 and F3")
-    Assert.Equal(state.mplusDemoCleared, 1, "cleanup action must clear M+ timer demo data")
+    Assert.Equal(
+      state.mplusDemoCleared,
+      2,
+      "the before-key-start action and the cleanup action must each clear M+ timer demo data"
+    )
     Assert.Equal(state.killTrackDemoCleared, 1, "cleanup action must clear kill-track demo data")
     Assert.NotNil(state.portalNavigatorLayout, "portal action must show the portal navigator")
     local nameplateWasEnabled = false

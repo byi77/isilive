@@ -515,7 +515,7 @@ end
 -- deliberately left alone (see ClearMemberRow).
 local INACTIVE_ROW_DATA_ALPHA = 0.45
 local INACTIVE_ROW_NAME_ALPHA = 0.75
-local ROW_DATA_FIELDS = { "spec", "realm", "key", "ilvl", "rio", "dps", "kick" }
+local ROW_DATA_FIELDS = { "spec", "roleIcon", "realm", "key", "ilvl", "rio", "dps", "kick" }
 
 local function SetRowFieldAlpha(fontString, alpha)
   if type(fontString) == "table" and type(fontString.SetAlpha) == "function" then
@@ -849,12 +849,10 @@ local function RenderRosterImpl(state, roster)
         icon:SetTexture(texture)
       end
 
-      if info.isGhost then
-        showIcon = false
-      end
-
+      -- Ghost rows keep their badge: it is a plain display texture (the
+      -- clickable marker moved to Mark-T/H), faded with the row data.
       -- Remembered for UpdateCollapseState, which re-shows the icon on a
-      -- layout switch and must not reveal it for ghost / role-less rows.
+      -- layout switch and must not reveal it for role-less rows.
       row.roleIcon._roleVisible = showIcon
       if showIcon and not isCollapsed then
         row.roleIcon:Show()

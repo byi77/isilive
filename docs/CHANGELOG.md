@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.458 (patch)
+
+- Killtracker before the key starts: the bar and the `--.--` placeholder stay
+  visible; the empty bar glows a muted target gold with a slow light sweep,
+  and the target dungeon with its key level pulses on its left.
+- During the key the dungeon name stays steady on the blue/green progress
+  bar, with the started key level read from the M+ timer only.
+- Demo: the 6-second switch between running key and pre-key target from
+  0.9.457 is gone; the demo shows the running key. The simulation tablet
+  gains "Before key start" (M+ tab), which idles the timer and shows the
+  pre-key bar with a demo key level of +15. The demo level is only a last
+  fallback and never overrides a real level source.
+- Roster: a disconnected (ghost) member keeps its role badge, faded with the
+  row data; only Mark-T/H skips ghosts.
+
 ## 2026-10-25 - Version 0.9.457 (patch)
 
 - Killtracker: complete forces read `100%` instead of a truncated `100,0...`;

@@ -903,6 +903,41 @@ return function(test, ctx)
     end)
   end)
 
+  test(
+    "factory_controllers.status: GetStatusTargetDungeonInfo uses the demo target level only as last fallback",
+    function()
+      local addon = Load()
+      local rs = BuildRuntimeStateStub({ latestDungeonName = "Ara-Kara", latestQueueMapID = 2649 })
+      rs.rosterRef = { player = { name = "Alice", realm = "D" } }
+      local syncedLevel = nil
+      local mods = BuildModulesStub({
+        sync = {
+          NormalizePlayerKey = function(n, r)
+            return (n or "") .. "-" .. (r or "")
+          end,
+          GetPlayerTargetInfo = function()
+            return { mapID = 2649, level = syncedLevel }
+          end,
+        },
+      })
+      local c = BuildCtx(rs, mods)
+      WithGlobals({}, function()
+        Init(addon, c)
+        Assert.Nil(c.GetStatusTargetDungeonInfo().level, "without any source there is no level")
+
+        c._demoTargetKey = { mapID = 2649, level = 15 }
+        Assert.Equal(c.GetStatusTargetDungeonInfo().level, 15, "the demo preview supplies its simulated level")
+
+        c._demoTargetKey = { mapID = 9999, level = 15 }
+        Assert.Nil(c.GetStatusTargetDungeonInfo().level, "a demo level for another dungeon is ignored")
+
+        c._demoTargetKey = { mapID = 2649, level = 15 }
+        syncedLevel = 12
+        Assert.Equal(c.GetStatusTargetDungeonInfo().level, 12, "a real level source always wins over the demo")
+      end)
+    end
+  )
+
   test("factory_controllers.status: GetStatusTargetDungeonInfo prefers LFG title level over roster owner", function()
     -- LFG group title "+13" must win over a +14 roster owner: the listing
     -- title is authoritative for the played key level (boost runs, leader

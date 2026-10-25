@@ -469,6 +469,16 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
       end
     end
 
+    -- Demo preview only (FactoryDemo): the simulated target key level, used
+    -- when no real source above supplies one.
+    if not targetLevel or targetLevel <= 0 then
+      local demoTarget = ctx._demoTargetKey
+      if type(demoTarget) == "table" and tonumber(demoTarget.mapID) == tonumber(targetMapID) then
+        targetLevel = tonumber(demoTarget.level)
+        targetLevelText = nil
+      end
+    end
+
     if targetLevel and targetLevel <= 0 then
       targetLevel = nil
     end

@@ -2258,6 +2258,17 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
       Assert.Equal(FindFontStringByText("633").alpha, 0.45, "a ghost row's data must be faded")
       Assert.Equal(FindFontStringContaining("Leaver").alpha, 0.75, "a ghost row's name must keep more contrast")
 
+      local ghostRoleIcon = nil
+      for _, frame in ipairs(createdFrames) do
+        local icon = rawget(frame, "icon")
+        if type(icon) == "table" and icon.texture == "Interface\\AddOns\\isiLive\\media\\role_dps" then
+          ghostRoleIcon = frame
+        end
+      end
+      Assert.True(ghostRoleIcon ~= nil, "the ghost row must keep its role badge texture")
+      Assert.True(ghostRoleIcon:IsShown(), "a ghost row's role badge must stay visible")
+      Assert.Equal(ghostRoleIcon.alpha, 0.45, "a ghost row's role badge must be faded with its data")
+
       connected.party1 = true
       controller.RenderRoster(roster)
       Assert.Equal(FindFontStringByText("622").alpha, 1, "a reconnected member's data must return to full opacity")

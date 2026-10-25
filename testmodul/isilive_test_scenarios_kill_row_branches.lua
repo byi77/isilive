@@ -109,6 +109,9 @@ local function NewPulseGroupStub()
       a._duration = v
     end
     function anim.SetSmoothing() end
+    function anim.SetOffset(a, x, y)
+      a._offset = { x, y }
+    end
     g._anim = anim
     return anim
   end
@@ -235,6 +238,12 @@ local function NewCreateFrameRecorder()
     function frame.SetAlpha(self, alpha)
       self._alpha = alpha
     end
+    function frame.SetWidth(self, width)
+      self._width = width
+    end
+    function frame.GetWidth(self)
+      return self._width or 0
+    end
     function frame.SetScript(self, name, fn)
       self._scripts = self._scripts or {}
       self._scripts[name] = fn
@@ -340,6 +349,9 @@ return function(test, ctx)
       local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
       local pulse = Assert.NotNil(row.killTrackTargetPulse, "pulse frame must be created")
       local group = Assert.NotNil(row.killTrackTargetPulseGroup, "pulse animation must be created")
+      Assert.Equal(pulse._parent, row.killTrackBarOverlay, "the pre-key target is drawn on top of the bar")
+      Assert.Equal(row.killTrackTargetText._points[1][1], "LEFT", "the dungeon name starts at the left of the bar")
+      Assert.Equal(row.killTrackTargetLevelText._points[1][2], row.killTrackTargetText, "the level follows the name")
       Assert.Equal(row.killTrackTargetText._parent, pulse, "dungeon name pulses with the frame")
       Assert.Equal(row.killTrackTargetLevelText._parent, pulse, "key level pulses with the frame")
       Assert.Equal(group._looping, "BOUNCE", "pulse loops back and forth")
@@ -419,41 +431,36 @@ return function(test, ctx)
     end)
   end)
 
-  test(
-    "UpdateKillTrackRow renders verified target key as right-aligned combined text before challenge start",
-    function()
-      WithGlobals({}, function()
-        local addon = LoadKillRow({ active = false, percent = 0 })
-        local row = NewRow()
-        row.killTrackBarFill._shown = true
-        row.killTrackBarPull._shown = true
-        addon._RosterInternal.UpdateKillTrackRow(row, {
-          getTargetDungeonInfo = function()
-            return {
-              name = "  Windlaeufer Turm  ",
-              level = 14,
-            }
-          end,
-          isInChallengeMode = function()
-            return false
-          end,
-        })
-        Assert.True(row.killTrackBarFill._shown == false, "pre-key target must hide percent fill")
-        Assert.True(row.killTrackBarPull._shown == false, "pre-key target must hide pull overlay")
-        Assert.True(row.killTrackBarContainer._shown == false, "pre-key target must hide percent bar background")
-        Assert.True(row.killTrackBarBg._shown == false, "pre-key target must hide static bar background")
-        Assert.Equal(row.killTrackTargetText._text, "Windlaeufer Turm", "pre-key target must show the dungeon name")
-        Assert.Equal(row.killTrackTargetLevelText._text, "+14", "pre-key target must show the colored key level")
-        Assert.True(row.killTrackTargetPulseGroup._playing, "pre-key target must pulse until the key starts")
-        Assert.Equal(row.killTrackTargetText._color[1], 1.0, "pre-key dungeon text must be gold-tinted")
-        Assert.Equal(row.killTrackTargetLevelText._color[3], 1.0, "pre-key level text must be blue-tinted")
-        Assert.Equal(row.killTrackTargetText._justifyH, "RIGHT", "pre-key target must be right-aligned")
-        Assert.Equal(row.killTrackTargetLevelText._justifyH, "RIGHT", "pre-key level must be right-aligned")
-        Assert.Equal(row.killTrackPctText._text, "", "pre-key target must not split the level into the percent field")
-        Assert.Equal(row.killTrackPullText._text, "", "pre-key target must clear pull text")
-      end)
-    end
-  )
+  test("UpdateKillTrackRow renders verified target key on the bar before challenge start", function()
+    WithGlobals({}, function()
+      local addon = LoadKillRow({ active = false, percent = 0 })
+      local row = NewRow()
+      row.killTrackBarFill._shown = true
+      row.killTrackBarPull._shown = true
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return {
+            name = "  Windlaeufer Turm  ",
+            level = 14,
+          }
+        end,
+        isInChallengeMode = function()
+          return false
+        end,
+      })
+      Assert.True(row.killTrackBarFill._shown == false, "pre-key target must hide percent fill")
+      Assert.True(row.killTrackBarPull._shown == false, "pre-key target must hide pull overlay")
+      Assert.True(row.killTrackBarContainer._shown == true, "pre-key target keeps the empty bar visible")
+      Assert.True(row.killTrackBarBg._shown == true, "pre-key target keeps the bar background visible")
+      Assert.Equal(row.killTrackTargetText._text, "Windlaeufer Turm", "pre-key target must show the dungeon name")
+      Assert.Equal(row.killTrackTargetLevelText._text, "+14", "pre-key target must show the colored key level")
+      Assert.True(row.killTrackTargetPulseGroup._playing, "pre-key target must pulse until the key starts")
+      Assert.Equal(row.killTrackTargetText._color[1], 1.0, "pre-key dungeon text must be gold-tinted")
+      Assert.Equal(row.killTrackTargetLevelText._color[3], 1.0, "pre-key level text must be blue-tinted")
+      Assert.Equal(row.killTrackPctText._text, "--.--", "pre-key target keeps the percent placeholder")
+      Assert.Equal(row.killTrackPullText._text, "", "pre-key target must clear pull text")
+    end)
+  end)
 
   test("UpdateKillTrackRow renders literal pipe characters in verified pre-key dungeon names", function()
     WithGlobals({}, function()
@@ -490,11 +497,10 @@ return function(test, ctx)
           return false
         end,
       })
-      Assert.True(row.killTrackBarContainer._shown == false, "pre-key dungeon must hide percent bar even without level")
+      Assert.True(row.killTrackBarContainer._shown == true, "pre-key dungeon keeps the bar visible without level")
       Assert.Equal(row.killTrackTargetText._text, "Nexuspunkt Xenas", "verified dungeon name must render")
       Assert.Equal(row.killTrackTargetLevelText._text, "", "unresolved level must stay hidden")
-      Assert.Equal(row.killTrackPctText._text, "", "pre-key dungeon must clear percent placeholder")
-      Assert.Equal(row.killTrackTargetText._justifyH, "RIGHT", "pre-key dungeon must stay right-aligned")
+      Assert.Equal(row.killTrackPctText._text, "--.--", "pre-key dungeon keeps the percent placeholder")
     end)
   end)
 
@@ -572,7 +578,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("UpdateKillTrackRow restores percent bar after pre-key target display", function()
+  test("UpdateKillTrackRow fills the bar after the pre-key target display", function()
     WithGlobals({}, function()
       local killTrackData = { active = false, percent = 0 }
       local addon = LoadKillRow(killTrackData)
@@ -588,7 +594,8 @@ return function(test, ctx)
           return false
         end,
       })
-      Assert.True(row.killTrackBarContainer._shown == false, "pre-key target must hide the bar")
+      Assert.True(row.killTrackBarContainer._shown == true, "pre-key target keeps the bar")
+      Assert.True(row.killTrackBarFill._shown == false, "pre-key bar stays empty")
 
       killTrackData.active = true
       killTrackData.percent = 42
@@ -601,14 +608,19 @@ return function(test, ctx)
     end)
   end)
 
-  test("UpdateKillTrackRow stops the pulse and shows no dungeon name once the key runs", function()
+  test("UpdateKillTrackRow keeps the dungeon on the bar steady once the key runs", function()
     WithGlobals({}, function()
       local killTrackData = { active = false, percent = 0 }
       local addon = LoadKillRow(killTrackData)
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true, keyLevel = 16 }
+        end,
+      }
       local row = NewRow(200)
       local deps = {
         getTargetDungeonInfo = function()
-          return { name = "Nexuspunkt Xenas", level = 14 }
+          return { name = "  Nexuspunkt Xenas  ", level = 14 }
         end,
         isInChallengeMode = function()
           return false
@@ -616,15 +628,79 @@ return function(test, ctx)
       }
       addon._RosterInternal.UpdateKillTrackRow(row, deps)
       Assert.True(row.killTrackTargetPulseGroup._playing, "pre-key target pulses")
+      Assert.Equal(row.killTrackTargetLevelText._text, "+14", "pre-key level comes from the target")
 
       killTrackData.active = true
       killTrackData.percent = 42
       addon._RosterInternal.UpdateKillTrackRow(row, deps)
       Assert.False(row.killTrackTargetPulseGroup._playing, "a running key stops the pulse")
       Assert.Equal(row.killTrackTargetPulse._alpha, 1, "a stopped pulse leaves the target opaque")
-      Assert.Equal(row.killTrackTargetText._text, "", "a running key shows no dungeon name")
-      Assert.Equal(row.killTrackTargetLevelText._text, "", "a running key shows no target level")
+      Assert.Equal(row.killTrackTargetText._text, "Nexuspunkt Xenas", "the running key keeps its dungeon on the bar")
+      Assert.Equal(row.killTrackTargetLevelText._text, "+16", "the running key shows the started level from the timer")
       Assert.Equal(row.killTrackPctText._text, "42.00%", "active percent text stays primary")
+    end)
+  end)
+
+  test("UpdateKillTrackRow omits the running key level when the timer has none", function()
+    WithGlobals({}, function()
+      local addon = LoadKillRow({ active = true, percent = 42 })
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true, keyLevel = 0 }
+        end,
+      }
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return { name = "Nexuspunkt Xenas", level = 14 }
+        end,
+        isInChallengeMode = function()
+          return true
+        end,
+      })
+      Assert.Equal(row.killTrackTargetText._text, "Nexuspunkt Xenas", "the dungeon name still shows")
+      Assert.Equal(row.killTrackTargetLevelText._text, "", "the target level must not stand in for the started level")
+    end)
+  end)
+
+  test("UpdateKillTrackRow glows the empty bar gold with a light sweep until the key starts", function()
+    local recorder = NewCreateFrameRecorder()
+    WithGlobals({ CreateFrame = recorder.createFrame }, function()
+      local killTrackData = { active = false, percent = 0 }
+      local addon = LoadKillRow(killTrackData)
+      local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
+      row.killTrackBarContainer._width = 200
+      local fill = Assert.NotNil(row.killTrackReadyFill, "the gold ready fill must be created")
+      local shimmer = Assert.NotNil(row.killTrackShimmer, "the light sweep must be created")
+      local sweep = Assert.NotNil(row.killTrackShimmerGroup, "the light sweep must be animated")
+      Assert.Equal(shimmer._parent, row.killTrackBarContainer, "the sweep is clipped by the bar container")
+      Assert.True(fill._shown == false, "the gold fill starts hidden")
+      Assert.True(shimmer._shown == false, "the sweep starts hidden")
+
+      local deps = {
+        getTargetDungeonInfo = function()
+          return { name = "Windlaeufer Turm", level = 14 }
+        end,
+        isInChallengeMode = function()
+          return false
+        end,
+      }
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.True(fill._shown == false, "without a target the bar stays plain")
+
+      addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.True(fill._shown == true, "a known target glows the empty bar gold")
+      Assert.True(shimmer._shown == true, "a known target shows the light sweep")
+      Assert.True(sweep._playing, "the light sweep runs before the key")
+      Assert.Equal(sweep._looping, "REPEAT", "the sweep repeats in one direction")
+      Assert.Equal(sweep._anim._offset[1], 236, "the sweep crosses the whole bar plus its own width")
+
+      killTrackData.active = true
+      killTrackData.percent = 12
+      addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.True(fill._shown == false, "a running key drops the gold fill")
+      Assert.True(shimmer._shown == false, "a running key hides the sweep")
+      Assert.False(sweep._playing, "a running key stops the sweep")
     end)
   end)
 

@@ -25,12 +25,20 @@ local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
 local CD_TRACKER_FONT_SIZE = 12
-local PREKEY_LEVEL_WIDTH = 42
+-- Pre-key target on the bar: outlined like the time pace delta, the level
+-- follows the name after a small gap.
+local PREKEY_TARGET_FONT_SIZE = 11
+local PREKEY_TARGET_LEFT_INSET = 2
+local PREKEY_LEVEL_GAP = 4
 local BAR_OVERLAY_RIGHT_OFFSET = 122
 -- Pre-key target pulse: name and level fade between full and this alpha,
 -- so the target never disappears.
 local PREKEY_PULSE_MIN_ALPHA = 0.35
 local PREKEY_PULSE_SECONDS = 0.8
+-- Light sweep across the pre-key bar: a soft band of this width crosses
+-- the bar once per period.
+local PREKEY_SHIMMER_WIDTH = 36
+local PREKEY_SHIMMER_SECONDS = 2.4
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 local FormatMplusTime = RI.FormatMplusTime
   or function(seconds)
@@ -379,6 +387,88 @@ local function MaybeFlashForcesComplete(row, isComplete)
   end
 end
 
+-- Paints a texture as a horizontal gradient between two alphas of one
+-- color token; without gradient support it falls back to a flat tint.
+local function PaintGradient(texture, color, fromAlpha, toAlpha)
+  local createColor = rawget(_G, "CreateColor")
+  if type(texture.SetGradient) == "function" and type(createColor) == "function" then
+    texture:SetGradient(
+      "HORIZONTAL",
+      createColor(color[1], color[2], color[3], fromAlpha),
+      createColor(color[1], color[2], color[3], toAlpha)
+    )
+  elseif type(texture.SetVertexColor) == "function" then
+    texture:SetVertexColor(color[1], color[2], color[3], math.max(fromAlpha, toAlpha) / 2)
+  end
+end
+
+-- Pre-key backdrop of the bar: a muted gold fill over the full width and a
+-- light band that sweeps across it. The sweep runs on a child frame of the
+-- clipping bar container, so it never draws outside the bar.
+local function CreatePreKeyReadyLayer(row, barContainer)
+  local colors = UICommon.Colors or {}
+  local readyFill = barContainer:CreateTexture(nil, "ARTWORK", nil, 1)
+  if type(readyFill.SetAllPoints) == "function" then
+    readyFill:SetAllPoints(barContainer)
+  end
+  if type(readyFill.SetTexture) == "function" then
+    readyFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(readyFill.SetVertexColor) == "function" then
+    readyFill:SetVertexColor(unpack(colors.MPLUS_PREKEY_READY_FILL or { 1.0, 0.84, 0.35, 0.22 }))
+  end
+  readyFill:Hide()
+
+  if type(barContainer.SetClipsChildren) == "function" then
+    barContainer:SetClipsChildren(true)
+  end
+  local shimmer = CreateFrame("Frame", nil, barContainer)
+  shimmer:SetPoint("TOPRIGHT", barContainer, "TOPLEFT", 0, 0)
+  shimmer:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMLEFT", 0, 0)
+  if type(shimmer.SetWidth) == "function" then
+    shimmer:SetWidth(PREKEY_SHIMMER_WIDTH)
+  end
+  local shimmerColor = colors.MPLUS_PREKEY_SHIMMER or { 1.0, 0.95, 0.75, 0.55 }
+  local half = PREKEY_SHIMMER_WIDTH / 2
+  for index, alphas in ipairs({ { 0, shimmerColor[4] }, { shimmerColor[4], 0 } }) do
+    local band = shimmer:CreateTexture(nil, "ARTWORK")
+    if type(band.SetTexture) == "function" then
+      band:SetTexture("Interface\\Buttons\\WHITE8X8")
+    end
+    if type(band.SetBlendMode) == "function" then
+      band:SetBlendMode("ADD")
+    end
+    if type(band.SetPoint) == "function" then
+      band:SetPoint("TOPLEFT", shimmer, "TOPLEFT", (index - 1) * half, 0)
+      band:SetPoint("BOTTOMLEFT", shimmer, "BOTTOMLEFT", (index - 1) * half, 0)
+    end
+    if type(band.SetWidth) == "function" then
+      band:SetWidth(half)
+    end
+    PaintGradient(band, shimmerColor, alphas[1], alphas[2])
+  end
+  local sweepGroup = type(shimmer.CreateAnimationGroup) == "function" and shimmer:CreateAnimationGroup() or nil
+  local sweep = nil
+  if sweepGroup then
+    sweepGroup:SetLooping("REPEAT")
+    sweep = sweepGroup:CreateAnimation("Translation")
+    sweep:SetDuration(PREKEY_SHIMMER_SECONDS)
+    sweep:SetSmoothing("IN_OUT")
+  end
+  -- Rule 168: no looping animation while hidden; OnShow resumes it.
+  if sweepGroup and type(shimmer.SetScript) == "function" then
+    shimmer:SetScript("OnHide", function()
+      sweepGroup:Stop()
+    end)
+  end
+  shimmer:Hide()
+
+  row.killTrackReadyFill = readyFill
+  row.killTrackShimmer = shimmer
+  row.killTrackShimmerGroup = sweepGroup
+  row.killTrackShimmerSweep = sweep
+end
+
 local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
@@ -458,6 +548,8 @@ local function CreateKillTrackRow(mainFrame)
   end
   barPull:Hide()
 
+  CreatePreKeyReadyLayer(row, barContainer)
+
   -- Learned forces target for the next boss: a thin cool tick above the fill.
   local paceTick = barContainer:CreateTexture(nil, "OVERLAY")
   if type(paceTick.SetTexture) == "function" then
@@ -477,11 +569,22 @@ local function CreateKillTrackRow(mainFrame)
   end
   paceTick:Hide()
 
-  -- The pre-key target pulses until the key starts; name and level share one
-  -- frame so a single alpha animation drives both.
-  local targetPulse = CreateFrame("Frame", nil, box)
-  targetPulse:SetPoint("LEFT", box, "LEFT", 0, 0)
-  targetPulse:SetPoint("RIGHT", box, "RIGHT", 0, 0)
+  -- Frame above the bar container for text drawn on the bar.
+  local barOverlay = CreateFrame("Frame", nil, box)
+  barOverlay:SetPoint("LEFT", box, "LEFT", 98, 0)
+  barOverlay:SetPoint("RIGHT", box, "RIGHT", -BAR_OVERLAY_RIGHT_OFFSET, 0)
+  barOverlay:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  if type(barOverlay.SetFrameLevel) == "function" then
+    local baseLevel = type(barContainer.GetFrameLevel) == "function" and tonumber(barContainer:GetFrameLevel()) or nil
+    barOverlay:SetFrameLevel((baseLevel or 1) + 5)
+  end
+
+  -- The pre-key target sits on the empty bar and pulses until the key
+  -- starts; name and level share one frame so a single alpha animation
+  -- drives both.
+  local targetPulse = CreateFrame("Frame", nil, barOverlay)
+  targetPulse:SetPoint("LEFT", barOverlay, "LEFT", 0, 0)
+  targetPulse:SetPoint("RIGHT", barOverlay, "RIGHT", 0, 0)
   targetPulse:SetHeight(CD_TRACKER_ROW_HEIGHT)
   local targetPulseGroup = type(targetPulse.CreateAnimationGroup) == "function" and targetPulse:CreateAnimationGroup()
     or nil
@@ -505,29 +608,17 @@ local function CreateKillTrackRow(mainFrame)
     end)
   end
 
-  local targetText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  targetText:SetPoint("LEFT", box, "LEFT", 94, 0)
-  targetText:SetPoint("RIGHT", box, "RIGHT", -(PREKEY_LEVEL_WIDTH + 10), 0)
-  targetText:SetJustifyH("RIGHT")
+  local targetText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
+  targetText:SetPoint("LEFT", targetPulse, "LEFT", PREKEY_TARGET_LEFT_INSET, 0)
+  targetText:SetJustifyH("LEFT")
   SetReadableText(targetText, "")
-  ApplyFontStringSize(targetText, CD_TRACKER_FONT_SIZE)
+  ApplyFontStringSize(targetText, PREKEY_TARGET_FONT_SIZE)
 
-  local targetLevelText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  targetLevelText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
-  targetLevelText:SetWidth(PREKEY_LEVEL_WIDTH)
-  targetLevelText:SetJustifyH("RIGHT")
+  local targetLevelText = targetPulse:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
+  targetLevelText:SetPoint("LEFT", targetText, "RIGHT", PREKEY_LEVEL_GAP, 0)
+  targetLevelText:SetJustifyH("LEFT")
   targetLevelText:SetText("")
-  ApplyFontStringSize(targetLevelText, CD_TRACKER_FONT_SIZE)
-
-  -- Frame above the bar container for text drawn on the bar.
-  local barOverlay = CreateFrame("Frame", nil, box)
-  barOverlay:SetPoint("LEFT", box, "LEFT", 98, 0)
-  barOverlay:SetPoint("RIGHT", box, "RIGHT", -BAR_OVERLAY_RIGHT_OFFSET, 0)
-  barOverlay:SetHeight(CD_TRACKER_ROW_HEIGHT)
-  if type(barOverlay.SetFrameLevel) == "function" then
-    local baseLevel = type(barContainer.GetFrameLevel) == "function" and tonumber(barContainer:GetFrameLevel()) or nil
-    barOverlay:SetFrameLevel((baseLevel or 1) + 5)
-  end
+  ApplyFontStringSize(targetLevelText, PREKEY_TARGET_FONT_SIZE)
 
   local pctText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   pctText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
@@ -642,6 +733,87 @@ local function ResolvePreKeyTargetInfo(deps, data)
   }
 end
 
+-- Level of the started key, read only from the M+ timer: the target-dungeon
+-- level may describe a key that is not the one running.
+local function ResolveActiveKeyLevel()
+  local MplusTimer = addonTable.MplusTimer
+  if type(MplusTimer) == "table" and type(MplusTimer.GetKeyLevel) == "function" then
+    local keyLevel = tonumber(MplusTimer.GetKeyLevel())
+    if not keyLevel or keyLevel <= 0 then
+      return nil
+    end
+    return math.floor(keyLevel)
+  end
+  local timerData = type(MplusTimer) == "table"
+      and type(MplusTimer.GetTimerData) == "function"
+      and MplusTimer.GetTimerData()
+    or nil
+  local level = type(timerData) == "table" and tonumber(timerData.keyLevel) or nil
+  if not level or level <= 0 then
+    return nil
+  end
+  return math.floor(level)
+end
+
+-- Writes the dungeon name (gold) and key level (light blue) onto the bar;
+-- nil clears both.
+local function SetBarTarget(row, name, level)
+  local targetText = row.killTrackTargetText
+  local targetLevelText = row.killTrackTargetLevelText
+  if targetText then
+    SetReadableText(targetText, name or "")
+    if name and type(targetText.SetTextColor) == "function" then
+      targetText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TARGET_TEXT) or { 1.0, 0.84, 0.35 }))
+    end
+  end
+  if targetLevelText then
+    targetLevelText:SetText((name and level) and ("+" .. tostring(level)) or "")
+    if name and type(targetLevelText.SetTextColor) == "function" then
+      targetLevelText:SetTextColor(
+        unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
+      )
+    end
+  end
+end
+
+-- Shows the gold pre-key backdrop and its light sweep, or hides both. The
+-- sweep distance follows the current bar width; reduced motion keeps only the
+-- gold fill.
+local function SetPreKeyReady(row, ready)
+  local fill = row.killTrackReadyFill
+  if fill then
+    if ready then
+      fill:Show()
+    else
+      fill:Hide()
+    end
+  end
+  local shimmer = row.killTrackShimmer
+  local group = row.killTrackShimmerGroup
+  if not shimmer then
+    return
+  end
+  local container = row.killTrackBarContainer
+  local width = container and type(container.GetWidth) == "function" and tonumber(container:GetWidth()) or 0
+  if not ready or not group or width <= 0 or IsReducedMotionEnabled() then
+    if group then
+      group:Stop()
+    end
+    shimmer:Hide()
+    return
+  end
+  local distance = width + PREKEY_SHIMMER_WIDTH
+  if row._shimmerDistance ~= distance and row.killTrackShimmerSweep then
+    group:Stop()
+    row.killTrackShimmerSweep:SetOffset(distance, 0)
+    row._shimmerDistance = distance
+  end
+  shimmer:Show()
+  if not group:IsPlaying() then
+    group:Play()
+  end
+end
+
 -- Starts or stops the pre-key target pulse. Reduced motion keeps the target
 -- steady; a stopped pulse leaves name and level fully opaque.
 local function SetTargetPulse(row, wanted)
@@ -677,8 +849,6 @@ local function UpdateKillTrackRow(row, deps)
   local barBg = row.killTrackBarBg
   local barFill = row.killTrackBarFill
   local barPull = row.killTrackBarPull
-  local targetText = row.killTrackTargetText
-  local targetLevelText = row.killTrackTargetLevelText
   local pctText = row.killTrackPctText
   local pullText = row.killTrackPullText
 
@@ -689,13 +859,15 @@ local function UpdateKillTrackRow(row, deps)
     if barBg and type(barBg.Show) == "function" then
       barBg:Show()
     end
-    if targetText then
-      SetReadableText(targetText, "")
-    end
-    if targetLevelText then
-      targetLevelText:SetText("")
-    end
+    -- The running key keeps its dungeon on the bar, steady instead of pulsing.
+    local activeInfo = type(deps) == "table"
+        and type(deps.getTargetDungeonInfo) == "function"
+        and deps.getTargetDungeonInfo()
+      or nil
+    local activeName = ResolveTargetDungeonNameFromInfo(activeInfo)
+    SetBarTarget(row, activeName, activeName and ResolveActiveKeyLevel() or nil)
     SetTargetPulse(row, false)
+    SetPreKeyReady(row, false)
     local pct = math.max(0, math.min(data.percent, 100))
     row._killTrackActive = true
     row._killTrackPercent = pct
@@ -771,52 +943,6 @@ local function UpdateKillTrackRow(row, deps)
         pullText:SetText("")
       end
     end
-  elseif targetInfo then
-    HidePaceTick(row)
-    UpdateTimePaceText(row, nil)
-    if barContainer and type(barContainer.Hide) == "function" then
-      barContainer:Hide()
-    end
-    if barBg and type(barBg.Hide) == "function" then
-      barBg:Hide()
-    end
-    if barFill then
-      row._forcesComplete = nil
-      HideFill(row)
-    end
-    if barPull then
-      barPull:Hide()
-    end
-    if targetText then
-      SetReadableText(targetText, targetInfo.name)
-      if type(targetText.SetJustifyH) == "function" then
-        targetText:SetJustifyH("RIGHT")
-      end
-      if type(targetText.SetTextColor) == "function" then
-        targetText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TARGET_TEXT) or { 1.0, 0.84, 0.35 }))
-      end
-    end
-    if targetLevelText then
-      targetLevelText:SetText(targetInfo.level and ("+" .. tostring(targetInfo.level)) or "")
-      if type(targetLevelText.SetJustifyH) == "function" then
-        targetLevelText:SetJustifyH("RIGHT")
-      end
-      if type(targetLevelText.SetTextColor) == "function" then
-        targetLevelText:SetTextColor(
-          unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
-        )
-      end
-    end
-    SetTargetPulse(row, true)
-    if pctText then
-      pctText:SetText("")
-      if type(pctText.SetTextColor) == "function" then
-        pctText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.MUTED_GOLD_PCT_TEXT) or { 0.9, 0.82, 0.45 }))
-      end
-    end
-    if pullText then
-      pullText:SetText("")
-    end
   else
     HidePaceTick(row)
     UpdateTimePaceText(row, nil)
@@ -833,13 +959,9 @@ local function UpdateKillTrackRow(row, deps)
     if barPull then
       barPull:Hide()
     end
-    if targetText then
-      SetReadableText(targetText, "")
-    end
-    if targetLevelText then
-      targetLevelText:SetText("")
-    end
-    SetTargetPulse(row, false)
+    SetBarTarget(row, targetInfo and targetInfo.name, targetInfo and targetInfo.level)
+    SetTargetPulse(row, targetInfo ~= nil)
+    SetPreKeyReady(row, targetInfo ~= nil)
     if pctText then
       pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then

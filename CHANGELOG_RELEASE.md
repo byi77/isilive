@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.457`.
+Current version: `0.9.458`.
+
+Version 0.9.458: before the key the killtracker bar glows gold with a light
+sweep and the pulsing target dungeon and key level; during the key the
+dungeon stays on the progress bar.
 
 Version 0.9.457: the killtracker shows `100%` cleanly, time pace sits on
 the bar as a +/- delta, and the target dungeon pulses until the key starts.
@@ -63,12 +67,13 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.457 -->
+<!-- highlights-reviewed-for: 0.9.458 -->
 
 Highlights:
-- **Cleaner killtracker.** Complete forces read `100%` instead of a cut-off
-  number, and the target dungeon pulses until the key starts, so you see at
-  a glance which key the group is about to run.
+- **Cleaner killtracker.** Before the key the empty bar glows gold with a
+  slow light sweep and the target dungeon and key level pulse on it, so you
+  see at a glance which key the group is about to run; during the key the
+  dungeon stays on the progress bar. Complete forces read `100%`.
 - **Pace and TTK fixes.** Small forces gains build reliable time-pace samples;
   missing boss checkpoints never use later forces readings. TTK recovers after
   reload or enabling mid-fight, stops in raids, and keeps its larger text.
