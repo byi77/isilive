@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.454 (patch)
+
+### Cross-realm announces
+
+- Battle res, Bloodlust and Power Infusion announcements from an isiLive user
+  on another realm were silently dropped. The caster names itself without a
+  realm (`GetUnitName("player", true)`), and the receiver resolved that bare
+  name against its own realm, so it never matched the cross-realm sender.
+  Bare names in `BRLUST` / `PI` payloads now resolve against the sender's
+  realm (also for the PI recipient), and senders add their realm to bare
+  names so receivers on older versions match them as well. Spoofing a caster
+  through a bare name is still rejected.
+
+### Language on a fresh install
+
+- A new install started in English on every client. The SavedVariables
+  sanitizer filled a fixed `enUS` locale before the client-locale fallback
+  could run. The default is now the client language; clients without an
+  isiLive translation still resolve to English, and a language chosen in the
+  settings is kept.
+
+### License
+
+- From 0.9.454 on, isiLive is free to download and use, but the source code
+  is no longer open source: copying, reusing or redistributing it requires
+  written permission. Earlier versions stay under the MIT License they were
+  released with.
+
+### Tooling
+
+- New headless simulator `tools/wowsim/`: runs the real addon in simulated
+  clients (several isiLive peers exchange real addon messages), plays
+  scripted scenarios and renders each step's UI into an HTML timeline. Both
+  fixes above were found with it; the scenarios `cross_realm_announce` and
+  `ui_tour` guard them.
+
 ## 2026-10-25 - Version 0.9.453 (patch)
 
 ### Time on the forces bar

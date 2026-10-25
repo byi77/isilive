@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.453`.
+Current version: `0.9.454`.
+
+Version 0.9.454: Battle res, Bloodlust and Power Infusion calls from group
+members on another realm reach you again; a fresh install starts in your game
+language. The source code is no longer open source (free to use, not to copy).
 
 Version 0.9.453: spent time and the forces/time gap on the killtracker bar;
 time to kill inside the target's health bar, for important enemies only.
@@ -49,9 +53,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.453 -->
+<!-- highlights-reviewed-for: 0.9.454 -->
 
 Highlights:
+- **Cross-realm calls fixed.** Battle res, Bloodlust and Power Infusion
+  announcements from isiLive users on another realm show up again; in mixed
+  pug groups they were silently lost.
 - **Pace at a glance.** The killtracker bar shows the spent time as a strip
   in the timer's colour; the gap to the forces is green while you lead the
   clock and red while you fall behind.
@@ -66,6 +73,3 @@ Highlights:
 - **Modern flags and role badges.** Language flags are sharp, rounded badges
   with correct designs; the roster shows new subtle tank, healer and damage
   badges, centered between spec and flag.
-- **Navigation for accepted invites.** The invite card names the dungeon's
-  zone and, when the season portal room has a portal to it, tells you to use
-  that portal.
