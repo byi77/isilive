@@ -562,10 +562,14 @@ local function CreateCdTrackerRow(mainFrame, opts)
   return row
 end
 
+-- Returns the M+ timer snapshot it read and the reachable grade (nil, nil
+-- without a running key), so the killtracker's time overlay reuses this 1 Hz
+-- read instead of sampling the timer a second time.
 local function UpdateCdTrackerRow(row, cdController)
   if not row then
-    return
+    return nil, nil
   end
+  local timerSnapshot, timerGrade = nil, nil
 
   -- BRes: always show icon + text; if spell unavailable show "--"
   do
@@ -678,6 +682,7 @@ local function UpdateCdTrackerRow(row, cdController)
       local activeGrade = ResolveActiveGrade(data)
       ApplyGradeEmphasis(row, activeGrade)
       UpdateMplusTimeline(row.mpTimeline, row.mplusBox, data, activeGrade)
+      timerSnapshot, timerGrade = data, activeGrade
     else
       -- no active key: show --:-- for all
       SetFontStringTextColorSafe(row.mp3Text, 0.4, 0.4, 0.5)
@@ -693,9 +698,11 @@ local function UpdateCdTrackerRow(row, cdController)
       HideMplusTimeline(row.mpTimeline)
     end
   end
+  return timerSnapshot, timerGrade
 end
 
 RI.CreateCdTrackerRow = CreateCdTrackerRow
 RI.UpdateCdTrackerRow = UpdateCdTrackerRow
+RI.MPLUS_GRADE_FILL_COLOR_KEYS = GRADE_FILL_COLOR_KEYS
 RI.BuildDeathSummaryTooltipLines = BuildDeathSummaryTooltipLines
 RI.BuildDeathTimeLostTooltipLine = BuildDeathTimeLostTooltipLine

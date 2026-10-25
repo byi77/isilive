@@ -461,6 +461,23 @@ Bekannte, bewusst nicht entschiedene Datenlage (Stand 2026-10-20):
 - Devourer (1480) zaehlt im LFG-Bonusprofil als Attack-Power-Nutzer mit physischem Schaden, in der Stats-Box als Intelligenz-Spec. Beide Werte sind unveraendert aus dem Bestand uebernommen.
 - `390435` heisst laut Wowhead `Exhaustion`; der ausloesende Spell ist dort nicht genannt und bleibt im Manifest offen.
 
+### 3.15 Time to Kill (TTK) und Zeit-Tempo
+
+Der TTK (Regel 209, `game/isiLive_ttk.lua`) hat keine Saisondaten, haengt aber vollstaendig an Blizzards Secret-Value-Regeln im Key. Nach jedem WoW-Patch sind das die Stellen, die zuerst brechen koennen:
+
+- **Curve-Auswertung:** `C_CurveUtil.CreateCurve`, `Curve:ClearPoints`/`AddPoint` und `UnitHealthPercent(unit, usePredicted, curve)`. Das Curve-Objekt ist im Client Userdata, nie auf `table` pruefen (genau das hat den TTK schon einmal unsichtbar gemacht). Aendert Blizzard Signatur oder Rueckgabe, bleibt die Zahl leer, ohne Lua-Fehler.
+- **Lesbare Felder im Key:** Ziel-Erkennung und Filter setzen voraus, dass `UnitIsUnit("target", nameplateN)`, `UnitClassification`, `UnitEffectiveLevel`, `UnitIsLieutenant`, `UnitHasPowerType`, `UnitExists`, `UnitCanAttack` und `UnitIsDead` lesbar bleiben und die Encounter-ID bei `ENCOUNTER_START` nicht secret ist. Werden sie secret, behandelt der TTK sie fail-closed als „nein“: Er verschwindet bzw. faellt auf die Kampf-Uhr zurueck.
+- **Ziel-Nameplate:** `C_NamePlate.GetNamePlateForUnit("target")` kann im Key leer sein; deshalb gibt es die Suche ueber die sichtbaren Tokens und die festen Tokens `nameplate1` bis `nameplate40`. Den Anker (Lebensleiste, Platynator-Widget) liefert dieselbe Erkennung wie fuer die Forces-Overlays (3.8): bricht dort etwas, bricht auch die TTK-Position.
+- **Wichtige Gegner:** Miniboss heisst „Elite ueber dem Spielerlevel oder Lieutenant“, Boss „Bosseinheit, Weltboss oder Level -1“, Caster „Elite mit Mana“. Diese Annahmen nach einem Addon-/Erweiterungswechsel mit neuen Levelgrenzen an echten Packs pruefen; die Regel vergleicht relativ zum Spielerlevel und braucht keine festen Zahlen.
+
+Pruefen ohne Key, an der Trainingspuppe:
+
+1. `/isilive ttktest` einschalten. Ohne Kampf muss in der Lebensleiste des Ziels ein Beispielwert stehen, im Kampf die Schaetzung; das Testpanel in der Bildschirmmitte zeigt Uhr, Trefferzeit, Ziel-Token, Zustand und ob die Auswertung gelang.
+2. Steht im Panel „Auswertung: nein“ oder bleibt die Zahl leer: `IsiLiveDB.ttkDebug` in den SavedVariables lesen. Das Protokoll laeuft immer (auch bei ausgeschaltetem Runtime-Log), haelt die letzten 60 Zustandswechsel und nennt einmal pro Kampf den fehlgeschlagenen Schritt der Curve-Auswertung (anlegen, fuellen, auswerten).
+3. Danach einen Key: `[TTK]`-Zeilen im Runtime-Log bzw. `ttkDebug` muessen `evaluated=true` zeigen.
+
+Zeit-Tempo (Regel 208) und Forces-Tempo (Regel 145) lernen je `seasonID`. In einer neuen Season starten beide automatisch leer: das Zeit-Tempo zeigt bis zum ersten getimten Run je Dungeon und Keystufe die Prognose, das Forces-Tempo zeigt bis zum ersten vollstaendigen Run keinen Zielstrich. Es ist nichts manuell zu migrieren oder zu loeschen; alte Seasons bleiben bis zur Obergrenze von 20 Season-Eintraegen im Speicher und werden nicht mehr gelesen.
+
 ## 4) Dinge, die bewusst so gebaut sind und nicht versehentlich rueckgaengig gemacht werden duerfen
 
 ### 4.1 Kein Raten
@@ -618,6 +635,7 @@ Mindestens das testen:
 14. M+, H und V durchschalten; alle 20-px-Titelcontrols muessen vertikal ruhig auf derselben Linie stehen, der sichtbare M+-Titel muss optisch mittig bleiben und H/V duerfen keine dunklen Innenkarten zeigen
 15. Main-Frame, Center-Notice, Portal-Navigator und Demo-Simulator oeffnen; jedes addon-eigene `×` muss im Default slate bleiben, erst bei Hover/Press rot reagieren und weiterhin exakt sein eigenes Fenster schliessen
 16. Stats Box auf Deutsch mit Beweglichkeitsklasse sowie sichtbaren Sekundaerwerten pruefen; erwartet werden `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` und bei aktivierter Haltbarkeit `Haltb`
+17. `/isilive ttktest` an der Trainingspuppe: Zahl in der Lebensleiste des Ziels auf dunkler Plakette, Testpanel meldet `Auswertung: ok`; erneut `/isilive ttktest` blendet Panel und Beispielwert wieder aus (Details: 3.15)
 
 ## 8) Wenn du nur 20 Minuten hast
 

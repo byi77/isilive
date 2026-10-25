@@ -164,8 +164,12 @@ local function NewTextureStub()
   function tex.Hide(self)
     self._shown = false
   end
-  function tex.SetWidth() end
-  function tex.SetVertexColor() end
+  function tex.SetWidth(self, width)
+    self._width = width
+  end
+  function tex.SetVertexColor(self, ...)
+    self._color = { ... }
+  end
   function tex.ClearAllPoints(self)
     self._points = {}
   end
@@ -199,6 +203,8 @@ local function NewRow()
     killTrackPctText = NewTextStub(),
     killTrackPullText = NewTextStub(),
     killTrackTimePaceText = NewTextStub(),
+    killTrackTimeStrip = NewTextureStub(),
+    killTrackTimeGap = NewTextureStub(),
   }
 end
 
@@ -355,6 +361,67 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
+local function RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- The timer box module shares the grade colour keys with the kill row.
+  local ROW_FILES = {
+    "isiLive_ui_common.lua",
+    "isiLive_roster_panel_helpers.lua",
+    "isiLive_roster_panel_cd_row.lua",
+    "isiLive_roster_panel_kill_row.lua",
+  }
+
+  test("Kill row overlays spent time on the forces bar and tints the gap by who leads", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules, ROW_FILES)
+      local RI = addon._RosterInternal
+      local colors = addon.UICommon.Colors
+      StartRun(addon, env)
+      Advance(addon, env, 600, 150, 1)
+      local row = NewRow()
+      RI.UpdateKillTrackRow(row)
+      -- 600 of 1800 s spent, +3 still reachable (grade 3).
+      RI.UpdateKillTrackTimeOverlay(row, { running = true, timer = 600, timeLimit = 1800 }, 3)
+      local strip, gap = row.killTrackTimeStrip, row.killTrackTimeGap
+      Assert.True(strip._shown, "the time strip shows during a key")
+      Assert.Equal(strip._width, 67, "a third of the time limit fills a third of the 200 px bar")
+      Assert.Equal(strip._color[1], colors.MPLUS_GRADE3_FILL[1], "the strip uses the timer box's grade colour")
+      Assert.True(gap._shown, "the gap between forces and time is tinted")
+      Assert.Equal(gap._width, 33, "50% forces against 33% time leaves a 33 px lead")
+      Assert.Equal(gap._color[1], colors.MPLUS_PACE_AHEAD_GAP[1], "forces ahead of the clock tint green")
+
+      RI.UpdateKillTrackTimeOverlay(row, { running = true, timer = 1200, timeLimit = 1800 }, 2)
+      Assert.Equal(gap._width, 33, "67% time against 50% forces leaves a 33 px gap")
+      Assert.Equal(gap._color[1], colors.MPLUS_PACE_BEHIND_GAP[1], "the clock ahead of forces tints red")
+      Assert.Equal(strip._color[1], colors.MPLUS_GRADE2_FILL[1], "the strip follows the reachable grade")
+    end)
+  end)
+
+  test("Kill row time overlay hides without a running key or with time pace off", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules, ROW_FILES)
+      local RI = addon._RosterInternal
+      StartRun(addon, env)
+      Advance(addon, env, 600, 150, 1)
+      local row = NewRow()
+      RI.UpdateKillTrackRow(row)
+      RI.UpdateKillTrackTimeOverlay(row, nil, nil)
+      Assert.False(row.killTrackTimeStrip._shown, "no timer snapshot hides the strip")
+      Assert.False(row.killTrackTimeGap._shown, "no timer snapshot hides the gap")
+
+      env.db.timePaceEnabled = false
+      RI.UpdateKillTrackTimeOverlay(row, { running = true, timer = 600, timeLimit = 1800 }, 3)
+      Assert.False(row.killTrackTimeStrip._shown, "the time pace setting also switches the overlay off")
+      env.db.timePaceEnabled = nil
+
+      Dispatch(addon, "CHALLENGE_MODE_RESET")
+      RI.UpdateKillTrackRow(row)
+      Assert.False(row.killTrackTimeStrip._shown, "outside an active killtracker the overlay hides")
+    end)
+  end)
+end
+
 local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   local ROW_FILES = { "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" }
 
@@ -483,5 +550,6 @@ return function(test, ctx)
   RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
 end

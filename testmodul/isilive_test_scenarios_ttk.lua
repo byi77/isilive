@@ -89,7 +89,18 @@ local function BuildEnv(opts)
   local env = {
     now = 100,
     hp = 0.5,
-    target = { exists = true, canAttack = true, dead = false, plateToken = "nameplate1", isBoss = false },
+    -- Default target: a miniboss (elite one level above the player).
+    target = {
+      exists = true,
+      canAttack = true,
+      dead = false,
+      plateToken = "nameplate1",
+      isBoss = false,
+      classification = "elite",
+      level = 91,
+      lieutenant = false,
+      mana = false,
+    },
     db = opts.db or {},
     keyRunning = opts.keyRunning ~= false,
     tickers = {},
@@ -113,6 +124,21 @@ local function BuildEnv(opts)
     end,
     UnitIsDead = function(unit)
       return unit == "target" and env.target.dead
+    end,
+    UnitClassification = function(unit)
+      return unit == "target" and env.target.classification or "normal"
+    end,
+    UnitEffectiveLevel = function(unit)
+      if unit == "player" then
+        return 90
+      end
+      return unit == "target" and env.target.level or 0
+    end,
+    UnitIsLieutenant = function(unit)
+      return unit == "target" and env.target.lieutenant
+    end,
+    UnitHasPowerType = function(unit)
+      return unit == "target" and env.target.mana
     end,
     UnitIsUnit = function(a, b)
       if a ~= "target" then
@@ -460,7 +486,7 @@ local function RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
     end)
   end)
 
-  test("TTKNameplate sits above the resolved health bar and hides without one", function()
+  test("TTKNameplate sits centred in the resolved health bar on a dark plate and hides without one", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon, Fire, Tick = Setup(env, LoadAddonModules, { "isiLive_ttk_nameplate.lua" })
@@ -496,10 +522,10 @@ local function RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
       env.now = 130
       Tick()
       Assert.Equal(frame.text._text, "30s", "the nameplate shows the target TTK")
-      Assert.Equal(frame._point[1], "BOTTOM", "the text grows upwards")
+      Assert.Equal(frame._point[1], "CENTER", "the plate is centred")
       Assert.Equal(frame._point[2], anchor, "anchored to the resolved health bar")
-      Assert.Equal(frame._point[3], "TOP", "above the health bar")
-      Assert.True(frame._point[5] > 0, "clear of the name line above the bar")
+      Assert.Equal(frame._point[3], "CENTER", "inside the health bar")
+      Assert.NotNil(frame.plate, "a dark plate sits behind the number")
       Assert.True(fontApplied > 0, "the forces overlay font is applied")
 
       addon.MobNameplate.ResolveTtkAnchor = function()
@@ -507,6 +533,67 @@ local function RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
       end
       Tick()
       Assert.True(frame.hidden == true or frame._shown == false, "without an anchor the text hides")
+    end)
+  end)
+end
+
+local function RegisterImportantTargetTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TTK shows only for bosses, minibosses and casters by default, from game data", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick = Setup(env, LoadAddonModules)
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f" })
+      env.now = 100
+      Fire("PLAYER_REGEN_DISABLED")
+      env.now = 120
+
+      Tick()
+      Assert.Equal(text._text, "20", "a miniboss (elite above the player's level) shows the TTK")
+
+      env.target.level = 90
+      Tick()
+      Assert.Equal(text._text, "", "a plain elite on the player's level is trash and hides the TTK")
+
+      env.target.mana = true
+      Tick()
+      Assert.Equal(text._text, "20", "an elite with mana is a caster and shows the TTK")
+
+      env.target.mana = false
+      env.target.lieutenant = true
+      Tick()
+      Assert.Equal(text._text, "20", "a lieutenant shows the TTK")
+
+      env.target.lieutenant = false
+      env.target.classification = "normal"
+      env.target.isBoss = true
+      Tick()
+      Assert.Equal(text._text, "20", "a boss unit shows the TTK")
+
+      env.target.isBoss = false
+      Tick()
+      Assert.Equal(text._text, "", "a normal mob hides the TTK")
+
+      env.db.ttkImportantOnly = false
+      Tick()
+      Assert.Equal(text._text, "20", "with the filter off every enemy target shows the TTK")
+    end)
+  end)
+
+  test("TTK test mode ignores the important-target filter", function()
+    local env = BuildEnv({ keyRunning = false })
+    env.target.classification = "normal"
+    env.target.level = 1
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick = Setup(env, LoadAddonModules)
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f" })
+      addon.TTK.SetTestMode(true)
+      env.now = 100
+      Fire("PLAYER_REGEN_DISABLED")
+      env.now = 120
+      Tick()
+      Assert.Equal(text._text, "20", "a training dummy shows the TTK in test mode")
     end)
   end)
 end
@@ -605,6 +692,7 @@ return function(test, ctx)
   RegisterClockTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGatingTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterImportantTargetTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTestPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
 end

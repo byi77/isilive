@@ -220,6 +220,56 @@ local function IsTargetAlive()
     and not PlainTrue(rawget(_G, "UnitIsDead"), "target")
 end
 
+-- Plain value of a unit query, nil when missing or secret.
+local function PlainValue(fn, ...)
+  if type(fn) ~= "function" then
+    return nil
+  end
+  local value = fn(...)
+  if IsSecretValue(value) then
+    return nil
+  end
+  return value
+end
+
+--- Setting (default on): show the TTK only for important enemies.
+function TTK.IsImportantOnly()
+  local db = GetDB()
+  return not db or db.ttkImportantOnly ~= false
+end
+
+--- Boss, miniboss or caster, from game data every nameplate addon sees the
+-- same (no addon colours): boss units, world bosses and mobs two levels above
+-- the player; elites that are lieutenants or above the player's level
+-- (minibosses); elites with mana (casters). All fields read here are plain
+-- in a key.
+function TTK.IsImportantTarget()
+  if IsBossTarget() then
+    return true
+  end
+  local classification = PlainValue(rawget(_G, "UnitClassification"), "target")
+  if classification == "worldboss" then
+    return true
+  end
+  if classification ~= "elite" and classification ~= "rareelite" then
+    return false
+  end
+  local level = PlainValue(rawget(_G, "UnitEffectiveLevel"), "target")
+  local playerLevel = PlainValue(rawget(_G, "UnitEffectiveLevel"), "player")
+  if level == -1 then
+    return true
+  end
+  if type(level) == "number" and type(playerLevel) == "number" and level > playerLevel then
+    return true
+  end
+  if PlainTrue(rawget(_G, "UnitIsLieutenant"), "target") then
+    return true
+  end
+  local powerTypes = rawget(_G, "Enum") and rawget(_G, "Enum").PowerType
+  local mana = type(powerTypes) == "table" and powerTypes.Mana or 0
+  return PlainTrue(rawget(_G, "UnitHasPowerType"), "target", mana)
+end
+
 local function NewCurve()
   local util = rawget(_G, "C_CurveUtil")
   if type(util) ~= "table" or type(util.CreateCurve) ~= "function" then
@@ -403,6 +453,8 @@ local function HiddenReason()
     return "nokey"
   elseif not IsTargetAlive() then
     return "notarget"
+  elseif not testMode and TTK.IsImportantOnly() and not TTK.IsImportantTarget() then
+    return "unimportant"
   end
   return nil
 end

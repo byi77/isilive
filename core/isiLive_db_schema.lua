@@ -217,6 +217,7 @@ local SCHEMA = {
   forcesPaceEnabled = { type = "boolean", default = true },
   timePaceEnabled = { type = "boolean", default = true },
   ttkEnabled = { type = "boolean", default = true },
+  ttkImportantOnly = { type = "boolean", default = true },
 
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok

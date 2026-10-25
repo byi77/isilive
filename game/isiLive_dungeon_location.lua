@@ -320,12 +320,6 @@ function DungeonLocation.GetNavigationText(challengeMapID, portalFormat)
   return table.concat(lines, "\n")
 end
 
---- Encounter Journal art for the dungeon, cropped to a centered square. The
---- teleport spell icon is only 64x64 and turns blurry on the large notice
---- button; the journal lore image carries a 368x186 art area in a 512x256
---- texture, the dungeon button image 174x96 in 256x128.
---- @param challengeMapID any
---- @return table|nil -- { texture, left, right, top, bottom }
 local ARTWORK_CANDIDATES = {
   -- EJ_GetInstanceInfo return index, then the crop in texture coordinates.
   { index = 5, left = 91 / 512, right = 277 / 512, top = 0, bottom = 186 / 256 }, -- loreImage
@@ -346,6 +340,12 @@ local function ReadTexture(value)
   return nil
 end
 
+--- Encounter Journal art for the dungeon, cropped to a centered square. The
+--- teleport spell icon is only 64x64 and turns blurry on the large notice
+--- button; the journal lore image carries a 368x186 art area in a 512x256
+--- texture, the dungeon button image 174x96 in 256x128.
+--- @param challengeMapID any
+--- @return table|nil -- { texture, left, right, top, bottom }
 function DungeonLocation.GetArtwork(challengeMapID)
   challengeMapID = ReadPositiveNumber(challengeMapID)
   if not challengeMapID then

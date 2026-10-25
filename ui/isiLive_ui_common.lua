@@ -104,6 +104,10 @@ UICommon.Colors = {
   -- M+ killtracker: calm blue while forces are open, the shared success green
   -- (SUCCESS_GREEN_BAR) once 100% is reached.
   MPLUS_FORCES_PROGRESS_FILL = { 0.26, 0.56, 0.9 },
+  -- Time overlay on the forces bar: the gap between forces and spent time,
+  -- green while forces lead, red while the clock leads.
+  MPLUS_PACE_AHEAD_GAP = { 0.3, 0.85, 0.4, 0.4 },
+  MPLUS_PACE_BEHIND_GAP = { 1, 0.25, 0.25, 0.45 },
 
   -- Restrained danger states for the shared close control. Only hover and
   -- press expose red; the default state uses the quiet secondary surface.

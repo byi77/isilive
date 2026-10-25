@@ -304,6 +304,27 @@ local function CreateTtkCheckbox(canvas, yOffset, labels, config)
   end, "SETTINGS_TTK", CheckboxDescriptionOptions(labels.SETTINGS_TTK_DESC or FALLBACK_TTK_DESC))
 end
 
+local FALLBACK_TTK_IMPORTANT_DESC = "Shows the time to kill only for bosses, minibosses (elites above your level or"
+  .. " lieutenants) and casters (elites with mana). Uses game data, not nameplate colours."
+
+local function CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_TTK_IMPORTANT or "TTK: important enemies only",
+    function()
+      local db = config.getDB()
+      return db.ttkImportantOnly ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.ttkImportantOnly = checked
+    end,
+    "SETTINGS_TTK_IMPORTANT",
+    CheckboxDescriptionOptions(labels.SETTINGS_TTK_IMPORTANT_DESC or FALLBACK_TTK_IMPORTANT_DESC)
+  )
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -324,6 +345,7 @@ local DISPLAY_DEFAULTS = {
   forcesPaceEnabled = true,
   timePaceEnabled = true,
   ttkEnabled = true,
+  ttkImportantOnly = true,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -368,6 +390,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "forcesPaceEnabled",
   "timePaceEnabled",
   "ttkEnabled",
+  "ttkImportantOnly",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -819,6 +842,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.forcesPace, yOffset = CreateForcesPaceCheckbox(canvas, yOffset, labels, config)
   controls.timePace, yOffset = CreateTimePaceCheckbox(canvas, yOffset, labels, config)
   controls.ttk, yOffset = CreateTtkCheckbox(canvas, yOffset, labels, config)
+  controls.ttkImportant, yOffset = CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
 
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1060,6 +1084,11 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.ttk.label:SetText(labels.SETTINGS_TTK or "M+: Time to Kill (TTK)")
     SetCheckboxDescription(controls.ttk, labels.SETTINGS_TTK_DESC or FALLBACK_TTK_DESC)
     controls.ttk.check:SetChecked(db.ttkEnabled ~= false)
+  end
+  if controls.ttkImportant then
+    controls.ttkImportant.label:SetText(labels.SETTINGS_TTK_IMPORTANT or "TTK: important enemies only")
+    SetCheckboxDescription(controls.ttkImportant, labels.SETTINGS_TTK_IMPORTANT_DESC or FALLBACK_TTK_IMPORTANT_DESC)
+    controls.ttkImportant.check:SetChecked(db.ttkImportantOnly ~= false)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

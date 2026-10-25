@@ -97,6 +97,15 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] Verhalten mit nicht erlernten Portalen und laufenden Cooldowns pruefen.
 - [ ] Blizzard-Forces-Fortschritt sowie aktivierte oder bewusst deaktivierte
   MDT-abhaengige Mob-Anzeigen pruefen.
+- [ ] TTK pruefen: `/isilive ttktest` an der Trainingspuppe (Zahl in der
+  Lebensleiste, Testpanel `Auswertung: ok`), danach im ersten Key der neuen
+  Season `evaluated=true` in `IsiLiveDB.ttkDebug`. Fuer Bosse, Minibosse und
+  Caster der neuen Dungeons an echten Packs kontrollieren, dass der Filter
+  „nur wichtige Gegner“ sie erkennt. Der TTK hat keine Saisondaten; Details und
+  Fehlersuche stehen in `docs/WARTUNG.md` Abschnitt 3.15.
+- [ ] Zeit-Tempo und Forces-Tempo brauchen keine Pflege: beide lernen je
+  `seasonID` und starten in der neuen Season leer (Prognose statt Vergleich,
+  kein Zielstrich), bis die ersten eigenen Runs abgeschlossen sind.
 - [ ] Mindestens `enUS` und `deDE` im Spiel kontrollieren.
 
 ## 6. Dokumentation, Release und CI

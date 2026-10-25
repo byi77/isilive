@@ -113,6 +113,7 @@ local CreateCdTrackerRow = RI.CreateCdTrackerRow
 local UpdateCdTrackerRow = RI.UpdateCdTrackerRow
 local CreateKillTrackRow = RI.CreateKillTrackRow
 local UpdateKillTrackRow = RI.UpdateKillTrackRow
+local UpdateKillTrackTimeOverlay = RI.UpdateKillTrackTimeOverlay
 local CreateFlatButton = RI.CreateFlatButton
 local CreatePanelHeaders = RI.CreatePanelHeaders
 local CreateM2ColumnGuides = RI.CreateM2ColumnGuides
@@ -1072,7 +1073,7 @@ function RosterPanel.CreateController(opts)
       applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
     }, roster)
     RefreshSystemOptionToggles(ui)
-    UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+    UpdateKillTrackTimeOverlay(ui.killTrackRow, UpdateCdTrackerRow(ui.cdTrackerRow, cdController))
     UpdateKillTrackRow(ui.killTrackRow, {
       getTargetDungeonInfo = getTargetDungeonInfo,
       isInChallengeMode = isInChallengeMode,
@@ -1155,7 +1156,7 @@ function RosterPanel.CreateController(opts)
 
   function controller.RefreshCdTracker()
     cdTrackerNeedsVisibleRescan = false
-    UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+    UpdateKillTrackTimeOverlay(ui.killTrackRow, UpdateCdTrackerRow(ui.cdTrackerRow, cdController))
   end
 
   function controller.RefreshKillTrackRow()

@@ -42,11 +42,11 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.1.5 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.452
+🟪 Version 0.9.453
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-New in 0.9.452: the invite card shows a sharp dungeon picture from the Adventure Guide on its teleport button.
-New in 0.9.451: Time to kill shows above your target's nameplate how many seconds it roughly has left, and Time pace tells you under the killtracker bar whether the key is on time.
+New in 0.9.453: the killtracker bar shows the spent time next to the forces, with a green or red gap that tells you at a glance whether the key is on pace; the time to kill sits inside the target's health bar.
+New in 0.9.451: Time to kill shows in your target's nameplate how many seconds it roughly has left, and Time pace tells you under the killtracker bar whether the key is on time.
 A shared modern UI hierarchy runs across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -65,12 +65,14 @@ Forces pace learns from your own completed keys how much forces you need before 
 MDT-dependent mob details are shown only when the bundled database exactly matches the active season; Blizzard's overall dungeon progress remains available independently.
 
 ⏱️ TIME TO KILL: how long your target still lives
-During a Mythic+ fight, isiLive shows above your target's nameplate roughly how many seconds it has left, and repeats it as TTK in the killtracker line.
+During a Mythic+ fight, isiLive shows in your target's nameplate health bar roughly how many seconds it has left, on a dark plate that stays readable among damage numbers, and repeats it as TTK in the killtracker line.
 Use it to decide whether a cooldown, an interrupt stop or a target swap is still worth it, to time your burst for the end of a pack or boss, and to see which mob in a pull is about to die.
 The estimate follows how fast the mob has been losing health so far and counts down smoothly between hits. Bloodlust, target swaps or immunity phases change the pace, so treat it as a guide, not an exact timer.
+By default it shows for bosses, minibosses and casters only, recognised from game data rather than nameplate colours, so it works with Blizzard nameplates, Plater, Platynator or any colour profile; a setting shows it for every enemy instead.
 Switch it on or off in the Display settings; /isilive ttktest previews it on a training dummy.
 
 ⏳ TIME PACE: is the key on time?
+The killtracker bar shows the spent time as a strip in the timer's colour. The gap between forces and time is tinted green while your forces lead the clock and red while the clock leads, so you see the pace without reading numbers.
 A line under the killtracker bar compares your run with your own slowest timed run on the same dungeon and key level, the slowest pace that still made the timer. Green means you are ahead of it, red means behind.
 Without such a run yet, it shows a finish forecast from enemy forces and killed bosses against the time limit. Reference runs are learned automatically from your completed keys.
 
@@ -90,7 +92,7 @@ WHAT isiLive GIVES YOU
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A current-season portal grid with cooldowns and verified target highlighting.
 ✅ Live enemy-forces tracking through a bottom bar, pull prediction, learned per-boss forces pace, nameplates, and mob tooltips.
-✅ Time to kill above your target's nameplate and in the killtracker line, so you know how long a mob or boss still lives.
+✅ Time to kill in your target's nameplate and in the killtracker line, so you know how long a mob or boss still lives.
 ✅ Time pace under the killtracker bar: on time or behind, measured against your own slowest timed run or a finish forecast.
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ Voice alert the moment your pet gets stuck and reports no path to follow you.

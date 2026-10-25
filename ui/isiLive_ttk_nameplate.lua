@@ -2,15 +2,20 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
--- TTK text above the target's nameplate (see game/isiLive_ttk.lua), centred
--- over the health bar and clear of the mob name, so isiLive's forces text
--- beside the bar stays untouched. MobNameplate resolves the health bar and
--- lends its overlay font.
+-- TTK text centred inside the target's health bar (see game/isiLive_ttk.lua),
+-- on a dark plate: floating damage numbers rise above the nameplate and never
+-- have a background, so the plate keeps the TTK readable among them.
+-- isiLive's forces text beside the bar stays untouched. MobNameplate resolves
+-- the health bar and lends its overlay font, two points larger here.
 local TTKNameplate = {}
 addonTable.TTKNameplate = TTKNameplate
 
--- Above the bar top, past the name line nameplate addons draw there.
-local ABOVE_BAR_OFFSET = 18
+local FONT_SIZE_BONUS = 2
+-- Plate size from the font size alone: the text width of a secret value can
+-- not be measured, and a fixed plate also keeps it from jittering.
+local PLATE_WIDTH_PER_POINT = 2.6
+local PLATE_HEIGHT_PADDING = 4
+local PLATE_ALPHA = 0.65
 local LEVEL_ABOVE_ANCHOR = 21
 
 local frame = nil
@@ -27,7 +32,7 @@ local function AnchorTo(anchor)
   end
   anchoredTo = anchor
   frame:ClearAllPoints()
-  frame:SetPoint("BOTTOM", anchor, "TOP", 0, ABOVE_BAR_OFFSET)
+  frame:SetPoint("CENTER", anchor, "CENTER", 0, 0)
   -- Nameplates draw in their own strata; follow the anchor so the text is
   -- neither hidden behind nor drawn above unrelated UI. A region anchor
   -- without strata of its own (a texture bar) lends its frame's.
@@ -49,6 +54,28 @@ local function AnchorTo(anchor)
   end
 end
 
+-- Overlay font plus FONT_SIZE_BONUS, and the plate sized to it. Only re-done
+-- when the overlay font size changes.
+local function ApplyFontAndPlate(mobNameplate)
+  local text = frame.text
+  if type(mobNameplate.ApplyOverlayFont) == "function" then
+    mobNameplate.ApplyOverlayFont(text)
+  end
+  if type(text.GetFont) ~= "function" or type(text.SetFont) ~= "function" then
+    return
+  end
+  local font, size, flags = text:GetFont()
+  if type(size) ~= "number" or size <= 0 then
+    return
+  end
+  if size ~= frame._baseSize then
+    frame._baseSize = size
+    local bigger = size + FONT_SIZE_BONUS
+    pcall(text.SetFont, text, font, bigger, flags)
+    frame:SetSize(math.floor(bigger * PLATE_WIDTH_PER_POINT + 0.5), bigger + PLATE_HEIGHT_PADDING)
+  end
+end
+
 local function OnShow()
   local mobNameplate = addonTable.MobNameplate
   local ttk = addonTable.TTK
@@ -64,9 +91,7 @@ local function OnShow()
     return false
   end
   AnchorTo(anchor)
-  if type(mobNameplate.ApplyOverlayFont) == "function" then
-    mobNameplate.ApplyOverlayFont(frame.text)
-  end
+  ApplyFontAndPlate(mobNameplate)
   frame:Show()
   return true
 end
@@ -92,9 +117,19 @@ function TTKNameplate.Install()
     return false
   end
   frame = created
-  frame:SetSize(1, 1)
+  frame:SetSize(40, 18)
+  local plate = frame:CreateTexture(nil, "BACKGROUND")
+  plate:SetAllPoints(frame)
+  plate:SetTexture("Interface\\Buttons\\WHITE8X8")
+  local plateColor = (
+    addonTable.UICommon
+    and addonTable.UICommon.Colors
+    and addonTable.UICommon.Colors.BLACK_OVERLAY_50
+  ) or { 0, 0, 0, 0.5 }
+  plate:SetVertexColor(plateColor[1], plateColor[2], plateColor[3], PLATE_ALPHA)
+  frame.plate = plate
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
-  text:SetPoint("BOTTOM", frame, "BOTTOM", 0, 0)
+  text:SetPoint("CENTER", frame, "CENTER", 0, 0)
   text:SetJustifyH("CENTER")
   local color = TextColor()
   text:SetTextColor(color[1], color[2], color[3])

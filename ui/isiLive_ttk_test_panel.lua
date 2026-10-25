@@ -27,6 +27,7 @@ local REASON_LABEL = { -- i18n-ok: test panel
   nokey = "kein Key",
   off = "TTK ausgeschaltet",
   noclock = "keine Uhr",
+  unimportant = "kein wichtiger Gegner",
 }
 
 local function Seconds(value)

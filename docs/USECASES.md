@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.452`
+Versionsbasis: `0.9.453`
 Zuletzt aktualisiert: `2026-10-25`
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten

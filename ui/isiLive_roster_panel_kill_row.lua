@@ -192,6 +192,101 @@ local function UpdateTimePaceText(row, data)
   end
 end
 
+-- Time overlay on the forces bar (rule 208): a strip along the bottom edge
+-- shows the spent share of the time limit in the timer box's grade colour, and
+-- the gap between forces and time is tinted green (forces lead) or red (time
+-- leads). The snapshot comes from the M+ timer box's own 1 Hz read.
+local TIME_STRIP_HEIGHT = 3
+local TIME_OVERLAY_MIN_GAP = 1
+
+local function HideTimeOverlay(row)
+  if row.killTrackTimeStrip then
+    row.killTrackTimeStrip:Hide()
+  end
+  if row.killTrackTimeGap then
+    row.killTrackTimeGap:Hide()
+  end
+end
+
+local function PaintOverlay(texture, colorKey, fallback)
+  local color = (UICommon.Colors and UICommon.Colors[colorKey]) or fallback
+  if texture._isiLivePaintedColor ~= color and type(texture.SetVertexColor) == "function" then
+    texture._isiLivePaintedColor = color
+    texture:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+  end
+end
+
+local function RenderTimeOverlay(row)
+  local snapshot = row._timeOverlaySnapshot
+  local pace = addonTable.TimePace
+  local enabled = type(pace) == "table" and type(pace.IsEnabled) == "function" and pace.IsEnabled() == true
+  local timer = type(snapshot) == "table" and tonumber(snapshot.timer) or nil
+  local limit = type(snapshot) == "table" and tonumber(snapshot.timeLimit) or nil
+  local container = row.killTrackBarContainer
+  local width = container and type(container.GetWidth) == "function" and tonumber(container:GetWidth()) or 0
+  if
+    not enabled
+    or row._killTrackActive ~= true
+    or type(snapshot) ~= "table"
+    or snapshot.running ~= true
+    or not timer
+    or not limit
+    or limit <= 0
+    or width <= 0
+  then
+    HideTimeOverlay(row)
+    return
+  end
+  local timeFraction = math.max(0, math.min(timer / limit, 1))
+  local forcesFraction = math.max(0, math.min((row._killTrackPercent or 0) / 100, 1))
+
+  local strip = row.killTrackTimeStrip
+  local stripWidth = math.floor(width * timeFraction + 0.5)
+  if strip and stripWidth >= 1 then
+    strip:SetWidth(stripWidth)
+    local keys = RI.MPLUS_GRADE_FILL_COLOR_KEYS or {}
+    PaintOverlay(strip, keys[row._timeOverlayGrade] or "MPLUS_GRADE1_FILL", { 0.85, 0.88, 0.95, 0.85 })
+    strip:Show()
+  elseif strip then
+    strip:Hide()
+  end
+
+  local gap = row.killTrackTimeGap
+  if not gap then
+    return
+  end
+  local left = math.floor(width * math.min(timeFraction, forcesFraction) + 0.5)
+  local right = math.floor(width * math.max(timeFraction, forcesFraction) + 0.5)
+  if right - left < TIME_OVERLAY_MIN_GAP then
+    gap:Hide()
+    return
+  end
+  if gap._isiLiveLeft ~= left then
+    gap._isiLiveLeft = left
+    gap:ClearAllPoints()
+    gap:SetPoint("TOPLEFT", container, "TOPLEFT", left, 0)
+    gap:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", left, 0)
+  end
+  gap:SetWidth(right - left)
+  if forcesFraction >= timeFraction then
+    PaintOverlay(gap, "MPLUS_PACE_AHEAD_GAP", { 0.3, 0.85, 0.4, 0.4 })
+  else
+    PaintOverlay(gap, "MPLUS_PACE_BEHIND_GAP", { 1, 0.25, 0.25, 0.45 })
+  end
+  gap:Show()
+end
+
+--- Feeds the time overlay with the M+ timer box's snapshot and grade (nil
+-- without a running key) and redraws it.
+local function UpdateKillTrackTimeOverlay(row, timerSnapshot, grade)
+  if not row then
+    return
+  end
+  row._timeOverlaySnapshot = timerSnapshot
+  row._timeOverlayGrade = grade
+  RenderTimeOverlay(row)
+end
+
 local function BuildPercentPlaceholder()
   local separator = type(UICommon.GetDecimalSeparator) == "function" and UICommon.GetDecimalSeparator() or "."
   return "--" .. separator .. "--"
@@ -449,6 +544,27 @@ local function CreateKillTrackRow(mainFrame)
   SetReadableText(timePaceText, "")
   ApplyFontStringSize(timePaceText, TIME_PACE_FONT_SIZE)
 
+  -- Time overlay: the gap tint sits above the forces fill, the time strip
+  -- above both; the pace tick (OVERLAY) stays on top.
+  local timeGap = barContainer:CreateTexture(nil, "ARTWORK", nil, 2)
+  if type(timeGap.SetTexture) == "function" then
+    timeGap:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  timeGap:Hide()
+  local timeStrip = barContainer:CreateTexture(nil, "ARTWORK", nil, 3)
+  if type(timeStrip.SetTexture) == "function" then
+    timeStrip:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(timeStrip.SetPoint) == "function" then
+    timeStrip:SetPoint("BOTTOMLEFT", barContainer, "BOTTOMLEFT", 0, 0)
+  end
+  if type(timeStrip.SetHeight) == "function" then
+    timeStrip:SetHeight(TIME_STRIP_HEIGHT)
+  end
+  timeStrip:Hide()
+  row.killTrackTimeGap = timeGap
+  row.killTrackTimeStrip = timeStrip
+
   local ttkText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   ttkText:SetPoint("TOPRIGHT", box, "BOTTOMRIGHT", -6, -1)
   ttkText:SetWidth(TTK_TEXT_WIDTH)
@@ -583,6 +699,7 @@ local function UpdateKillTrackRow(row, deps)
   if not row then
     return
   end
+  row._killTrackActive = false
 
   local KillTrack = addonTable.KillTrack
   local data = type(KillTrack) == "table" and type(KillTrack.GetData) == "function" and KillTrack.GetData() or nil
@@ -647,6 +764,8 @@ local function UpdateKillTrackRow(row, deps)
     activeDungeonName = AppendDeathCountToActiveDungeonName(activeDungeonName)
     SetActiveDungeonContext(activeDungeonName)
     local pct = math.max(0, math.min(data.percent, 100))
+    row._killTrackActive = true
+    row._killTrackPercent = pct
     -- Calm blue while forces are open; green only once 100% is reached.
     local isComplete = pct >= 100
     local colors = UICommon.Colors or {}
@@ -798,7 +917,9 @@ local function UpdateKillTrackRow(row, deps)
       pullText:SetText("")
     end
   end
+  RenderTimeOverlay(row)
 end
 
 RI.CreateKillTrackRow = CreateKillTrackRow
 RI.UpdateKillTrackRow = UpdateKillTrackRow
+RI.UpdateKillTrackTimeOverlay = UpdateKillTrackTimeOverlay

@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.453 (patch)
+
+### Time on the forces bar
+
+- The killtracker bar now also shows the spent time: a strip along its
+  bottom edge, as long and in the same colour as the timeline in the M+
+  timer box (green while +3 is reachable, then yellow, white, red in
+  overtime).
+- The gap between the forces fill and the time strip is tinted: green while
+  forces lead the clock, red while the clock leads. The wider the red gap,
+  the tighter the key. You see the pace without reading any numbers.
+- It follows the "M+ Killtracker: Time pace" setting. Forces only: bosses
+  still to come are not part of this comparison; the time-pace line below
+  the bar includes them.
+
+### Time to kill
+
+- The number moved from above the nameplate into the target's health bar,
+  centred on a dark plate and slightly larger, so floating damage numbers no
+  longer drown it out.
+- New setting "TTK: important enemies only" (on by default): the time to
+  kill shows for bosses, minibosses (elites above your level or marked as
+  lieutenants) and casters (elites with mana). It uses game data, not
+  nameplate colours, so it works the same with Blizzard nameplates, Plater,
+  Platynator or any colour profile. Off: every enemy target. The test mode
+  `/isilive ttktest` ignores the filter.
+- `/isilive ttktest` shows a centre-screen test panel with the value and the
+  state behind it.
+- Fix: the number stayed empty in the game because the curve object the
+  client returns was rejected.
+
+### Maintenance
+
+- Maintenance and season-change checklists now cover the time to kill and
+  the time pace: what can break after a WoW patch, how to check it on a
+  training dummy, and that the learned paces start fresh each season.
+
 ## 2026-10-25 - Version 0.9.452 (patch)
 
 ### Sharper dungeon picture on the invite card
