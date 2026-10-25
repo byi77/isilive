@@ -162,7 +162,10 @@ Everything syncs automatically between group members who run isiLive. No manual 
 
 ## License
 
-isiLive source code is released under the standard [MIT License](LICENSE).
+isiLive is free to download and use as a World of Warcraft addon. The source
+code is **not** open source: copying, reusing or redistributing it (modified or
+not) requires written permission. See [LICENSE](LICENSE) for the full terms.
+Versions before 0.9.454 remain under the MIT License they were released with.
 Third-party libraries and bundled media retain their own documented status; see
 [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md) for the current provenance record.
 

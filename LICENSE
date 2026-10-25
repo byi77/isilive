@@ -1,21 +1,57 @@
-MIT License
+isiLive License
 
-Copyright (c) 2026 mematiWoW
+Copyright (c) 2026 mematiWoW. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license applies to isiLive version 0.9.454 and later. Versions released
+before that remain available under the MIT License they were published with.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Permitted use
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   You may, free of charge:
+
+   a) download, install and use isiLive as an addon for World of Warcraft;
+   b) keep unmodified copies for your own personal use;
+   c) share links to the official distribution pages (for example the GitHub
+      repository, CurseForge or Wago).
+
+   You may read the source code and use it to report bugs or suggest changes
+   to the author, for example through issues or pull requests to the official
+   repository. By submitting a contribution you grant the author a perpetual,
+   irrevocable, royalty-free right to use, modify and publish it as part of
+   isiLive under this or any later license.
+
+2. Restrictions
+
+   Without prior written permission from the author, you may NOT:
+
+   a) copy, reuse or adapt the source code, or any part of it, in other
+      addons, programs, libraries, websites or other works;
+   b) modify isiLive and distribute the modified version;
+   c) redistribute isiLive, in original or modified form, outside the
+      official distribution channels;
+   d) sell isiLive, charge for access to it, or bundle it into a paid product
+      or service;
+   e) remove or alter this license or the copyright notice.
+
+3. Third-party components
+
+   Parts of the package are not covered by this license and keep their own
+   terms:
+
+   - libs/ChatThrottleLib: public domain.
+   - data/isiLive_mplus_forces.lua: data derived from MythicDungeonTools by
+     Nnoggie (GPLv2), https://github.com/Nnoggie/MythicDungeonTools.
+   - Bundled media: see docs/ASSET_PROVENANCE.md.
+
+4. Disclaimer
+
+   ISILIVE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM,
+   OUT OF OR IN CONNECTION WITH ISILIVE OR ITS USE.
+
+World of Warcraft is a trademark of Blizzard Entertainment, Inc. isiLive is
+not affiliated with or endorsed by Blizzard Entertainment.
+
+Permission requests: open an issue at https://github.com/byi77/isilive
