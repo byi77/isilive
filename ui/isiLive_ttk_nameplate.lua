@@ -59,20 +59,18 @@ end
 local function ApplyFontAndPlate(mobNameplate)
   local text = frame.text
   if type(mobNameplate.ApplyOverlayFont) == "function" then
-    mobNameplate.ApplyOverlayFont(text)
+    mobNameplate.ApplyOverlayFont(text, FONT_SIZE_BONUS)
   end
   if type(text.GetFont) ~= "function" or type(text.SetFont) ~= "function" then
     return
   end
-  local font, size, flags = text:GetFont()
+  local _, size = text:GetFont()
   if type(size) ~= "number" or size <= 0 then
     return
   end
   if size ~= frame._baseSize then
     frame._baseSize = size
-    local bigger = size + FONT_SIZE_BONUS
-    pcall(text.SetFont, text, font, bigger, flags)
-    frame:SetSize(math.floor(bigger * PLATE_WIDTH_PER_POINT + 0.5), bigger + PLATE_HEIGHT_PADDING)
+    frame:SetSize(math.floor(size * PLATE_WIDTH_PER_POINT + 0.5), size + PLATE_HEIGHT_PADDING)
   end
 end
 

@@ -392,11 +392,11 @@ local function ApplyRenderedText(frame, text)
   end
 end
 
-local function ApplyFont(fontString)
+local function ApplyFont(fontString, sizeOffset)
   if type(fontString) ~= "table" or type(fontString.SetFont) ~= "function" then
     return
   end
-  local size = ResolveFontSize()
+  local size = ResolveFontSize() + (tonumber(sizeOffset) or 0)
   -- Dirty-check: ApplyFont is called from every UpdateNameplate. The font
   -- size only changes when the user moves the slider or fontSize default
   -- switches; skip the SetFontObject/SetFont/SetTextHeight chain when nothing

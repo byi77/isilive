@@ -1,7 +1,20 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.454`
+Versionsbasis: `0.9.455`
 Zuletzt aktualisiert: `2026-10-25`
+
+Pace-/TTK-Fixes (0.9.455): Ein Bosskill ohne lesbaren Forces-Checkpoint
+sperrt Lernen und Tempoziel fuer diesen Run; bestehende Referenzen bleiben
+erhalten und ein neuer Run kann wieder lernen. Viele kleine Forces-Schritte
+erzeugen Zeit-Tempo-Samples; ein identischer Replay zeigt keinen falschen
+Rueckstand. TTK nimmt ein verifiziertes laufendes Gefecht nach Reload mit
+der neuen Beobachtungszeit wieder auf, unabhaengig von der Event-Reihenfolge
+des M+-Timers. Einschalten im Kampf und Anzeige-Defaults starten genau einen
+Ticker samt Health-Beobachtung; Ausschalten und Raid-Eintritt beenden beide.
+Raid-Events und der TTK-Testmodus erzeugen im Raid keine Unit-/Nameplate-
+Abfragen oder Diagnoseausgaben. Ausgeschlossene Anzeigen verursachen ueber
+den Diagnosepfad keine Nameplate-Scans; der Schriftzuschlag bleibt auch nach
+mehreren Updates und geaenderter Overlay-Schriftgroesse erhalten.
 
 BL-Nachbesserung (2026-10-20): Der Debuff-Scan fragt die gepflegten
 Sated-IDs zuerst ueber `GetPlayerAuraBySpellID` ab. Wenn beide Listen-APIs

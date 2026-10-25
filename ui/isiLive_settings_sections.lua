@@ -294,6 +294,13 @@ local function CreateTimePaceCheckbox(canvas, yOffset, labels, config)
   end, "SETTINGS_TIME_PACE", CheckboxDescriptionOptions(labels.SETTINGS_TIME_PACE_DESC or FALLBACK_TIME_PACE_DESC))
 end
 
+local function RefreshTtkRuntime()
+  local ttk = addonTable.TTK
+  if type(ttk) == "table" and type(ttk.RefreshRuntime) == "function" then
+    ttk.RefreshRuntime()
+  end
+end
+
 local function CreateTtkCheckbox(canvas, yOffset, labels, config)
   return CreateSettingsCheckbox(canvas, yOffset, labels.SETTINGS_TTK or "M+: Time to Kill (TTK)", function()
     local db = config.getDB()
@@ -301,6 +308,7 @@ local function CreateTtkCheckbox(canvas, yOffset, labels, config)
   end, function(checked)
     local db = config.getDB()
     db.ttkEnabled = checked
+    RefreshTtkRuntime()
   end, "SETTINGS_TTK", CheckboxDescriptionOptions(labels.SETTINGS_TTK_DESC or FALLBACK_TTK_DESC))
 end
 
@@ -405,6 +413,9 @@ local function RestoreDisplayDefaults(config)
     local default = DISPLAY_DEFAULTS[field]
     if db[field] ~= default then
       db[field] = default
+      if field == "ttkEnabled" then
+        RefreshTtkRuntime()
+      end
       local callbackName = DISPLAY_CALLBACKS[field]
       if callbackName and type(config[callbackName]) == "function" then
         config[callbackName](default)

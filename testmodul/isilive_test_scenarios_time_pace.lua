@@ -209,6 +209,34 @@ local function NewRow()
 end
 
 local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TimePace accumulates small forces steps and compares an identical replay without false delay", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      local function AdvanceTrash()
+        for count = 1, 300 do
+          Advance(addon, env, count * 4, count, 0)
+        end
+      end
+      StartRun(addon, env)
+      AdvanceTrash()
+      for kills = 1, 3 do
+        Advance(addon, env, 1200 + kills * 100, 300, kills)
+      end
+      env.completion = { mapChallengeModeID = MAP_ID, level = KEY_LEVEL, time = 1500000, onTime = true }
+      Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+      local reference = Assert.NotNil(GetReference(addon, env.db), "the timed reference must be learned")
+      Assert.True(#reference.times > 100, "small steps must accumulate into samples throughout the trash phase")
+      Assert.True(reference.times[1] < 20, "recording begins before the first boss")
+      Assert.True(#reference.times <= 601, "the existing sample bound remains intact")
+      StartRun(addon, env)
+      AdvanceTrash()
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the replay compares the reference")
+      Assert.Equal(status.mode, "reference", "a learned reference is used")
+      Assert.True(math.abs(status.delta) < 0.5, "identical progress at the same time has no false delay")
+    end)
+  end)
+
   test("TimePace stores a timed run as the reference for its dungeon and key level", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()

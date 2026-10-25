@@ -125,6 +125,7 @@ local function NewRun(trackedFromStart)
     seeded = false,
     learnable = trackedFromStart == true,
     progress = 0,
+    sampleProgress = 0,
     kills = 0,
     times = {},
     samples = {},
@@ -162,6 +163,7 @@ local function AppendSample(elapsed, progress)
   end
   run.times[count + 1] = t
   run.samples[count + 1] = p
+  run.sampleProgress = progress
 end
 
 function TimePace.BeginRun()
@@ -207,7 +209,7 @@ function TimePace.Observe(snapshot)
   if progress == nil then
     return
   end
-  local grew = progress - run.progress >= SAMPLE_MIN_STEP or kills > run.kills
+  local grew = progress - run.sampleProgress >= SAMPLE_MIN_STEP or kills > run.kills
   run.progress = progress
   run.kills = kills
   if grew and run.learnable then

@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.454`.
+Current version: `0.9.455`.
+
+Version 0.9.455: reliable forces/time pace learning, TTK recovery
+after reload or enabling during a fight, raid suppression, and stable larger
+TTK nameplate text.
 
 Version 0.9.454: Battle res, Bloodlust and Power Infusion calls from group
 members on another realm reach you again; a fresh install starts in your game
@@ -53,9 +57,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.454 -->
+<!-- highlights-reviewed-for: 0.9.455 -->
 
 Highlights:
+- **Pace and TTK fixes.** Small forces gains build reliable time-pace samples;
+  missing boss checkpoints never use later forces readings. TTK recovers after
+  reload or enabling mid-fight, stops in raids, and keeps its larger text.
 - **Cross-realm calls fixed.** Battle res, Bloodlust and Power Infusion
   announcements from isiLive users on another realm show up again; in mixed
   pug groups they were silently lost.

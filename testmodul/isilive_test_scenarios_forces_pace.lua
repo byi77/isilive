@@ -551,6 +551,45 @@ local function RegisterLookupTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterCriteriaTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("ForcesPace never learns a later forces value for a kill observed without a checkpoint", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      PlayRun(addon, env.scenario, {
+        { boss = 1, forces = 60 },
+        { boss = 2, forces = 150 },
+        { boss = 3, forces = 240 },
+      })
+      local original = GetRoutes(addon, env.db)["1-2-3"]
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      env.scenario.SetForces(60)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      env.scenario.Kill(1)
+      env.scenario.forces.quantity = SECRET
+      env.scenario.forces.quantityString = SECRET
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Nil(addon.ForcesPace.GetPaceTarget(MAP_ID), "the missing checkpoint closes the route")
+      env.scenario.SetForces(180)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      env.scenario.Kill(2)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      env.scenario.SetForces(300)
+      env.scenario.Kill(3)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_COMPLETED")
+      Assert.Equal(GetRoutes(addon, env.db)["1-2-3"], original, "a valid reference survives the incomplete run")
+      Assert.Equal(original.runs, 1, "the incomplete run must not count as learned")
+      Assert.Equal(original.checkpoints[1], 20, "a later 60 percent reading never becomes the first checkpoint")
+      PlayRun(addon, env.scenario, {
+        { boss = 1, forces = 60 },
+        { boss = 2, forces = 150 },
+        { boss = 3, forces = 240 },
+      })
+      Assert.Equal(original.runs, 2, "a fresh fully observed run learns normally")
+    end)
+  end)
+
   test("ForcesPace secret or unreadable boss criteria never create a kill entry", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()

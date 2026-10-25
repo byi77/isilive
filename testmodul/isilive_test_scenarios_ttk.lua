@@ -105,6 +105,9 @@ local function BuildEnv(opts)
     keyRunning = opts.keyRunning ~= false,
     tickers = {},
     curves = {},
+    after = {},
+    inCombat = false,
+    inRaid = false,
   }
   local createFrameStub, createdFrames = BuildCreateFrameStub()
   env.createdFrames = createdFrames
@@ -114,6 +117,12 @@ local function BuildEnv(opts)
     UIParent = {},
     GetTime = function()
       return env.now
+    end,
+    UnitAffectingCombat = function(unit)
+      return unit == "player" and env.inCombat
+    end,
+    IsInRaid = function()
+      return env.inRaid
     end,
     issecretvalue = IsSecret,
     UnitExists = function(unit)
@@ -177,7 +186,9 @@ local function BuildEnv(opts)
         env.tickers[#env.tickers + 1] = t
         return t
       end,
-      After = function() end,
+      After = function(_, callback)
+        env.after[#env.after + 1] = callback
+      end,
     },
     C_ChallengeMode = {
       GetActiveChallengeMapID = function()
@@ -220,6 +231,11 @@ local function Setup(env, LoadAddonModules, extraFiles)
   end
   local frame = assert(FindTtkFrame(env), "TTK must create its own event frame")
   local function Fire(event, arg1)
+    if event == "PLAYER_REGEN_DISABLED" then
+      env.inCombat = true
+    elseif event == "PLAYER_REGEN_ENABLED" then
+      env.inCombat = false
+    end
     frame._scripts.OnEvent(frame, event, arg1)
   end
   local function Tick()
@@ -463,7 +479,239 @@ local function RegisterGatingTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
+local function RegisterRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TTK resumes a verified ongoing fight after reload regardless of timer event order", function()
+    local env = BuildEnv()
+    env.inCombat = true
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua", "isiLive_ttk.lua" })
+      addon.TTK.Install()
+      local frame = Assert.NotNil(FindTtkFrame(env), "the real event frame must exist")
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f", placeholder = "pending" })
+      frame._scripts.OnEvent(frame, "PLAYER_ENTERING_WORLD")
+      Assert.Equal(#env.tickers, 0, "the timer has not been restored yet")
+      addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+      for _, callback in ipairs(env.after) do
+        callback()
+      end
+      Assert.True(addon.MplusTimer.IsRunning(), "the real timer restores the active key")
+      Assert.Equal(#env.tickers, 1, "one ticker starts after all world-entry handlers")
+      addon.MplusTimer.HandleEvent("PLAYER_ENTERING_WORLD")
+      frame._scripts.OnEvent(frame, "PLAYER_ENTERING_WORLD")
+      for _, callback in ipairs(env.after) do
+        callback()
+      end
+      Assert.Equal(#env.tickers, 1, "timer-first dispatch and repeated callbacks never duplicate the ticker")
+      Assert.True(frame._events.UNIT_HEALTH, "health listening resumes without a new combat-start event")
+      Assert.Equal(addon.TTK.GetTargetClock(), 100, "only the post-reload observation time is known")
+      Assert.Equal(text._text, "pending", "no pre-reload damage duration is invented")
+      env.now = 110
+      frame._scripts.OnEvent(frame, "UNIT_HEALTH", "nameplate1")
+      env.now = 120
+      frame._scripts.OnEvent(frame, "UNIT_HEALTH", "nameplate1")
+      env.tickers[1].callback()
+      Assert.Equal(text._text, "10", "fresh health observations produce a normal estimate")
+      frame._scripts.OnEvent(frame, "PLAYER_REGEN_ENABLED")
+      Assert.True(env.tickers[1].cancelled, "combat end cancels the recovered ticker")
+    end)
+  end)
+
+  test("TTK leaves a masked startup combat state unresolved", function()
+    local env = BuildEnv()
+    env.inCombat = Secret(true)
+    WithGlobals(env.globals, function()
+      local addon, Fire, _, frame = Setup(env, LoadAddonModules)
+      Fire("PLAYER_ENTERING_WORLD")
+      for _, callback in ipairs(env.after) do
+        callback()
+      end
+      Assert.Equal(#env.tickers, 0, "a masked combat answer must not start work")
+      Assert.Nil(addon.TTK.GetTargetClock(), "no combat clock is manufactured")
+      Assert.False(frame._events.UNIT_HEALTH == true, "the health listener stays off")
+    end)
+  end)
+
+  test("TTK settings wake an ongoing fight and display defaults restart it", function()
+    local env = BuildEnv({ db = { ttkEnabled = false } })
+    env.globals.Settings = {
+      RegisterCanvasLayoutCategory = function(canvas, name)
+        return { canvas = canvas, name = name }
+      end,
+      RegisterAddOnCategory = function() end,
+    }
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick, eventFrame = Setup(env, LoadAddonModules, {
+        "isiLive_ui_common.lua",
+        "isiLive_settings.lua",
+      })
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {}
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return env.db
+        end,
+      })
+      local check, reset
+      for _, frame in ipairs(env.createdFrames) do
+        if frame._settingKey == "SETTINGS_TTK" then
+          check = frame
+        elseif frame._settingKey == "SETTINGS_DISPLAY_RESET" then
+          reset = frame
+        end
+      end
+      check = Assert.NotNil(check, "the real TTK checkbox must exist")
+      reset = Assert.NotNil(reset, "the real display reset must exist")
+      Fire("PLAYER_REGEN_DISABLED")
+      Assert.Equal(#env.tickers, 0, "a disabled fight starts no ticker")
+      check:SetChecked(true)
+      check._scripts.OnClick(check)
+      Assert.Equal(#env.tickers, 1, "enabling starts the missing ticker immediately")
+      Assert.True(eventFrame._events.UNIT_HEALTH, "enabling starts health observations")
+      env.now = 110
+      Fire("UNIT_HEALTH", "nameplate1")
+      env.now = 120
+      Fire("UNIT_HEALTH", "nameplate1")
+      Tick()
+      Assert.Equal(text._text, "10", "the existing fight updates without another combat-start event")
+      check:SetChecked(false)
+      check._scripts.OnClick(check)
+      Assert.True(env.tickers[1].cancelled, "disabling cancels the ticker immediately")
+      Assert.False(eventFrame._events.UNIT_HEALTH == true, "disabling stops the health listener")
+      Assert.Equal(text._text, "", "disabling clears the display immediately")
+      reset._scripts.OnClick(reset)
+      Assert.True(env.db.ttkEnabled, "display defaults restore TTK")
+      Assert.Equal(#env.tickers, 2, "display defaults wake the current fight")
+      Assert.True(eventFrame._events.UNIT_HEALTH, "display defaults restore the listener")
+      panel.Refresh()
+      Assert.True(check:GetChecked(), "the checkbox mirrors the restored value")
+      Fire("PLAYER_REGEN_ENABLED")
+    end)
+  end)
+
+  test("TTK raid hard off stops its own frame work and resumes after raid return", function()
+    local env = BuildEnv()
+    local lookups = 0
+    local unitIsUnit = env.globals.UnitIsUnit
+    env.globals.UnitIsUnit = function(...)
+      lookups = lookups + 1
+      return unitIsUnit(...)
+    end
+    local plateReads = 0
+    local getPlate = env.globals.C_NamePlate.GetNamePlateForUnit
+    env.globals.C_NamePlate.GetNamePlateForUnit = function(...)
+      plateReads = plateReads + 1
+      return getPlate(...)
+    end
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick, frame = Setup(env, LoadAddonModules)
+      local text = NewDisplayText()
+      addon.TTK.RegisterDisplay(text, { format = "%.0f" })
+      Fire("PLAYER_REGEN_DISABLED")
+      env.now = 120
+      Tick()
+      Assert.Equal(text._text, "20", "precondition: a key fight shows TTK")
+      env.inRaid = true
+      Fire("GROUP_ROSTER_UPDATE")
+      local debugCount = #env.db.ttkDebug
+      local previousLookups, previousPlateReads = lookups, plateReads
+      Assert.True(env.tickers[1].cancelled, "raid entry cancels the independent ticker")
+      Assert.False(frame._events.UNIT_HEALTH == true, "raid entry stops health listening")
+      Assert.Equal(text._text, "", "raid entry clears the display")
+      Fire("PLAYER_TARGET_CHANGED")
+      Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+      Fire("UNIT_HEALTH", "nameplate1")
+      Fire("PLAYER_REGEN_DISABLED")
+      Fire("PLAYER_REGEN_ENABLED")
+      addon.TTK.SetTestMode(true)
+      addon.TTK.Update()
+      Assert.Equal(lookups, previousLookups, "no unit matching happens in raid, including test mode")
+      Assert.Equal(plateReads, previousPlateReads, "no nameplate lookup happens in raid")
+      Assert.Equal(#env.db.ttkDebug, debugCount, "raid events do not append diagnostic output")
+      addon.TTK.SetTestMode(false)
+      env.inRaid = false
+      env.inCombat = true
+      Fire("GROUP_ROSTER_UPDATE")
+      Assert.Equal(#env.tickers, 2, "raid return restores work for a verified ongoing key fight")
+      Assert.True(frame._events.UNIT_HEALTH, "raid return restores health listening")
+    end)
+  end)
+
+  test("TTK excluded fights never scan nameplates through diagnostics", function()
+    for _, opts in ipairs({ { keyRunning = false }, { db = { ttkEnabled = false } } }) do
+      local env = BuildEnv(opts)
+      local lookups = 0
+      env.globals.UnitIsUnit = function()
+        lookups = lookups + 1
+        return false
+      end
+      env.globals.C_NamePlate.GetNamePlateForUnit = function()
+        lookups = lookups + 1
+        return nil
+      end
+      WithGlobals(env.globals, function()
+        local addon, Fire = Setup(env, LoadAddonModules)
+        Fire("PLAYER_REGEN_DISABLED")
+        Fire("PLAYER_TARGET_CHANGED")
+        addon.TTK.Update()
+        Assert.Equal(lookups, 0, "neither disabled TTK nor a non-key fight may scan through Trace")
+        Assert.Equal(#env.tickers, 0, "excluded fights have no ticker")
+      end)
+    end
+  end)
+end
+
 local function RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TTKNameplate keeps the real overlay font bonus across updates and font size changes", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon, Fire, Tick = Setup(env, LoadAddonModules, {
+        "isiLive_mob_nameplate.lua",
+        "isiLive_ttk_nameplate.lua",
+      })
+      local anchor = env.globals.CreateFrame("Frame")
+      -- The client health-bar resolver is the only UI seam; font application
+      -- and TTK display updates both run through their real production modules.
+      addon.MobNameplate.ResolveTtkAnchor = function()
+        return anchor
+      end
+      addon.TTKNameplate.Install()
+      local plate
+      for _, frame in ipairs(env.createdFrames) do
+        if frame.text and frame.plate then
+          plate = frame
+        end
+      end
+      plate = Assert.NotNil(plate, "the nameplate display must exist")
+      plate.text.SetFormattedText = NewDisplayText().SetFormattedText
+      plate.text.SetTextHeight = function(self, height)
+        self._textHeight = height
+      end
+      Fire("PLAYER_REGEN_DISABLED")
+      env.now = 120
+      for _ = 1, 3 do
+        Tick()
+        local _, size = plate.text:GetFont()
+        Assert.Equal(size, 16, "every update keeps the default 14 plus 2 point font")
+        Assert.Equal(plate.text._textHeight, 16, "rendered text height keeps the same bonus")
+      end
+      addon.MobNameplate.SetAppearance({ fontSize = 18 })
+      for _ = 1, 2 do
+        Tick()
+        local _, size = plate.text:GetFont()
+        Assert.Equal(size, 20, "a changed overlay setting keeps its bonus on subsequent updates")
+        Assert.Equal(plate.text._textHeight, 20, "rendered text height follows the new setting plus bonus")
+      end
+    end)
+  end)
+
   local ROW_FILES = { "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" }
 
   test("CreateKillTrackRow registers a right-aligned TTK text in the pace line", function()
@@ -691,6 +939,7 @@ return function(test, ctx)
 
   RegisterClockTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGatingTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterImportantTargetTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTestPanelTests(test, Assert, WithGlobals, LoadAddonModules)

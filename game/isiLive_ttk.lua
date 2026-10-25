@@ -68,6 +68,8 @@ local displays = {}
 local DebugNote
 local ticker = nil
 local eventFrame = nil
+-- Refreshed on lifecycle edges, never queried on the UNIT_HEALTH hot path.
+local raidBlocked = false
 
 local function Now()
   local getTime = rawget(_G, "GetTime")
@@ -413,7 +415,8 @@ local function Trace(reason, accepted, evaluated)
   if traceCount >= TRACE_MAX_PER_FIGHT then
     return
   end
-  local token = state.inCombat and ResolveTargetToken() or nil
+  -- Diagnostics must not trigger a nameplate scan for an excluded display.
+  local token = state.inCombat and state.targetToken or nil
   local key = table.concat({ reason, tostring(token), tostring(accepted), tostring(evaluated) }, "|")
   if key == lastTraceKey then
     return
@@ -496,6 +499,10 @@ function TTK.SetStatusListener(fn)
 end
 
 function TTK.Update()
+  if raidBlocked then
+    HideDisplays()
+    return
+  end
   counters.updates = counters.updates + 1
   if testMode and not state.inCombat and TTK.IsEnabled() then
     if PlainTrue(rawget(_G, "UnitExists"), "target") then
@@ -582,6 +589,9 @@ local function SetHealthListening(listen)
   if not eventFrame then
     return
   end
+  if listen == (eventFrame._isiLiveHealthListening == true) then
+    return
+  end
   local ok, err
   if listen then
     ok, err = pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_HEALTH")
@@ -592,7 +602,58 @@ local function SetHealthListening(listen)
   end
   if not ok then
     DebugNote("UNIT_HEALTH " .. (listen and "register" or "unregister") .. " failed: " .. tostring(err))
+  else
+    eventFrame._isiLiveHealthListening = listen
   end
+end
+
+local function BeginCombat()
+  state.inCombat = true
+  -- After reload only this observation time is known, not the original pull.
+  state.combatStart = Now()
+  state.plateClock = {}
+  state.lastHit = {}
+  state.targetLastHit = nil
+  state.targetDirty = true
+  traceCount = 0
+  lastTraceKey = nil
+  counters = { updates = 0, health = 0, plateEvents = 0 }
+  evalFailureNoted = false
+end
+
+-- Called from settings clicks and plain lifecycle events. No permanent poll
+-- is needed to wake an initially disabled TTK in an already running fight.
+function TTK.RefreshRuntime()
+  raidBlocked = addonTable.RuntimeMode.IsRaidContext() == true
+  if raidBlocked then
+    StopTicker()
+    SetHealthListening(false)
+    state.inCombat = false
+    state.combatStart = nil
+    state.encounterStart = nil
+    state.plateClock = {}
+    state.lastHit = {}
+    state.plates = {}
+    state.targetLastHit = nil
+    state.targetToken = nil
+    state.targetDirty = true
+    HideDisplays()
+    return
+  end
+  if not state.inCombat and PlainTrue(rawget(_G, "UnitAffectingCombat"), "player") then
+    BeginCombat()
+  end
+  local enabled = TTK.IsEnabled() and IsKeyActive()
+  if enabled and (state.inCombat or testMode) then
+    StartTicker()
+    SetHealthListening(state.inCombat)
+  else
+    StopTicker()
+    SetHealthListening(false)
+    state.lastHit = {}
+    state.targetLastHit = nil
+  end
+  TTK.Update()
 end
 
 local function EndCombat()
@@ -610,6 +671,22 @@ end
 
 --- Event entry point (own frame, see TTK.Install). Exposed for tests.
 function TTK.HandleEvent(event, arg1)
+  if event == "PLAYER_ENTERING_WORLD" then
+    -- The central dispatcher restores MplusTimer on the same event. Defer
+    -- until every frame has received it, regardless of frame dispatch order.
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(0, TTK.RefreshRuntime)
+    end
+    TTK.RefreshRuntime()
+    return
+  elseif event == "GROUP_ROSTER_UPDATE" then
+    TTK.RefreshRuntime()
+    return
+  end
+  if raidBlocked then
+    return
+  end
   if event == "UNIT_HEALTH" then
     -- Hot path: table writes only, no Blizzard call.
     counters.health = counters.health + 1
@@ -634,15 +711,7 @@ function TTK.HandleEvent(event, arg1)
       state.targetDirty = true
     end
   elseif event == "PLAYER_REGEN_DISABLED" then
-    state.inCombat = true
-    state.combatStart = Now()
-    state.plateClock = {}
-    state.lastHit = {}
-    state.targetLastHit = nil
-    traceCount = 0
-    lastTraceKey = nil
-    counters = { updates = 0, health = 0, plateEvents = 0 }
-    evalFailureNoted = false
+    BeginCombat()
     local keyActive, enabled = IsKeyActive(), TTK.IsEnabled()
     if keyActive and enabled then
       -- Ticker first: the TTK must run even if the listener registration fails.
@@ -684,6 +753,8 @@ function TTK.HandleEvent(event, arg1)
 end
 
 local EVENTS = {
+  "PLAYER_ENTERING_WORLD",
+  "GROUP_ROSTER_UPDATE",
   "NAME_PLATE_UNIT_ADDED",
   "NAME_PLATE_UNIT_REMOVED",
   "PLAYER_REGEN_DISABLED",
@@ -701,16 +772,7 @@ local EVENTS = {
 -- @return boolean the new state
 function TTK.SetTestMode(flag)
   testMode = flag == true
-  if testMode then
-    if state.inCombat and TTK.IsEnabled() then
-      SetHealthListening(true)
-    end
-    StartTicker()
-  elseif not IsKeyActive() then
-    StopTicker()
-    SetHealthListening(false)
-  end
-  TTK.Update()
+  TTK.RefreshRuntime()
   if not testMode and statusListener then
     statusListener(nil)
   end
@@ -743,6 +805,9 @@ function TTK.Install()
     frame:RegisterEvent(EVENTS[i])
   end
   eventFrame = frame
-  DebugNote("install ok")
+  raidBlocked = addonTable.RuntimeMode.IsRaidContext() == true
+  if not raidBlocked then
+    DebugNote("install ok")
+  end
   return true
 end

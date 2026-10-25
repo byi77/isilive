@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-25 - Version 0.9.455 (patch)
+
+- Forces pace no longer learns a later forces percentage for a boss killed
+  while its forces checkpoint was unreadable; existing references survive.
+- Time pace accumulates small progress steps against the last recorded
+  sample, preventing false delays when replaying the same run.
+- TTK resumes a verified ongoing fight after reload, using only the newly
+  observed clock, and starts immediately when enabled during a key fight or
+  restored through display defaults. Disabling stops its ticker and listener.
+- The independent TTK frame now respects raid suppression, including test
+  mode; excluded fights do not scan nameplates through diagnostics.
+- TTK nameplate text keeps its two-point font bonus across updates and
+  overlay font-size changes, including the rendered text height.
+
 ## 2026-10-25 - Version 0.9.454 (patch)
 
 ### Cross-realm announces

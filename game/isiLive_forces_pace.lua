@@ -277,6 +277,17 @@ function ForcesPace.Observe(snapshot)
   end
 
   if snapshot.percentResolved ~= true or not IsFiniteNumber(snapshot.percent) then
+    for i = 1, #bosses do
+      local boss = bosses[i]
+      if boss.completed == true and not run.seen[boss.index] then
+        -- This kill has no verified checkpoint. A later forces reading cannot
+        -- reconstruct it, so never learn or pace this incomplete route.
+        run.seen[boss.index] = true
+        run.learnable = false
+        run.orderComplete = false
+        BumpRunRevision()
+      end
+    end
     return
   end
   local percent = RoundOne(math.max(0, math.min(snapshot.percent, 100)))

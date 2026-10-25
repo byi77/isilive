@@ -1,7 +1,19 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.454`
+Versionsbasis: `0.9.455`
 Zuletzt aktualisiert: `2026-10-25`
+
+Pace-/TTK-Audit (0.9.455, 2026-10-25): ForcesPace sperrt Lernen und
+Tempoziel fuer einen Run, dessen neu beobachtetem Bosskill der verifizierte
+Forces-Checkpoint fehlt. TimePace kumuliert gegen das letzte erfolgreich
+aufgezeichnete Sample. TTK gleicht Weltbetreten, Gruppenwechsel und Settings
+mit einem idempotenten Ticker-/Health-Lebenszyklus ab; der Weltbetreten-
+Nachlauf wartet die Wiederherstellung von MplusTimer ab. Nach Reload beginnt
+eine verifizierte Kampfuhr mit der neuen Beobachtungszeit. Der eigene
+Event-Frame respektiert Raid-Hard-off; Diagnoseausgaben loesen keine
+Nameplate-Suche fuer ausgeschlossene Anzeigen aus. Die gemeinsame
+Overlay-Font-Anwendung nimmt einen optionalen Groessenzuschlag entgegen und
+setzt Schriftgroesse und Texthoehe zusammen, sodass der TTK-Zuschlag bleibt.
 
 Review-Fixes (2026-10-17): `UpdateCollapseState` merkt waehrend Kampf-Lockdown
 ausstehendes Secure-Layout und ueberspringt geschuetzte Sichtbarkeitsaenderungen.
@@ -425,7 +437,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.454                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.455                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
