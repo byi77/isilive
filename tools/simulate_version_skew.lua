@@ -162,19 +162,14 @@ local function ScenarioHelloVersionVariants()
       expectAck = true,
     },
     {
-      -- SplitPayload uses gmatch("([^:]+)") which COLLAPSES empty fields.
-      -- "HELLO::2:1000:hello" splits to {HELLO, 2, 1000, hello} -- the
-      -- empty version slot is gone, the "2" shifts into parts[2] and
-      -- becomes peerAddonVersion. This is the production tolerance: a
-      -- malformed empty field shifts subsequent fields, but does not
-      -- throw or drop the message. Pin the actual behavior so a future
-      -- change to a strict-empty-preserving split surfaces here.
-      label = "peer with empty version field — fields shift due to gmatch collapse",
+      -- Empty fields retain their positions; a missing version never
+      -- establishes trust or stores shifted protocol/timestamp metadata.
+      label = "peer with empty version field is rejected without shifting fields",
       payload = "HELLO::2:1000:hello",
-      expectVersion = "2",
-      expectProtocol = 1000,
-      expectStoredProtocol = 1000,
-      expectAck = true,
+      expectVersion = nil,
+      expectProtocol = nil,
+      expectStored = false,
+      expectAck = false,
     },
   }
 
@@ -210,7 +205,10 @@ local function ScenarioHelloVersionVariants()
       )
       -- Verify stored state.
       local stored = addon.Sync.GetPlayerHelloInfo("Peer", "OtherRealm")
-      Check(stored ~= nil, "    helloInfo stored for peer")
+      Check((stored ~= nil) == (c.expectStored ~= false), "    helloInfo storage matches payload validity")
+      if c.expectStored == false then
+        Check(not addon.Sync.IsUserKnown("Peer", "OtherRealm"), "    invalid HELLO never establishes peer trust")
+      end
       if stored then
         Check(
           stored.addonVersion == c.expectVersion,
@@ -255,13 +253,10 @@ local function ScenarioAckVersionVariants()
       expectVersion = "1.1.0",
     },
     {
-      -- "ACK:" splits to just {"ACK"} because gmatch's "([^:]+)" needs
-      -- at least one non-colon char. parts[2] is nil, so peerAddonVersion
-      -- is nil (not ""), and SetPlayerHelloAckInfo is skipped via the
-      -- `peerAddonVersion and peerAddonVersion ~= ""` guard.
-      label = "ACK with empty version — peerAddonVersion=nil, no stored entry",
+      -- The empty version stays empty and cannot create a stored ACK entry.
+      label = "ACK with empty version retains its empty field without storing an entry",
       payload = "ACK:",
-      expectVersion = nil,
+      expectVersion = "",
       expectStored = false,
     },
   }
