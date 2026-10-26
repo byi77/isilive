@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-27 - Version 0.9.459 (patch)
+
+- LFG invite: the accepted dungeon no longer drops out of the UI and the
+  "Ziel-Dungeon" chat line when several applications were open. Accepting
+  one invite cancels the others before you are in the group; those
+  cancellations no longer clear the target, and the group leader change on
+  joining no longer counts as a handoff while the listing leader still
+  leads.
+- LFG invite: an invite accepted in combat (or with the window closed) is
+  detected again; the accept used to be dropped by the combat gate.
+- Demo preview: a /reload, logout or crash while the demo runs no longer
+  changes your settings. The nameplate forces display mode used to switch
+  from "Namensplakette" to "Kurzinfo"; the demo now keeps your values in the
+  saved settings and restores them on the next load.
+- wowsim: `sim.Reload()` simulates a /reload; new regression scenarios
+  `lfg_invite_detection` and `demo_reload_settings`.
+
 ## 2026-10-25 - Version 0.9.458 (patch)
 
 - Killtracker before the key starts: the bar and the `--.--` placeholder stay

@@ -102,6 +102,51 @@ local function RestoreDemoFeatureSnapshot(db, snapshot)
   end
 end
 
+-- The demo writes its overrides into the saved IsiLiveDB. A /reload, logout
+-- or crash during the preview saved them for good: the in-memory snapshot was
+-- gone, and the both-on forces flags made ApplyDBSettings migrate the user's
+-- nameplate mode to "tooltip" on the next load. The pre-demo values therefore
+-- also live in the DB until the preview ends normally.
+local DEMO_FEATURE_SNAPSHOT_DB_KEY = "demoFeatureSnapshot"
+
+local function PersistDemoFeatureSnapshot(db, snapshot)
+  local values = {}
+  local nilKeys = {}
+  for _, key in ipairs(DEMO_FEATURE_DB_KEYS) do
+    local value = snapshot[key]
+    if value == DEMO_FEATURE_NIL then
+      nilKeys[key] = true
+    elseif value ~= nil then
+      values[key] = value
+    end
+  end
+  db[DEMO_FEATURE_SNAPSHOT_DB_KEY] = { values = values, nilKeys = nilKeys }
+end
+
+--- Restores pre-demo values a preview left in the saved DB (reload, logout or
+--- crash while it ran). Runs on ADDON_LOADED before the schema pass; only the
+--- demo-owned keys are written. Returns true when a snapshot was restored.
+function FactoryDemo.RestorePersistedDemoSnapshot(db)
+  if type(db) ~= "table" then
+    return false
+  end
+  local persisted = db[DEMO_FEATURE_SNAPSHOT_DB_KEY]
+  db[DEMO_FEATURE_SNAPSHOT_DB_KEY] = nil
+  if type(persisted) ~= "table" then
+    return false
+  end
+  local values = type(persisted.values) == "table" and persisted.values or {}
+  local nilKeys = type(persisted.nilKeys) == "table" and persisted.nilKeys or {}
+  for _, key in ipairs(DEMO_FEATURE_DB_KEYS) do
+    if nilKeys[key] == true then
+      db[key] = nil
+    elseif values[key] ~= nil then
+      db[key] = values[key]
+    end
+  end
+  return true
+end
+
 local function ApplyDemoFeatureDbOverrides(ctx)
   local db = rawget(_G, "IsiLiveDB")
   if type(db) ~= "table" then
@@ -110,6 +155,7 @@ local function ApplyDemoFeatureDbOverrides(ctx)
 
   if type(ctx._demoFeatureSnapshot) ~= "table" then
     ctx._demoFeatureSnapshot = CaptureDemoFeatureSnapshot(db)
+    PersistDemoFeatureSnapshot(db, ctx._demoFeatureSnapshot)
   end
 
   db.statsBoxEnabled = true
@@ -574,6 +620,9 @@ local function ClearDemoFeatureData(ctx)
   local snapshot = ctx._demoFeatureSnapshot
   if type(db) == "table" and type(snapshot) == "table" then
     RestoreDemoFeatureSnapshot(db, snapshot)
+  end
+  if type(db) == "table" then
+    db[DEMO_FEATURE_SNAPSHOT_DB_KEY] = nil
   end
   ctx._demoFeatureSnapshot = nil
 

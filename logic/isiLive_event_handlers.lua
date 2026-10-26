@@ -59,6 +59,9 @@ local function BuildContext(opts)
   ctx.isNegativeApplicationStatusEvent =
     RequireFunction(opts.isNegativeApplicationStatusEvent, "isNegativeApplicationStatusEvent")
   ctx.getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo")
+  ctx.hasAcceptedLfgInvite = OptionalFunction(opts.hasAcceptedLfgInvite, function()
+    return false
+  end)
   ctx.setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo")
   ctx.getPendingQueueJoinInfo = OptionalFunction(opts.getPendingQueueJoinInfo, function()
     return nil
@@ -117,6 +120,9 @@ local function BuildContext(opts)
   ctx.startBindingWatchdog = RequireFunction(opts.startBindingWatchdog, "startBindingWatchdog")
   ctx.applyLocalizationToUI = RequireFunction(opts.applyLocalizationToUI, "applyLocalizationToUI")
   ctx.applyDBSettings = OptionalFunction(opts.applyDBSettings, function() end)
+  ctx.restorePersistedDemoSnapshot = OptionalFunction(opts.restorePersistedDemoSnapshot, function(_db)
+    return false
+  end)
   ctx.restoreLayoutState = RequireFunction(opts.restoreLayoutState, "restoreLayoutState")
   ctx.updateCountdownCancelButton = RequireFunction(opts.updateCountdownCancelButton, "updateCountdownCancelButton")
   ctx.restoreBgAlpha = OptionalFunction(opts.restoreBgAlpha, function(_alpha) end)

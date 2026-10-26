@@ -337,8 +337,12 @@ local function CreateClient(member, opts)
     return client.engine.FireEvent(event, ...)
   end
 
-  function client.Load()
-    if member.isFocus then
+  -- savedVariables: the IsiLiveDB a /reload hands back (see sim.Reload);
+  -- otherwise the focus client may load one from --savedvars.
+  function client.Load(savedVariables)
+    if type(savedVariables) == "table" then
+      env.IsiLiveDB = savedVariables
+    elseif member.isFocus then
       LoadSavedVariables(env)
     end
     local addonTable = {}
@@ -501,6 +505,42 @@ function sim.Login()
     client.Load()
   end
   world.Advance(1)
+end
+
+local function DeepCopy(value)
+  if type(value) ~= "table" then
+    return value
+  end
+  local copy = {}
+  for key, inner in pairs(value) do
+    copy[DeepCopy(key)] = DeepCopy(inner)
+  end
+  return copy
+end
+
+-- Simulates /reload for one client (default: the player). WoW fires
+-- PLAYER_LOGOUT, writes the SavedVariables to disk and loads the addon into a
+-- fresh UI; only IsiLiveDB survives, as a copy of what was saved.
+function sim.Reload(name)
+  local old = ClientOf(name)
+  old.Fire("PLAYER_LOGOUT")
+  local saved = DeepCopy(rawget(old.env, "IsiLiveDB"))
+  for index, client in ipairs(world.clients) do
+    if client == old then
+      table.remove(world.clients, index)
+      break
+    end
+  end
+  local fresh = CreateClient(old.member, { locale = old.locale })
+  fresh.isFocus = old.isFocus
+  sim.clients[old.member.name] = fresh
+  if sim.focus == old then
+    sim.focus = fresh
+  end
+  world.Log("note", "/reload", fresh)
+  fresh.Load(saved or {})
+  world.Advance(1)
+  return fresh
 end
 
 -- Puts the listed members (by name) into the group with the player.

@@ -1195,6 +1195,93 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     end)
   end)
 
+  -- Live order seen 2026-10-25: the join PLC can arrive right AFTER the first
+  -- GROUP_ROSTER_UPDATE. When the group leader is still the listing leader,
+  -- that PLC is the join, not a handoff, and the accepted identity stays.
+  local function BuildLeaderGlobals(leaderUnit, leaderName, leaderRealm, listingLeaderName)
+    return {
+      C_LFGList = BuildC_LFGList({
+        [778] = { activityID = 514, name = "|Kt635|k", leaderName = listingLeaderName },
+      }, nil),
+      UnitIsGroupLeader = function(unit)
+        return unit == leaderUnit
+      end,
+      UnitFullName = function(unit)
+        if unit == leaderUnit then
+          return leaderName, leaderRealm
+        end
+        return "Other", "Realm"
+      end,
+    }
+  end
+
+  test(
+    "LFGDetect PARTY_LEADER_CHANGED after the roster update keeps the identity while the listing leader leads",
+    function()
+      local cases = {
+        { label = "cross-realm leader", listing = "Sagehd-Ravencrest", name = "Sagehd", realm = "Ravencrest" },
+        { label = "realm with a space", listing = "Sagehd-ArgentDawn", name = "Sagehd", realm = "Argent Dawn" },
+        { label = "same-realm listing", listing = "Sagehd", name = "Sagehd", realm = "Ravencrest" },
+      }
+      for _, case in ipairs(cases) do
+        local globals, fire = BuildLFGDetectEnv({
+          IsInGroup = function()
+            return true
+          end,
+          globals = BuildLeaderGlobals("party1", case.name, case.realm, case.listing),
+        })
+        WithGlobals(globals, function()
+          local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+          fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+          fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+          fire("GROUP_ROSTER_UPDATE")
+          fire("PARTY_LEADER_CHANGED")
+
+          Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, case.label .. ": join PLC must keep detectedMapID")
+          Assert.Equal(
+            addon.LFGDetect.GetActiveInviteLeader(),
+            case.listing,
+            case.label .. ": join PLC must keep activeInviteLeader"
+          )
+          Assert.Equal(
+            addon.LFGDetect.GetAcceptedInviteSearchResultID(),
+            778,
+            case.label .. ": join PLC must keep acceptedInviteSearchResultID"
+          )
+        end)
+      end
+    end
+  )
+
+  test("LFGDetect PARTY_LEADER_CHANGED after the roster update clears the identity for a different leader", function()
+    local cases = {
+      { label = "other player", unit = "party2", name = "Newlead", realm = "Ravencrest" },
+      { label = "same name, other realm", unit = "party1", name = "Sagehd", realm = "Blackrock" },
+      { label = "player took the lead", unit = "player", name = "Isiplayer", realm = "Blackrock" },
+    }
+    for _, case in ipairs(cases) do
+      local globals, fire = BuildLFGDetectEnv({
+        IsInGroup = function()
+          return true
+        end,
+        globals = BuildLeaderGlobals(case.unit, case.name, case.realm, "Sagehd-Ravencrest"),
+      })
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+        fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+        fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+        fire("GROUP_ROSTER_UPDATE")
+        fire("PARTY_LEADER_CHANGED")
+
+        Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), case.label .. ": handoff must drop activeInviteLeader")
+        Assert.Nil(
+          addon.LFGDetect.GetAcceptedInviteSearchResultID(),
+          case.label .. ": handoff must drop acceptedInviteSearchResultID"
+        )
+      end)
+    end
+  end)
+
   -- Regression for the initial-convert race: WoW fires PARTY_LEADER_CHANGED
   -- when the listing owner forms the freshly accepted group, BEFORE the
   -- first GROUP_ROSTER_UPDATE reports inGroup=true. That PLC is the owner

@@ -71,6 +71,10 @@ local function IsRaidModeActive(ctx)
   return type(ctx.isRaidGroup) == "function" and ctx.isRaidGroup() == true
 end
 
+local function HasAcceptedLfgInvite(ctx)
+  return type(ctx.hasAcceptedLfgInvite) == "function" and ctx.hasAcceptedLfgInvite() == true
+end
+
 local function IsInviteAcceptedStatus(...)
   local newStatus = select(2, ...)
   return type(newStatus) == "string" and string.lower(newStatus) == "inviteaccepted"
@@ -83,11 +87,22 @@ local function IsInvitedStatus(status)
   return string.lower(status) == "invited"
 end
 
---- Gate predicate: lets an LFG "invited" status through while the main frame
--- is hidden or the player is in combat, so the group-invite voice alert still
--- fires. Every other application status keeps the default gates.
+local function IsLfgDetectStatus(status)
+  if IsSecretValue(status) or type(status) ~= "string" then
+    return false
+  end
+  local lowered = string.lower(status)
+  return lowered == "invited" or lowered == "inviteaccepted"
+end
+
+--- Gate predicate: lets the LFG "invited" and "inviteaccepted" statuses
+-- through while the main frame is hidden or the player is in combat. The
+-- voice alert needs "invited"; the dungeon detection needs both, because a
+-- dropped accept leaves nothing for the GROUP_ROSTER_UPDATE recovery to
+-- resolve (no notice, no target-dungeon chat, no highlight). Every other
+-- application status keeps the default gates.
 function QueueLifecycle.IsLfgInviteStatusEvent(event, _searchResultID, newStatus)
-  return event == "LFG_LIST_APPLICATION_STATUS_UPDATED" and IsInvitedStatus(newStatus)
+  return event == "LFG_LIST_APPLICATION_STATUS_UPDATED" and IsLfgDetectStatus(newStatus)
 end
 
 local function IsInCombatLockdown()
@@ -236,13 +251,19 @@ function QueueLifecycle.BuildHandlers(ctx)
       end
       if IsInvitedStatus(select(2, ...)) then
         HandleGroupInviteReceived(ctx)
-        -- Only the voice alert may use the gate exception for "invited"; the
-        -- queue pipeline below keeps the default hidden and combat gates.
-        if not ctx.isMainFrameShown() or IsInCombatLockdown() then
-          return
-        end
       end
       if ctx.isInChallengeMode() or IsRaidModeActive(ctx) then
+        return
+      end
+      -- The gate exception covers the voice alert and the dungeon detection
+      -- only: LFGDetect state plus the status line. Its UI side effects defer
+      -- themselves in combat (frame show, secure teleport attributes). The
+      -- rest of the queue pipeline keeps the default hidden and combat gates.
+      if IsLfgDetectStatus(select(2, ...)) and (not ctx.isMainFrameShown() or IsInCombatLockdown()) then
+        ctx.handleLFGDetectEvent("LFG_LIST_APPLICATION_STATUS_UPDATED", ...)
+        if IsInviteAcceptedStatus(...) then
+          RefreshTargetStatusAfterInviteAccepted(ctx)
+        end
         return
       end
       ctx.handleLFGDetectEvent("LFG_LIST_APPLICATION_STATUS_UPDATED", ...)
@@ -261,8 +282,11 @@ function QueueLifecycle.BuildHandlers(ctx)
         if not preserve then
           ctx.setPendingQueueJoinInfo(nil)
         end
+        -- Accepting one invite cancels the player's other applications in
+        -- the same frame, before IsInGroup() turns true. Those cancellations
+        -- must not wipe the target the accepted invite just set.
         local entryInfo = ctx.getNormalizedActiveEntryInfo()
-        if not HasActiveListing(entryInfo) and not ctx.isInGroup() then
+        if not HasActiveListing(entryInfo) and not ctx.isInGroup() and not HasAcceptedLfgInvite(ctx) then
           ctx.clearLatestQueueTarget()
         end
         ctx.updateMPlusTeleportButton("queue")

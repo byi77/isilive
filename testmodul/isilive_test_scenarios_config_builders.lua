@@ -198,14 +198,15 @@ return function(test, ctx)
       opts.allowWhenHidden.LFG_LIST_APPLICATION_STATUS_UPDATED,
       "hidden LFG status must stay blocked while invite-list feature is disabled"
     )
-    -- The only hidden/combat exception is the group-invite voice alert, and it
-    -- admits nothing but the "invited" status (rule 143).
+    -- The hidden/combat exception admits only "invited" (voice alert and
+    -- dungeon detection, rule 143) and "inviteaccepted" (dungeon detection,
+    -- rule 213).
     local addon = LoadAddonModules({ "isiLive_config_builders.lua", "isiLive_event_handlers_queue.lua" })
     opts = addon.ConfigBuilders.BuildGateOpts({ events = "ev", onEvent = "disp" })
     for _, callbackName in ipairs({ "shouldAllowWhenHidden", "shouldAllowInCombat" }) do
       local gateCallback = opts[callbackName]
       Assert.True(type(gateCallback) == "function", callbackName .. " must carry the group-invite gate exception")
-      for _, status in ipairs({ "applied", "declined", "inviteaccepted", "invitedeclined", "timedout", "cancelled" }) do
+      for _, status in ipairs({ "applied", "declined", "invitedeclined", "timedout", "cancelled" }) do
         Assert.False(
           gateCallback(nil, "LFG_LIST_APPLICATION_STATUS_UPDATED", 7, status),
           "hidden LFG status '" .. status .. "' must stay blocked"
@@ -214,6 +215,10 @@ return function(test, ctx)
       Assert.True(
         gateCallback(nil, "LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "invited"),
         "an LFG invite must pass for the group-invite voice alert"
+      )
+      Assert.True(
+        gateCallback(nil, "LFG_LIST_APPLICATION_STATUS_UPDATED", 7, "inviteaccepted"),
+        "an accepted LFG invite must pass for the dungeon detection"
       )
       Assert.False(
         gateCallback(nil, "LFG_LIST_SEARCH_RESULT_UPDATED", 7, "invited"),

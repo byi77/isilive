@@ -722,6 +722,13 @@ local function HandleAddonLoaded(ctx, loadedAddon)
   end
 
   IsiLiveDB = IsiLiveDB or {}
+  -- A demo preview that ended by /reload, logout or crash left its overrides
+  -- in the saved DB. Put the user's values back before the schema pass and
+  -- before ApplyDBSettings, whose both-on forces migration would otherwise
+  -- turn the nameplate mode into "tooltip".
+  if type(ctx.restorePersistedDemoSnapshot) == "function" then
+    ctx.restorePersistedDemoSnapshot(IsiLiveDB)
+  end
   SanitizeDBAndInstallErrorLog(ctx)
   IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
   ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)

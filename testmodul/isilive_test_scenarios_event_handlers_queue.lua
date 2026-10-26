@@ -2,6 +2,7 @@
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   -- Captures every ctx-side-effect the handlers can produce so individual
   -- branches can be observed without a full event-handlers fixture.
@@ -299,6 +300,51 @@ return function(test, ctx)
     entryRef.value = "not-a-table"
     handlers.LFG_LIST_APPLICATION_STATUS_UPDATED(nil, 7, "declined")
     Assert.Equal(counters.clears, 1, "non-table entryInfo must be treated as no active listing")
+  end)
+
+  -- Accepting one invite cancels the other applications in the same frame,
+  -- before IsInGroup() is true. Those cancellations must keep the target.
+  test("negative status keeps target while an accepted LFG invite is active", function()
+    local handlers, counters = LoadHandlers({
+      isNegativeApplicationStatusEvent = function()
+        return true
+      end,
+      hasAcceptedLfgInvite = function()
+        return true
+      end,
+    })
+    handlers.LFG_LIST_APPLICATION_STATUS_UPDATED(nil, 8, "cancelled")
+    Assert.Equal(counters.clears, 0, "a sibling cancellation must not clear the accepted target")
+    Assert.Equal(counters.teleportUpdates, 1, "the teleport refresh still runs")
+  end)
+
+  test("LFG invite and accept reach the dungeon detection in combat and while hidden", function()
+    local inCombat = false
+    local shown = true
+    WithGlobals({
+      InCombatLockdown = function()
+        return inCombat
+      end,
+    }, function()
+      local handlers, counters = LoadHandlers({
+        isMainFrameShown = function()
+          return shown
+        end,
+      })
+      for _, case in ipairs({ { combat = true, shown = true }, { combat = false, shown = false } }) do
+        inCombat = case.combat
+        shown = case.shown
+        local lfgBefore = #counters.lfgEvents
+        local capturesBefore = counters.captures
+        local statusBefore = counters.statusUpdates
+        handlers.LFG_LIST_APPLICATION_STATUS_UPDATED(nil, 9, "invited")
+        handlers.LFG_LIST_APPLICATION_STATUS_UPDATED(nil, 9, "inviteaccepted")
+        Assert.Equal(#counters.lfgEvents - lfgBefore, 2, "both statuses must reach LFGDetect")
+        Assert.Equal(counters.lfgEvents[#counters.lfgEvents][3], "inviteaccepted", "the accept is forwarded last")
+        Assert.Equal(counters.captures, capturesBefore, "the rest of the queue pipeline stays gated")
+        Assert.Equal(counters.statusUpdates - statusBefore, 1, "the accept refreshes the status line")
+      end
+    end)
   end)
 
   -- LFG_LIST_SEARCH_RESULT_UPDATED ---------------------------------------------

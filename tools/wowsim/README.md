@@ -46,6 +46,7 @@ The first party entry is the player (the client whose UI is recorded).
 | Call | Effect |
 |---|---|
 | `sim.Login()` | load the addon on every simulated client, fire the login events |
+| `sim.Reload(name)` | /reload one client (default: the player): `PLAYER_LOGOUT`, fresh UI, only a copy of `IsiLiveDB` survives |
 | `sim.Step(label)` | record a UI snapshot + the log since the previous step |
 | `sim.Wait(seconds[, tick])` | advance the clock (OnUpdate every `tick`, default 0.1 s) |
 | `sim.JoinGroup(...)`, `sim.LeaveGroup(name)`, `sim.SetLeader(name)` | group changes |

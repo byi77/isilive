@@ -295,6 +295,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       "isNegativeApplicationStatusEvent"
     ),
     getNormalizedActiveEntryInfo = RequireFunction(deps.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
+    hasAcceptedLfgInvite = type(deps.hasAcceptedLfgInvite) == "function" and deps.hasAcceptedLfgInvite or nil,
     getPendingQueueJoinInfo = type(state.getPendingQueueJoinInfo) == "function" and state.getPendingQueueJoinInfo
       or function()
         return nil
@@ -369,6 +370,9 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     restoreLayoutState = RequireFunction(callbacks.restoreLayoutState, "callbacks.restoreLayoutState"),
     applyLocalizationToUI = RequireFunction(callbacks.applyLocalizationToUI, "callbacks.applyLocalizationToUI"),
     applyDBSettings = type(callbacks.applyDBSettings) == "function" and callbacks.applyDBSettings or function() end,
+    restorePersistedDemoSnapshot = type(callbacks.restorePersistedDemoSnapshot) == "function"
+        and callbacks.restorePersistedDemoSnapshot
+      or nil,
     updateCountdownCancelButton = RequireFunction(
       callbacks.updateCountdownCancelButton,
       "callbacks.updateCountdownCancelButton"
@@ -728,6 +732,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isRaidGroup = ctx.isRaidGroup,
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
+    hasAcceptedLfgInvite = ctx.hasAcceptedLfgInvite,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendLibKeystonePartyData = ctx.sendLibKeystonePartyData,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
@@ -1033,6 +1038,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       updateStatusLine = ctx.updateStatusLine,
       applyLocalizationToUI = ctx.applyLocalizationToUI,
       applyDBSettings = ctx.applyDBSettings,
+      restorePersistedDemoSnapshot = ctx.restorePersistedDemoSnapshot,
       restoreLayoutState = ctx.restoreLayoutState,
       updateCountdownCancelButton = ctx.updateCountdownCancelButton,
       restoreBgAlpha = ctx.RestoreBgAlpha,

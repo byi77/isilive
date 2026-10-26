@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.458`.
+Current version: `0.9.459`.
+
+Version 0.9.459: an accepted LFG invite keeps its dungeon in the window and
+the chat line, also with several open applications or when accepted in combat;
+a /reload during the demo no longer switches the nameplate forces display.
 
 Version 0.9.458: before the key the killtracker bar glows gold with a light
 sweep and the pulsing target dungeon and key level; during the key the
@@ -67,7 +71,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.458 -->
+<!-- highlights-reviewed-for: 0.9.459 -->
 
 Highlights:
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a

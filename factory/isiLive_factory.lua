@@ -1022,6 +1022,12 @@ local function FinalizeFactoryRuntime(ctx)
     isInChallengeMode = ctx.GetActiveChallengeMapID,
     isNegativeApplicationStatusEvent = ctx.IsNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.GetNormalizedActiveEntryInfo,
+    hasAcceptedLfgInvite = function()
+      local lfgDetect = addonTable.LFGDetect
+      return type(lfgDetect) == "table"
+        and type(lfgDetect.GetAcceptedInviteSearchResultID) == "function"
+        and lfgDetect.GetAcceptedInviteSearchResultID() ~= nil
+    end,
     ensureQueueDebugStorage = ctx.queueDebugController.EnsureStorage,
     setQueueDebugEnabled = ctx.queueDebugController.SetEnabled,
     ensureRuntimeLogStorage = ctx.runtimeLogController.EnsureStorage,
@@ -1058,6 +1064,13 @@ local function FinalizeFactoryRuntime(ctx)
       if type(ctx.ApplyDBSettings) == "function" then
         return ctx.ApplyDBSettings()
       end
+    end,
+    restorePersistedDemoSnapshot = function(db)
+      local factoryDemo = FI.FactoryDemo
+      if type(factoryDemo) == "table" and type(factoryDemo.RestorePersistedDemoSnapshot) == "function" then
+        return factoryDemo.RestorePersistedDemoSnapshot(db)
+      end
+      return false
     end,
     updateCountdownCancelButton = ctx.UpdateCountdownCancelButton,
     restoreLayoutState = ctx.RestoreLayoutState,

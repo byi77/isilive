@@ -708,9 +708,9 @@ function LFGDetect.GetActiveInviteTitleLevelText()
   return activeInviteTitleLevelText
 end
 
--- searchResultID of the invite the player actually accepted. Exposed for tests
--- (the production code reads the module-local directly). nil = no accepted
--- invite, or state was reset.
+-- searchResultID of the invite the player actually accepted. The queue
+-- lifecycle reads it to keep the sibling-application cancellations from
+-- clearing the accepted target. nil = no accepted invite, or state was reset.
 function LFGDetect.GetAcceptedInviteSearchResultID()
   return acceptedInviteSearchResultID
 end
@@ -880,6 +880,66 @@ local function ResolveAcceptedPendingInvite()
   return nil, nil
 end
 
+local function SplitQualifiedName(fullName)
+  if type(fullName) ~= "string" or fullName == "" then
+    return nil, nil
+  end
+  local name, realm = string.match(fullName, "^([^%-]+)%-(.+)$")
+  if name then
+    return name, realm
+  end
+  return fullName, nil
+end
+
+local function ReadSafeString(value)
+  if IsSecretValue(value) or type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
+
+-- Name and realm of the current group leader, or nil when the client cannot
+-- tell (solo, API missing, secret values). The realm is nil for leaders on
+-- the player's own realm.
+local function ResolveCurrentGroupLeader()
+  local unitIsGroupLeader = rawget(_G, "UnitIsGroupLeader")
+  local unitFullName = rawget(_G, "UnitFullName")
+  if type(unitIsGroupLeader) ~= "function" or type(unitFullName) ~= "function" then
+    return nil, nil
+  end
+  for _, unit in ipairs({ "player", "party1", "party2", "party3", "party4" }) do
+    local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
+    if okLeader and not IsSecretValue(isLeader) and isLeader == true then
+      local okName, name, realm = pcall(unitFullName, unit)
+      if not okName or IsSecretValue(name) or IsSecretValue(realm) then
+        return nil, nil
+      end
+      return ReadSafeString(name), ReadSafeString(realm)
+    end
+  end
+  return nil, nil
+end
+
+-- True when the current group leader is the leader of the accepted listing.
+-- WoW fires PARTY_LEADER_CHANGED on joining a listed group, and the live
+-- client delivers it before or after the first GROUP_ROSTER_UPDATE; a leader
+-- that still matches the listing is that join, not a handoff. A realm only
+-- has to match when both sides carry one (same-realm leaders come without).
+local function IsListingLeaderStillLeading()
+  local listingName, listingRealm = SplitQualifiedName(activeInviteLeader)
+  if not listingName then
+    return false
+  end
+  local leaderName, leaderRealm = ResolveCurrentGroupLeader()
+  if leaderName ~= listingName then
+    return false
+  end
+  if listingRealm and leaderRealm then
+    return string.gsub(listingRealm, "[%s%-]", "") == string.gsub(leaderRealm, "[%s%-]", "")
+  end
+  return true
+end
+
 -- Clears the LFG-listing identity (leader / title level / accepted search-
 -- result-ID + detectedMapID) but does NOT touch pendingInvites / queue
 -- state. Used by post-challenge cleanup and by the leader-change path: in
@@ -955,8 +1015,10 @@ function LFGDetect.HandleEvent(event, ...)
     -- GROUP_ROSTER_UPDATE). That PLC is not a handoff — it is the listing
     -- owner taking the lead they already had — and the captured identity
     -- (leader / title-level / searchResultID) is still authoritative.
-    -- Once GROUP_ROSTER_UPDATE reports inGroup=true (rosterEstablishedSinceAccept),
-    -- any further PLC is treated as a genuine handoff and clears as before.
+    -- The live client does not keep that order: the join PLC also arrives
+    -- right after the first GROUP_ROSTER_UPDATE. A PLC whose leader is still
+    -- the listing leader is therefore kept as well; only a different leader
+    -- is a genuine handoff that clears the identity.
     if not rosterEstablishedSinceAccept then
       Log(
         "plc_initial_convert_keep",
@@ -964,6 +1026,8 @@ function LFGDetect.HandleEvent(event, ...)
         tostring(activeInviteLeader),
         tostring(activeInviteTitleLevel)
       )
+    elseif activeInviteLeader ~= nil and IsListingLeaderStillLeading() then
+      Log("plc_listing_leader_keep", "leader=%s", tostring(activeInviteLeader))
     elseif activeInviteLeader ~= nil or acceptedInviteSearchResultID ~= nil then
       ClearAcceptedInviteListingIdentity("PARTY_LEADER_CHANGED")
     end

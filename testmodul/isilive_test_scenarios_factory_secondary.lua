@@ -1227,6 +1227,59 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.False(state.db.acceptedInviteNoticeEnabled, "demo exit must restore accepted-invite notice setting")
     Assert.False(state.db.groupJoinNoticeEnabled, "demo exit must restore group-join target notice setting")
   end)
+
+  -- The demo writes into the saved IsiLiveDB; the user's values must be saved
+  -- with it so a /reload, logout or crash during the preview can restore them.
+  test("Factory demo keeps the user's settings in the saved DB until the preview ends", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { mobNameplateEnabled = true, mplusForcesEstimate = false },
+    })
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+    end)
+    local persisted = state.db.demoFeatureSnapshot
+    Assert.True(type(persisted) == "table", "a running demo must persist the user's values")
+    Assert.Equal(persisted.values.mobNameplateEnabled, true, "the nameplate choice is persisted")
+    Assert.Equal(persisted.values.mplusForcesEstimate, false, "the tooltip choice is persisted")
+    Assert.True(persisted.nilKeys.deathAlertEnabled, "an unset demo-owned key is persisted as unset")
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.ExitTestMode()
+    end)
+    Assert.Nil(state.db.demoFeatureSnapshot, "a normal demo exit drops the persisted snapshot")
+    Assert.Equal(state.db.mplusForcesEstimate, false, "a normal demo exit restores the tooltip choice")
+  end)
+
+  test("Factory demo snapshot left by a reload restores the user's settings on load", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { mobNameplateEnabled = true, mplusForcesEstimate = false, mobNameplateFontSize = 18 },
+    })
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+    end)
+    Assert.Equal(state.db.mplusForcesEstimate, true, "setup: the demo overrides the saved flag")
+
+    -- /reload while the demo runs: only the saved table survives.
+    local reloaded = {}
+    for key, value in pairs(state.db) do
+      reloaded[key] = value
+    end
+    reloaded.unrelatedSetting = "kept"
+    local restore = state.addon._FactoryInternal.FactoryDemo.RestorePersistedDemoSnapshot
+    Assert.True(restore(reloaded), "a persisted snapshot must be restored")
+    Assert.Equal(reloaded.mobNameplateEnabled, true, "the nameplate choice survives the reload")
+    Assert.Equal(reloaded.mplusForcesEstimate, false, "the tooltip choice survives the reload")
+    Assert.Equal(reloaded.mobNameplateFontSize, 18, "a demo-owned value keeps the user's setting")
+    Assert.Nil(reloaded.deathAlertEnabled, "a key the user never set returns to unset")
+    Assert.Nil(reloaded.demoFeatureSnapshot, "the snapshot is consumed")
+    Assert.Equal(reloaded.unrelatedSetting, "kept", "keys outside the demo set are untouched")
+    Assert.False(restore(reloaded), "without a snapshot the load changes nothing")
+    Assert.False(restore({ demoFeatureSnapshot = "corrupt" }), "a malformed snapshot is dropped")
+  end)
 end
 
 local function RegisterKillTrackNameplateRefreshTests(test, Assert, WithGlobals, LoadAddonModules)

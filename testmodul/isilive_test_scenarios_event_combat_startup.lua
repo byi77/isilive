@@ -1055,6 +1055,34 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
     Assert.Equal(restoreCalls, 1, "ADDON_LOADED must restore Rio baseline from DB exactly once")
   end)
 
+  test("ADDON_LOADED restores a demo snapshot before the DB settings are applied", function()
+    local calls = {}
+    local savedDb = {
+      locale = "enUS",
+      position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+    }
+
+    WithGlobals({ IsiLiveDB = savedDb }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        restorePersistedDemoSnapshot = function(db)
+          calls[#calls + 1] = { name = "restore", db = db }
+          return true
+        end,
+        applyDBSettings = function()
+          calls[#calls + 1] = { name = "apply" }
+        end,
+      })
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+    end)
+
+    Assert.Equal(#calls, 2, "ADDON_LOADED must restore the snapshot and apply the settings once each")
+    Assert.Equal(calls[1].name, "restore", "the demo snapshot must be restored first")
+    Assert.True(calls[1].db == savedDb, "the restore must work on the saved IsiLiveDB")
+    Assert.Equal(calls[2].name, "apply", "ApplyDBSettings must see the restored values")
+  end)
+
   test("Event handlers reset damage meter on challenge start when available", function()
     local resetCalls = 0
     local cvarValues = {
