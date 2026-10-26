@@ -1,3 +1,6 @@
+---@diagnostic disable: undefined-global
+-- Host-side tool: runs in the local Lua, where io / package / loadfile exist.
+-- .luarc.json disables those builtins for the WoW addon code.
 -- wowsim: headless simulator for isiLive.
 --
 -- Loads the real addon (every file of isiLive.toc, in TOC order) into one or
@@ -267,6 +270,7 @@ end
 -- Clients
 -------------------------------------------------------------------------------
 local function LoadSavedVariables(env)
+  ---@type string|nil
   local path = args.savedvars
   if not path then
     return
@@ -558,7 +562,7 @@ function sim.JoinGroup(...)
   world.FireAll("PARTY_LEADER_CHANGED")
   for _, name in ipairs(names) do
     local m = world.FindMember(name)
-    if not m.simulate and m.addon == "libks" then
+    if m and not m.simulate and m.addon == "libks" then
       world.SendFromVirtual(m, "LibKS", LibKsPayload(m), "PARTY")
     end
   end
@@ -902,7 +906,7 @@ WriteFile(jsonPath, jsonText)
 
 WOWSIM_BUILD_VIEWER_AS_LIB = true
 local viewer = dofile(SCRIPT_DIR .. "/build_viewer.lua")
-WOWSIM_BUILD_VIEWER_AS_LIB = nil
+WOWSIM_BUILD_VIEWER_AS_LIB = false
 local built, buildErr = pcall(viewer.build, jsonText, htmlPath, ADDON_ROOT)
 if not built then
   print("wowsim: viewer build failed: " .. tostring(buildErr))

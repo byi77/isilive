@@ -1,3 +1,6 @@
+---@diagnostic disable: undefined-global
+-- Host-side tool: runs in the local Lua, where io / package / loadfile exist.
+-- .luarc.json disables those builtins for the WoW addon code.
 -- tools/wowsim/build_viewer.lua
 -- Builds a self-contained HTML viewer from a wowsim JSON dump.
 --

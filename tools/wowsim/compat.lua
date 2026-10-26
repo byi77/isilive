@@ -1,3 +1,6 @@
+---@diagnostic disable: undefined-global
+-- Host-side tool: runs in the local Lua, where io / package / loadfile exist.
+-- .luarc.json disables those builtins for the WoW addon code.
 -- Lua 5.1 / 5.4 bridges for wowsim.
 --
 -- wowsim must run on the Lua 5.1 the CI uses (tools/check_lua51_compat.lua)
