@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-27 - Version 0.9.461 (patch)
+
+- Killtracker time pace: the value frozen during a fight now reads
+  `Pause +m:ss` (ruRU `Пауза`, trTR `Ara`), so the grey value is clearly
+  paused on purpose rather than stuck.
+- Settings: the "M+ Killtracker: Time pace" description explains the fight
+  pause in all five languages.
+
 ## 2026-10-27 - Version 0.9.460 (patch)
 
 - Killtracker time pace: during a fight in the key the +/- delta on the bar

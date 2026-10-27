@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.460`.
+Current version: `0.9.461`.
+
+Version 0.9.461: the paused time pace reads "Pause" in front of the value,
+and the setting description explains the fight pause.
 
 Version 0.9.460: the killtracker time pace holds its value during a fight,
 dimmed grey, and updates once the pull's kills are counted.
@@ -74,7 +77,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.460 -->
+<!-- highlights-reviewed-for: 0.9.461 -->
 
 Highlights:
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a

@@ -192,7 +192,11 @@ local function BuildTimePaceText(data)
   else
     return nil
   end
-  return text, status.paused == true and "paused" or paceState
+  if status.paused == true then
+    -- Infight pause: the word in front says the frozen value is on purpose.
+    return string.format(LocalizedText("TIME_PACE_PAUSED_FMT", "Pause %s"), text), "paused"
+  end
+  return text, paceState
 end
 
 local function UpdateTimePaceText(row, data)
