@@ -163,10 +163,10 @@ local function FormatTimeDelta(delta)
 end
 
 -- Time pace of the run (see game/isiLive_time_pace.lua) as a signed delta
--- plus "ontime" or "late", or nil when nothing is shown: against the
--- reference run at the same progress, otherwise the forecast end time against
--- the time limit. Without the TimePace module the setting cannot be read:
--- fail closed.
+-- plus "ontime", "late" or "paused" (frozen during a fight), or nil when
+-- nothing is shown: against the reference run at the same progress, otherwise
+-- the forecast end time against the time limit. Without the TimePace module
+-- the setting cannot be read: fail closed.
 local function BuildTimePaceText(data)
   local status = type(data) == "table" and data.timePace or nil
   if type(status) ~= "table" then
@@ -176,21 +176,23 @@ local function BuildTimePaceText(data)
   if type(pace) ~= "table" or type(pace.IsEnabled) ~= "function" or pace.IsEnabled() ~= true then
     return nil
   end
+  local text, paceState
   if status.mode == "reference" then
     local delta = status.delta
     if type(delta) ~= "number" or delta ~= delta then
       return nil
     end
-    return FormatTimeDelta(delta)
-  end
-  if status.mode == "projection" then
+    text, paceState = FormatTimeDelta(delta)
+  elseif status.mode == "projection" then
     local projected, limit = status.projected, status.timeLimit
     if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
       return nil
     end
-    return FormatTimeDelta(projected - limit)
+    text, paceState = FormatTimeDelta(projected - limit)
+  else
+    return nil
   end
-  return nil
+  return text, status.paused == true and "paused" or paceState
 end
 
 local function UpdateTimePaceText(row, data)
@@ -202,7 +204,8 @@ local function UpdateTimePaceText(row, data)
   SetReadableText(fontString, text or "")
   if text and type(fontString.SetTextColor) == "function" then
     local colors = UICommon.Colors or {}
-    local color = paceState == "late" and (colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 })
+    local color = paceState == "paused" and (colors.TEXT_DIM or { 0.5, 0.5, 0.6 })
+      or paceState == "late" and (colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 })
       or (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
     fontString:SetTextColor(color[1], color[2], color[3])
   end

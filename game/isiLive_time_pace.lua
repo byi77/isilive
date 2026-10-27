@@ -17,6 +17,12 @@ addonTable = addonTable or {}
 --   projection -- without a reference: elapsed time divided by progress,
 --                 compared against the key's time limit.
 --
+-- During a pull the clock runs while progress only moves on kills, so the
+-- answer drifts towards late and snaps back when mobs die. KillTrack
+-- therefore pauses the shown answer for each fight in the key: PauseStatus
+-- freezes the answer at the pull and ResumeStatus releases it once the
+-- kills of the pull are counted. Learning keeps the real timer throughout.
+--
 -- KillTrack owns every scenario read and hands this module the same
 -- validated snapshots it gives ForcesPace. Elapsed time, time limit and key
 -- level come from MplusTimer. The only Blizzard call made here is
@@ -132,6 +138,15 @@ local function NewRun(trackedFromStart)
   }
 end
 
+-- Answer frozen by PauseStatus while a fight in the key runs. `active` is
+-- separate from `status` because the frozen answer may be nil.
+local paused = { active = false, status = nil }
+
+local function ClearPause()
+  paused.active = false
+  paused.status = nil
+end
+
 -- Progress from one snapshot, or nil when forces or bosses are unresolved.
 local function ComputeProgress(snapshot)
   if snapshot.percentResolved ~= true or not IsFiniteNumber(snapshot.percent) then
@@ -168,11 +183,13 @@ end
 
 function TimePace.BeginRun()
   run = NewRun(true)
+  ClearPause()
 end
 
 -- Drops the current run without learning (CHALLENGE_MODE_RESET).
 function TimePace.DiscardRun()
   run = nil
+  ClearPause()
 end
 
 -- Feeds one validated scenario snapshot from KillTrack.
@@ -326,6 +343,7 @@ end
 function TimePace.CommitRun()
   local finished = run
   run = nil
+  ClearPause()
   if type(finished) ~= "table" or not finished.trackedFromStart or not finished.learnable or not finished.seeded then
     return false
   end
@@ -384,13 +402,7 @@ local function ReferenceTimeAt(entry, progress)
   return times[#times]
 end
 
--- Pace answer for the current run on `mapID`, or nil:
---   { mode = "reference", delta = s, keyLevel = n }   (delta < 0 = ahead)
---   { mode = "projection", projected = s, timeLimit = s }
-function TimePace.GetStatus(mapID)
-  if type(run) ~= "table" or not IsPositiveInteger(mapID) or run.mapID ~= mapID then
-    return nil
-  end
+local function ComputeStatus(mapID)
   local progress = run.progress
   if not IsFiniteNumber(progress) or progress <= 0 or progress >= 1 then
     return nil
@@ -417,6 +429,45 @@ function TimePace.GetStatus(mapID)
     return nil
   end
   return { mode = "projection", projected = elapsed / progress, timeLimit = timer.timeLimit }
+end
+
+-- Pace answer for the current run on `mapID`, or nil:
+--   { mode = "reference", delta = s, keyLevel = n }   (delta < 0 = ahead)
+--   { mode = "projection", projected = s, timeLimit = s }
+-- While paused, the answer frozen at the pull with `paused = true`.
+function TimePace.GetStatus(mapID)
+  if type(run) ~= "table" or not IsPositiveInteger(mapID) or run.mapID ~= mapID then
+    return nil
+  end
+  if paused.active then
+    return paused.status
+  end
+  return ComputeStatus(mapID)
+end
+
+-- Freezes the shown answer at the start of a fight (PLAYER_REGEN_DISABLED).
+-- A pull inside the post-combat grace window freezes again with the
+-- progress the previous pull reached.
+function TimePace.PauseStatus()
+  ClearPause()
+  if type(run) ~= "table" or not IsPositiveInteger(run.mapID) then
+    return
+  end
+  local status = ComputeStatus(run.mapID)
+  if status then
+    status.paused = true
+  end
+  paused.active = true
+  paused.status = status
+end
+
+-- Releases the frozen answer once the fight's kills are counted.
+function TimePace.ResumeStatus()
+  ClearPause()
+end
+
+function TimePace.IsStatusPaused()
+  return paused.active
 end
 
 -- Display toggle (default on). Learning continues while the display is off.

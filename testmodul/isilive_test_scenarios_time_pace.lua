@@ -30,6 +30,8 @@ local function BuildEnv(opts)
     bosses = {},
     forces = { isWeightedProgress = true, criteriaID = 9001, totalQuantity = 300, quantity = 0, completed = false },
     completion = nil,
+    -- C_Timer.After callbacks (KillTrack's post-combat grace window).
+    timers = {},
   }
   for i = 1, 3 do
     env.bosses[i] = { isWeightedProgress = false, completed = false, criteriaID = 100 + i }
@@ -69,7 +71,9 @@ local function BuildEnv(opts)
       end,
     },
     C_Timer = {
-      After = function() end,
+      After = function(_, fn)
+        env.timers[#env.timers + 1] = fn
+      end,
       NewTicker = function()
         return { Cancel = function() end }
       end,
@@ -134,6 +138,15 @@ local function PlayRun(addon, env, duration, onTime, level)
     onTime = onTime ~= false,
   }
   Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+end
+
+-- Fires the pending C_Timer.After callbacks, i.e. lets the grace window end.
+local function RunTimers(env)
+  local pending = env.timers
+  env.timers = {}
+  for _, fn in ipairs(pending) do
+    fn()
+  end
 end
 
 local function GetReference(addon, db, level)
@@ -387,6 +400,76 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
+-- Combat pause: the shown pace freezes for each fight in the key.
+local function RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TimePace freezes the shown pace during a fight and resumes once the pull's kills land", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      StartRun(addon, env)
+      Advance(addon, env, 700, 150, 1)
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the pull freezes the current answer")
+      Assert.True(status.paused, "the frozen answer is marked as paused")
+      Assert.True(math.abs(status.delta + 100) < 0.5, "the frozen answer is the one at the pull")
+
+      -- The clock runs, kills land mid-pull: the shown answer stays put.
+      env.elapsed = 760
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      Advance(addon, env, 790, 180, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(status.paused and math.abs(status.delta + 100) < 0.5, "the answer does not drift during the fight")
+
+      Dispatch(addon, "PLAYER_REGEN_ENABLED")
+      Assert.True(addon.KillTrack.GetData().timePace.paused, "the grace window waits for the late criteria update")
+      RunTimers(env)
+      status = addon.KillTrack.GetData().timePace
+      Assert.Nil(status.paused, "the grace window end releases the answer")
+      -- progress 0.4667 lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 868.6 s.
+      Assert.True(math.abs(status.delta - (790 - 868.6)) < 1, "the released answer counts the pull's kills")
+
+      -- Learning used the real timer during the fight: the slower run becomes
+      -- the reference and keeps the sample taken mid-pull.
+      Advance(addon, env, 1700, 300, 3)
+      env.completion = { mapChallengeModeID = MAP_ID, level = KEY_LEVEL, time = 1700000, onTime = true }
+      Dispatch(addon, "CHALLENGE_MODE_COMPLETED")
+      local reference = GetReference(addon, env.db)
+      local hasPullSample = false
+      for _, t in ipairs(reference.times) do
+        hasPullSample = hasPullSample or t == 790
+      end
+      Assert.True(hasPullSample, "the pause never touches the learned samples")
+    end)
+  end)
+
+  test("TimePace refreezes a chained pull and drops the pause with the run", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      StartRun(addon, env)
+      Advance(addon, env, 600, 90, 1)
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      Advance(addon, env, 650, 120, 1)
+      Dispatch(addon, "PLAYER_REGEN_ENABLED")
+      -- Next pull inside the grace window: frozen again at the new progress.
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      local status = addon.KillTrack.GetData().timePace
+      Assert.True(status.paused, "the chained pull is paused")
+      -- progress = 0.5 * 0.4 + 0.5 / 3 = 0.36667 -> 650 / 0.36667 = 1772.7 s
+      Assert.Equal(math.floor(status.projected), 1772, "the chained pull freezes with the previous pull's kills")
+      RunTimers(env)
+      Assert.True(addon.KillTrack.GetData().timePace.paused, "the older grace window does not end the new pull's pause")
+
+      Dispatch(addon, "CHALLENGE_MODE_RESET")
+      Assert.False(addon.TimePace.IsStatusPaused(), "a reset drops the pause")
+      StartRun(addon, env)
+      Advance(addon, env, 600, 90, 1)
+      Assert.Nil(addon.KillTrack.GetData().timePace.paused, "the next run starts unpaused")
+    end)
+  end)
+end
+
 local function RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   -- The timer box module shares the grade colour keys with the kill row.
   local ROW_FILES = {
@@ -468,6 +551,12 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "+1:15", "behind the reference shows a plus delta")
       Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "behind is red")
+
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      Advance(addon, env, 950, 150, 1)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "+1:15", "during a fight the delta stays at the pull's value")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_DIM[1], "the paused delta is dimmed")
     end)
   end)
 
@@ -575,6 +664,7 @@ return function(test, ctx)
 
   RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)

@@ -140,7 +140,7 @@ local function GetTimePaceKey()
   if type(value) ~= "number" then
     return nil
   end
-  return tostring(status.mode) .. ":" .. tostring(math.floor(value))
+  return tostring(status.mode) .. ":" .. tostring(math.floor(value)) .. (status.paused and ":paused" or "")
 end
 
 -- Last state the subscribers saw. The 0.5 s ticker re-reads live forces for
@@ -558,7 +558,8 @@ local function ResolvePaceTarget()
   return nil
 end
 
--- Run lifecycle (BeginRun / CommitRun / DiscardRun) for both pace modules.
+-- Run lifecycle (BeginRun / CommitRun / DiscardRun) and the combat pause
+-- (PauseStatus / ResumeStatus, TimePace only) for both pace modules.
 local function CallPace(method)
   local pace = addonTable.ForcesPace
   if type(pace) == "table" and type(pace[method]) == "function" then
@@ -653,6 +654,8 @@ function KillTrack._DispatchEvent(event)
       pull.inCombat = true
       pull.startRawCount = state.rawCount
       pull.pullPercent = 0
+      -- The time pace would drift late until the pull's kills land.
+      CallPace("PauseStatus")
     end
     NotifyUpdate()
   elseif event == "PLAYER_REGEN_ENABLED" then
@@ -675,9 +678,15 @@ function KillTrack._DispatchEvent(event)
         if not pull.inCombat then
           pull.pullPercent = 0
           pull.displayUntil = 0
+          -- The grace window also covers the late final criteria update, so
+          -- the time pace resumes with every kill of the pull counted.
+          CallPace("ResumeStatus")
           NotifyUpdate()
         end
       end)
+    else
+      CallPace("ResumeStatus")
+      NotifyUpdate()
     end
   else
     ReadLiveData()

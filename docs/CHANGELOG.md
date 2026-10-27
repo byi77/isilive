@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-27 - Version 0.9.460 (patch)
+
+- Killtracker time pace: during a fight in the key the +/- delta on the bar
+  holds the value it had at the pull and turns grey. The clock kept running
+  while progress only moved on kills, so the delta drifted towards late
+  mid-pull and snapped back when the mobs died. It updates about two seconds
+  after combat ends, once the pull's last kills are counted; a chained pull
+  freezes again with the new progress. Learning reference runs still uses the
+  real timer.
+
 ## 2026-10-27 - Version 0.9.459 (patch)
 
 - LFG invite: the accepted dungeon no longer drops out of the UI and the

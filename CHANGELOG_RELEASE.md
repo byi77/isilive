@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.459`.
+Current version: `0.9.460`.
+
+Version 0.9.460: the killtracker time pace holds its value during a fight,
+dimmed grey, and updates once the pull's kills are counted.
 
 Version 0.9.459: an accepted LFG invite keeps its dungeon in the window and
 the chat line, also with several open applications or when accepted in combat;
@@ -71,7 +74,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.459 -->
+<!-- highlights-reviewed-for: 0.9.460 -->
 
 Highlights:
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a
