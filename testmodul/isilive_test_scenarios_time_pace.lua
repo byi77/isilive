@@ -556,7 +556,7 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       Advance(addon, env, 950, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "Pause +1:15", "a fight keeps the pull's delta behind the pause word")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_DIM[1], "the paused delta is dimmed")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "the paused delta keeps the pull's red")
     end)
   end)
 

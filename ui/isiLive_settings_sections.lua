@@ -34,7 +34,8 @@ local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green plus signs for relevant non
 
 local FALLBACK_TIME_PACE_DESC = "Shows on the killtracker bar whether the key is on time, as a +/- time delta:"
   .. " against your slowest timed run on the same dungeon and key level, otherwise the forecast against the time limit."
-  .. ' During a fight the value pauses (grey, "Pause") and updates once the pull\'s kills are counted.'
+  .. ' During a fight the value pauses ("Pause", in its colour from before the pull)'
+  .. " and updates once the pull's kills are counted."
 local FALLBACK_TTK_DESC = "Shows in a Mythic+ key fight roughly how many seconds your target has left, above"
   .. " its nameplate and in the killtracker line: fight time x health left / health lost, taken at the last"
   .. " hit and counted down evenly in between. A guide, not exact."

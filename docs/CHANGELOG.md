@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-28 - Version 0.9.462 (patch)
+
+- Killtracker time pace: the value paused during a fight keeps its green
+  (on time) or red (late) colour from the pull instead of turning grey;
+  `Pause` in front still marks it as frozen.
+- Admin: `/isilive perf` records isiLive's own CPU load (marks, timed
+  windows, per-mode segments) into the SavedVariables for performance checks.
+  Automatic recording is off by default.
+
 ## 2026-10-27 - Version 0.9.461 (patch)
 
 - Killtracker time pace: the value frozen during a fight now reads

@@ -459,7 +459,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
   test("Commands perf auto records one window per runtime mode segment", function()
     local tickers = {}
     local mode = "IDLE"
-    local db = {}
+    local db = { perfAutoEnabled = true }
     WithGlobals({
       IsiLiveDB = db,
       SlashCmdList = {},
@@ -515,6 +515,30 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("PerfProbe auto recording stays off by default without the developer opt-in", function()
+    local tickers = 0
+    WithGlobals({
+      IsiLiveDB = {},
+      Enum = { AddOnProfilerMetric = { RecentAverageTime = 1 } },
+      C_AddOnProfiler = {
+        GetAddOnMetric = function()
+          return 0
+        end,
+      },
+      C_Timer = {
+        NewTicker = function()
+          tickers = tickers + 1
+          return {}
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_perf_probe.lua" })
+      Assert.False(addon.PerfProbe.AUTO_DEFAULT, "release default must be off")
+      Assert.False(addon.PerfProbe.StartAuto(), "no opt-in means no auto recording")
+    end)
+    Assert.Equal(tickers, 0, "no ticker without the opt-in")
+  end)
+
   test("Commands perf auto stays off without the profiler", function()
     local tickers = 0
     WithGlobals({
@@ -550,7 +574,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     local hooked = nil
     local after = nil
     local mode = "IDLE"
-    local db = {}
+    local db = { perfAutoEnabled = true }
     WithGlobals({
       IsiLiveDB = db,
       Enum = { AddOnProfilerMetric = { RecentAverageTime = 1, PeakTime = 2, CountTimeOver5Ms = 3 } },

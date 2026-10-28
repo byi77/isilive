@@ -22,10 +22,10 @@ addonTable = addonTable or {}
 local PerfProbe = {}
 addonTable.PerfProbe = PerfProbe
 
--- TEMP (performance-audit test phase): automatic recording is ON by default.
--- MUST be set to false before the next release (todo.md, release-check skill).
--- Only starts in the real client, where C_AddOnProfiler exists.
-local PERF_AUTO_ENABLED = true
+-- Automatic recording is OFF by default; the developer settings toggle
+-- (IsiLiveDB.perfAutoEnabled) turns it on per account. Only starts in the real
+-- client, where C_AddOnProfiler exists.
+local PERF_AUTO_ENABLED = false
 PerfProbe.AUTO_DEFAULT = PERF_AUTO_ENABLED
 
 local MAX_MARKS = 100
