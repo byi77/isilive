@@ -1667,7 +1667,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       readinessWorkflow,
-      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2",
       "season readiness workflow must upload its report as an artifact"
     )
     AssertContains(
@@ -1694,7 +1694,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       previewWorkflow,
-      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2",
       "MDT preview workflow must upload its report as an artifact"
     )
     AssertContains(
@@ -1735,6 +1735,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       "lua tools/inspect_mdt_season_preview.lua --print-default-season",
       "MDT preview workflow must resolve its default season from the season manifest"
     )
+    Assert.True(
+      previewWorkflow:find("data/isiLive_mplus_forces.lua", 1, true) ~= nil
+        and previewWorkflow:find("process.env.RUNTIME_DB_SEASON === process.env.SEASON_ID", 1, true) ~= nil
+        and previewWorkflow:find('state: "closed"', 1, true) ~= nil,
+      "MDT preview workflow must close its Forces issue once the runtime DB already serves the season"
+    )
     AssertNotContains(Assert, previewWorkflow, "midnight_s", "MDT preview workflow must not hard-code a season id")
     AssertNotContains(Assert, previewWorkflow, "git commit", "MDT preview workflow must not commit data")
     AssertNotContains(Assert, previewWorkflow, "git push", "MDT preview workflow must not push data")
@@ -1772,7 +1778,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       intakeWorkflow,
-      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
+      "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2",
       "season intake workflow must upload its report as an artifact"
     )
     AssertContains(
@@ -1786,6 +1792,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       intakeWorkflow,
       "for (const season of seasons) {",
       "season intake workflow must keep one issue per intake season"
+    )
+    Assert.True(
+      intakeWorkflow:find("lua tools/check_season_intake.lua --print-active-season", 1, true) ~= nil
+        and intakeWorkflow:find("if (season === activeSeason) {", 1, true) ~= nil
+        and intakeWorkflow:find('state: "closed"', 1, true) ~= nil,
+      "season intake workflow must close the active season's issue instead of reopening it"
     )
     AssertNotContains(Assert, intakeWorkflow, "git commit", "season intake workflow must not commit data")
     AssertNotContains(Assert, intakeWorkflow, "git push", "season intake workflow must not push data")

@@ -387,6 +387,14 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     )
   end)
 
+  test("Season intake resolves the active season from the season manifest", function()
+    local tool = LoadTool("tools/check_season_intake.lua")
+    local manifestActive = ReadFile("data/isiLive_seasons.lua"):match('\n%s*activeSeasonID%s*=%s*"([^"]+)"')
+    local seasonID, err = tool.ResolveActiveSeasonID()
+    Assert.Equal(err, nil, "active season must resolve from the live manifest")
+    Assert.Equal(seasonID, manifestActive, "active season must match the manifest activeSeasonID")
+  end)
+
   test("Season intake check validates every intake season on its own", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local inferredOk, inferred = tool.Check()

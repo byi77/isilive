@@ -459,6 +459,20 @@ function M.ListSeasons(opts)
   return ResolveTargetSeasons(ParseTables(content), opts.seasonID)
 end
 
+-- The season the runtime serves (CLI `--print-active-season`). The intake is a
+-- pre-activation surface, so the workflow retires that season's issue.
+function M.ResolveActiveSeasonID(opts)
+  local seasonData, err = LoadSeasonData(opts or {})
+  if not seasonData then
+    return nil, err
+  end
+  local seasonID = seasonData.ACTIVE_SEASON_ID
+  if type(seasonID) ~= "string" or seasonID == "" then
+    return nil, "season manifest has no active season"
+  end
+  return seasonID
+end
+
 function M.Check(opts)
   opts = opts or {}
   local content, readErr = ReadFile(opts.intakePath or DEFAULT_INTAKE_PATH)
@@ -524,6 +538,8 @@ local function ParseCliArgs(cliArg)
       opts.seasonID = seasonID
     elseif value == "--list-seasons" then
       opts.listSeasons = true
+    elseif value == "--print-active-season" then
+      opts.printActiveSeason = true
     else
       return nil, "unknown argument " .. value
     end
@@ -549,6 +565,13 @@ if isDirectRun then
       os.exit(1)
     end
     io.write(table.concat(seasonIDs, "\n") .. "\n")
+  elseif cliOpts.printActiveSeason then
+    local seasonID, activeErr = M.ResolveActiveSeasonID(cliOpts)
+    if not seasonID then
+      io.stderr:write("[check_season_intake] " .. tostring(activeErr) .. "\n")
+      os.exit(1)
+    end
+    io.write(seasonID .. "\n")
   else
     local ok, result = M.Check(cliOpts)
     io.write(result.summary)

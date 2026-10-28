@@ -57,6 +57,9 @@ jobs:
           echo "candidate_count=${candidate_count:-0}" >> "$GITHUB_OUTPUT"
           echo "forces_ready=${forces_ready:-no}" >> "$GITHUB_OUTPUT"
           echo "SEASON_LABEL=${season_label:-${SEASON_ID}}" >> "$GITHUB_ENV"
+          # The season the committed runtime Forces DB already serves.
+          runtime_db_season="$(sed -n 's/^  season = "\([^"]*\)",$/\1/p' data/isiLive_mplus_forces.lua | head -n 1)"
+          echo "RUNTIME_DB_SEASON=${runtime_db_season}" >> "$GITHUB_ENV"
 
       - name: Open or update issue when structurally usable forces sources are available
         if: steps.preview.outputs.forces_ready == 'yes'
@@ -88,7 +91,20 @@ jobs:
               !issue.pull_request && typeof issue.body === "string" && issue.body.includes(marker)
             );
 
-            if (existing) {
+            // Once the reviewed runtime DB covers the season the signal is consumed:
+            // close the issue instead of reopening it every day.
+            if (process.env.RUNTIME_DB_SEASON === process.env.SEASON_ID) {
+              if (existing && existing.state === "open") {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: existing.number,
+                  body,
+                  state: "closed",
+                });
+                core.notice("Closed preview issue #" + existing.number + ": runtime Forces DB already serves the season");
+              }
+            } else if (existing) {
               await github.rest.issues.update({
                 owner,
                 repo,
@@ -108,7 +124,7 @@ jobs:
             }
 
       - name: Upload MDT season preview artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mplus-season-preview-${{ steps.season.outputs.season_id }}
           path: tools/cache/season_preview/
