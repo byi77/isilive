@@ -312,6 +312,28 @@ local function CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
   )
 end
 
+local FALLBACK_LOADOUT_CHECK_DESC = "On entering a dungeon of the current Mythic+ season, before the key starts,"
+  .. " shows your talent loadout and loot specialization next to what you confirmed last time for this dungeon"
+  .. " and spec, with one-click buttons to switch."
+
+local function CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_LOADOUT_CHECK or "M+: Talent & loot check before the key",
+    function()
+      local db = config.getDB()
+      return db.loadoutCheckEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.loadoutCheckEnabled = checked
+    end,
+    "SETTINGS_LOADOUT_CHECK",
+    CheckboxDescriptionOptions(labels.SETTINGS_LOADOUT_CHECK_DESC or FALLBACK_LOADOUT_CHECK_DESC)
+  )
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -333,6 +355,7 @@ local DISPLAY_DEFAULTS = {
   timePaceEnabled = true,
   ttkEnabled = true,
   ttkImportantOnly = true,
+  loadoutCheckEnabled = true,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -378,6 +401,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "timePaceEnabled",
   "ttkEnabled",
   "ttkImportantOnly",
+  "loadoutCheckEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -831,6 +855,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.timePace, yOffset = CreateTimePaceCheckbox(canvas, yOffset, labels, config)
   controls.ttk, yOffset = CreateTtkCheckbox(canvas, yOffset, labels, config)
   controls.ttkImportant, yOffset = CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
+  controls.loadoutCheck, yOffset = CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
 
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1068,6 +1093,11 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.ttkImportant.label:SetText(labels.SETTINGS_TTK_IMPORTANT or "TTK: important enemies only")
     SetCheckboxDescription(controls.ttkImportant, labels.SETTINGS_TTK_IMPORTANT_DESC or FALLBACK_TTK_IMPORTANT_DESC)
     controls.ttkImportant.check:SetChecked(db.ttkImportantOnly ~= false)
+  end
+  if controls.loadoutCheck then
+    controls.loadoutCheck.label:SetText(labels.SETTINGS_LOADOUT_CHECK or "M+: Talent & loot check before the key")
+    SetCheckboxDescription(controls.loadoutCheck, labels.SETTINGS_LOADOUT_CHECK_DESC or FALLBACK_LOADOUT_CHECK_DESC)
+    controls.loadoutCheck.check:SetChecked(db.loadoutCheckEnabled ~= false)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

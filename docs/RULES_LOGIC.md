@@ -298,6 +298,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 214. Ein `/reload`, Logout oder Absturz waehrend der Demo-Vorschau veraendert keine Benutzereinstellung: Die Demo legt die vorherigen Werte zusaetzlich in der DB ab, und `ADDON_LOADED` spielt einen liegengebliebenen Snapshot vor Schema-Pruefung und `ApplyDBSettings` zurueck.
 
+215. Betritt der Spieler in einer Gruppe einen Dungeon der aktiven M+-Saison auf Mythisch-Schwierigkeit, solange kein Key laeuft, zeigt eine Karte sein Talent-Loadout und seine Beutespezialisierung neben dem zuletzt fuer diesen Dungeon und diese Spec bestaetigten Stand; jedes gespeicherte Loadout und jede Beutespezialisierung ist per Klick waehlbar, Bestaetigen merkt den aktuellen Stand; passt alles zum gemerkten Stand, erscheint statt der Karte eine gruene Chatzeile, und die Einladungskarte zeigt eine Zeile `Loadout:` mit dem Stand gegen den Sollwert des Dungeons, ersatzweise gegen den zuletzt bestaetigten Stand derselben Spec (markiert mit dem Herkunftsdungeon), sonst den Ist-Stand ohne Bewertung (Setting `loadoutCheckEnabled`, Default an).
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -3248,3 +3250,25 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory demo keeps the user's settings in the saved DB until the preview ends
   - Factory demo snapshot left by a reload restores the user's settings on load
   - ADDON_LOADED restores a demo snapshot before the DB settings are applied
+
+### RULE-LOADOUT-CHECK-VOR-KEYSTART
+
+- Regelnummer: 215
+- Status: aktiv
+- Zusammenfassung: Nach `PLAYER_ENTERING_WORLD` prueft `game/isiLive_loadout_check.lua` nach 2 Sekunden, ob der Spieler in einer Gruppe (nicht im Raid) in einer Party-Instanz mit `difficultyID` 23 (Mythisch, Key noch nicht gestartet) steht, deren Instanz-ID ueber `C_ChallengeMode.GetMapUIInfo` zu einem Dungeon der aktiven Saison gehoert, und ob kein Key laeuft. Nur dann zeigt eine eigene Karte das aktive Talent-Loadout (`C_ClassTalents.GetLastSelectedSavedConfigID`, Starter-Build zaehlt als kein Loadout) und die Beutespezialisierung (`GetLootSpecialization`). Sollwert ist ausschliesslich der vom Spieler zuletzt bestaetigte Stand unter `IsiLiveDB.loadoutCheck[Charakter-GUID][SpecID][ChallengeMapID]`; ohne gespeicherten Stand wird nichts als richtig oder falsch bewertet (No-Guess), die Karte zeigt nur den Ist-Stand und bietet das Merken an. Beutespezialisierung 0 (aktuelle Spec) und die explizit gewaehlte aktuelle Spec gelten als dieselbe Beute. Jedes gespeicherte Loadout der aktuellen Spec (`C_ClassTalents.LoadConfig` mit sofortigem Anwenden, danach `UpdateLastSelectedSavedConfigID`) und jede Spec der Klasse sowie "aktuelle Spec" (`SetLootSpecialization`) sind per Klick waehlbar; im Kampf werden beide Wechsel mit Chat-Hinweis abgelehnt, ein fehlgeschlagenes `LoadConfig` meldet sich im Chat. Bestaetigen speichert den aktuellen Stand als neuen Sollwert und schliesst die Karte; Schliessen per `×` speichert nichts. Stimmen Talente und Beutespezialisierung beide mit einem gemerkten Stand ueberein, erscheint keine Karte, sondern genau eine gruene Chatzeile mit Loadout, Beutespezialisierung und Dungeon. Die Karte "Einladung angenommen" zeigt als letzte Zeile `Loadout:` den Stand gegen den fuer diesen Dungeon und die aktuelle Spec gemerkten Sollwert (`Talente OK` bzw. `Talente: <Soll> erwartet`, ebenso fuer Beute; nicht bewertbare Teile entfallen). Fehlt fuer diesen Dungeon ein gemerkter Stand, nimmt die Zeile auf ausdrueckliche Benutzerentscheidung vom 2026-10-28 den zuletzt bestaetigten Stand derselben Spec aus einem anderen Dungeon als Vorschlag und haengt `(wie <Dungeon>)` an; massgeblich ist der beim Bestaetigen gespeicherte Zeitstempel `confirmedAt`, Eintraege ohne Zeitstempel gelten als aelteste, bei Gleichstand gewinnt die kleinere Map-ID. Gibt es fuer die Spec gar keinen gemerkten Stand, zeigt die Zeile den Ist-Stand ohne Bewertung (`<Loadout> · Beute: <Spec> (fuer diesen Dungeon noch nicht gemerkt)`). Die Karte beim Betreten bewertet ausschliesslich gegen den Sollwert des eigenen Dungeons. Bei deaktiviertem Setting oder einem Fehler entfaellt die Zeile. Die Karte erscheint je Instanzbetritt einmal, schliesst bei `CHALLENGE_MODE_START` und `GROUP_LEFT`, und ein erneuter Betritt nach Verlassen prueft wieder. Das Modul registriert seine Events statisch ueber einen eigenen Event-Frame beim Laden (Setting `loadoutCheckEnabled`, Default an, Pattern A).
+- Erforderliche Tests:
+  - LoadoutCheck shows the current state without a target and remembers it on confirm
+  - LoadoutCheck flags a different loadout and loot spec and switches both with one click
+  - LoadoutCheck rejects unknown loadouts and loot specs and refuses switches in combat
+  - LoadoutCheck treats loot spec 0 and the explicit current spec as the same loot
+  - LoadoutCheck stays silent outside a season dungeon, in a key, in a raid, solo or when disabled
+  - LoadoutCheck shows once per instance entry, hides on key start and checks again after re-entry
+  - LoadoutCheck ignores a stale entry timer and party spec changes
+  - LoadoutCheck default dungeon resolver matches the season instance only on Mythic difficulty
+  - LoadoutCheck default talent and loot adapters load, sync the selection and fail closed
+  - LoadoutCheck prints one green chat line instead of the card when everything matches
+  - LoadoutCheck summary for the accepted-invite card reports only judged parts
+  - LoadoutCheck invite summary shows the unjudged state without any target for the spec
+  - LoadoutCheck invite summary suggests the latest target of the same spec from another dungeon
+  - LoadoutCheck entry card ignores targets confirmed in other dungeons and stamps the confirm time
+  - factory_controllers: RenderAcceptedInviteNotice adds the loadout check summary as last row

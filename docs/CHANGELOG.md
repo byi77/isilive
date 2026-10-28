@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-28 - Version 0.9.464 (patch)
+
+- New: talent and loot check before the key (setting "M+: Talent & loot
+  check before the key", default on). Entering a dungeon of the active M+
+  season on Mythic in a group, before the key starts, shows a card with the
+  active talent loadout and the loot specialization. "OK - remember" stores
+  that state per character, spec and dungeon; later visits flag any
+  difference in red. Every saved loadout and every loot spec can be switched
+  with one click (out of combat). The card closes on key start.
+- When talents and loot spec both match the remembered state, a green chat
+  line replaces the card.
+- Accepted-invite card: new "Loadout" row with the same status. Without a
+  remembered state for that dungeon it uses the latest confirmed state of
+  the same spec from another dungeon, marked "(as <dungeon>)", otherwise it
+  shows the current state unjudged.
+- wowsim: new scenario `loadout_check`.
+
 ## 2026-10-28 - Version 0.9.463 (patch)
 
 - Killtracker: the target dungeon and key level stay on the bar after you

@@ -245,6 +245,9 @@ local SCHEMA = {
   ttkEnabled = { type = "boolean", default = true },
   ttkImportantOnly = { type = "boolean", default = true },
 
+  -- Pre-key talent / loot spec check (game/isiLive_loadout_check.lua).
+  loadoutCheckEnabled = { type = "boolean", default = true },
+
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },
@@ -354,6 +357,16 @@ local SCHEMA = {
       return {}
     end,
     maxMapEntries = 20,
+  },
+  -- Confirmed pre-key loadouts: loadoutCheck[characterGUID][specID][mapID] =
+  -- { configID, configName, lootSpecID }. Keyed by character first; the module
+  -- validates every entry on read.
+  loadoutCheck = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 200,
   },
   verifiedAccountTeleportSpells = {
     type = "table",

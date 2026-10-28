@@ -84,7 +84,7 @@ local function ResolveGroupTitleKeyLevel(groupName)
   return best
 end
 
-local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText)
+local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, loadoutText)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
 
@@ -117,7 +117,25 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText)
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = navigationText }
   end
 
+  if type(loadoutText) == "string" and loadoutText ~= "" then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:", value = loadoutText }
+  end
+
   return fields
+end
+
+-- Talent / loot spec status against the target confirmed for this dungeon
+-- (rule 215); nil hides the row, also when nothing was confirmed yet.
+local function ResolveAcceptedInviteLoadoutText(mapID)
+  local loadoutCheck = addonTable.LoadoutCheck
+  if not mapID or type(loadoutCheck) ~= "table" or type(loadoutCheck.GetSummary) ~= "function" then
+    return nil
+  end
+  local ok, text = pcall(loadoutCheck.GetSummary, mapID)
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  return text
 end
 
 -- Zone of the target dungeon (plus the portal hint); nil hides the row.
@@ -168,7 +186,13 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoti
   if mapID and mapID <= 0 then
     mapID = nil
   end
-  local fields = BuildAcceptedInviteFields(ctx, mapName, payload, ResolveAcceptedInviteNavigationText(ctx, mapID))
+  local fields = BuildAcceptedInviteFields(
+    ctx,
+    mapName,
+    payload,
+    ResolveAcceptedInviteNavigationText(ctx, mapID),
+    ResolveAcceptedInviteLoadoutText(mapID)
+  )
   local hasTeleportContext = activityID ~= nil or mapID ~= nil
 
   ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {

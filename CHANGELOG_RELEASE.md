@@ -3,7 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.463`.
+Current version: `0.9.464`.
+
+Version 0.9.464: new talent and loot check before the key. Entering a
+season dungeon in a group shows your talent loadout and loot spec next to
+what you confirmed for that dungeon and spec, with one-click switches; a
+full match is a green chat line, and the accepted-invite card gets a
+"Loadout" row.
 
 Version 0.9.463: the killtracker keeps the dungeon and key level on its bar
 after you enter the dungeon, while the key runs and after it ends, until you
@@ -84,7 +90,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.463 -->
+<!-- highlights-reviewed-for: 0.9.464 -->
 
 Highlights:
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a

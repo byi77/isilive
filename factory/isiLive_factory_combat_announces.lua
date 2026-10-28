@@ -297,6 +297,21 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       end,
     })
   end
+
+  -- Pre-key talent / loot spec check: own event frame, registered here at load.
+  local loadoutCheck = addonTable.LoadoutCheck
+  if type(loadoutCheck) == "table" and type(loadoutCheck.SetDependencies) == "function" then
+    loadoutCheck.SetDependencies({
+      getDB = function()
+        return rawget(_G, "IsiLiveDB") or {}
+      end,
+      getL = ctx.GetL,
+      print = ctx.Print,
+    })
+    if type(loadoutCheck.Install) == "function" then
+      loadoutCheck.Install()
+    end
+  end
 end
 
 FI.InitializeFactoryCombatAnnounceControllers = InitializeFactoryCombatAnnounceControllers

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.463`
+Versionsbasis: `0.9.464`
 Zuletzt aktualisiert: `2026-10-28`
 
 Folgeaudit (0.9.456): Deterministische Regressionen pruefen numerische Sendeablehnung mit erfolgreichem Retry, leere KEY-/HELLO-Felder, Ghost-Owner-Hinweise, partielle Inspect-Antworten mit spaeterem RIO 0, maskierten Ziel-Todesstatus und ein beim Weltwechsel nachgeholtes Kampfende. Ein synthetisches Regeldokument beweist die Ablehnung fehlender Detailbloecke; die Center-Notice prueft Artwork und Zauber-Icon-Fallback.
@@ -184,6 +184,7 @@ Stand 0.9.405: Statsbox-Zahlenwerte sind 1 px groesser als Labels. Die Zeilen nu
 | UC-24 | Gruppensuche- und Roster-Klassenbonus-Hinweise | Bewerber-, Suchergebnis- und Roster-Zeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen LFG-Tooltips mit lokalisierten Bonusdetails |
 | UC-25 | VIP-DK-Hilfen | Optionale VIP-Schalter warnen Unholy-DKs nach eigenem Dark-Transformation-Cast, muten verifizierte DK-Pferde-Sounds und zeigen einen verschiebbaren Missing-Ghoul-Reminder |
 | UC-26 | VIP-Bloodlust-Debuff-Button-Warnung | Ein default-aus VIP-Schalter markiert bei verifizierten Bloodlust-Klassen den eigenen Bloodlust-Button mit rotem Kreuz, solange ein verifizierter Erschoepfungs-/Satt-Debuff aktiv ist |
+| Talent-/Beute-Check vor dem Keystart (Regel 215) | `isiLive_loadout_check.lua`, `isiLive_loadout_check_card.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_factory_notices.lua`, `isiLive_settings_sections.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | UC-27 | Versteckter Non-Challenge-PartyRun-Utility-Kontext | Ausgewaehlte Utility-Pfade bleiben in verifizierten normalen, heroischen oder sonstigen verfolgten Party-Dungeons aktiv, ohne isiLive als M+-Tool umzudefinieren |
 | UC-28 | Tank-/Heiler-Todesalarm | Tank- und Heiler-Tode erzeugen im verifizierten Utility-Kontext genau einen sichtbaren und konfigurierbaren Alarm |
 

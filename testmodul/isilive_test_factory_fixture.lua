@@ -810,6 +810,8 @@ local function GetAllIsiLiveFiles()
     "isiLive_killtrack.lua",
     "isiLive_bindings.lua",
     "isiLive_ui_common.lua",
+    "isiLive_loadout_check_card.lua",
+    "isiLive_loadout_check.lua",
     "isiLive_teleport_ui.lua",
     "isiLive_trace_chat_frame.lua",
     "isiLive_notice.lua",
