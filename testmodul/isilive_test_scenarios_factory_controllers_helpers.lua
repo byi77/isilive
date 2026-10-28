@@ -1240,46 +1240,6 @@ return function(test, ctx)
     end
   )
 
-  test("factory_controllers: RenderAcceptedInviteNotice adds the loadout check summary as last row", function()
-    local addon = Load()
-    local render = addon._FactoryInternal.RenderAcceptedInviteNotice
-    local captured
-    local c = BuildAcceptedInviteCtx({
-      GetL = function()
-        return {
-          INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
-          INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT = "Loadout-DE:",
-        }
-      end,
-      ShowCenterNotice = function(_, _, _, _, opts)
-        captured = opts
-      end,
-    })
-    local summary = "Talente OK · Beute: Fire erwartet"
-    local requestedMapID
-    addon.LoadoutCheck = {
-      GetSummary = function(mapID)
-        requestedMapID = mapID
-        return summary
-      end,
-    }
-    render(c, {}, { mapID = 588 })
-    Assert.Equal(requestedMapID, 588, "the summary must be asked for the verified challenge mapID")
-    local last = captured.fields[#captured.fields]
-    Assert.Equal(last.label, "Loadout-DE:", "the loadout row must be the last row")
-    Assert.Equal(last.value, summary, "the loadout row must carry the summary unchanged")
-
-    summary = nil
-    render(c, {}, { mapID = 588 })
-    Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "no confirmed target must omit the row")
-
-    addon.LoadoutCheck.GetSummary = function()
-      error("boom")
-    end
-    render(c, {}, { mapID = 588 })
-    Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "a failing summary must omit the row")
-  end)
-
   test("factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing", function()
     local addon = Load()
     local render = addon._FactoryInternal.RenderAcceptedInviteNotice

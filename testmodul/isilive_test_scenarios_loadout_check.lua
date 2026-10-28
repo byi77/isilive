@@ -524,6 +524,49 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  -- Same test name as before the move (rule 215 lists it); it now runs the
+  -- real LoadoutCheck summary instead of a stubbed module.
+  test("factory_controllers: RenderAcceptedInviteNotice adds the loadout check summary as last row", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_factory_controllers.lua", "isiLive_loadout_check.lua" })
+      local render = addon._FactoryInternal.RenderAcceptedInviteNotice
+      local world = BuildWorld()
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = 0 })
+      addon.LoadoutCheck.SetDependencies(world.deps)
+      local captured
+      local ctx = {
+        GetL = function()
+          return {
+            INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
+            INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT = "Loadout-DE:",
+          }
+        end,
+        GetDungeonName = function()
+          return "Floodgate"
+        end,
+        ShowCenterNotice = function(_, _, _, _, opts)
+          captured = opts
+        end,
+      }
+
+      render(ctx, {}, { mapID = MAP_ID })
+      local last = captured.fields[#captured.fields]
+      Assert.Equal(last.label, "Loadout-DE:", "the loadout row must be the last row")
+      Assert.Equal(last.value, "Talents: M+ Single expected · Loot OK", "the row carries the real summary")
+
+      world.db.loadoutCheckEnabled = false
+      render(ctx, {}, { mapID = MAP_ID })
+      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "the disabled setting omits the row")
+
+      world.db.loadoutCheckEnabled = true
+      addon.LoadoutCheck.GetSummary = function()
+        error("boom")
+      end
+      render(ctx, {}, { mapID = MAP_ID })
+      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "a failing summary must omit the row")
+    end)
+  end)
+
   test("LoadoutCheck default dungeon resolver matches the season instance only on Mythic difficulty", function()
     local instance = { name = "Operation: Floodgate", type = "party", difficultyID = 23, instanceID = 0 }
     local seasonMapIDs = {}
