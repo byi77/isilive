@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-28 - Version 0.9.463 (patch)
+
+- Killtracker: the target dungeon and key level stay on the bar after you
+  enter the dungeon. Entering cleared the LFG and queue target (so the
+  teleport hints go away), and the killtracker lost the name, the level, the
+  gold bar and the light sweep with it; the running key showed no dungeon
+  either. The killtracker now remembers the target on entry and shows the
+  running key's dungeon and level from the M+ timer.
+- Killtracker: the gold pre-key look also stays between keystone insert and
+  the first forces read; once the keystone is in, its level wins over the
+  target level.
+- Killtracker: a finished or abandoned key keeps its dungeon and the level it
+  ran at on the plain bar (no gold, sweep or pulse) until you leave the
+  dungeon; the upgraded keystone does not change it.
+- wowsim: `C_ChallengeMode.GetMapUIInfo` returns the instance ID, so entering
+  the target dungeon is detected; new regression scenario
+  `killtrack_dungeon_entry`.
+
 ## 2026-10-28 - Version 0.9.462 (patch)
 
 - Killtracker time pace: the value paused during a fight keeps its green

@@ -209,11 +209,111 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
   end
 end
 
+-- Dungeon on the M+ killtracker bar. Entering the target dungeon clears the
+-- LFG/queue target (CheckIfEnteredTargetDungeon) and key start clears the
+-- joined-key map, so the status target alone loses the dungeon exactly when
+-- the bar needs it. Order: the running key, the finished key while the player
+-- is still in its instance (marked `finished`), the challenge map during the
+-- countdown, the status target, then the target remembered on dungeon entry
+-- while the player is still inside that instance.
+local function InitializeKillTrackTargetHelpers(ctx, modules)
+  local finishedRun = nil
+
+  local function ResolveMapName(mapID)
+    if not modules.teleport or type(modules.teleport.GetTeleportInfoByMapID) ~= "function" then
+      return nil
+    end
+    local info = modules.teleport.GetTeleportInfoByMapID(mapID)
+    return type(info) == "table" and ctx.NormalizeConcreteStatusTargetName(info.mapName, mapID) or nil
+  end
+
+  local function IsForcesDataActive()
+    local killTrack = addonTable.KillTrack
+    local data = type(killTrack) == "table" and type(killTrack.GetData) == "function" and killTrack.GetData() or nil
+    return type(data) == "table" and data.active == true
+  end
+
+  -- Level of the running key from the M+ timer; nil when it has none.
+  local function ReadRunningKeyLevel()
+    local timer = addonTable.MplusTimer
+    if type(timer) ~= "table" then
+      return nil
+    end
+    local level = nil
+    if type(timer.GetKeyLevel) == "function" then
+      level = tonumber(timer.GetKeyLevel())
+    elseif type(timer.GetTimerData) == "function" then
+      local data = timer.GetTimerData()
+      level = type(data) == "table" and tonumber(data.keyLevel) or nil
+    end
+    if not level or level <= 0 then
+      return nil
+    end
+    return math.floor(level)
+  end
+
+  ctx.RememberEnteredTargetDungeon = function(mapID)
+    local info = ctx.GetStatusTargetDungeonInfo()
+    if type(info) ~= "table" or not info.name then
+      ctx.enteredTargetDungeon = nil
+      return
+    end
+    ctx.enteredTargetDungeon = { mapID = tonumber(mapID), name = info.name, level = info.level }
+  end
+
+  ctx.GetKillTrackTargetDungeonInfo = function()
+    local entered = ctx.enteredTargetDungeon
+    local activeMapID = ctx.GetActiveChallengeMapID() -- secret-value-ok: protected wrapper
+    if activeMapID and IsForcesDataActive() then
+      -- The key runs: the remembered entry target must not outlive it, and
+      -- the run is kept for the bar after the key ends.
+      ctx.enteredTargetDungeon = nil
+      local name = ResolveMapName(activeMapID)
+      if name then
+        local level = ReadRunningKeyLevel()
+        if not level and type(finishedRun) == "table" and finishedRun.mapID == activeMapID then
+          level = finishedRun.level
+        end
+        finishedRun = { mapID = activeMapID, name = name, level = level }
+        return { name = name, level = level }
+      end
+      finishedRun = nil
+      return nil
+    end
+    if type(finishedRun) == "table" then
+      if addonTable.Validators.IsPlayerInChallengeMapInstance(finishedRun.mapID) then
+        return { name = finishedRun.name, level = finishedRun.level, finished = true }
+      end
+      finishedRun = nil
+    end
+    if activeMapID then
+      local name = ResolveMapName(activeMapID)
+      if name then
+        local level = type(entered) == "table" and entered.mapID == activeMapID and entered.level or nil
+        return { name = name, level = level }
+      end
+    end
+    local info = ctx.GetStatusTargetDungeonInfo()
+    if info then
+      return info
+    end
+    if type(entered) ~= "table" then
+      return nil
+    end
+    if not addonTable.Validators.IsPlayerInChallengeMapInstance(entered.mapID) then
+      ctx.enteredTargetDungeon = nil
+      return nil
+    end
+    return { name = entered.name, level = entered.level }
+  end
+end
+
 -- Status target resolution and sync helpers. Queue/inspect operational setup
 -- lives in the bounded initializer above so this composition step stays below
 -- the architecture function-size ceiling.
 local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
   InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
+  InitializeKillTrackTargetHelpers(ctx, modules)
   ctx.RefreshLocalPlayerKey = function()
     return ctx.keySyncController.RefreshLocalPlayerKey(ctx.GetRoster())
   end

@@ -1755,7 +1755,8 @@ local function InstallChallengeMode(ctx)
       if not info then
         return nil
       end
-      return info.name, mapID, info.timeLimit, 525134, 525134
+      -- 6th value: the instance ID, matching sim.EnterDungeon (2000 + mapID).
+      return info.name, mapID, info.timeLimit, 525134, 525134, 2000 + mapID
     end,
     GetMapTable = function()
       local list = {}

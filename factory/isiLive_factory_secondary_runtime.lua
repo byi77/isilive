@@ -88,6 +88,9 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
       )
     end
     if matched then
+      if type(ctx.RememberEnteredTargetDungeon) == "function" then
+        ctx.RememberEnteredTargetDungeon(targetMapID)
+      end
       local lfgDetect = addonTable.LFGDetect
       if type(lfgDetect) == "table" and type(lfgDetect.ClearAllState) == "function" then
         lfgDetect.ClearAllState()

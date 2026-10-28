@@ -109,7 +109,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end,
     getTime = rawget(_G, "GetTime"),
     shareKeysDebounceSeconds = 30,
-    getTargetDungeonInfo = ctx.GetStatusTargetDungeonInfo,
+    getTargetDungeonInfo = ctx.GetKillTrackTargetDungeonInfo,
     isInChallengeMode = function()
       return ctx.GetActiveChallengeMapID() ~= nil -- secret-value-ok: protected wrapper
     end,

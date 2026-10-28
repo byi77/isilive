@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.462`.
+Current version: `0.9.463`.
+
+Version 0.9.463: the killtracker keeps the dungeon and key level on its bar
+after you enter the dungeon, while the key runs and after it ends, until you
+leave the dungeon.
 
 Version 0.9.462: the paused time pace keeps its green or red colour from before
 the pull instead of turning grey.
@@ -80,7 +84,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.462 -->
+<!-- highlights-reviewed-for: 0.9.463 -->
 
 Highlights:
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a

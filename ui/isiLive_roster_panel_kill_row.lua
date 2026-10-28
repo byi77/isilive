@@ -714,14 +714,18 @@ local function ResolveTargetDungeonNameFromInfo(info)
   return name
 end
 
+local ResolveActiveKeyLevel
+
+-- The pre-key target stays on the bar until forces data is active, also
+-- between keystone insert and the first forces read. Once the challenge mode
+-- is active, the inserted key's level wins over the target level. A finished
+-- key (`finished` from the target source) stays on the bar until the player
+-- leaves its instance.
 local function ResolvePreKeyTargetInfo(deps, data)
   if data and data.active then
     return nil
   end
   if type(deps) ~= "table" or type(deps.getTargetDungeonInfo) ~= "function" then
-    return nil
-  end
-  if type(deps.isInChallengeMode) == "function" and deps.isInChallengeMode() == true then
     return nil
   end
 
@@ -734,15 +738,19 @@ local function ResolvePreKeyTargetInfo(deps, data)
   if level and level <= 0 then
     level = nil
   end
+  if type(deps.isInChallengeMode) == "function" and deps.isInChallengeMode() == true then
+    level = ResolveActiveKeyLevel() or level
+  end
   return {
     name = name,
     level = level and math.floor(level) or nil,
+    finished = info.finished == true,
   }
 end
 
 -- Level of the started key, read only from the M+ timer: the target-dungeon
 -- level may describe a key that is not the one running.
-local function ResolveActiveKeyLevel()
+function ResolveActiveKeyLevel()
   local MplusTimer = addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.GetKeyLevel) == "function" then
     local keyLevel = tonumber(MplusTimer.GetKeyLevel())
@@ -967,8 +975,10 @@ local function UpdateKillTrackRow(row, deps)
       barPull:Hide()
     end
     SetBarTarget(row, targetInfo and targetInfo.name, targetInfo and targetInfo.level)
-    SetTargetPulse(row, targetInfo ~= nil)
-    SetPreKeyReady(row, targetInfo ~= nil)
+    -- Only a key still to come glows and pulses; a finished key stays steady.
+    local preKey = targetInfo ~= nil and not targetInfo.finished
+    SetTargetPulse(row, preKey)
+    SetPreKeyReady(row, preKey)
     if pctText then
       pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then
