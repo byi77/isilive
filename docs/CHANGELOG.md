@@ -16,6 +16,7 @@
   the same spec from another dungeon, marked "(as <dungeon>)", otherwise it
   shows the current state unjudged.
 - wowsim: new scenario `loadout_check`.
+- The release-note stub is again limited to three to five highlights, enforced by the release gate.
 
 ## 2026-10-28 - Version 0.9.463 (patch)
 

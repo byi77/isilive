@@ -704,6 +704,16 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md",
       "release changelog stub must point back to the repository changelog"
     )
+    local highlightCount = 0
+    for line in changelogStub:gmatch("[^\r\n]+") do
+      if line:match("^%- ") then
+        highlightCount = highlightCount + 1
+      end
+    end
+    Assert.True(
+      highlightCount >= 3 and highlightCount <= 5,
+      "release changelog stub must contain between three and five top-level highlights"
+    )
   end)
 
   test("Architecture release workflow verifies the tag version against the packaged TOC", function()
