@@ -171,5 +171,6 @@ den Stand 0.9.418 erhoben; Aktivierung aus der Git-Historie.
 - Readiness: `[x] gruen` (`inspect_season_readiness.lua`: ready yes, 8 Dungeons, Forces-DB passt zur aktiven Season)
 - Usecases: `2573 passed, 0 failed`
 - Coverage: `93.08 %`
-- In-Game-Smoke-Test: `[ ] enUS  [ ] deDE` (offen: Portalbuttons, LFG-Erkennung je Dungeon, Navigator-Slots)
+- In-Game-Smoke-Test: `[ ] enUS  [ ] deDE` (offen: echte Portale, echte Gruppensuche, Zonentext im Client)
+- Simulator-Smoke-Test: `[x] enUS  [x] deDE` (2026-10-28, `lua tools/wowsim/wowsim.lua season_s2_smoke --locale <tag>`: je 64/64 — Reihenfolge, Portal-Spells, Namen, LFG-Activity→Dungeon, LFG-Einladung je Dungeon mit Ziel-Ansage und Teleport-Highlight, Navigator-Titel/Slots/leere Aussenplaetze)
 - Voller lokaler CI-Lauf: `[x] gruen`
