@@ -134,6 +134,7 @@ local FILE_PATHS = {
   ["isiLive_event_handlers_cd_coalescer.lua"] = "logic/isiLive_event_handlers_cd_coalescer.lua",
   ["isiLive_event_handlers_runtime.lua"] = "logic/isiLive_event_handlers_runtime.lua",
   ["isiLive_event_handlers.lua"] = "logic/isiLive_event_handlers.lua",
+  ["isiLive_perf_probe.lua"] = "logic/isiLive_perf_probe.lua",
   ["isiLive_commands.lua"] = "logic/isiLive_commands.lua",
   -- factory
   ["isiLive_controller_wiring.lua"] = "factory/isiLive_controller_wiring.lua",
@@ -289,7 +290,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_texts_ruRU.lua",
     "isiLive_texts_trTR.lua",
   },
-  ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
+  ["isiLive_commands.lua"] = { "isiLive_languages.lua", "isiLive_perf_probe.lua" },
   ["isiLive_season_data.lua"] = { "isiLive_languages.lua", "isiLive_seasons.lua" },
   ["isiLive_ui_game_menu_travel.lua"] = { "isiLive_travel_items.lua" },
   ["isiLive_settings_hearthstone.lua"] = { "isiLive_languages.lua" },

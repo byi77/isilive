@@ -21,6 +21,7 @@ local function BuildCommandLocale()
     HELP_RESETUI = "/isilive resetui",
     HELP_SETTINGS = "/isilive settings",
     HELP_BINDCHECK = "/isilive bindcheck",
+    HELP_PERF = "/isilive perf",
     HELP_NPTEST = "/isilive nptest",
     HELP_NPSTATE = "/isilive npstate",
     HELP_RESET = "/isilive reset",
@@ -392,6 +393,253 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.True(foundCtrlF9, "bindcheck must print CTRL-F9 binding info")
   end)
 
+  test("Commands perf mark and window store profiler metrics in IsiLiveDB.perfMarks", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    local metricIds = { RecentAverageTime = 1, PeakTime = 2, CountTimeOver5Ms = 3 }
+    local values = { 0.25, 4.0, 7 }
+    local now = 100
+    local tick = nil
+    local cancelled = false
+    WithGlobals({
+      IsiLiveDB = {},
+      Enum = { AddOnProfilerMetric = metricIds },
+      C_AddOnProfiler = {
+        GetAddOnMetric = function(addonName, metric)
+          Assert.Equal(addonName, "isiLive", "perf must query the isiLive addon")
+          return values[metric]
+        end,
+      },
+      C_Timer = {
+        NewTicker = function(_interval, fn)
+          tick = fn
+          return {
+            Cancel = function()
+              cancelled = true
+            end,
+          }
+        end,
+      },
+      GetTime = function()
+        return now
+      end,
+      GetNumGroupMembers = function()
+        return 20
+      end,
+    }, function()
+      state._execute("perf mark raid-idle")
+      local marks = _G.IsiLiveDB.perfMarks
+      Assert.Equal(#marks, 1, "mark must store one entry")
+      Assert.Equal(marks[1].name, "raid-idle", "mark keeps its name")
+      Assert.Equal(marks[1].avg, 0.25, "mark stores RecentAverageTime")
+      Assert.Equal(marks[1].peak, 4.0, "mark stores PeakTime")
+      Assert.Equal(marks[1].groupSize, 20, "mark stores the group size")
+
+      state._execute("perf start hover")
+      Assert.True(type(tick) == "function", "start must schedule a sampling ticker")
+      values[1] = 0.5
+      tick()
+      values[1] = 1.5
+      tick()
+      values[3] = 10
+      now = 130
+      state._execute("perf stop")
+      Assert.True(cancelled, "stop must cancel the ticker")
+      local window = marks[2]
+      Assert.Equal(window.kind, "window", "stop stores a window entry")
+      Assert.Equal(window.avg, 1.0, "window avg is the mean of its samples")
+      Assert.Equal(window.windowMax, 1.5, "window keeps its max sample")
+      Assert.Equal(window.over5, 3, "window counts only frames over 5 ms inside the window")
+      Assert.Equal(window.duration, 30, "window stores its duration")
+
+      state._execute("perf reset")
+      Assert.Equal(#_G.IsiLiveDB.perfMarks, 0, "reset clears stored entries")
+    end)
+  end)
+
+  test("Commands perf auto records one window per runtime mode segment", function()
+    local tickers = {}
+    local mode = "IDLE"
+    local db = {}
+    WithGlobals({
+      IsiLiveDB = db,
+      SlashCmdList = {},
+      Enum = { AddOnProfilerMetric = { RecentAverageTime = 1, PeakTime = 2, CountTimeOver5Ms = 3 } },
+      C_AddOnProfiler = {
+        GetAddOnMetric = function(_addonName, metric)
+          return ({ 0.2, 3.0, 0 })[metric]
+        end,
+      },
+      C_Timer = {
+        NewTicker = function(interval, fn)
+          local ticker = {
+            interval = interval,
+            fn = fn,
+            Cancel = function(self)
+              self.cancelled = true
+            end,
+          }
+          tickers[#tickers + 1] = ticker
+          return ticker
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_commands.lua" })
+      addon.RuntimeMode = {
+        Resolve = function()
+          return mode
+        end,
+      }
+      local prints = {}
+      addon.Commands.RegisterSlashCommands({
+        printFn = function(msg)
+          prints[#prints + 1] = msg
+        end,
+      })
+      Assert.Equal(#tickers, 1, "auto recording starts one ticker when the profiler exists")
+      local tick = tickers[1].fn
+      tick()
+      tick()
+      Assert.True(db.perfMarks == nil or #db.perfMarks == 0, "no entry while the mode is unchanged")
+      mode = "OFF"
+      tick()
+      Assert.Equal(#db.perfMarks, 1, "a mode change stores the finished segment")
+      Assert.Equal(db.perfMarks[1].name, "auto-IDLE", "segment is named after its mode")
+      Assert.Equal(db.perfMarks[1].samples, 2, "segment keeps its own samples")
+      Assert.Equal(#prints, 0, "segment changes are stored silently")
+
+      SlashCmdList["ISILIVE"]("perf auto")
+      Assert.Equal(db.perfMarks[2].kind, "auto-snapshot", "perf auto snapshots the running segment")
+      SlashCmdList["ISILIVE"]("perf auto off")
+      Assert.True(tickers[1].cancelled, "perf auto off cancels the ticker")
+      Assert.Equal(db.perfMarks[3].name, "auto-OFF", "perf auto off stores the last segment")
+    end)
+  end)
+
+  test("Commands perf auto stays off without the profiler", function()
+    local tickers = 0
+    WithGlobals({
+      SlashCmdList = {},
+      C_AddOnProfiler = nil,
+      C_Timer = {
+        NewTicker = function()
+          tickers = tickers + 1
+          return {}
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_commands.lua" })
+      addon.Commands.RegisterSlashCommands({ printFn = function() end })
+    end)
+    Assert.Equal(tickers, 0, "no profiler means no auto ticker (tests and old clients)")
+  end)
+
+  test("PerfProbe counts bindings per segment and records the key-end sync window", function()
+    local frame = { registered = {} }
+    function frame:RegisterEvent(event)
+      self.registered[event] = true
+    end
+    function frame:UnregisterEvent(event)
+      self.registered[event] = nil
+    end
+    function frame:UnregisterAllEvents()
+      self.registered = {}
+    end
+    function frame:SetScript(_name, fn)
+      self.onEvent = fn
+    end
+    local hooked = nil
+    local after = nil
+    local mode = "IDLE"
+    local db = {}
+    WithGlobals({
+      IsiLiveDB = db,
+      Enum = { AddOnProfilerMetric = { RecentAverageTime = 1, PeakTime = 2, CountTimeOver5Ms = 3 } },
+      C_AddOnProfiler = {
+        GetAddOnMetric = function(_addonName, metric)
+          return ({ 0.1, 2.0, 4 })[metric]
+        end,
+      },
+      C_Timer = {
+        NewTicker = function(_interval, fn)
+          return { fn = fn, Cancel = function() end }
+        end,
+        After = function(_delay, fn)
+          after = fn
+        end,
+      },
+      CreateFrame = function()
+        return frame
+      end,
+      SetOverrideBindingClick = function() end,
+      hooksecurefunc = function(name, fn)
+        Assert.Equal(name, "SetOverrideBindingClick", "probe hooks only the override binding call")
+        hooked = fn
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_perf_probe.lua" })
+      addon.RuntimeMode = {
+        Resolve = function()
+          return mode
+        end,
+      }
+      local probe = addon.PerfProbe
+      Assert.True(probe.StartAuto(), "auto starts with profiler, timer and frame")
+      Assert.True(frame.registered.UPDATE_BINDINGS, "UPDATE_BINDINGS is counted")
+      Assert.True(frame.registered.CHAT_MSG_ADDON == nil, "addon messages are not counted outside KEY")
+
+      frame.onEvent(frame, "UPDATE_BINDINGS")
+      frame.onEvent(frame, "UPDATE_BINDINGS")
+      hooked()
+      probe.SetAutoEnabled(false)
+      Assert.Equal(db.perfAutoEnabled, false, "toggle persists the choice")
+      Assert.False(probe.IsAutoRunning(), "toggle off stops recording")
+      local idle = db.perfMarks[#db.perfMarks]
+      Assert.Equal(idle.counts.updateBindings, 2, "segment counts UPDATE_BINDINGS")
+      Assert.Equal(idle.counts.setOverrideBindingClick, 1, "segment counts override binding calls")
+
+      mode = "KEY"
+      probe.SetAutoEnabled(true)
+      Assert.True(frame.registered.CHAT_MSG_ADDON, "KEY counts addon messages")
+      frame.onEvent(frame, "CHALLENGE_MODE_COMPLETED")
+      Assert.Equal(db.perfMarks[#db.perfMarks].name, "key-end", "completion stores key-end")
+      frame.onEvent(frame, "CHAT_MSG_ADDON", "ISILIVE")
+      frame.onEvent(frame, "CHAT_MSG_ADDON", "BigWigs")
+      Assert.True(type(after) == "function", "key-end schedules the 15 s follow-up")
+      after()
+      local keyEnd = db.perfMarks[#db.perfMarks]
+      Assert.Equal(keyEnd.name, "key-end+15s", "follow-up mark is stored")
+      Assert.Equal(keyEnd.addonMessages, 2, "follow-up counts all addon messages in the window")
+      Assert.Equal(keyEnd.isiLiveMessages, 1, "follow-up counts isiLive sync messages separately")
+    end)
+  end)
+
+  test("PerfProbe dev toggle gates the settings checkbox flag", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    WithGlobals({ IsiLiveDB = {} }, function()
+      state._execute("perf dev")
+      Assert.True(_G.IsiLiveDB.devTools, "perf dev enables the developer flag")
+      state._execute("perf dev")
+      Assert.False(_G.IsiLiveDB.devTools, "perf dev toggles it off again")
+    end)
+  end)
+
+  test("Commands perf degrades without profiler and prints usage for unknown verbs", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    WithGlobals({ IsiLiveDB = {}, C_AddOnProfiler = nil, C_Timer = nil }, function()
+      state._execute("perf mark x")
+      Assert.Equal(_G.IsiLiveDB.perfMarks[1].avg, nil, "missing profiler yields no metric")
+      state._execute("perf stop")
+      state._execute("perf")
+    end)
+    local foundUsage, foundNoWindow = false, false
+    for _, msg in ipairs(state.prints) do
+      foundUsage = foundUsage or msg:find("Usage: /isilive perf", 1, true) ~= nil
+      foundNoWindow = foundNoWindow or msg:find("no window running", 1, true) ~= nil
+    end
+    Assert.True(foundUsage, "bare perf must print usage")
+    Assert.True(foundNoWindow, "stop without start must say so")
+  end)
+
   test("Commands unknown input prints help", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("xyzgarbage")
@@ -461,6 +709,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
       "/isilive qdebug",
       "/isilive errorlog",
       "/isilive bindcheck",
+      "/isilive perf",
       "/isilive tptest",
       "/isilive tpdebug",
       "/isilive seasondump (/isilive s2d)",

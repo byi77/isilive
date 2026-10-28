@@ -268,6 +268,7 @@ return function(test, ctx)
       HELP_UNLOCK = true,
       HELP_RESETUI = true,
       HELP_BINDCHECK = true,
+      HELP_PERF = true,
       HELP_RESET = true,
       -- Proper nouns: WoW dungeon names stay English in every locale.
       TESTALL_DUMMY_DUNGEON = true,

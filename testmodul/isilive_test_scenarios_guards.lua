@@ -32,6 +32,7 @@ local REQUIRED_MODULES = {
   "isiLive_roster.lua",
   "isiLive_events.lua",
   "isiLive_event_handlers.lua",
+  "isiLive_perf_probe.lua",
   "isiLive_commands.lua",
   "isiLive_locale.lua",
   "isiLive_texts.lua",

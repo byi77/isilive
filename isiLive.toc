@@ -114,6 +114,7 @@ logic/isiLive_event_handlers_party_run.lua
 logic/isiLive_event_handlers_cd_coalescer.lua
 logic/isiLive_event_handlers_runtime.lua
 logic/isiLive_event_handlers.lua
+logic/isiLive_perf_probe.lua
 logic/isiLive_commands.lua
 ui/isiLive_ui_main_frame.lua
 ui/isiLive_ui_game_menu_actions.lua

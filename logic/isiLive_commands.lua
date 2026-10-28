@@ -136,6 +136,7 @@ local ADMIN_HELP_KEYS = {
   "HELP_QDEBUG",
   "HELP_ERRORLOG",
   "HELP_BINDCHECK",
+  "HELP_PERF",
   "HELP_TPTEST",
   "HELP_TPDEBUG",
   "HELP_SEASONDUMP",
@@ -552,6 +553,14 @@ local function TryHandleUtilityCommands(ctx, cmd)
     return true
   end
 
+  if cmd == "perf" or cmd:find("^perf%s+") == 1 then
+    local perfProbe = addonTable.PerfProbe
+    if type(perfProbe) == "table" then
+      perfProbe.HandleCommand(ctx, cmd)
+    end
+    return true
+  end
+
   if cmd == "bindcheck" then
     HandleBindCheck(ctx.printFn)
     return true
@@ -638,5 +647,8 @@ function Commands.RegisterSlashCommands(opts)
   SLASH_ISILIVE2 = "/il"
   SlashCmdList["ISILIVE"] = function(msg)
     ExecuteSlashCommand(deps, msg)
+  end
+  if type(addonTable.PerfProbe) == "table" then
+    addonTable.PerfProbe.StartAuto()
   end
 end

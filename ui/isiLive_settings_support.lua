@@ -270,6 +270,28 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
     nil
   )
 
+  -- Developer-only (performance audit): shown only after `/isilive perf dev`
+  -- set IsiLiveDB.devTools on this account.
+  local perfProbe = addonTable.PerfProbe
+  if type(perfProbe) == "table" and perfProbe.IsDevToolsEnabled() then
+    controls.perfAuto, yOffset = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels.SETTINGS_PERF_AUTO or "Performance recording (developer)",
+      function()
+        return perfProbe.IsAutoRunning()
+      end,
+      function(checked)
+        perfProbe.SetAutoEnabled(checked)
+      end,
+      "SETTINGS_PERF_AUTO",
+      DescriptionOptions(
+        labels.SETTINGS_PERF_AUTO_DESC
+          or "Records isiLive's CPU load per mode (raid, open world, key) into the SavedVariables."
+      )
+    )
+  end
+
   return yOffset
 end
 
@@ -470,6 +492,16 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
     controls.runtimeLog.check:SetChecked(
       type(config.getRuntimeLogEnabled) == "function" and config.getRuntimeLogEnabled() or false
     )
+  end
+  if controls.perfAuto then
+    controls.perfAuto.label:SetText(labels.SETTINGS_PERF_AUTO or "Performance recording (developer)")
+    SetDescription(
+      controls.perfAuto,
+      labels.SETTINGS_PERF_AUTO_DESC
+        or "Records isiLive's CPU load per mode (raid, open world, key) into the SavedVariables."
+    )
+    local perfProbe = addonTable.PerfProbe
+    controls.perfAuto.check:SetChecked(type(perfProbe) == "table" and perfProbe.IsAutoRunning() or false)
   end
   if controls.clearQueueDebugBtn and controls.clearQueueDebugBtn.label then
     controls.clearQueueDebugBtn.label:SetText(labels.SETTINGS_QUEUE_DEBUG_CLEAR or "Clear Queue Debug Log")
