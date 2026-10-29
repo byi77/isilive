@@ -92,6 +92,8 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_ui_settings_descriptions.lua",
   "testmodul/isilive_test_scenarios_ui_settings_lazy.lua",
   "testmodul/isilive_test_scenarios_roster_display.lua",
+  "testmodul/isilive_test_scenarios_ilvl_bands.lua",
+  "testmodul/isilive_test_scenarios_score_color.lua",
   "testmodul/isilive_test_scenarios_taint.lua",
   "testmodul/isilive_test_scenarios_tank_helper.lua",
   "testmodul/isilive_test_scenarios_validation_helpers.lua",

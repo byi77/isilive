@@ -905,6 +905,387 @@ local function RegisterInspectBranchCoverageTests(test, Assert, WithGlobals, Loa
   end)
 end
 
+local function BaseInspectGlobals(overrides)
+  local globals = {
+    UnitExists = function(unit)
+      return unit ~= nil and unit ~= ""
+    end,
+    UnitGUID = function(unit)
+      return "guid-" .. tostring(unit)
+    end,
+    UnitIsVisible = function()
+      return true
+    end,
+    CanInspect = function()
+      return true
+    end,
+    C_PaperDollInfo = {
+      GetInspectItemLevel = function(unit)
+        return unit == "party2" and 633 or 620
+      end,
+    },
+  }
+  for key, value in pairs(overrides or {}) do
+    globals[key] = value
+  end
+  return globals
+end
+
+local function RegisterInspectHarvestTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Inspect harvests a foreign INSPECT_READY without touching the own in-flight inspect", function()
+    local now, notified = 10, {}
+    WithGlobals(
+      BaseInspectGlobals({
+        GetTime = function()
+          return now
+        end,
+        NotifyInspect = function(unit)
+          notified[#notified + 1] = unit
+        end,
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local traces = {}
+        local ctrl = addon.Inspect.CreateController({
+          inspectDelay = 0,
+          retryInterval = 1,
+          logRuntimeTracef = function(fmt, ...)
+            traces[#traces + 1] = string.format(fmt, ...)
+          end,
+        })
+        local roster = { party1 = {}, party2 = { _refreshQueued = true } }
+        ctrl.EnqueueInspect("party1", roster)
+        ctrl.EnqueueInspect("party2", roster)
+        ctrl.OnUpdate()
+        Assert.Equal(ctrl.isInspecting, "party1", "own inspect is in flight for party1")
+        Assert.Equal(#ctrl.inspectQueue, 1, "party2 still waits in the queue")
+
+        now = 10.5
+        local changed = ctrl.OnInspectReady("guid-party2", roster, function()
+          return 2400
+        end, function()
+          return "Frost"
+        end)
+
+        Assert.True(changed, "harvested data reports a change")
+        Assert.Equal(roster.party2.ilvl, 633, "foreign reply fills the item level")
+        Assert.Equal(roster.party2.rio, 2400, "foreign reply fills the score")
+        Assert.Equal(roster.party2.spec, "Frost", "foreign reply fills the spec")
+        Assert.True(roster.party2._localIlvlFresh, "harvested inspect counts as a local inspect")
+        Assert.Nil(roster.party2._refreshQueued, "complete harvest ends the pending refresh")
+        Assert.Equal(ctrl.ilvlCache["guid-party2"], 633, "harvested item level is cached per GUID")
+        Assert.Equal(#ctrl.inspectQueue, 0, "complete harvest removes the member from the queue")
+        Assert.Equal(ctrl.isInspecting, "party1", "own in-flight inspect is untouched")
+        Assert.Equal(ctrl.lastInspectTime, 10, "own inspect timer is untouched")
+        Assert.Equal(#ctrl.retryQueue, 0, "harvest schedules no retry")
+
+        local harvestedTrace = false
+        for _, line in ipairs(traces) do
+          if line:find("[INSPECT] harvested unit=party2", 1, true) then
+            harvestedTrace = true
+          end
+        end
+        Assert.True(harvestedTrace, "harvest is visible in the runtime log")
+
+        ctrl.OnInspectReady("guid-party1", roster, function()
+          return 2100
+        end, function()
+          return "Fire"
+        end)
+        Assert.Nil(ctrl.isInspecting, "own reply still releases the dispatcher afterwards")
+        Assert.Equal(roster.party1.spec, "Fire", "own reply is applied as before")
+        Assert.Equal(#notified, 1, "no extra inspect was sent for the harvested member")
+      end
+    )
+  end)
+
+  test("Inspect keeps the queue when a harvested foreign reply is incomplete", function()
+    WithGlobals(
+      BaseInspectGlobals({
+        GetTime = function()
+          return 5
+        end,
+        NotifyInspect = function() end,
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local ctrl = addon.Inspect.CreateController({ inspectDelay = 1, retryInterval = 1 })
+        local roster = { party2 = { rio = 1800 } }
+        ctrl.EnqueueInspect("party2", roster)
+        ctrl.OnInspectReady("guid-party2", roster, function()
+          return 1800
+        end, function()
+          return nil
+        end)
+        Assert.Equal(roster.party2.ilvl, 633, "readable fields are still kept")
+        Assert.Equal(#ctrl.inspectQueue, 1, "incomplete harvest leaves the member queued")
+        Assert.Equal(#ctrl.retryQueue, 0, "incomplete harvest adds no retry of its own")
+        Assert.Nil(ctrl.isInspecting, "nothing was dispatched")
+      end
+    )
+  end)
+
+  test("Inspect ignores INSPECT_READY for unknown, ghost and secret GUIDs", function()
+    WithGlobals(
+      BaseInspectGlobals({
+        GetTime = function()
+          return 5
+        end,
+        issecretvalue = function(value)
+          return value == "secret-guid"
+        end,
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local ctrl = addon.Inspect.CreateController({})
+        local roster = { party1 = {}, ["ghost:Bob"] = { isGhost = true } }
+        Assert.False(ctrl.OnInspectReady("guid-raid7", roster), "GUID outside the roster is ignored")
+        Assert.False(ctrl.OnInspectReady("guid-ghost:Bob", roster), "ghost rows are never matched")
+        Assert.False(ctrl.OnInspectReady("secret-guid", roster), "secret GUID is never compared")
+        Assert.Nil(roster.party1.ilvl, "no data was written")
+      end
+    )
+  end)
+end
+
+local function RegisterInspectFrameGuardTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Inspect holds dispatch while the inspect window is open and resumes after it closes", function()
+    local now, notified, shown = 10, 0, true
+    local inspectFrame = {
+      IsShown = function()
+        return shown
+      end,
+    }
+    WithGlobals(
+      BaseInspectGlobals({
+        GetTime = function()
+          return now
+        end,
+        NotifyInspect = function()
+          notified = notified + 1
+        end,
+        InspectFrame = inspectFrame,
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local traces = {}
+        local ctrl = addon.Inspect.CreateController({
+          inspectDelay = 0,
+          logRuntimeTracef = function(fmt, ...)
+            traces[#traces + 1] = string.format(fmt, ...)
+          end,
+        })
+        local roster = { party1 = {} }
+        ctrl.EnqueueInspect("party1", roster)
+        ctrl.OnUpdate()
+        now = 11
+        ctrl.OnUpdate()
+        Assert.Equal(notified, 0, "no NotifyInspect while the inspect window is open")
+        Assert.Equal(#ctrl.inspectQueue, 1, "queue is kept while paused")
+        Assert.True(ctrl.HasDueWork(), "paused work keeps the loop attached")
+        Assert.Equal(#traces, 1, "pause is logged once, not every tick")
+
+        shown = false
+        now = 12
+        ctrl.OnUpdate()
+        Assert.Equal(notified, 1, "dispatch resumes once the window is closed")
+        Assert.Equal(ctrl.isInspecting, "party1", "the held member is inspected")
+      end
+    )
+  end)
+end
+
+local function CreateOpenRaidStub(gearByUnit)
+  local stub = { registrations = {} }
+  stub.lib = {
+    RegisterCallback = function(addonObject, event, memberName)
+      if type(addonObject) ~= "table" or type(addonObject[memberName]) ~= "function" then
+        return 3
+      end
+      stub.registrations[#stub.registrations + 1] = { addonObject, event, memberName }
+      return true
+    end,
+    GetUnitGear = function(unit)
+      if unit == "party3" then
+        error("secret name used as table key")
+      end
+      return gearByUnit[unit]
+    end,
+  }
+  stub.LibStub = {
+    GetLibrary = function(_self, major, silent)
+      return major == "LibOpenRaid-1.0" and silent == true and stub.lib or nil
+    end,
+  }
+  -- Fires the way LibOpenRaid's TriggerCallback does: payload only, no self.
+  function stub.Fire(unitId, gearInfo)
+    for _, registration in ipairs(stub.registrations) do
+      local addonObject, memberName = registration[1], registration[3]
+      addonObject[memberName](unitId, gearInfo, {})
+    end
+  end
+  return stub
+end
+
+local function RegisterOpenRaidBridgeTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("OpenRaid bridge fills item levels by priority: inspect, then sync, then LibOpenRaid", function()
+    local secretGear = {}
+    local stub = CreateOpenRaidStub({ party4 = { ilevel = 612 } })
+    WithGlobals(
+      BaseInspectGlobals({
+        GetTime = function()
+          return 10
+        end,
+        NotifyInspect = function() end,
+        LibStub = stub.LibStub,
+        issecretvalue = function(value)
+          return value == secretGear
+        end,
+        UnitGUID = function(unit)
+          if unit == "Bob" then
+            return "guid-party1"
+          end
+          return "guid-" .. tostring(unit)
+        end,
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local ctrl = addon.Inspect.CreateController({ inspectDelay = 0 })
+        local roster = {
+          player = { ilvl = 650, _localIlvlFresh = true },
+          party1 = {},
+          party2 = { ilvl = 630 },
+          party3 = {},
+          party4 = {},
+        }
+        local raid, changes = false, 0
+        local bridge = addon.Inspect.CreateOpenRaidBridge({
+          inspectController = ctrl,
+          getRoster = function()
+            return roster
+          end,
+          isActive = function()
+            return not raid
+          end,
+          onChanged = function()
+            changes = changes + 1
+          end,
+        })
+
+        Assert.True(bridge.Attach(), "bridge registers its GearUpdate callback")
+        Assert.True(bridge.Attach(), "second attach is a no-op")
+        Assert.Equal(#stub.registrations, 1, "callback is registered exactly once")
+
+        stub.Fire("party1", { ilevel = 640 })
+        Assert.Equal(roster.party1.ilvl, 640, "broadcast fills an empty item level")
+        Assert.Nil(roster.party1._localIlvlFresh, "broadcast is not marked as a local inspect")
+        Assert.Nil(ctrl.ilvlCache["guid-party1"], "broadcast is not cached as an inspect result")
+        Assert.Equal(changes, 1, "a change triggers one UI update")
+
+        stub.Fire("Bob", { ilevel = 641 })
+        Assert.Equal(roster.party1.ilvl, 641, "bare-name unitId resolves through the GUID")
+
+        ctrl.EnqueueInspect("party1", roster)
+        Assert.Equal(#ctrl.inspectQueue, 1, "broadcast leaves the rio/spec inspect owed")
+        ctrl.OnUpdate()
+        ctrl.OnInspectReady("guid-party1", roster, function()
+          return 2000
+        end, function()
+          return "Arms"
+        end)
+        Assert.Equal(roster.party1.ilvl, 620, "own inspect replaces the broadcast value")
+        stub.Fire("party1", { ilevel = 655 })
+        Assert.Equal(roster.party1.ilvl, 620, "inspect wins over a later broadcast")
+
+        stub.Fire("party2", { ilevel = 645 })
+        Assert.Equal(roster.party2.ilvl, 630, "isiLive sync value is kept")
+
+        stub.Fire("player", { ilevel = 700 })
+        Assert.Equal(roster.player.ilvl, 650, "own player is ignored")
+
+        stub.Fire("party4", secretGear)
+        stub.Fire("party4", { ilevel = 0 })
+        Assert.Nil(roster.party4.ilvl, "secret or empty gear is ignored")
+
+        raid = true
+        stub.Fire("party4", { ilevel = 610 })
+        Assert.Nil(roster.party4.ilvl, "bridge is inert in a raid")
+        raid = false
+
+        local before = changes
+        Assert.True(bridge.Sweep(), "sweep drains gear received before registration")
+        Assert.Equal(roster.party4.ilvl, 612, "sweep fills the stored value")
+        Assert.Equal(changes, before + 1, "one sweep triggers one UI update")
+        Assert.Nil(roster.party3.ilvl, "a throwing GetUnitGear is contained")
+
+        stub.Fire("party4", { ilevel = 615 })
+        Assert.Equal(roster.party4.ilvl, 615, "a newer broadcast replaces its own older value")
+      end
+    )
+  end)
+
+  test("OpenRaid bridge stays inert without LibOpenRaid and schedules no timer", function()
+    local timers = 0
+    WithGlobals(
+      BaseInspectGlobals({
+        LibStub = nil,
+        C_Timer = {
+          After = function()
+            timers = timers + 1
+          end,
+        },
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local ctrl = addon.Inspect.CreateController({})
+        local bridge = addon.Inspect.CreateOpenRaidBridge({
+          inspectController = ctrl,
+          getRoster = function()
+            return { party1 = {} }
+          end,
+        })
+        Assert.False(bridge.Attach(), "nothing to attach to")
+        bridge.ScheduleSweep()
+        Assert.Equal(timers, 0, "no sweep timer without the library")
+        Assert.False(bridge.Sweep(), "sweep is a no-op")
+      end
+    )
+  end)
+
+  test("OpenRaid bridge collapses roster bursts into one delayed sweep", function()
+    local pending = {}
+    local stub = CreateOpenRaidStub({ party1 = { ilevel = 605 } })
+    WithGlobals(
+      BaseInspectGlobals({
+        LibStub = stub.LibStub,
+        C_Timer = {
+          After = function(_delay, callback)
+            pending[#pending + 1] = callback
+          end,
+        },
+      }),
+      function()
+        local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+        local ctrl = addon.Inspect.CreateController({})
+        local roster = { party1 = {} }
+        local bridge = addon.Inspect.CreateOpenRaidBridge({
+          inspectController = ctrl,
+          getRoster = function()
+            return roster
+          end,
+        })
+        bridge.ScheduleSweep()
+        bridge.ScheduleSweep()
+        Assert.Equal(#pending, 1, "a burst schedules one sweep")
+        pending[1]()
+        Assert.Equal(roster.party1.ilvl, 605, "delayed sweep applies the stored gear")
+        bridge.ScheduleSweep()
+        Assert.Equal(#pending, 2, "a later roster change schedules again")
+      end
+    )
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -914,4 +1295,7 @@ return function(test, ctx)
   RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterInspectRobustnessTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterInspectBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterInspectHarvestTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterInspectFrameGuardTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterOpenRaidBridgeTests(test, Assert, WithGlobals, LoadAddonModules)
 end

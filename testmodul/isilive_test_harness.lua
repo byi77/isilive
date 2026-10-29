@@ -39,6 +39,7 @@ local FILE_PATHS = {
   ["isiLive_spell_utils.lua"] = "game/isiLive_spell_utils.lua",
   ["isiLive_cd_tracker.lua"] = "game/isiLive_cd_tracker.lua",
   ["isiLive_season_data.lua"] = "game/isiLive_season_data.lua",
+  ["isiLive_ilvl_bands.lua"] = "game/isiLive_ilvl_bands.lua",
   ["isiLive_seasons.lua"] = "data/isiLive_seasons.lua",
   ["isiLive_travel_items.lua"] = "data/isiLive_travel_items.lua",
   ["isiLive_spells.lua"] = "data/isiLive_spells.lua",

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-29 - Version 0.9.465 (patch)
+
+- Roster and roster tooltip: the item level is coloured by season tier,
+  derived live from the Mythic+ reward curve (key +10 reward and above epic,
+  key +6 rare, key +2 uncommon, below poor) in Blizzard's item quality
+  colours. No fixed numbers; without season data the value stays uncoloured.
+- Roster and roster tooltip: the Mythic+ rating is coloured with Blizzard's
+  score colour (`C_ChallengeMode.GetDungeonScoreRarityColor`); the `(+N)`
+  gain, `-` and a rating of 0 stay uncoloured.
+- Inspect: an `INSPECT_READY` triggered by another addon or a manual inspect
+  is now used for the matching group member (item level, rating, spec, role)
+  without disturbing isiLive's own pending inspect.
+- Inspect: no background inspect is sent while the Blizzard inspect window is
+  open, so a manual inspect is no longer switched to another player; the
+  queue resumes when the window closes.
+- Item level from LibOpenRaid (shipped with Details!): group members without
+  isiLive get an item level without an inspect. Priority: own inspect, then an
+  isiLive peer's synced value, then LibOpenRaid; rating and spec still come
+  from the inspect. Inactive without the library, for the own player and in
+  raids.
+
 ## 2026-10-28 - Version 0.9.464 (patch)
 
 - New: talent and loot check before the key (setting "M+: Talent & loot

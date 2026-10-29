@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.464`.
+Current version: `0.9.465`.
+
+Version 0.9.465: item level and Mythic+ rating in the roster are coloured by
+season tier; item levels arrive faster (other addons' inspects are reused,
+Details! users are read via LibOpenRaid), and isiLive no longer inspects while
+your own inspect window is open.
 
 Version 0.9.464: new talent and loot check before the key. Entering a
 season dungeon in a group shows your talent loadout and loot spec next to
@@ -90,9 +95,15 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.464 -->
+<!-- highlights-reviewed-for: 0.9.465 -->
 
 Highlights:
+- **Coloured item level and rating.** The roster and its tooltip colour each
+  item level by this season's Mythic+ reward tiers (epic, rare, uncommon,
+  poor) and each Mythic+ rating with Blizzard's own score colour, so
+  undergeared applicants stand out. Item levels fill in faster: inspects by
+  other addons are reused, and group members running Details! report theirs
+  without an inspect.
 - **Talent and loot check before the key.** Entering a season dungeon in a
   group shows your talent loadout and loot spec next to what you confirmed for
   that dungeon and spec, with one-click switches; a full match is a green chat
@@ -101,9 +112,6 @@ Highlights:
   slow light sweep and the target dungeon and key level pulse on it, so you
   see at a glance which key the group is about to run; during the key the
   dungeon stays on the progress bar. Complete forces read `100%`.
-- **Cross-realm calls fixed.** Battle res, Bloodlust and Power Infusion
-  announcements from isiLive users on another realm show up again; in mixed
-  pug groups they were silently lost.
 - **Time to kill (TTK).** During a Mythic+ fight your target shows roughly
   how many seconds it has left, inside its health bar and under the
   killtracker bar, for bosses, minibosses and casters. Good for deciding whether a

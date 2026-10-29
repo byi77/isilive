@@ -404,6 +404,18 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return false
     end
     local seasonData = addonTable.SeasonData
+    -- The roster's item level colours hang on the season reward curve, which
+    -- arrives (or changes) with this event. Repaint only when the scale moved.
+    local itemLevelBands = addonTable.ItemLevelBands
+    if
+      eventName == "CHALLENGE_MODE_MAPS_UPDATE"
+      and type(itemLevelBands) == "table"
+      and type(itemLevelBands.Refresh) == "function"
+      and itemLevelBands.Refresh()
+      and type(callbacks.updateUI) == "function"
+    then
+      callbacks.updateUI()
+    end
     local challengeMode = rawget(_G, "C_ChallengeMode")
     local getMapTable = type(challengeMode) == "table" and rawget(challengeMode, "GetMapTable") or nil
     if

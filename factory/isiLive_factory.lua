@@ -755,12 +755,37 @@ local function FinalizeFactoryRuntime(ctx)
       end
     end,
   })
+  -- LibOpenRaid item levels: party only (isiLive is inactive in a raid), and
+  -- a hidden window defers the render itself (rule 152).
+  ctx.openRaidBridge = type(modules.inspect.CreateOpenRaidBridge) == "function"
+      and modules.inspect.CreateOpenRaidBridge({
+        inspectController = ctx.inspectController,
+        getRoster = ctx.GetRoster,
+        isActive = function()
+          return ctx.IsRaidGroup() ~= true
+        end,
+        onChanged = function()
+          local groupController = ctx.groupController
+          if type(groupController) == "table" and type(groupController.SaveReloadRosterMirror) == "function" then
+            groupController.SaveReloadRosterMirror()
+          end
+          ctx.UpdateUI()
+        end,
+      })
+    or nil
   -- Raid state of the previous GROUP_ROSTER_UPDATE: inside a running raid the
   -- polling and processing switches below are already off, so repeated
   -- roster updates (every join, leave and subgroup move) skip them.
   local lastPostDispatchRaid = false
   ctx.OnEvent = function(self, event, ...)
     ctx.eventHandlersController.Dispatch(self, event, ...)
+    if ctx.openRaidBridge then
+      if event == "PLAYER_LOGIN" then
+        ctx.openRaidBridge.Attach()
+      elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+        ctx.openRaidBridge.ScheduleSweep()
+      end
+    end
     if event == "GROUP_ROSTER_UPDATE" then
       local raidNow = ctx.IsRaidGroup() == true
       local steadyRaid = raidNow and lastPostDispatchRaid

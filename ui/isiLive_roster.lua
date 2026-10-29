@@ -156,6 +156,66 @@ function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   return orderedRoster
 end
 
+-- Wraps an item level's text in its season quality colour. Without season
+-- reward data the text comes back unchanged, so the column looks as before.
+function Roster.ColorizeItemLevelText(itemLevel, text)
+  local bands = addonTable.ItemLevelBands
+  local getColorHex = type(bands) == "table" and bands.GetColorHex or nil
+  if type(text) ~= "string" or type(getColorHex) ~= "function" then
+    return text
+  end
+  local colorHex = getColorHex(tonumber(itemLevel))
+  if type(colorHex) ~= "string" then
+    return text
+  end
+  return "|c" .. colorHex .. text .. "|r"
+end
+
+-- Blizzard's own Mythic+ score colour for a season rating
+-- (C_ChallengeMode.GetDungeonScoreRarityColor returns a ColorMixin). The
+-- channels are read directly instead of calling a method on the returned
+-- object, and every step fails closed to nil, which leaves the text uncoloured.
+local function ReadScoreColorHex(score)
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  local getColor = type(challengeMode) == "table" and rawget(challengeMode, "GetDungeonScoreRarityColor") or nil
+  if type(getColor) ~= "function" then
+    return nil
+  end
+  local ok, color = pcall(getColor, score)
+  if not ok or IsSecretValue(color) or type(color) ~= "table" then
+    return nil
+  end
+  local r, g, b = color.r, color.g, color.b
+  if IsSecretValue(r) or IsSecretValue(g) or IsSecretValue(b) then
+    return nil
+  end
+  if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
+    return nil
+  end
+  if r < 0 or r > 1 or g < 0 or g > 1 or b < 0 or b > 1 then
+    return nil
+  end
+  return string.format(
+    "ff%02x%02x%02x",
+    math.floor(r * 255 + 0.5),
+    math.floor(g * 255 + 0.5),
+    math.floor(b * 255 + 0.5)
+  )
+end
+
+-- Wraps a Mythic+ score's text in Blizzard's score colour. A missing, secret,
+-- non-positive or unresolvable score comes back unchanged.
+function Roster.ColorizeScoreText(score, text)
+  if type(text) ~= "string" or IsSecretValue(score) or type(score) ~= "number" or score <= 0 then
+    return text
+  end
+  local colorHex = ReadScoreColorHex(score)
+  if not colorHex then
+    return text
+  end
+  return "|c" .. colorHex .. text .. "|r"
+end
+
 function Roster.BuildDisplayData(info, opts)
   opts = opts or {}
   local unit = opts.unit
@@ -241,13 +301,13 @@ function Roster.BuildDisplayData(info, opts)
   if info.spec and truncateName then
     specText = truncateName(specText, 5)
   end
-  local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
+  local ilvlText = info.ilvl and Roster.ColorizeItemLevelText(info.ilvl, tostring(math.floor(info.ilvl))) or "-"
 
   local rioDelta = nil
   if type(getRioDelta) == "function" then
     rioDelta = tonumber(getRioDelta(info, unit))
   end
-  local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
+  local rioText = info.rio and Roster.ColorizeScoreText(info.rio, tostring(math.floor(info.rio))) or "-"
   if rioDelta and info.rio then
     rioDelta = math.max(0, math.floor(rioDelta))
     rioText = string.format("(+%d)%s", rioDelta, rioText)

@@ -151,24 +151,17 @@ local function InvalidateMember(controller, unit, roster)
   return true
 end
 
-local function OnInspectReady(
-  controller,
-  guid,
-  roster,
-  getUnitRio,
-  getInspectSpecName,
-  getPlayerSpecName,
-  getOwnAverageItemLevel,
-  getInspectSpecRole
-)
-  local inspectedUnit = controller.isInspecting
-  if not (inspectedUnit and GetUnitGUIDSafe(inspectedUnit) == guid) then
-    return false
-  end
+-- Reads one INSPECT_READY reply for `unit` into the roster and the per-GUID
+-- caches. Shared by our own inspect and by harvested foreign ones, so both
+-- apply exactly the same rules (no transient 0/nil overwrites, zero score is
+-- data, the inspected spec role wins over the assigned group role).
+local function ApplyInspectResult(controller, unit, guid, roster, getters)
+  local info = roster[unit]
+  local result = {}
 
   local ilvl = nil
   if C_PaperDollInfo and type(C_PaperDollInfo.GetInspectItemLevel) == "function" then
-    local ok, ilvlResult = pcall(C_PaperDollInfo.GetInspectItemLevel, inspectedUnit)
+    local ok, ilvlResult = pcall(C_PaperDollInfo.GetInspectItemLevel, unit)
     if ok and not IsSecretValue(ilvlResult) and type(ilvlResult) == "number" then
       ilvl = ilvlResult
     end
@@ -176,118 +169,168 @@ local function OnInspectReady(
   -- GetInspectItemLevel("player") returns 0/nil in most contexts (in M+ under
   -- 12.0 the inspect path is restricted entirely). Fall back to the local
   -- C_Item.GetAverageItemLevel for own player so we never write a useless 0.
-  if (not ilvl or ilvl <= 0) and inspectedUnit == "player" and type(getOwnAverageItemLevel) == "function" then
-    local ownIlvl = getOwnAverageItemLevel()
+  if (not ilvl or ilvl <= 0) and unit == "player" and type(getters.getOwnAverageItemLevel) == "function" then
+    local ownIlvl = getters.getOwnAverageItemLevel()
     if type(ownIlvl) == "number" and ownIlvl > 0 then
       ilvl = ownIlvl
     end
   end
-  local ilvlChanged = false
-  if roster[inspectedUnit] then
+  result.ilvl = ilvl
+  if ilvl and ilvl > 0 then
     -- Only write a real value: do NOT overwrite a previously-good ilvl with a
     -- transient 0/nil from a partial inspect response. Preserves data both for
     -- player (our local-API fallback above) and for party members between
     -- successful inspects.
-    if ilvl and ilvl > 0 then
-      if roster[inspectedUnit].ilvl ~= ilvl then
-        ilvlChanged = true
-      end
-      roster[inspectedUnit].ilvl = ilvl
-      roster[inspectedUnit]._localIlvlFresh = true
+    if info then
+      result.ilvlChanged = info.ilvl ~= ilvl
+      info.ilvl = ilvl
+      info._localIlvlFresh = true
     end
-  end
-  if ilvl and ilvl > 0 then
     controller.ilvlCache[guid] = ilvl
   end
 
-  local rio = getUnitRio and getUnitRio(inspectedUnit) or nil
+  local rio = getters.getUnitRio and getters.getUnitRio(unit) or nil
   local rioResolved = addonTable.Validators.IsFiniteNumber(rio) and rio >= 0
-  local rioChanged = false
-  if roster[inspectedUnit] and rioResolved then
-    if roster[inspectedUnit].rio ~= rio then
-      rioChanged = true
-    end
-    roster[inspectedUnit].rio = rio
-    if rio and rio >= 0 then
-      roster[inspectedUnit]._localRioFresh = true
-    end
-  end
+  result.rio = rio
   if rioResolved then
+    if info then
+      result.rioChanged = info.rio ~= rio
+      info.rio = rio
+      info._localRioFresh = true
+    end
     controller.rioCache[guid] = rio
   end
 
-  local specName = getInspectSpecName and getInspectSpecName(inspectedUnit) or nil
-  if not specName and inspectedUnit == "player" and getPlayerSpecName then
-    specName = getPlayerSpecName()
+  local specName = getters.getInspectSpecName and getters.getInspectSpecName(unit) or nil
+  if not specName and unit == "player" and getters.getPlayerSpecName then
+    specName = getters.getPlayerSpecName()
   end
   local specResolved = type(specName) == "string" and specName ~= ""
-  local specChanged = false
-  if roster[inspectedUnit] and specResolved then
-    if roster[inspectedUnit].spec ~= specName then
-      specChanged = true
-    end
-    roster[inspectedUnit].spec = specName
-    if specName and specName ~= "" then
-      roster[inspectedUnit]._localSpecFresh = true
-    end
-  end
+  result.specName = specName
   if specResolved then
+    if info then
+      result.specChanged = info.spec ~= specName
+      info.spec = specName
+      info._localSpecFresh = true
+    end
     controller.specCache[guid] = specName
   end
 
-  local specRole = type(getInspectSpecRole) == "function" and getInspectSpecRole(inspectedUnit) or nil
+  local specRole = type(getters.getInspectSpecRole) == "function" and getters.getInspectSpecRole(unit) or nil
+  result.specRole = specRole
   if specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER" then
     controller.specRoleCache[guid] = specRole
-  end
-  local roleChanged = false
-  if
-    roster[inspectedUnit]
-    and (specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER")
-    and roster[inspectedUnit].role ~= specRole
-  then
-    roster[inspectedUnit].role = specRole
-    roleChanged = true
+    if info and info.role ~= specRole then
+      info.role = specRole
+      result.roleChanged = true
+    end
   end
 
+  result.incomplete = (type(getters.getUnitRio) == "function" and not rioResolved)
+    or (type(getters.getInspectSpecName) == "function" and not specResolved)
+    or not (ilvl and ilvl > 0)
+  result.dataChanged = (result.ilvlChanged or result.rioChanged or result.specChanged or result.roleChanged) == true
+  return result
+end
+
+-- Roster unit whose live GUID is `guid`, ghosts excluded.
+local function FindRosterUnitByGuid(roster, guid)
+  for unit, info in pairs(roster) do
+    if type(info) == "table" and not info.isGhost and not IsGhostRosterUnit(unit, roster) then
+      if GetUnitGUIDSafe(unit) == guid then
+        return unit
+      end
+    end
+  end
+  return nil
+end
+
+local function RemoveUnitFromQueues(controller, unit)
+  for i = #controller.inspectQueue, 1, -1 do
+    if controller.inspectQueue[i] == unit then
+      table.remove(controller.inspectQueue, i)
+    end
+  end
+  for i = #controller.retryQueue, 1, -1 do
+    if controller.retryQueue[i].unit == unit then
+      table.remove(controller.retryQueue, i)
+    end
+  end
+end
+
+-- Own inspect finished: release the dispatcher. A readable item level alone is
+-- not a completed inspect, so missing fields keep the member pending and get a
+-- retry instead of marking the work done; last known values stay.
+local function FinishOwnInspect(controller, unit, roster, result)
   controller.isInspecting = nil
   local getTimeFn = rawget(_G, "GetTime")
   controller.lastInspectTime = type(getTimeFn) == "function" and getTimeFn() or 0
-  local incomplete = (type(getUnitRio) == "function" and not rioResolved)
-    or (type(getInspectSpecName) == "function" and not specResolved)
-    or not (ilvl and ilvl > 0)
-  if roster[inspectedUnit] then
-    -- A readable item level alone is not a completed inspect. Preserve last
-    -- known values and retry missing fields instead of marking the work done.
-    roster[inspectedUnit]._refreshQueued = incomplete and true or nil
-    if incomplete then
+  if roster[unit] then
+    roster[unit]._refreshQueued = result.incomplete and true or nil
+    if result.incomplete then
       table.insert(controller.retryQueue, {
-        unit = inspectedUnit,
+        unit = unit,
         nextRetry = controller.lastInspectTime + controller.retryInterval,
       })
     end
   end
+end
 
-  local dataChanged = ilvlChanged or rioChanged or specChanged or roleChanged
+-- An INSPECT_READY somebody else asked for (Details!, Raider.IO, a manual
+-- right-click inspect) still carries readable data for a group member. Keep
+-- it, but leave our own in-flight inspect, its timer and the retry schedule
+-- alone. A complete reply satisfies any pending work for that member; an
+-- incomplete one changes nothing about the queue, the normal path still owns
+-- it. Deliberately no pause after a foreign reply: other addons inspect the
+-- whole group constantly, and backing off on each reply would stall our queue
+-- for good.
+local function FinishHarvestedInspect(controller, unit, roster, result)
+  if result.incomplete or not roster[unit] then
+    return
+  end
+  roster[unit]._refreshQueued = nil
+  RemoveUnitFromQueues(controller, unit)
+end
+
+local function OnInspectReady(controller, guid, roster, getters)
+  if guid == nil or IsSecretValue(guid) or type(roster) ~= "table" then
+    return false
+  end
+  local inspectedUnit = controller.isInspecting
+  local isOwn = inspectedUnit ~= nil and GetUnitGUIDSafe(inspectedUnit) == guid
+  local unit = isOwn and inspectedUnit or FindRosterUnitByGuid(roster, guid)
+  if not unit then
+    return false
+  end
+
+  local result = ApplyInspectResult(controller, unit, guid, roster, getters)
+  if isOwn then
+    FinishOwnInspect(controller, unit, roster, result)
+  else
+    FinishHarvestedInspect(controller, unit, roster, result)
+  end
+
   if controller.logRuntimeTracef then
     controller.logRuntimeTracef(
-      "[INSPECT] result unit=%s ilvl=%s rio=%s spec=%s role=%s "
+      "[INSPECT] %s unit=%s ilvl=%s rio=%s spec=%s role=%s "
         .. "ilvlChanged=%s rioChanged=%s specChanged=%s roleChanged=%s",
-      tostring(inspectedUnit),
-      tostring(ilvl),
-      tostring(rio),
-      tostring(specName),
-      tostring(specRole),
-      tostring(ilvlChanged),
-      tostring(rioChanged),
-      tostring(specChanged),
-      tostring(roleChanged)
+      isOwn and "result" or "harvested",
+      tostring(unit),
+      tostring(result.ilvl),
+      tostring(result.rio),
+      tostring(result.specName),
+      tostring(result.specRole),
+      tostring(result.ilvlChanged == true),
+      tostring(result.rioChanged == true),
+      tostring(result.specChanged == true),
+      tostring(result.roleChanged == true)
     )
   end
-  if inspectedUnit == "player" and dataChanged and controller.TriggerOwnKeySnapshot then
+  if unit == "player" and result.dataChanged and controller.TriggerOwnKeySnapshot then
     controller.TriggerOwnKeySnapshot(false, "inspect")
   end
 
-  return dataChanged
+  return result.dataChanged
 end
 
 local function OnInspectTimeout(controller, now)
@@ -331,6 +374,20 @@ local function IsUnitInspectable(unit)
   return true
 end
 
+-- True while the player has Blizzard's inspect window open. Our NotifyInspect
+-- would repopulate that window with a different group member under them.
+-- InspectFrame is nil until Blizzard_InspectUI loads on demand, and that only
+-- happens when the player opens an inspect, so "no frame" means "not
+-- inspecting".
+local function IsInspectFrameShown()
+  local frame = rawget(_G, "InspectFrame")
+  if type(frame) ~= "table" or type(frame.IsShown) ~= "function" then
+    return false
+  end
+  local ok, shown = pcall(frame.IsShown, frame)
+  return ok and not IsSecretValue(shown) and shown == true
+end
+
 local function TryDispatchInspect(controller, now)
   if #controller.inspectQueue == 0 then
     return false
@@ -339,6 +396,18 @@ local function TryDispatchInspect(controller, now)
   if now - controller.lastInspectTime < controller.inspectDelay then
     return true
   end
+
+  -- Hold the queue while the inspect window is open. Returning true keeps the
+  -- queue intact and the loop attached (HasDueWork stays true), so dispatch
+  -- resumes on the first tick after the window closes.
+  if IsInspectFrameShown() then
+    if not controller.manualInspectPaused and controller.logRuntimeTracef then
+      controller.logRuntimeTracef("[INSPECT] dispatch_paused reason=inspect_frame_open")
+    end
+    controller.manualInspectPaused = true
+    return true
+  end
+  controller.manualInspectPaused = nil
 
   local unit = table.remove(controller.inspectQueue, 1)
   if IsUnitInspectable(unit) then
@@ -401,6 +470,45 @@ local function OnUpdate(controller)
   ProcessRetryQueue(controller, now)
 end
 
+-- Item level reported by another addon (LibOpenRaid), never by our own
+-- inspect. Priority, highest first: our own inspect (_localIlvlFresh), an
+-- isiLive peer's synced value, LibOpenRaid. The external value therefore only
+-- fills an empty field or replaces its own previous value; anything else in
+-- the field came from inspect, from isiLive sync (KeySync BackfillStats) or
+-- from the reload mirror and is kept. It is NOT marked _localIlvlFresh and NOT
+-- written to ilvlCache: both mean "inspected", and claiming that would let a
+-- broadcast suppress the sync backfill and the inspect that still owes us the
+-- precise value. The inspect queue is untouched, so rio/spec still get fetched.
+local function ApplyExternalIlvl(controller, unit, ilvl, roster)
+  if type(roster) ~= "table" or unit == "player" then
+    return false
+  end
+  local info = roster[unit]
+  if type(info) ~= "table" or info.isGhost or IsGhostRosterUnit(unit, roster) then
+    return false
+  end
+  if not addonTable.Validators.IsFiniteNumber(ilvl) or ilvl <= 0 or info._localIlvlFresh then
+    return false
+  end
+  local guid = GetUnitGUIDSafe(unit)
+  if not guid then
+    return false
+  end
+  local previous = controller.externalIlvlCache[guid]
+  if info.ilvl ~= nil and info.ilvl ~= previous then
+    return false
+  end
+  controller.externalIlvlCache[guid] = ilvl
+  if info.ilvl == ilvl then
+    return false
+  end
+  info.ilvl = ilvl
+  if controller.logRuntimeTracefDeep then
+    controller.logRuntimeTracefDeep("[INSPECT] external_ilvl unit=%s ilvl=%s", tostring(unit), tostring(ilvl))
+  end
+  return true
+end
+
 function Inspect.CreateController(config)
   local controller = {}
   controller.inspectTimeout = tonumber(config and config.inspectTimeout) or 2
@@ -426,6 +534,10 @@ function Inspect.CreateController(config)
   controller.rioCache = {}
   controller.specCache = {}
   controller.specRoleCache = {}
+  -- Last item level LibOpenRaid reported per GUID. Provenance for
+  -- ApplyExternalIlvl: it tells "the roster value is ours to update" apart from
+  -- "the roster value came from inspect, isiLive sync or the reload mirror".
+  controller.externalIlvlCache = {}
 
   function controller.ResetQueues()
     controller.inspectQueue = {}
@@ -483,6 +595,7 @@ function Inspect.CreateController(config)
     controller.rioCache = {}
     controller.specCache = {}
     controller.specRoleCache = {}
+    controller.externalIlvlCache = {}
   end
 
   function controller.QueueForceRefreshData(roster)
@@ -512,16 +625,17 @@ function Inspect.CreateController(config)
     getOwnAverageItemLevel,
     getInspectSpecRole
   )
-    return OnInspectReady(
-      controller,
-      guid,
-      roster,
-      getUnitRio,
-      getInspectSpecName,
-      getPlayerSpecName,
-      getOwnAverageItemLevel,
-      getInspectSpecRole
-    )
+    return OnInspectReady(controller, guid, roster, {
+      getUnitRio = getUnitRio,
+      getInspectSpecName = getInspectSpecName,
+      getPlayerSpecName = getPlayerSpecName,
+      getOwnAverageItemLevel = getOwnAverageItemLevel,
+      getInspectSpecRole = getInspectSpecRole,
+    })
+  end
+
+  function controller.ApplyExternalIlvl(unit, ilvl, roster)
+    return ApplyExternalIlvl(controller, unit, ilvl, roster)
   end
 
   function controller.OnUpdate()
@@ -535,4 +649,155 @@ function Inspect.CreateController(config)
   end
 
   return controller
+end
+
+-- LibOpenRaid-1.0 (ships with Details!) broadcasts every member's own item
+-- level over addon comm, so it reaches us without an inspect, also for members
+-- without isiLive and inside M+ where inspect is restricted. Optional: without
+-- the library the bridge stays inert.
+--
+-- The library is resolved lazily (PLAYER_LOGIN or the first sweep), when every
+-- addon has loaded, so no OptionalDeps entry is needed. It stores the pair
+-- {handler, "OnGearUpdate"} and calls handler["OnGearUpdate"](...) with the
+-- payload only (unitId, unitGearInfo, allUnitsGear), no self: the handler is a
+-- table held for the whole session with a named member.
+local OPEN_RAID_SWEEP_DELAY_SECONDS = 1
+
+local function ReadOpenRaidIlvl(gearInfo)
+  -- Secret check first: type() lies about a secret, and indexing a secret
+  -- table raises.
+  if IsSecretValue(gearInfo) or type(gearInfo) ~= "table" then
+    return nil
+  end
+  local raw = gearInfo.ilevel
+  if IsSecretValue(raw) or not addonTable.Validators.IsFiniteNumber(raw) or raw <= 0 then
+    return nil
+  end
+  return raw
+end
+
+function Inspect.CreateOpenRaidBridge(config)
+  local bridge = {}
+  local inspectController = config and config.inspectController
+  local getRoster = config and config.getRoster
+  local isActive = config and config.isActive
+  local onChanged = config and config.onChanged
+  local lib = nil -- nil: not resolved yet, false: not installed
+  local registered = false
+  local sweepPending = false
+  local handler = {}
+
+  local function ResolveLib()
+    if lib ~= nil then
+      return lib or nil
+    end
+    local libStub = rawget(_G, "LibStub")
+    local found = nil
+    if type(libStub) == "table" and type(libStub.GetLibrary) == "function" then
+      local ok, result = pcall(libStub.GetLibrary, libStub, "LibOpenRaid-1.0", true)
+      found = ok and type(result) == "table" and result or nil
+    end
+    lib = found or false
+    return found
+  end
+
+  local function CanApply()
+    return type(inspectController) == "table"
+      and type(getRoster) == "function"
+      and (type(isActive) ~= "function" or isActive() == true)
+  end
+
+  -- The library resolves unitId from its own id cache, refreshed at the end of
+  -- its roster handler, so an early comm can carry a bare name instead of a
+  -- token. Unit APIs accept a group member's name; map it to our roster unit
+  -- through the GUID.
+  local function ResolveRosterUnit(unitId, roster)
+    if IsSecretValue(unitId) or type(unitId) ~= "string" or unitId == "" then
+      return nil
+    end
+    if type(roster[unitId]) == "table" then
+      return unitId
+    end
+    local guid = GetUnitGUIDSafe(unitId)
+    return guid and FindRosterUnitByGuid(roster, guid) or nil
+  end
+
+  local function Apply(unitId, gearInfo, roster)
+    local unit = ResolveRosterUnit(unitId, roster)
+    local ilvl = unit and ReadOpenRaidIlvl(gearInfo)
+    if not ilvl then
+      return false
+    end
+    return inspectController.ApplyExternalIlvl(unit, ilvl, roster) == true
+  end
+
+  function handler.OnGearUpdate(unitId, unitGearInfo)
+    if not CanApply() then
+      return
+    end
+    local roster = getRoster()
+    if type(roster) == "table" and Apply(unitId, unitGearInfo, roster) and type(onChanged) == "function" then
+      onChanged()
+    end
+  end
+
+  function bridge.Attach()
+    local openRaidLib = ResolveLib()
+    if registered or not openRaidLib or type(openRaidLib.RegisterCallback) ~= "function" then
+      return registered
+    end
+    local ok, result = pcall(openRaidLib.RegisterCallback, handler, "GearUpdate", "OnGearUpdate")
+    registered = ok and result == true
+    return registered
+  end
+
+  -- The callback only fires when a comm arrives. Gear the library received
+  -- before we registered, or before the roster had the member, sits in its
+  -- store; GetUnitGear(unit) is the public way to drain it.
+  function bridge.Sweep()
+    bridge.Attach()
+    local openRaidLib = ResolveLib()
+    if not openRaidLib or type(openRaidLib.GetUnitGear) ~= "function" or not CanApply() then
+      return false
+    end
+    local roster = getRoster()
+    if type(roster) ~= "table" then
+      return false
+    end
+    local changed = false
+    for unit, info in pairs(roster) do
+      if unit ~= "player" and type(info) == "table" and not info.isGhost and IsExistingUnit(unit) then
+        -- pcall is required: the library looks the unit up by name and uses
+        -- that name as a table key, which raises when the name is secret.
+        local ok, gearInfo = pcall(openRaidLib.GetUnitGear, unit)
+        if ok and Apply(unit, gearInfo, roster) then
+          changed = true
+        end
+      end
+    end
+    if changed and type(onChanged) == "function" then
+      onChanged()
+    end
+    return changed
+  end
+
+  -- Collapses a burst of roster events into one sweep.
+  -- Without the library there is nothing to drain, so no timer either.
+  function bridge.ScheduleSweep()
+    if sweepPending or not ResolveLib() then
+      return
+    end
+    local timerApi = rawget(_G, "C_Timer")
+    if type(timerApi) ~= "table" or type(timerApi.After) ~= "function" then
+      bridge.Sweep()
+      return
+    end
+    sweepPending = true
+    timerApi.After(OPEN_RAID_SWEEP_DELAY_SECONDS, function()
+      sweepPending = false
+      bridge.Sweep()
+    end)
+  end
+
+  return bridge
 end

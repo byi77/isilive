@@ -828,11 +828,21 @@ local function ShowRosterInfoTooltip(
     end
     if info.ilvl then
       local fmt = type(Lrow.TOOLTIP_ILVL_FMT) == "string" and Lrow.TOOLTIP_ILVL_FMT or "iLvl: %s"
-      tooltip:AddLine(string.format(fmt, tostring(math.floor(tonumber(info.ilvl) or 0))), 0.9, 0.9, 0.9)
+      local ilvlText = tostring(math.floor(tonumber(info.ilvl) or 0))
+      local roster = addonTable.Roster
+      if type(roster) == "table" and type(roster.ColorizeItemLevelText) == "function" then
+        ilvlText = roster.ColorizeItemLevelText(info.ilvl, ilvlText)
+      end
+      tooltip:AddLine(string.format(fmt, ilvlText), 0.9, 0.9, 0.9)
     end
     if info.rio then
       local fmt = type(Lrow.TOOLTIP_RIO_FMT) == "string" and Lrow.TOOLTIP_RIO_FMT or "Rio: %s"
-      tooltip:AddLine(string.format(fmt, tostring(math.floor(tonumber(info.rio) or 0))), 0.9, 0.9, 0.9)
+      local rioText = tostring(math.floor(tonumber(info.rio) or 0))
+      local roster = addonTable.Roster
+      if type(roster) == "table" and type(roster.ColorizeScoreText) == "function" then
+        rioText = roster.ColorizeScoreText(tonumber(info.rio), rioText)
+      end
+      tooltip:AddLine(string.format(fmt, rioText), 0.9, 0.9, 0.9)
     end
     local deathCount = type(deathSummary) == "table" and tonumber(deathSummary.count) or nil
     if deathCount and deathCount > 0 then

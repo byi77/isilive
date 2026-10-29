@@ -337,6 +337,47 @@ return function(test, ctx)
     Assert.True(invoked, "handleGroupRosterUpdate must invoke controllers.group.HandleGroupRosterUpdate")
   end)
 
+  test("ControllerWiring repaints the roster when a map update changes the item level scale", function()
+    local scaleChanged = false
+    local refreshes = 0
+    local repaints = 0
+    WithGlobals({
+      InCombatLockdown = function()
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" }, {
+        SeasonData = {
+          TryAutoSelectSeasonFromChallengeMapIDs = function()
+            return true, false, "test", false
+          end,
+        },
+        ItemLevelBands = {
+          Refresh = function()
+            refreshes = refreshes + 1
+            return scaleChanged
+          end,
+        },
+      })
+      local module, getCaptured = CaptureEventModule()
+      local deps = BuildMinimalEventDeps()
+      deps.callbacks.updateUI = function()
+        repaints = repaints + 1
+      end
+      addon.ControllerWiring.CreateEventHandlersController(module, deps)
+      local refresh = getCaptured().refreshActiveSeasonFromBlizzard
+
+      refresh("PLAYER_LOGIN")
+      Assert.Equal(refreshes, 0, "only a map update refreshes the item level scale")
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(refreshes, 1, "a map update refreshes the scale even in combat")
+      Assert.Equal(repaints, 0, "an unchanged scale must not repaint")
+      scaleChanged = true
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(repaints, 1, "a changed scale repaints once")
+    end)
+  end)
+
   test("ControllerWiring season refresh at combat end only catches up a pending evaluation", function()
     local inCombat = false
     local evaluations = 0

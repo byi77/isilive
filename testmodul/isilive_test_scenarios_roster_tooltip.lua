@@ -504,6 +504,27 @@ return function(test, ctx)
     end)
   end)
 
+  test("roster_tooltip: rio line colours only the score with Blizzard's score colour", function()
+    local globals = BuildGlobals()
+    globals.C_ChallengeMode = {
+      GetDungeonScoreRarityColor = function()
+        return { r = 163 / 255, g = 53 / 255, b = 238 / 255 }
+      end,
+    }
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_roster.lua", "isiLive_roster_tooltip.lua" })
+      local args = buildShowArgs({ name = "Alice", class = "MAGE", rio = 3400.7 })
+      Assert.True(callShow(addon, args))
+      local found = false
+      for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+        if line:GetText() == "Rio: |cffa335ee3400|r" then
+          found = true
+        end
+      end
+      Assert.True(found, "the rio line must wrap only the number in the score colour")
+    end)
+  end)
+
   test("roster_tooltip: ShowRosterInfoTooltip falls back to dungeon short code when full name is empty", function()
     WithGlobals(BuildGlobals(), function()
       local addon = Load()
