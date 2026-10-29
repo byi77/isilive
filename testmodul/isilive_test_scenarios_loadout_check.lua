@@ -489,6 +489,44 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  test("LoadoutCheck writes [LOADOUT] runtime-log lines for entry, switches, commit and confirm", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      WithPendingLoads(world)
+      local lines = {}
+      world.deps.trace = function(buildMessage)
+        lines[#lines + 1] = buildMessage()
+      end
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+      world.cardController.SelectLoadout(102)
+      LoadoutCheck.HandleEvent("CONFIG_COMMIT_FAILED")
+      world.cardController.SelectLootSpec(FIRE_MAGE)
+      world.cardController.Confirm()
+
+      Assert.Equal(
+        lines[1],
+        "[LOADOUT] event=evaluate mapID="
+          .. MAP_ID
+          .. " instanceID="
+          .. INSTANCE_ID
+          .. " spec="
+          .. FROST_MAGE
+          .. " loadout=M+ AoE loot=Frost result=card",
+        "the entry logs dungeon, active loadout, loot spec and outcome"
+      )
+      Assert.Equal(lines[2], "[LOADOUT] event=select_loadout configID=102 result=pending pending=true", "switch start")
+      Assert.Equal(
+        lines[3],
+        "[LOADOUT] event=commit configID=102 ok=false source=CONFIG_COMMIT_FAILED",
+        "the commit result names its source"
+      )
+      Assert.Equal(lines[4], "[LOADOUT] event=select_loot lootSpecID=" .. FIRE_MAGE .. " ok=true", "loot switch")
+      Assert.Equal(lines[5], "[LOADOUT] event=confirm mapID=" .. MAP_ID .. " remember=true", "confirm")
+    end)
+  end)
+
   test("LoadoutCheck by default shows the active state without remembering or judging", function()
     WithGlobals({}, function()
       local LoadoutCheck = LoadModule()

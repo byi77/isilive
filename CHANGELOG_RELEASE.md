@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.468`.
+Current version: `0.9.469`.
+
+Version 0.9.469: the talent and loot check writes its steps (dungeon entry,
+switches, commit result, OK) into the runtime log.
 
 Version 0.9.468: the talent and loot check shows your active loadout and
 loot spec without a verdict; which saved loadout is right is your call. The
@@ -110,7 +113,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.468 -->
+<!-- highlights-reviewed-for: 0.9.469 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

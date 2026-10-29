@@ -18,6 +18,8 @@ addonTable.LoadoutCheck = LoadoutCheck
 -- IsiLiveDB itself is account-wide.
 
 local IsSecretValue = addonTable.Validators.IsSecretValue
+-- Lua 5.1 exposes unpack as a global, Lua 5.4 only as table.unpack.
+local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 
 -- 23 = Mythic party difficulty, the state of a keystone dungeon before the key
 -- is inserted. 8 (Mythic Keystone) means the key is already running.
@@ -597,6 +599,42 @@ local function GetCharacterStore(db, characterKey, createMissing)
   return byCharacter
 end
 
+-- Stored target of `specID` for `mapID` in the character `store`, or nil.
+local function ReadStoredTarget(store, specID, mapID)
+  local bySpec = store and store[specID] or nil
+  local target = type(bySpec) == "table" and bySpec[mapID] or nil
+  if type(target) ~= "table" then
+    return nil
+  end
+  local configID = PositiveNumber(target.configID)
+  local lootSpecID = type(target.lootSpecID) == "number" and target.lootSpecID >= 0 and target.lootSpecID or nil
+  if not configID and not lootSpecID then
+    return nil
+  end
+  local confirmedAt = target.confirmedAt
+  return {
+    configID = configID,
+    configName = type(target.configName) == "string" and target.configName or nil,
+    lootSpecID = lootSpecID,
+    confirmedAt = type(confirmedAt) == "number" and confirmedAt or 0,
+  }
+end
+
+-- Runtime-log line "[LOADOUT] ..." through `trace` (RuntimeLog.Trace, lazy:
+-- built only while the log is on); arguments are passed through tostring.
+local function TraceEvent(trace, formatText, ...)
+  if type(trace) ~= "function" then
+    return
+  end
+  local args = { n = select("#", ...), ... }
+  trace(function()
+    for i = 1, args.n do
+      args[i] = tostring(args[i])
+    end
+    return "[LOADOUT] " .. string.format(formatText, Unpack(args, 1, args.n))
+  end)
+end
+
 -- Most recently confirmed target in `bySpec` (one spec's targets by map ID)
 -- outside `excludeMapID`, read through `readTarget(mapID)`; the invite summary
 -- offers it as a suggestion when this dungeon has none (user decision
@@ -633,6 +671,7 @@ function LoadoutCheck.CreateController(opts)
   local getL = type(opts.getL) == "function" and opts.getL or DefaultGetL
   local printMessage = type(opts.print) == "function" and opts.print or DefaultPrint
   local card = opts.card
+  local trace = opts.trace
   local rememberTargets = REMEMBER_TARGETS_DEFAULT
   if opts.rememberTargets ~= nil then
     rememberTargets = opts.rememberTargets == true
@@ -688,27 +727,7 @@ function LoadoutCheck.CreateController(opts)
   end
 
   local function ReadTarget(specID, mapID)
-    if not rememberTargets then
-      return nil
-    end
-    local store = GetStore(false)
-    local bySpec = store and store[specID] or nil
-    local target = type(bySpec) == "table" and bySpec[mapID] or nil
-    if type(target) ~= "table" then
-      return nil
-    end
-    local configID = PositiveNumber(target.configID)
-    local lootSpecID = type(target.lootSpecID) == "number" and target.lootSpecID >= 0 and target.lootSpecID or nil
-    if not configID and not lootSpecID then
-      return nil
-    end
-    local confirmedAt = target.confirmedAt
-    return {
-      configID = configID,
-      configName = type(target.configName) == "string" and target.configName or nil,
-      lootSpecID = lootSpecID,
-      confirmedAt = type(confirmedAt) == "number" and confirmedAt or 0,
-    }
+    return rememberTargets and ReadStoredTarget(GetStore(false), specID, mapID) or nil
   end
 
   local function FindLatestOtherTarget(specID, excludeMapID)
@@ -788,6 +807,16 @@ function LoadoutCheck.CreateController(opts)
     -- Everything matches the confirmed target: one green chat line instead of
     -- the card. A missing target or any difference still shows the card.
     local model = BuildCurrentModel()
+    TraceEvent(
+      trace,
+      "event=evaluate mapID=%s instanceID=%s spec=%s loadout=%s loot=%s result=%s",
+      mapID,
+      instanceID,
+      model and model.specID,
+      model and model.talents and model.talents.currentName,
+      model and model.loot and model.loot.currentName,
+      not model and "no_model" or model.allOk and "chat_ok" or "card"
+    )
     if model and model.allOk then
       active = nil
       printMessage(
@@ -886,12 +915,13 @@ function LoadoutCheck.CreateController(opts)
 
   -- Ends a running talent switch: on success the loadout becomes the selected
   -- one, on failure the card shows the unchanged talents again.
-  function controller.FinishPendingLoad(succeeded)
+  function controller.FinishPendingLoad(succeeded, source)
     local finished = pendingLoad
     if not finished then
       return false
     end
     pendingLoad = nil
+    TraceEvent(trace, "event=commit configID=%s ok=%s source=%s", finished.configID, succeeded, source)
     if succeeded then
       api.markLoadoutSelected(finished.specID, finished.configID)
     else
@@ -918,6 +948,7 @@ function LoadoutCheck.CreateController(opts)
     pendingLoad = { specID = live.specID, configID = configID, name = loadout.name, token = token }
     local result = api.loadLoadout(live.specID, configID)
     local stillPending = pendingLoad and pendingLoad.token == token
+    TraceEvent(trace, "event=select_loadout configID=%s result=%s pending=%s", configID, result, stillPending)
     if stillPending and result ~= "pending" then
       pendingLoad = nil
     end
@@ -930,7 +961,7 @@ function LoadoutCheck.CreateController(opts)
       -- CONFIG_COMMIT_FAILED, so a silent one counts as done.
       api.after(PENDING_LOAD_TIMEOUT_SECONDS, function()
         if pendingLoad and pendingLoad.token == token then
-          controller.FinishPendingLoad(true)
+          controller.FinishPendingLoad(true, "timeout")
         end
       end)
     end
@@ -946,7 +977,9 @@ function LoadoutCheck.CreateController(opts)
     if lootSpecID ~= 0 and not FindByID(live.specs, lootSpecID) then
       return false
     end
-    if RefuseInCombat() or not api.setLootSpecID(lootSpecID) then
+    local ok = not RefuseInCombat() and api.setLootSpecID(lootSpecID)
+    TraceEvent(trace, "event=select_loot lootSpecID=%s ok=%s", lootSpecID, ok)
+    if not ok then
       return false
     end
     Render()
@@ -964,6 +997,7 @@ function LoadoutCheck.CreateController(opts)
     if live.pendingLoadoutID then
       return false
     end
+    TraceEvent(trace, "event=confirm mapID=%s remember=%s", active.mapID, rememberTargets)
     if not rememberTargets then
       HideCard()
       return true
@@ -996,6 +1030,7 @@ function LoadoutCheck.CreateController(opts)
       return false
     end
     active = { mapID = mapID, dungeonName = dungeonName, instanceID = nil, preview = true }
+    TraceEvent(trace, "event=preview mapID=%s", mapID)
     Render()
     return active ~= nil
   end
@@ -1012,10 +1047,10 @@ function LoadoutCheck.CreateController(opts)
     elseif event == "CHALLENGE_MODE_START" or event == "GROUP_LEFT" then
       HideCard()
     elseif event == "CONFIG_COMMIT_FAILED" and pendingLoad then
-      controller.FinishPendingLoad(false)
+      controller.FinishPendingLoad(false, event)
     elseif event == "TRAIT_CONFIG_UPDATED" and pendingLoad then
       -- The commit went through: the active talents now carry the new loadout.
-      controller.FinishPendingLoad(true)
+      controller.FinishPendingLoad(true, event)
     elseif
       event == "PLAYER_SPECIALIZATION_CHANGED"
       or event == "TRAIT_CONFIG_UPDATED"

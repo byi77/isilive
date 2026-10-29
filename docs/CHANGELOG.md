@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-29 - Version 0.9.469 (patch)
+
+- Talent and loot check (rule 215): `[LOADOUT]` lines in the runtime log
+  (level normal, built only while the log is on) for the dungeon entry
+  (`event=evaluate` with map, instance, spec, active loadout, loot spec and
+  outcome `card`/`chat_ok`/`no_model`), `select_loadout` (LoadConfig result,
+  pending), `commit` (ok and source: `TRAIT_CONFIG_UPDATED`,
+  `CONFIG_COMMIT_FAILED` or `timeout`), `select_loot`, `confirm` and the
+  simulation-tablet `preview`. Wired through `opts.trace` from the factory.
+- The stored-target read moved out of `CreateController` into
+  `ReadStoredTarget` (function size budget).
+
 ## 2026-10-29 - Version 0.9.468 (patch)
 
 - Talent and loot check (rule 215): the card and the accepted-invite card show

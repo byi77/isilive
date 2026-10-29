@@ -307,6 +307,13 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       end,
       getL = ctx.GetL,
       print = ctx.Print,
+      -- [LOADOUT] lines in the runtime log (evaluate, switches, commit, confirm).
+      trace = function(buildMessage)
+        local runtimeLog = ctx.runtimeLogController
+        if runtimeLog and type(runtimeLog.Trace) == "function" then
+          runtimeLog.Trace(buildMessage)
+        end
+      end,
     })
     if type(loadoutCheck.Install) == "function" then
       loadoutCheck.Install()
