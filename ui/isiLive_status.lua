@@ -564,6 +564,60 @@ local function GetDungeonDifficultyLabel(getL)
   return L.DUNGEON_DIFF_UNKNOWN, false, true, instanceType, difficultyID, instanceName
 end
 
+-- Center notice for entering an instance that is not a running key: raid
+-- (every difficulty) or a non-Mythic party dungeon. Returns the message
+-- template (formatted with the difficulty text) and the rich card options.
+-- Shared by the live entry notice and the simulation tablet.
+local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanceName)
+  local template
+  local showOpts
+  if instanceType == "raid" then
+    template = L.RAID_ENTERED or "Raid: %s"
+    showOpts = {
+      eyebrow = L.NON_MYTHIC_NOTICE_RAID_EYEBROW or "Raid",
+      title = L.NON_MYTHIC_NOTICE_RAID_TITLE or "isiLive - Raid entered",
+      fields = {
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_RAID or "Raid:",
+          value = instanceName or L.DUNGEON_DIFF_RAID_UNKNOWN or "Raid",
+        },
+        { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = difficultyText },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
+          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+        },
+      },
+      frameWidth = 680,
+    }
+  else
+    template = L.NON_MYTHIC_ENTERED or "Non-Mythic: %s"
+    showOpts = {
+      eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
+      title = L.NON_MYTHIC_NOTICE_DUNGEON_TITLE or "isiLive - Dungeon entered",
+      fields = {
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
+          value = instanceName or L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon",
+        },
+        { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = difficultyText },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
+          value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
+          warning = true,
+          blink = true,
+        },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
+          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+        },
+      },
+      frameWidth = 680,
+    }
+  end
+  return template, showOpts
+end
+Status.BuildInstanceEntryNotice = BuildInstanceEntryNotice
+
 local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
   local L = deps.getL()
   local isMythic, inDungeon, instanceType, difficultyID, instanceName = select(2, GetDungeonDifficultyLabel(deps.getL))
@@ -620,51 +674,7 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
         return
       end
       state.lastAnnouncedNonMythicSignature = confirmedSignature
-      local template
-      local showOpts
-      if cInstanceType == "raid" then
-        template = L.RAID_ENTERED or "Raid: %s"
-        showOpts = {
-          eyebrow = L.NON_MYTHIC_NOTICE_RAID_EYEBROW or "Raid",
-          title = L.NON_MYTHIC_NOTICE_RAID_TITLE or "isiLive - Raid entered",
-          fields = {
-            {
-              label = L.NON_MYTHIC_NOTICE_LABEL_RAID or "Raid:",
-              value = cInstanceName or L.DUNGEON_DIFF_RAID_UNKNOWN or "Raid",
-            },
-            { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = cText },
-            {
-              label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
-              value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
-            },
-          },
-          frameWidth = 680,
-        }
-      else
-        template = L.NON_MYTHIC_ENTERED or "Non-Mythic: %s"
-        showOpts = {
-          eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
-          title = L.NON_MYTHIC_NOTICE_DUNGEON_TITLE or "isiLive - Dungeon entered",
-          fields = {
-            {
-              label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
-              value = cInstanceName or L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon",
-            },
-            { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = cText },
-            {
-              label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
-              value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
-              warning = true,
-              blink = true,
-            },
-            {
-              label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
-              value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
-            },
-          },
-          frameWidth = 680,
-        }
-      end
+      local template, showOpts = BuildInstanceEntryNotice(L, cInstanceType, cText, cInstanceName)
       deps.showCenterNotice(string.format(template, cText), 120, nil, nil, showOpts)
       -- Mark ownership so the leave-dungeon path knows it may hide this
       -- specific notice. Cleared on dungeon-leave / token-bumped pending

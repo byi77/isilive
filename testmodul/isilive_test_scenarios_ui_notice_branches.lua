@@ -1371,7 +1371,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         return centerNotice.frame:GetHeight(), centerNotice.fieldRows[2].value:GetStringHeight()
       end
       local oneLineHeight, oneLineRow = ShowNavigation("The Waking Shores")
-      local twoLineHeight, twoLineRow = ShowNavigation("The Waking Shores\nUse the portal in Millennia's Threshold")
+      local twoLineHeight, twoLineRow = ShowNavigation("The Waking Shores\nPortal Millennia's Threshold")
       Assert.Equal(twoLineRow, oneLineRow * 2, "the portal hint must render as its own line")
       Assert.True(twoLineHeight > oneLineHeight, "the card must grow for the second navigation line")
     end)

@@ -11,6 +11,11 @@ local IsSecretValue = addonTable.Validators.IsSecretValue
 -- specID makes the roster bonus markers spec-accurate; hasIsiLive marks the
 -- dummies that carry sync data as isiLive users (blue sync arrow), while the
 -- healer stays a plain group member for contrast.
+-- ilvlRewardKeyLevel/ilvlRewardOffset place a dummy's item level just above
+-- the season's Mythic+ reward level of that key, the same anchors the roster
+-- colours item levels by (game/isiLive_ilvl_bands.lua): the preview then shows
+-- the epic, rare and uncommon bands in every season. The rio values span the
+-- score colours the same way. Without reward data the fixed ilvl stays.
 local DUMMY_MEMBERS = {
   tank = {
     name = "Stormbreaker",
@@ -22,6 +27,8 @@ local DUMMY_MEMBERS = {
     specID = 104,
     hasIsiLive = true,
     ilvl = 272,
+    ilvlRewardKeyLevel = 10,
+    ilvlRewardOffset = 3,
     rio = 3120,
     keyMapSlot = 1,
     keyLevel = 10,
@@ -37,7 +44,9 @@ local DUMMY_MEMBERS = {
     spec = "Holy",
     specID = 257,
     ilvl = 268,
-    rio = 2980,
+    ilvlRewardKeyLevel = 6,
+    ilvlRewardOffset = 2,
+    rio = 2480,
     keyMapSlot = 2,
     keyLevel = 9,
     isDemoEntry = true,
@@ -52,6 +61,8 @@ local DUMMY_MEMBERS = {
     specID = 64,
     hasIsiLive = true,
     ilvl = 275,
+    ilvlRewardKeyLevel = 10,
+    ilvlRewardOffset = 6,
     rio = 3210,
     keyMapSlot = 3,
     keyLevel = 11,
@@ -70,7 +81,9 @@ local DUMMY_MEMBERS = {
     specID = 70,
     hasIsiLive = true,
     ilvl = 269,
-    rio = 2870,
+    ilvlRewardKeyLevel = 2,
+    ilvlRewardOffset = 3,
+    rio = 1960,
     keyMapSlot = 4,
     keyLevel = 8,
     syncHasKick = true,
@@ -91,7 +104,9 @@ local DUMMY_MEMBERS = {
     specID = 254,
     hasIsiLive = true,
     ilvl = 271,
-    rio = 3050,
+    ilvlRewardKeyLevel = 6,
+    ilvlRewardOffset = 5,
+    rio = 2710,
     keyMapSlot = 5,
     keyLevel = 10,
     syncKickOnCooldown = true,
@@ -117,10 +132,29 @@ local function ResolveDemoKeyMapID(keyMapSlot)
   return orderedMapIDs[((slot - 1) % count) + 1]
 end
 
+local function ResolveDemoItemLevel(keyLevel, offset)
+  local mythicPlus = rawget(_G, "C_MythicPlus")
+  local getRewardLevel = type(mythicPlus) == "table" and rawget(mythicPlus, "GetRewardLevelFromKeystoneLevel") or nil
+  if type(getRewardLevel) ~= "function" or type(keyLevel) ~= "number" then
+    return nil
+  end
+  local ok, rewardLevel = pcall(getRewardLevel, keyLevel)
+  -- Same plausibility floor as the colour bands: lower means "no data".
+  if not ok or IsSecretValue(rewardLevel) or type(rewardLevel) ~= "number" or rewardLevel < 200 then
+    return nil
+  end
+  return rewardLevel + (tonumber(offset) or 0)
+end
+
 local function CopyRosterEntry(entry)
   local copy = {}
   for key, value in pairs(entry or {}) do
     copy[key] = value
+  end
+  if copy.ilvlRewardKeyLevel ~= nil then
+    copy.ilvl = ResolveDemoItemLevel(copy.ilvlRewardKeyLevel, copy.ilvlRewardOffset) or copy.ilvl
+    copy.ilvlRewardKeyLevel = nil
+    copy.ilvlRewardOffset = nil
   end
   if copy.keyMapSlot ~= nil then
     copy.keyMapID = ResolveDemoKeyMapID(copy.keyMapSlot)

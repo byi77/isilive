@@ -2374,6 +2374,7 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
 
     local expectedSubmodules = {
       "isiLive_factory_demo.lua",
+      "isiLive_factory_demo_cards.lua",
       "isiLive_factory_notices.lua",
       "isiLive_factory_cd_tracker.lua",
       "isiLive_factory_status_helpers.lua",

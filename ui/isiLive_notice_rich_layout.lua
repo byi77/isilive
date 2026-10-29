@@ -19,9 +19,10 @@ local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local IncreaseFontSize = NoticeCommon.IncreaseFontSize
 local SetReadableText = NoticeCommon.SetReadableText
 -- Test harnesses may load this file without Validators; treat nothing as secret there.
-local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue or function()
-  return false
-end
+local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue
+  or function(_value)
+    return false
+  end
 
 local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82, 0.25
 local SUBLINE_GAP = 4

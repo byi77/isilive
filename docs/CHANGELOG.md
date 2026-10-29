@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-29 - Version 0.9.467 (patch)
+
+- Talent and loot check (rule 215): the accepted-invite `Loadout` row lists
+  one status per line with the ready-check icon in the status colour (tick,
+  cross, hourglass); a mismatch puts only that row on the warning strip, the
+  card keeps its own kind (`noticeKind` is fixed for the invite card).
+- A talent switch whose commit is still running (`LoadConfig` =
+  LoadInProgress) is marked selected only after `TRAIT_CONFIG_UPDATED`;
+  `CONFIG_COMMIT_FAILED` reports the interruption in chat; without either
+  event the active talents decide after 10 s. Talent buttons and confirm are
+  locked while the switch runs.
+- Talents changed without saving (export string of the active talents differs
+  from the selected loadout) no longer count as the remembered loadout; the
+  card and the invite row name the unsaved change. Without readable export
+  strings no difference is claimed.
+- The navigation row's portal hint is shortened to `Portal <hub>` in every
+  language.
+- Simulation tablet: every card has its own trigger and goes through the live
+  builder or renderer with the loaded character's data (own keystone dungeon,
+  level and time limit, own stats, Power Infusion on the player, the real talent
+  and loot check with real switches); only the invite, its leader and title,
+  and a raid outside a raid are simulated. New triggers: own key search, raid
+  invite, raid entered, lead transferred. The demo roster places dummy item
+  levels on the season's reward tiers and spreads the ratings over the score
+  colours.
+
 ## 2026-10-29 - Version 0.9.466 (patch)
 
 - Center notice cards redesigned (rule 70 updated): header band with a

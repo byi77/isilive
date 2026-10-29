@@ -84,7 +84,7 @@ local function ResolveGroupTitleKeyLevel(groupName)
   return best
 end
 
-local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, loadoutText)
+local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, loadoutField)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
 
@@ -117,25 +117,29 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, 
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = navigationText }
   end
 
-  if type(loadoutText) == "string" and loadoutText ~= "" then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:", value = loadoutText }
+  if type(loadoutField) == "table" then
+    fields[#fields + 1] = {
+      label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:",
+      value = loadoutField.value,
+      warning = loadoutField.warning == true,
+    }
   end
 
   return fields
 end
 
 -- Talent / loot spec status against the target confirmed for this dungeon
--- (rule 215); nil hides the row, also when nothing was confirmed yet.
-local function ResolveAcceptedInviteLoadoutText(mapID)
+-- (rule 215) as { value, warning }: icon and colour per part; nil hides the row.
+local function ResolveAcceptedInviteLoadoutField(mapID)
   local loadoutCheck = addonTable.LoadoutCheck
-  if not mapID or type(loadoutCheck) ~= "table" or type(loadoutCheck.GetSummary) ~= "function" then
+  if not mapID or type(loadoutCheck) ~= "table" or type(loadoutCheck.GetSummaryField) ~= "function" then
     return nil
   end
-  local ok, text = pcall(loadoutCheck.GetSummary, mapID)
-  if not ok or type(text) ~= "string" or text == "" then
+  local ok, field = pcall(loadoutCheck.GetSummaryField, mapID)
+  if not ok or type(field) ~= "table" or type(field.value) ~= "string" or field.value == "" then
     return nil
   end
-  return text
+  return field
 end
 
 -- Zone of the target dungeon (plus the portal hint); nil hides the row.
@@ -168,13 +172,11 @@ local function IsGroupJoinNoticeEnabled()
   return db.groupJoinNoticeEnabled ~= false
 end
 
-local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoticeGate)
-  if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
-  if useAcceptedNoticeGate ~= false and not IsAcceptedInviteNoticeEnabled() then
-    return
-  end
+-- Center-notice arguments of the accepted-invite card for `payload`
+-- ({ mapID, activityID, level, leaderName, groupName, sourceText, title }):
+-- { dungeonName, activityID, options }. Shared by the live notice and the
+-- simulation tablet, which feeds it a simulated invite.
+local function BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
   local L = ctx.GetL and ctx.GetL() or {}
 
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
@@ -191,18 +193,35 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoti
     mapName,
     payload,
     ResolveAcceptedInviteNavigationText(ctx, mapID),
-    ResolveAcceptedInviteLoadoutText(mapID)
+    ResolveAcceptedInviteLoadoutField(mapID)
   )
   local hasTeleportContext = activityID ~= nil or mapID ~= nil
 
-  ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {
-    eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
-    title = payload.title or L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
-    fields = fields,
-    teleportMapID = mapID,
-    frameWidth = 680,
-    persistent = true,
-  })
+  return {
+    dungeonName = hasTeleportContext and mapName or nil,
+    activityID = activityID,
+    options = {
+      eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
+      title = payload.title or L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
+      fields = fields,
+      teleportMapID = mapID,
+      -- Fixed kind: a loadout mismatch marks its own row, not the whole card.
+      noticeKind = hasTeleportContext and "action" or "info",
+      frameWidth = 680,
+      persistent = true,
+    },
+  }
+end
+
+local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoticeGate)
+  if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+  if useAcceptedNoticeGate ~= false and not IsAcceptedInviteNoticeEnabled() then
+    return
+  end
+  local args = BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
+  ctx.ShowCenterNotice(nil, nil, args.dungeonName, args.activityID, args.options)
 end
 
 local function ShowJoinedTargetNotice(ctx, modules)
@@ -296,15 +315,16 @@ local function BuildAcceptedRaidInviteFields(ctx, mapName, payload)
   return fields
 end
 
-local function RenderAcceptedRaidInviteNotice(ctx, modules, payload)
+local function RenderAcceptedRaidInviteNotice(ctx, modules, payload, useAcceptedNoticeGate)
   if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
     return
   end
-  if not IsAcceptedInviteNoticeEnabled() then
+  if useAcceptedNoticeGate ~= false and not IsAcceptedInviteNoticeEnabled() then
     return
   end
   local L = ctx.GetL and ctx.GetL() or {}
-  local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
+  local mapName = type(payload.mapName) == "string" and payload.mapName ~= "" and payload.mapName
+    or ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
   local fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload)
   ctx.ShowCenterNotice(nil, nil, nil, nil, {
     eyebrow = L.INVITE_ACCEPTED_RAID_NOTICE_EYEBROW or "Raid Target",
@@ -387,6 +407,7 @@ FI.ResolveAcceptedInviteDungeonName = ResolveAcceptedInviteDungeonName
 FI.ResolveGroupTitleKeyLevel = ResolveGroupTitleKeyLevel
 FI.BuildAcceptedInviteFields = BuildAcceptedInviteFields
 FI.ResolveAcceptedInviteNavigationText = ResolveAcceptedInviteNavigationText
+FI.BuildAcceptedInviteNoticeArgs = BuildAcceptedInviteNoticeArgs
 FI.RenderAcceptedInviteNotice = RenderAcceptedInviteNotice
 FI.ShowJoinedTargetNotice = ShowJoinedTargetNotice
 FI.BuildAcceptedRaidInviteFields = BuildAcceptedRaidInviteFields

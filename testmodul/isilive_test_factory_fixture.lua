@@ -860,6 +860,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_factory_cd_tracker.lua",
     "isiLive_factory_status_helpers.lua",
     "isiLive_factory_runtime_helpers.lua",
+    "isiLive_factory_demo_cards.lua",
     "isiLive_factory_demo.lua",
     "isiLive_factory_testmode_bindings.lua",
     "isiLive_factory_combat_announces.lua",

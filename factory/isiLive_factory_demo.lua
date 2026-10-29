@@ -7,16 +7,26 @@ addonTable._FactoryInternal = FI
 local FactoryDemo = {}
 FI.FactoryDemo = FactoryDemo
 
+-- Test harnesses may load this file without Validators; treat nothing as secret there.
+local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue
+  or function(_value)
+    return false
+  end
+
+-- Card triggers with live builders and real player data, see
+-- isiLive_factory_demo_cards.lua.
+local function Cards()
+  return FI.FactoryDemoCards or {}
+end
+
 local DEMO_FEATURE_NIL = {}
-local DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME = "Priorei der Heiligen Flamme"
 local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
 local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
+-- Simulated M+ run: 13 minutes in; the limit comes from the target dungeon.
+local DEMO_TIMER_ELAPSED_SECONDS = 780
+local DEMO_TIMER_DEFAULT_LIMIT_SECONDS = 1800
 local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
 local SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS = 30
--- Key level of the simulated target, matching the demo M+ timer.
-local DEMO_TARGET_KEY_LEVEL = 15
-local DEMO_FEATURE_PI_CASTER_NAME = "Velindra-Hyjal"
-local DEMO_FEATURE_PI_RECIPIENT_NAME = "Player-Realm"
 local DEMO_FEATURE_DB_KEYS = {
   "acceptedInviteNoticeEnabled",
   "groupJoinNoticeEnabled",
@@ -39,43 +49,15 @@ local DEMO_FEATURE_DB_KEYS = {
   "timePaceEnabled",
 }
 
-local function GetDemoSeasonData(ctx)
-  return (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
-end
-
--- The demo target is the first dungeon of the active season, so the preview
--- follows every season switch instead of pinning a past season's map. Without
--- an active season (or a name for its first map) there is no verified target:
--- the previews then render without a dungeon instead of inventing one.
+-- Preview target: the player's own keystone, else the active season's first
+-- dungeon at +15 (see FactoryDemoCards.ResolveTarget). Returns mapID, name and
+-- key level; without an active season the previews render without a dungeon.
 local function ResolveDemoTarget(ctx)
-  local seasonData = GetDemoSeasonData(ctx)
-  if type(seasonData) ~= "table" or type(seasonData.GetOrderedMapIDs) ~= "function" then
-    return nil, nil
+  local resolve = Cards().ResolveTarget
+  if type(resolve) ~= "function" then
+    return nil, nil, 15
   end
-  local orderedMapIDs = seasonData.GetOrderedMapIDs()
-  local mapID = type(orderedMapIDs) == "table" and orderedMapIDs[1] or nil
-  if type(mapID) ~= "number" or type(seasonData.GetDungeonName) ~= "function" then
-    return nil, nil
-  end
-  local name = seasonData.GetDungeonName(mapID, ctx.locale)
-  if type(name) ~= "string" or name == "" then
-    return nil, nil
-  end
-  return mapID, name
-end
-
-local function FormatDemoTargetWithLevel(name)
-  return name and (name .. " +15") or nil
-end
-
--- Same navigation row (zone, entrance coordinates, portal room) as the live
--- accepted-invite card; without location data the row stays hidden there too.
-local function AppendDemoNavigationField(ctx, L, fields, mapID)
-  local resolve = FI.ResolveAcceptedInviteNavigationText
-  local text = mapID and type(resolve) == "function" and resolve(ctx, mapID) or nil
-  if text then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = text }
-  end
+  return resolve(ctx)
 end
 
 local function CaptureDemoFeatureSnapshot(db)
@@ -182,19 +164,9 @@ local function ApplyDemoStatsBox(ctx)
     return
   end
 
-  if type(statsBox.SetDemoData) == "function" then
-    statsBox.SetDemoData({
-      { key = "strength", label = "Str", value = 4210 },
-      { key = "stamina", label = "Stam", value = 6812 },
-      { key = "crit", label = "Crit", value = 1824, percent = 24.85 },
-      { key = "haste", label = "Haste", value = 1492, percent = 18.42 },
-      { key = "mastery", label = "Mast", value = 2108, percent = 37.66 },
-      { key = "versatility", label = "Vers", value = 1154, percent = 14.12 },
-      { key = "leech", label = "Leech", value = 238, percent = 3.27 },
-      { key = "speed", label = "Speed", value = 326, percent = 6.44 },
-      { key = "durability", label = "Dur", valueText = "483", percent = 96.60 },
-      { key = "avoidance", label = "Avoid", value = 412, percent = 5.18 },
-    })
+  -- The loaded character's own stats: no demo values are injected.
+  if type(statsBox.ClearDemoData) == "function" then
+    statsBox.ClearDemoData()
   end
   if type(statsBox.SetEnabled) == "function" then
     statsBox.SetEnabled(true)
@@ -308,10 +280,8 @@ local function ApplyDemoAlertAndSoundPreview(ctx, _L)
     ctx.ShowRoleDeathAlert("DAMAGER", "party3")
   end
 
-  if type(ctx.ShowPowerInfusionAnnounce) == "function" then
-    -- Demo previews bypass the duplicate latch: the same fixed caster/recipient
-    -- pair is replayed on demand and must render every time.
-    ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true, true)
+  if Cards().ShowPowerInfusion then
+    Cards().ShowPowerInfusion(ctx)
   end
 
   local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
@@ -351,163 +321,6 @@ local function ShowDemoPortalNavigator(ctx, L)
   end
 end
 
-local function BuildDemoAcceptedInviteNoticePayload(ctx, L)
-  local targetMapID, targetName = ResolveDemoTarget(ctx)
-  local fields = {}
-  if targetName then
-    fields[#fields + 1] = {
-      label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:",
-      value = FormatDemoTargetWithLevel(targetName),
-    }
-  end
-  fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" }
-  fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" }
-  fields[#fields + 1] = {
-    label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
-    value = L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
-  }
-  AppendDemoNavigationField(ctx, L, fields, targetMapID)
-  return {
-    message = nil,
-    durationSeconds = nil,
-    dungeonName = targetName,
-    activityID = nil,
-    showOptions = {
-      eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
-      title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
-      fields = fields,
-      teleportMapID = targetMapID,
-      frameWidth = 680,
-      persistent = true,
-    },
-  }
-end
-
-local function ShowDemoAcceptedInviteNotice(ctx, L)
-  if type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
-
-  local payload = BuildDemoAcceptedInviteNoticePayload(ctx, L)
-  ctx.ShowCenterNotice(
-    payload.message,
-    payload.durationSeconds,
-    payload.dungeonName,
-    payload.activityID,
-    payload.showOptions
-  )
-end
-
-local function BuildDemoNonMythicDungeonNoticePayload(L)
-  return {
-    message = string.format(
-      L.NON_MYTHIC_ENTERED or "Warning: Entered non-Mythic dungeon (%s).",
-      L.DUNGEON_DIFF_NORMAL or "Normal"
-    ),
-    durationSeconds = 120,
-    dungeonName = nil,
-    activityID = nil,
-    showOptions = {
-      eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
-      title = L.NON_MYTHIC_NOTICE_DUNGEON_TITLE or "isiLive - Dungeon entered",
-      fields = {
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
-          value = L.NON_MYTHIC_NOTICE_DEMO_DUNGEON or DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME,
-        },
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:",
-          value = L.DUNGEON_DIFF_NORMAL or "Normal",
-        },
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
-          value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
-          warning = true,
-          blink = true,
-        },
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
-          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
-        },
-      },
-      frameWidth = 680,
-      persistent = true,
-    },
-  }
-end
-
-local function ShowDemoNonMythicDungeonNotice(ctx, L)
-  if type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
-
-  local payload = BuildDemoNonMythicDungeonNoticePayload(L)
-  ctx.ShowCenterNotice(
-    payload.message,
-    payload.durationSeconds,
-    payload.dungeonName,
-    payload.activityID,
-    payload.showOptions
-  )
-end
-
-local function ShowSimulationGroupFullNotice(ctx, L)
-  if type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
-
-  ctx.ShowCenterNotice(nil, 120, nil, nil, {
-    eyebrow = L.SIM_GROUP_FULL_EYEBROW or "LFG simulation",
-    title = L.SIM_GROUP_FULL_TITLE or "isiLive - Group is full",
-    fields = {
-      { label = L.SIM_NOTICE_LABEL_STATE or "State:", value = L.SIM_GROUP_FULL_VALUE or "Group full" },
-      {
-        label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
-        value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
-      },
-      {
-        label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
-        value = L.SIM_GROUP_FULL_HINT or "No group action and no chat post were sent.",
-        warning = true,
-      },
-    },
-    frameWidth = 680,
-    persistent = true,
-  })
-end
-
-local function ShowSimulationJoinedTargetNotice(ctx, L)
-  if type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
-
-  local targetMapID, targetName = ResolveDemoTarget(ctx)
-  local fields = {}
-  if targetName then
-    fields[#fields + 1] = {
-      label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:",
-      value = FormatDemoTargetWithLevel(targetName),
-    }
-  end
-  fields[#fields + 1] = {
-    label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
-    value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
-  }
-  AppendDemoNavigationField(ctx, L, fields, targetMapID)
-  fields[#fields + 1] = {
-    label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
-    value = L.SIM_JOINED_TARGET_HINT or "Local center notice only; no real chat post was sent.",
-  }
-  ctx.ShowCenterNotice(nil, 120, targetName, nil, {
-    eyebrow = L.SIM_JOINED_TARGET_EYEBROW or "Group joined",
-    title = L.SIM_JOINED_TARGET_TITLE or "isiLive - Joined target group",
-    fields = fields,
-    teleportMapID = targetMapID,
-    frameWidth = 680,
-    persistent = true,
-  })
-end
-
 local function ApplyDemoFeatureData(ctx)
   ctx._demoFeatureActive = true
   ApplyDemoFeatureDbOverrides(ctx)
@@ -520,22 +333,26 @@ local function ApplyDemoFeatureData(ctx)
   local L = ctx.GetL and ctx.GetL() or {}
   ApplyDemoAlertAndSoundPreview(ctx, L)
   ShowDemoPortalNavigator(ctx, L)
-  if type(ctx.ShowDemoCenterNotices) == "function" then
+  -- The talent & loot check stays behind tablet action C6: at its live
+  -- position it would cover the portal navigator. The invite card below
+  -- still carries its live "Loadout" row.
+  local cards = Cards()
+  if type(ctx.ShowDemoCenterNotices) == "function" and cards.BuildAcceptedInviteNotice then
     ctx.ShowDemoCenterNotices({
-      BuildDemoAcceptedInviteNoticePayload(ctx, L),
-      BuildDemoNonMythicDungeonNoticePayload(L),
+      cards.BuildAcceptedInviteNotice(ctx, false),
+      cards.BuildInstanceEntryNotice(ctx, "party"),
     })
-  else
-    ShowDemoAcceptedInviteNotice(ctx, L)
+  elseif cards.ShowAcceptedInvite then
+    cards.ShowAcceptedInvite(ctx)
     local timer = rawget(_G, "C_Timer")
     if type(timer) == "table" and type(timer.After) == "function" then
       timer.After(DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS, function()
         if ctx._demoFeatureActive == true then
-          ShowDemoNonMythicDungeonNotice(ctx, ctx.GetL and ctx.GetL() or L)
+          cards.ShowInstanceEntry(ctx, "party")
         end
       end)
     else
-      ShowDemoNonMythicDungeonNotice(ctx, L)
+      cards.ShowInstanceEntry(ctx, "party")
     end
   end
   if type(ctx.ShowSimulationTablet) == "function" then
@@ -616,6 +433,9 @@ local function ClearDemoFeatureData(ctx)
   if type(ctx.SetDemoCenterNoticesVisible) == "function" then
     ctx.SetDemoCenterNoticesVisible(false)
   end
+  if Cards().HideLoadoutCheck then
+    Cards().HideLoadoutCheck(ctx)
+  end
   local db = rawget(_G, "IsiLiveDB")
   local snapshot = ctx._demoFeatureSnapshot
   if type(db) == "table" and type(snapshot) == "table" then
@@ -637,23 +457,40 @@ local function ClearDemoFeatureData(ctx)
   end
 end
 
+-- Time limit of the target dungeon from the game; 30 minutes without one.
+local function ResolveDemoTimeLimit(mapID)
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  local getMapUIInfo = type(challengeMode) == "table" and challengeMode.GetMapUIInfo or nil
+  if mapID and type(getMapUIInfo) == "function" then
+    local ok, _, _, timeLimit = pcall(getMapUIInfo, mapID)
+    if ok and not IsSecretValue(timeLimit) and type(timeLimit) == "number" and timeLimit > 0 then
+      return timeLimit
+    end
+  end
+  return DEMO_TIMER_DEFAULT_LIMIT_SECONDS
+end
+
 local function SetDemoTimerData(ctx, runtimeState)
+  local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.SetDemoData) == "function" then
+    -- Simulated run state (elapsed time, deaths) on the target's real time
+    -- limit; the chest thresholds follow it (+2 at 80 %, +3 at 60 %).
+    local timeLimit = ResolveDemoTimeLimit(targetMapID)
+    local elapsed = DEMO_TIMER_ELAPSED_SECONDS
     MplusTimer.SetDemoData({
       running = true,
       completed = false,
-      timer = 780,
-      timeLimit = 1800,
-      keyLevel = DEMO_TARGET_KEY_LEVEL,
-      timeRemaining1 = 1020,
-      timeRemaining2 = 660,
-      timeRemaining3 = 300,
+      timer = elapsed,
+      timeLimit = timeLimit,
+      keyLevel = targetLevel,
+      timeRemaining1 = timeLimit - elapsed,
+      timeRemaining2 = math.floor(timeLimit * 0.8) - elapsed,
+      timeRemaining3 = math.floor(timeLimit * 0.6) - elapsed,
       deaths = 2,
       deathTimeLost = 8,
     })
   end
-  local targetMapID, targetName = ResolveDemoTarget(ctx)
   if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
     runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
   end
@@ -698,11 +535,11 @@ end
 -- and forces go idle, so the row shows the gold empty bar with the light
 -- sweep and the pulsing target. C1 brings the running key back.
 local function SetDemoPreKeyData(ctx, runtimeState)
-  local targetMapID, targetName = ResolveDemoTarget(ctx)
+  local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
   if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
     runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
   end
-  ctx._demoTargetKey = targetMapID and { mapID = targetMapID, level = DEMO_TARGET_KEY_LEVEL } or nil
+  ctx._demoTargetKey = targetMapID and { mapID = targetMapID, level = targetLevel } or nil
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
     MplusTimer.ClearDemoData()
@@ -763,9 +600,9 @@ local function BuildSimulationTabletActions(ctx)
       titleKey = "SIM_ACTION_A1_TITLE",
       descKey = "SIM_ACTION_A1_DESC",
       title = "Accepted invite notice",
-      description = "Shows the safe accepted-invite center notice for the demo dungeon.",
+      description = "Live accepted-invite card for a simulated invite to your own key or the season target.",
       run = function()
-        ShowDemoAcceptedInviteNotice(ctx, L())
+        Cards().ShowAcceptedInvite(ctx)
         return done("SIM_ACTION_A1_DONE")
       end,
     },
@@ -778,20 +615,20 @@ local function BuildSimulationTabletActions(ctx)
       title = "Group is full",
       description = "Shows a synthetic group-full notice without sending chat or group actions.",
       run = function()
-        ShowSimulationGroupFullNotice(ctx, L())
+        Cards().ShowGroupFull(ctx)
         return done("SIM_ACTION_A2_DONE")
       end,
     },
     {
       id = "A3",
       category = "group",
-      status = "yellow",
+      status = "green",
       titleKey = "SIM_ACTION_A3_TITLE",
       descKey = "SIM_ACTION_A3_DESC",
-      title = "Joined target group",
-      description = "Shows a local joined-target notice using the verified demo dungeon.",
+      title = "Joined own key search",
+      description = "Live card for joining your own LFG key search, with you as the leader.",
       run = function()
-        ShowSimulationJoinedTargetNotice(ctx, L())
+        Cards().ShowJoinedOwnListing(ctx)
         return done("SIM_ACTION_A3_DONE")
       end,
     },
@@ -802,10 +639,49 @@ local function BuildSimulationTabletActions(ctx)
       titleKey = "SIM_ACTION_A4_TITLE",
       descKey = "SIM_ACTION_A4_DESC",
       title = "Non-Mythic dungeon warning",
-      description = "Shows the non-Mythic dungeon center notice preview.",
+      description = "Live dungeon-entry card: your current dungeon, else the target dungeon on Normal.",
       run = function()
-        ShowDemoNonMythicDungeonNotice(ctx, L())
+        Cards().ShowInstanceEntry(ctx, "party")
         return done("SIM_ACTION_A4_DONE")
+      end,
+    },
+    {
+      id = "A6",
+      category = "group",
+      status = "green",
+      titleKey = "SIM_ACTION_A6_TITLE",
+      descKey = "SIM_ACTION_A6_DESC",
+      title = "Raid invite",
+      description = "Live raid-invite card for a simulated raid group, with your own role.",
+      run = function()
+        Cards().ShowAcceptedRaidInvite(ctx)
+        return done("SIM_ACTION_A6_DONE")
+      end,
+    },
+    {
+      id = "A7",
+      category = "group",
+      status = "green",
+      titleKey = "SIM_ACTION_A7_TITLE",
+      descKey = "SIM_ACTION_A7_DESC",
+      title = "Raid entered",
+      description = "Live raid-entry card: your current raid, else a simulated raid on Heroic.",
+      run = function()
+        Cards().ShowInstanceEntry(ctx, "raid")
+        return done("SIM_ACTION_A7_DONE")
+      end,
+    },
+    {
+      id = "A8",
+      category = "group",
+      status = "green",
+      titleKey = "SIM_ACTION_A8_TITLE",
+      descKey = "SIM_ACTION_A8_DESC",
+      title = "Lead transferred",
+      description = "Live notice shown when group lead passes to you.",
+      run = function()
+        Cards().ShowLeadTransferred(ctx)
+        return done("SIM_ACTION_A8_DONE")
       end,
     },
     {
@@ -900,6 +776,19 @@ local function BuildSimulationTabletActions(ctx)
       run = function()
         SetDemoPreKeyData(ctx, ctx._demoRuntimeState or {})
         return done("SIM_ACTION_C5_DONE")
+      end,
+    },
+    {
+      id = "C6",
+      category = "mplus",
+      status = "green",
+      titleKey = "SIM_ACTION_C6_TITLE",
+      descKey = "SIM_ACTION_C6_DESC",
+      title = "Talents & loot check",
+      description = "Real talent and loot check for the target dungeon; its buttons really switch.",
+      run = function()
+        Cards().ShowLoadoutCheck(ctx)
+        return done("SIM_ACTION_C6_DONE")
       end,
     },
     {
@@ -1014,12 +903,9 @@ local function BuildSimulationTabletActions(ctx)
       titleKey = "SIM_ACTION_E3_TITLE",
       descKey = "SIM_ACTION_E3_DESC",
       title = "Power Infusion alert",
-      description = "Shows the local Power Infusion chat and center-alert preview.",
+      description = "Power Infusion on you from a simulated party priest: chat and center alert.",
       run = function()
-        if type(ctx.ShowPowerInfusionAnnounce) == "function" then
-          -- Replayable preview: bypass the duplicate latch, see above.
-          ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true, true)
-        end
+        Cards().ShowPowerInfusion(ctx)
         return done("SIM_ACTION_E3_DONE")
       end,
     },
@@ -1043,7 +929,7 @@ local function BuildSimulationTabletActions(ctx)
       titleKey = "SIM_ACTION_F1_TITLE",
       descKey = "SIM_ACTION_F1_DESC",
       title = "Stats box preview",
-      description = "Populates the movable stats box with deterministic demo values.",
+      description = "Shows the movable stats box with your character's own stats.",
       run = function()
         ApplyDemoStatsBox(ctx)
         return done("SIM_ACTION_F1_DONE")

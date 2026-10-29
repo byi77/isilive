@@ -1,11 +1,16 @@
--- Center-notice card gallery: every rich card the simulation tablet can
--- show (accepted invite with portal action, group full, joined target,
--- non-Mythic warning), one step each, for layout checks of the card design.
+-- Center-notice card gallery: every card the simulation tablet can show
+-- (accepted invite with portal action, group full, own key search, non-Mythic
+-- warning, raid invite, raid entered, lead transferred), one step each, for
+-- layout checks of the card design, plus the portal navigator and the real
+-- talent & loot check card.
 local CARDS = {
   { action = "^Accepted invite$", label = "Accepted invite (action)" },
   { action = "^Group full$", label = "Group full (warning)" },
-  { action = "^Joined target$", label = "Joined target group (action)" },
+  { action = "^Own key search$", label = "Own key search (action)" },
   { action = "^Non%-M%+ warning$", label = "Non-Mythic dungeon (warning)" },
+  { action = "^Raid invite$", label = "Raid invite (info)" },
+  { action = "^Raid entered$", label = "Raid entered (info)" },
+  { action = "^Lead transferred$", label = "Lead transferred (text)" },
 }
 
 -- The tablet's tabs and action tiles carry their text on a child `label`
@@ -26,7 +31,7 @@ end
 
 return {
   name = "center_notice_cards",
-  description = "Center-notice card gallery: invite, group full, joined target, non-Mythic warning",
+  description = "Card gallery: invites, group full, entries, lead, navigator, loadout check",
   setup = {
     locale = "enUS",
     party = {
@@ -71,5 +76,24 @@ return {
     sim.Expect(env.isiLivePortalNavigatorNotice:IsShown(), "Portal navigator: notice is shown")
     env.isiLiveSimulationTablet:Hide()
     sim.Step("Portal navigator (action)")
+
+    -- The real talent & loot check card for the preview target; the
+    -- accepted-invite card then carries its live "Loadout" row.
+    env.isiLivePortalNavigatorNotice:Hide()
+    env.isiLiveSimulationTablet:Show()
+    ClickTabletButton(sim, "^Talents & loot check$")
+    sim.Wait(1)
+    sim.Expect(env.IsiLiveLoadoutCheckCard:IsShown(), "Loadout check: card is shown")
+    env.isiLiveSimulationTablet:Hide()
+    sim.Step("Talents & loot check")
+    env.IsiLiveLoadoutCheckCard:Hide()
+    env.isiLiveSimulationTablet:Show()
+    ClickTabletButton(sim, "^Group$")
+    ClickTabletButton(sim, CARDS[1].action)
+    sim.Wait(1)
+    sim.Expect(env.isiLiveCenterNotice:IsShown(), "Accepted invite with loadout row: center notice is shown")
+    env.isiLiveSimulationTablet:Hide()
+    env.isiLiveMainFrame:Hide()
+    sim.Step("Accepted invite with loadout row")
   end,
 }

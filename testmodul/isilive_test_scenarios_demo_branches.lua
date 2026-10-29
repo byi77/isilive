@@ -144,6 +144,50 @@ return function(test, ctx)
     end)
   end)
 
+  -- Dummy item levels: anchored to the season's reward levels ------------------
+
+  local function DummyIlvlByRole(roster)
+    local byRole = {}
+    for unit, info in pairs(roster) do
+      if unit ~= "player" and info.isDemoEntry then
+        byRole[info.name] = info.ilvl
+      end
+    end
+    return byRole
+  end
+
+  test("BuildDummyRoster places dummy item levels above the season reward levels", function()
+    local rewards = { [10] = 259, [6] = 250, [2] = 240 }
+    WithGlobals({
+      C_MythicPlus = {
+        GetRewardLevelFromKeystoneLevel = function(keyLevel)
+          return rewards[keyLevel]
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local ilvls = DummyIlvlByRole(addon.Demo.BuildDummyRoster({}))
+      Assert.Equal(ilvls.Stormbreaker, 262, "tank sits in the +10 (epic) band")
+      Assert.Equal(ilvls.Velindra, 252, "healer sits in the +6 (rare) band")
+      Assert.Equal(ilvls.Zephyrax, 265, "mage sits in the +10 (epic) band")
+    end)
+  end)
+
+  test("BuildDummyRoster keeps the fixed dummy item levels without plausible reward data", function()
+    WithGlobals({
+      C_MythicPlus = {
+        GetRewardLevelFromKeystoneLevel = function()
+          return 0
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local ilvls = DummyIlvlByRole(addon.Demo.BuildDummyRoster({}))
+      Assert.Equal(ilvls.Stormbreaker, 272, "no reward data keeps the fixed tank item level")
+      Assert.Equal(ilvls.Velindra, 268, "no reward data keeps the fixed healer item level")
+    end)
+  end)
+
   -- ResolvePlayerKeystone: full happy path -------------------------------------
 
   test("BuildDummyRoster reads owned keystone level + map when C_MythicPlus is present", function()

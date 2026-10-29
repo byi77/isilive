@@ -310,9 +310,9 @@ function DungeonLocation.GetNavigationText(challengeMapID, portalFormat)
   local portalRoomName = DungeonLocation.GetPortalRoomName(challengeMapID)
   if portalRoomName then
     -- The German map name can carry its article ("Die Jahrhundertschwelle");
-    -- the localized sentence supplies its own ("in der %s").
+    -- the short label reads "Portal Jahrhundertschwelle" without it.
     portalRoomName = portalRoomName:gsub("^Die ", "")
-    lines[#lines + 1] = string.format(portalFormat or "Use the portal in %s", portalRoomName)
+    lines[#lines + 1] = string.format(portalFormat or "Portal %s", portalRoomName)
   end
   if #lines == 0 then
     return nil

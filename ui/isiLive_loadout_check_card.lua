@@ -27,6 +27,7 @@ local STATUS_COLORS = {
   ok = Colors.SUCCESS_GREEN_BAR,
   mismatch = Colors.TEXT_ALERT_DANGER,
   unknown = Colors.TEXT_SUPPORTING,
+  pending = Colors.MUTED_GOLD_PCT_TEXT,
 }
 
 -- Controller of the current render; its GetText follows the isiLive language
@@ -67,7 +68,13 @@ local function LootOptionLabel(option)
 end
 
 local function TalentStatusText(talents)
+  if talents.status == "pending" then
+    return string.format(Text("LOADOUT_CHECK_STATUS_PENDING", "Switching to %s ..."), talents.pendingName or "?")
+  end
   local current = talents.currentName or Text("LOADOUT_CHECK_NO_LOADOUT", "no saved loadout")
+  if talents.modified then
+    current = string.format(Text("LOADOUT_CHECK_MODIFIED_NAME", "%s (changed, not saved)"), current)
+  end
   if talents.status == "ok" then
     return string.format(Text("LOADOUT_CHECK_STATUS_OK", "OK: %s"), current)
   elseif talents.status == "mismatch" then
@@ -160,7 +167,9 @@ local function GetOptionButton(frame, pool, index)
 end
 
 -- Lays out one button per option below `anchorY` and returns the new y.
-local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, disabled)
+-- `availability`: nil for clickable buttons, "combat" in combat, "cooldown"
+-- while a talent switch is still committing.
+local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, availability)
   local y = anchorY
   for index, option in ipairs(options) do
     local button = GetOptionButton(frame, pool, index)
@@ -178,7 +187,7 @@ local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, d
       SetReadable(button._flatLabel, label)
     end
     button:SetSemanticRole(option.active and "primary" or "secondary")
-    button:SetAvailabilityState(disabled and "combat" or "available")
+    button:SetAvailabilityState(availability or "available")
     button:SetScript("OnClick", function()
       onClick(option)
     end)
@@ -214,7 +223,7 @@ local function Render(frame, model, controller)
     return option.name
   end, function(option)
     controller.SelectLoadout(option.id)
-  end, model.inCombat)
+  end, model.inCombat and "combat" or (model.talents.status == "pending" and "cooldown" or nil))
   y = y - 4
 
   Place(frame.lootHeader, Text("LOADOUT_CHECK_LOOT", "Loot specialization"))
@@ -222,7 +231,7 @@ local function Render(frame, model, controller)
   Place(frame.lootStatus, LootStatusText(model.loot), LINE_HEIGHT + 4)
   y = LayoutOptions(frame, frame.lootButtons, model.loot.options, y, LootOptionLabel, function(option)
     controller.SelectLootSpec(option.id)
-  end, model.inCombat)
+  end, model.inCombat and "combat" or nil)
 
   if model.inCombat then
     Place(frame.combatHint, Text("LOADOUT_CHECK_COMBAT_BLOCKED", "Talents and loot spec cannot be changed in combat."))
@@ -247,6 +256,8 @@ local function Render(frame, model, controller)
   if frame.confirmButton._flatLabel then
     SetReadable(frame.confirmButton._flatLabel, ConfirmLabel(model))
   end
+  -- Confirming mid-switch would remember the old loadout.
+  frame.confirmButton:SetAvailabilityState(model.talents.status == "pending" and "cooldown" or "available")
   frame.confirmButton:SetScript("OnClick", function()
     controller.Confirm()
   end)

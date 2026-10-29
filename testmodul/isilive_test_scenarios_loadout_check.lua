@@ -395,6 +395,111 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  -- A talent switch whose commit only started: LoadConfig answers
+  -- LoadInProgress, the selection moves only after the commit succeeded.
+  local function WithPendingLoads(world)
+    world.marked = {}
+    world.deps.loadLoadout = function(specID, configID)
+      world.loads[#world.loads + 1] = { specID = specID, configID = configID }
+      return "pending"
+    end
+    world.deps.markLoadoutSelected = function(_, configID)
+      world.marked[#world.marked + 1] = configID
+      world.selectedLoadoutID = configID
+    end
+  end
+
+  test("LoadoutCheck marks a talent switch selected only after its commit succeeded", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      WithPendingLoads(world)
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = 0 })
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      Assert.True(world.cardController.SelectLoadout(102), "the switch starts")
+      local model = world.LastModel()
+      Assert.Equal(model.talents.status, "pending", "a running commit is not judged yet")
+      Assert.Equal(model.talents.pendingName, "M+ Single", "the card names the loadout being loaded")
+      Assert.Equal(world.selectedLoadoutID, 101, "the old loadout stays selected while the commit runs")
+      Assert.False(world.cardController.SelectLoadout(101), "no second switch while one commits")
+      Assert.False(world.cardController.Confirm(), "confirming mid-switch would remember the old loadout")
+
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED")
+      Assert.Equal(world.marked[1], 102, "the commit marks the new loadout selected")
+      Assert.Equal(world.LastModel().talents.status, "ok", "after the commit the card judges the new loadout")
+      world.FlushTimers()
+      Assert.Equal(#world.marked, 1, "the timeout of a finished switch does nothing")
+    end)
+  end)
+
+  test("LoadoutCheck reports an interrupted talent switch and keeps the old loadout", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      WithPendingLoads(world)
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = 0 })
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      world.cardController.SelectLoadout(102)
+      LoadoutCheck.HandleEvent("CONFIG_COMMIT_FAILED")
+      Assert.Equal(#world.marked, 0, "a failed commit selects nothing")
+      Assert.True(world.printed[#world.printed]:find("M+ Single", 1, true) ~= nil, "the chat names the loadout")
+      Assert.Equal(world.LastModel().talents.status, "mismatch", "the card shows the unchanged old loadout")
+    end)
+  end)
+
+  test("LoadoutCheck decides a silent talent switch by the active talents after the timeout", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      WithPendingLoads(world)
+      local modified = false
+      world.deps.isLoadoutModified = function()
+        return modified
+      end
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      world.cardController.SelectLoadout(102)
+      world.FlushTimers()
+      Assert.Equal(world.marked[1], 102, "active talents matching the loadout count as success")
+
+      world.cardController.SelectLoadout(101)
+      modified = true
+      world.FlushTimers()
+      Assert.Equal(#world.marked, 1, "active talents differing from the loadout count as failure")
+      Assert.True(#world.printed >= 1, "the failed silent switch is reported")
+    end)
+  end)
+
+  test("LoadoutCheck flags talents changed without saving as not the remembered loadout", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      local modified = true
+      world.deps.isLoadoutModified = function(_, configID)
+        return modified and configID == 101
+      end
+      StoreTarget(world, { configID = 101, configName = "M+ AoE", lootSpecID = 0 })
+      LoadoutCheck.SetDependencies(world.deps)
+
+      Enter(LoadoutCheck, world)
+      local model = world.LastModel()
+      Assert.NotNil(model, "a changed tree shows the card instead of the green chat line")
+      Assert.True(model.talents.modified, "the model marks the unsaved change")
+      Assert.Equal(model.talents.status, "mismatch", "the changed tree is not the remembered loadout")
+      Assert.False(model.allOk, "an unsaved change is never all OK")
+      local text = LoadoutCheck.GetSummary(MAP_ID)
+      Assert.Equal(text, "Talents: M+ AoE changed, not saved · Loot OK", "the invite row names the unsaved change")
+
+      modified = false
+      Assert.Equal(LoadoutCheck.GetSummary(MAP_ID), "Talents OK · Loot OK", "a saved tree reads OK again")
+    end)
+  end)
+
   test("LoadoutCheck summary for the accepted-invite card reports only judged parts", function()
     WithGlobals({}, function()
       local LoadoutCheck = LoadModule()
@@ -417,6 +522,28 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
 
       world.db.loadoutCheckEnabled = false
       Assert.Nil(LoadoutCheck.GetSummary(MAP_ID), "the disabled setting hides the summary")
+    end)
+  end)
+
+  test("LoadoutCheck summary field marks every part with its status icon at a glance", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+
+      StoreTarget(world, { configID = 101, configName = "M+ AoE", lootSpecID = 0 })
+      local field = LoadoutCheck.GetSummaryField(MAP_ID)
+      Assert.True(field.value:find("ReadyCheck-Ready", 1, true) ~= nil, "matching parts carry the ready icon")
+      Assert.Nil(field.value:find("NotReady", 1, true), "an all-OK row has no not-ready icon")
+      Assert.False(field.warning, "an all-OK row stays off the warning strip")
+
+      world.db.loadoutCheck = nil
+      field = LoadoutCheck.GetSummaryField(MAP_ID)
+      Assert.True(field.value:find("ReadyCheck-Waiting", 1, true) ~= nil, "an unjudged state carries the waiting icon")
+      Assert.False(field.warning, "an unjudged state is no warning")
+
+      world.db.loadoutCheckEnabled = false
+      Assert.Nil(LoadoutCheck.GetSummaryField(MAP_ID), "the disabled setting hides the field")
     end)
   end)
 
@@ -459,8 +586,9 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       world.deps.now = function()
         return now
       end
+      local dungeonNames = { [500] = "Old Dungeon", [501] = "Newest Dungeon" }
       world.deps.getDungeonName = function(mapID)
-        return ({ [500] = "Old Dungeon", [501] = "Newest Dungeon" })[mapID]
+        return dungeonNames[mapID]
       end
       world.db.loadoutCheck = {
         ["Player-1-0000AAAA"] = {
@@ -485,10 +613,7 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
         "a timestamped entry wins over one without timestamp"
       )
 
-      world.deps.getDungeonName = function()
-        return nil
-      end
-      LoadoutCheck.SetDependencies(world.deps)
+      dungeonNames = {}
       text = LoadoutCheck.GetSummary(MAP_ID)
       Assert.True(text:find("(as another dungeon)", 1, true) ~= nil, "an unknown source name still marks the source")
 
@@ -552,14 +677,21 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       render(ctx, {}, { mapID = MAP_ID })
       local last = captured.fields[#captured.fields]
       Assert.Equal(last.label, "Loadout-DE:", "the loadout row must be the last row")
-      Assert.Equal(last.value, "Talents: M+ Single expected · Loot OK", "the row carries the real summary")
+      Assert.Equal(
+        last.value,
+        "|cffff2429|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t Talents: M+ Single expected|r"
+          .. "\n|cff33d94d|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t Loot OK|r",
+        "the row carries the real summary with a status icon and colour per part"
+      )
+      Assert.True(last.warning, "a mismatch puts the row on the warning strip")
+      Assert.Equal(captured.noticeKind, "action", "the row warning does not turn the whole card into a warning")
 
       world.db.loadoutCheckEnabled = false
       render(ctx, {}, { mapID = MAP_ID })
       Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "the disabled setting omits the row")
 
       world.db.loadoutCheckEnabled = true
-      addon.LoadoutCheck.GetSummary = function()
+      addon.LoadoutCheck.GetSummaryField = function()
         error("boom")
       end
       render(ctx, {}, { mapID = MAP_ID })
@@ -675,12 +807,18 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(updates[1].call, "load", "LoadConfig runs first")
       Assert.Equal(updates[1].configID, 102, "LoadConfig receives the clicked loadout")
       Assert.True(updates[1].autoApply, "LoadConfig applies right away")
-      Assert.Equal(updates[2].call, "select", "the talent frame selection is synced afterwards")
+      Assert.Equal(#updates, 1, "LoadInProgress: no selection sync before the commit went through")
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED")
+      Assert.Equal(updates[2].call, "select", "the talent frame selection is synced after the commit")
       Assert.Equal(updates[2].specID, FROST_MAGE, "selection sync uses the current spec")
+
+      loadResult = 3
+      Assert.True(controller.SelectLoadout(101), "a Ready result succeeds at once")
+      Assert.Equal(updates[4].call, "select", "a finished load syncs the selection right away")
 
       loadResult = 0
       Assert.False(controller.SelectLoadout(101), "LoadConfig error must fail closed")
-      Assert.Equal(#updates, 3, "no selection sync after an error")
+      Assert.Equal(#updates, 5, "no selection sync after an error")
       Assert.Equal(#world.printed, 1, "a failed load explains itself in chat")
 
       Assert.True(controller.SelectLootSpec(FIRE_MAGE), "SetLootSpecialization accepts a class spec")

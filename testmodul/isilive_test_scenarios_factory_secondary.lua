@@ -375,6 +375,9 @@ local function BuildControllerContext(state, addon, initial)
       end,
     },
     addonTable = addon,
+    GetDungeonName = function(mapID)
+      return addon.SeasonData and addon.SeasonData.GetDungeonName(mapID) or nil
+    end,
     locales = {
       enUS = {
         LANG_SET_EN = "Language set",
@@ -406,7 +409,6 @@ local function BuildControllerContext(state, addon, initial)
         NON_MYTHIC_NOTICE_LABEL_SOURCE = "Source:",
         NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
         NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
-        NON_MYTHIC_NOTICE_DEMO_DUNGEON = "Priory of the Sacred Flame",
         PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
@@ -788,6 +790,72 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Simulation tablet loadout check opens the real card for the preview target", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { powerInfusionTextEnabled = false },
+    })
+    WithGlobals(BuildGlobalsEnv(state), function()
+      local previews, hides = {}, 0
+      state.addon.LoadoutCheck = {
+        ShowPreview = function(mapID, name)
+          previews[#previews + 1] = { mapID = mapID, name = name }
+          return true
+        end,
+        HidePreview = function()
+          hides = hides + 1
+        end,
+      }
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      state.ctx.ToggleSimulationTablet()
+      local loadoutAction
+      for _, action in ipairs(state.simulationTabletOpts.getActions()) do
+        if action.id == "C6" then
+          loadoutAction = action
+        end
+      end
+      loadoutAction = Assert.NotNil(loadoutAction, "the M+ tab must offer the loadout check action")
+      Assert.Equal(loadoutAction.category, "mplus", "the action sits on the M+ tab")
+
+      loadoutAction.run()
+      Assert.Equal(previews[1].mapID, 249, "without an own key the card opens for the season's first dungeon")
+      Assert.Equal(previews[1].name, "King's Rest", "the card names the preview target")
+
+      state.testModeOpts.setDemoFeatureData()
+      Assert.Equal(#previews, 1, "the full preview leaves the card to C6, it would cover the portal navigator")
+      state.testModeOpts.clearDemoFeatureData()
+      Assert.Equal(hides, 1, "leaving the preview closes the real card")
+    end)
+  end)
+
+  test("Simulation tablet previews follow the player's own keystone", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { powerInfusionTextEnabled = false },
+    })
+    local env = BuildGlobalsEnv(state)
+    env.C_MythicPlus = {
+      GetOwnedKeystoneChallengeMapID = function()
+        return 399
+      end,
+      GetOwnedKeystoneLevel = function()
+        return 12
+      end,
+    }
+    WithGlobals(env, function()
+      state.ctx.EnterFullDummyPreview()
+      local accepted = state.demoCenterNotices[1]
+      Assert.Equal(accepted.showOptions.teleportMapID, 399, "the invite card targets the own keystone dungeon")
+      Assert.Equal(
+        accepted.showOptions.fields[1].value,
+        "Ruby Life Pools +12",
+        "the invite card carries the own key level"
+      )
+      Assert.Equal(state.mplusDemoData.keyLevel, 12, "the M+ timer runs the own key level")
+      Assert.Equal(state.killTrackDemoData.mapID, 399, "the killtracker runs the own keystone dungeon")
+    end)
+  end)
+
   test("Factory test mode populates timer, cooldown and kill-track demo data", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,
@@ -821,13 +889,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.NotNil(state.afterCallbacks, "test mode must defer CD tracker demo data until controller creation")
     state.afterCallbacks[1]()
     Assert.NotNil(state.cdTrackerDemoData, "test mode must populate combat cooldown demo data")
-    Assert.NotNil(state.statsBoxDemoData, "test mode must populate stats-box demo data")
-    Assert.Equal(state.statsBoxDemoData[2].key, "stamina", "stats-box demo data must include stamina")
-    Assert.Equal(state.statsBoxDemoData[7].key, "leech", "stats-box demo data must include Leech")
-    Assert.Equal(state.statsBoxDemoData[7].percent, 3.27, "stats-box Leech demo percent must be explicit")
-    Assert.Equal(state.statsBoxDemoData[8].key, "speed", "stats-box Speed demo row must remain after Leech")
-    Assert.Equal(state.statsBoxDemoData[9].key, "durability", "stats-box demo data must include durability")
-    Assert.Equal(state.statsBoxDemoData[10].key, "avoidance", "stats-box demo data must include avoidance")
+    Assert.Nil(state.statsBoxDemoHistory, "the stats box shows the character's own stats, no demo values")
     Assert.True(state.statsBoxEnabled == true, "test mode must enable the stats box surface")
     Assert.True(state.lfgFlagsEnabled == true, "test mode must enable LFG language flags")
     Assert.True(state.lfgGroupBonusesEnabled == true, "test mode must enable LFG group-bonus markers")
@@ -859,8 +921,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       state.powerInfusionPreviews[1].recipientName,
-      "Player-Realm",
-      "demo mode must use an explicit PI recipient name"
+      "Player",
+      "demo mode must put Power Infusion on the loaded player"
     )
     Assert.True(
       state.powerInfusionPreviews[1].isLocalRecipient,
@@ -931,14 +993,19 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(acceptedNotice.showOptions.teleportLabel, "center notice demo must omit the redundant teleport header")
     Assert.Equal(acceptedNotice.showOptions.frameWidth, 680, "accepted-invite demo notice must use the rich card width")
     Assert.Equal(
+      acceptedNotice.showOptions.fields[1].value,
+      "King's Rest +15",
+      "the live builder renders the simulated key level in the dungeon row"
+    )
+    Assert.Equal(
       acceptedNotice.showOptions.fields[3].value,
       "isiLive-Demo",
-      "accepted-invite demo notice must render the leader row"
+      "accepted-invite demo notice must render the simulated leader row"
     )
     Assert.Equal(
       acceptedNotice.showOptions.fields[4].value,
-      "LFG accepted invite",
-      "accepted-invite demo notice must render the source row"
+      "Simulation tablet",
+      "the source row marks the invite as simulated"
     )
     Assert.Equal(
       acceptedNotice.showOptions.fields[5].label,
@@ -947,7 +1014,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       acceptedNotice.showOptions.fields[5].value,
-      "Zuldazar\nUse the portal in Millennia's Threshold",
+      "Zuldazar\nPortal Millennia's Threshold",
       "accepted-invite demo notice navigation must come from the curated season entrance"
     )
     Assert.Equal(
@@ -957,8 +1024,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       difficultyNotice.showOptions.fields[1].value,
-      "Priory of the Sacred Flame",
-      "non-mythic demo notice must render the demo dungeon"
+      "King's Rest",
+      "outside an instance the dungeon-entry card names the preview target"
     )
     Assert.Equal(
       difficultyNotice.showOptions.fields[2].value,
@@ -981,8 +1048,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(state.killTrackDemoData, "test mode exit must clear kill-track demo data")
     Assert.Equal(state.mplusDemoCleared, 1, "M+ timer demo data must be cleared once")
     Assert.Equal(state.killTrackDemoCleared, 1, "kill-track demo data must be cleared once")
-    Assert.Nil(state.statsBoxDemoData, "test mode exit must clear stats-box demo data")
-    Assert.Equal(state.statsBoxDemoCleared, 1, "stats-box demo data must be cleared once")
+    Assert.Nil(state.statsBoxDemoData, "test mode exit leaves no stats-box demo data")
+    Assert.Equal(state.statsBoxDemoCleared, 2, "the preview and its exit both drop stats-box demo data")
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
     Assert.Equal(next(state.readyCheckReadyUntil), nil, "test mode exit must clear ready-check ready holds")
     Assert.Equal(next(state.readyCheckDeclinedUntil), nil, "test mode exit must clear ready-check declined holds")
@@ -1068,7 +1135,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 24, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 28, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -1106,8 +1173,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(nameplateWasEnabled, "nameplate forces action must enable test mode")
     Assert.True(state.lfgFlagsEnabled == true, "LFG action must enable language flags")
     Assert.True(state.lfgGroupBonusesEnabled == true, "LFG action must enable bonus markers")
-    Assert.NotNil(state.statsBoxDemoHistory, "stats action must populate stats-box data")
-    Assert.Equal(state.statsBoxDemoCleared, 1, "cleanup action must clear stats-box demo data")
+    Assert.Nil(state.statsBoxDemoHistory, "the stats action shows the character's own stats")
+    Assert.True(state.statsBoxEnabled == true, "the stats action shows the stats box")
     Assert.Equal(state.incomingSummonSoundCalls, 1, "incoming summon action must play the local summon preview sound")
     Assert.True(#state.deathAlertPreviews >= 5, "death alert actions must call preview hooks")
     local sawTank = false
@@ -1127,7 +1194,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     for _, preview in ipairs(state.powerInfusionPreviews or {}) do
       if
         preview.casterName == "Velindra-Hyjal"
-        and preview.recipientName == "Player-Realm"
+        and preview.recipientName == "Player"
         and preview.isLocalRecipient == true
       then
         sawLocalPi = true
@@ -1136,6 +1203,14 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(sawLocalPi, "PI preview action must use the local recipient announce path")
     Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
     Assert.Nil(state.ttsPreviews, "sound action must not speak removed TTS preview")
+    local titles = {}
+    for _, notice in ipairs(state.centerNoticeHistory) do
+      titles[#titles + 1] = notice.opts and notice.opts.title or notice.message
+    end
+    local seen = table.concat(titles, "|")
+    Assert.True(seen:find("Raid invite accepted", 1, true) ~= nil, "A6 renders the live raid-invite card")
+    Assert.True(seen:find("Raid entered", 1, true) ~= nil, "A7 renders the live raid-entry card")
+    Assert.True(seen:find("LFG key search", 1, true) ~= nil, "A3 renders the own-key-search variant")
   end)
 
   test("Factory combat exit ends only an active preview and keeps the solo roster rebuildable", function()

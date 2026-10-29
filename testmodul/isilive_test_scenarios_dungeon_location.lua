@@ -160,10 +160,7 @@ return function(test, ctx)
     }, function(location, _, _, addon)
       -- Ruby Life Pools has a portal-room slot in Season 2.
       Assert.Equal(location.GetPortalRoomName(399), "Jahrhundertschwelle")
-      Assert.Equal(
-        location.GetNavigationText(399, "Nutze das Portal in der %s"),
-        "The Waking Shores\nNutze das Portal in der Jahrhundertschwelle"
-      )
+      Assert.Equal(location.GetNavigationText(399, "Portal %s"), "The Waking Shores\nPortal Jahrhundertschwelle")
       -- Altar of Fangs has no portal there.
       Assert.Nil(location.GetPortalRoomName(588))
       Assert.Equal(location.GetNavigationText(588), "The Coiled Isle")
@@ -176,16 +173,13 @@ return function(test, ctx)
     WithMaps({
       hub = { mapID = 2266, name = "Die Jahrhundertschwelle", mapType = 3 },
     }, function(location)
-      -- The sentence supplies its own article; the map name's one is dropped.
-      Assert.Equal(
-        location.GetNavigationText(399, "Nutze das Portal in der %s"),
-        "The Waking Shores\nNutze das Portal in der Jahrhundertschwelle"
-      )
+      -- The map name's article is dropped from the short portal label.
+      Assert.Equal(location.GetNavigationText(399, "Portal %s"), "The Waking Shores\nPortal Jahrhundertschwelle")
     end)
     WithMaps({}, function(location)
       -- Without client map info the manifest's first hub name is used.
       Assert.Equal(location.GetPortalRoomName(399), "Millennia's Threshold")
-      Assert.Equal(location.GetNavigationText(399), "The Waking Shores\nUse the portal in Millennia's Threshold")
+      Assert.Equal(location.GetNavigationText(399), "The Waking Shores\nPortal Millennia's Threshold")
     end)
   end)
 

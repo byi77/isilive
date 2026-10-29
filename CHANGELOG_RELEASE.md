@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.466`.
+Current version: `0.9.467`.
+
+Version 0.9.467: the talent and loot check reads at a glance (one line per check
+with a tick or cross on the accepted-invite card), counts a talent switch only
+once it has gone through and flags unsaved talent changes; the portal hint is
+shorter, and the simulation tablet shows every card with your real data.
 
 Version 0.9.466: redesigned center notice cards. A header band with a
 coloured category chip and the isiLive mark, quieter field rows, a calm
@@ -100,7 +105,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.466 -->
+<!-- highlights-reviewed-for: 0.9.467 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:
@@ -117,7 +122,9 @@ Highlights:
 - **Talent and loot check before the key.** Entering a season dungeon in a
   group shows your talent loadout and loot spec next to what you confirmed for
   that dungeon and spec, with one-click switches; a full match is a green chat
-  line, and the accepted-invite card gets a "Loadout" row.
+  line. The accepted-invite card shows each check on its own line with a green
+  tick or red cross, a switch counts only once it has really gone through, and
+  talents changed without saving are flagged.
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a
   slow light sweep and the target dungeon and key level pulse on it, so you
   see at a glance which key the group is about to run; during the key the

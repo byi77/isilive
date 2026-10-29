@@ -25,8 +25,14 @@ local MYTHIC_PARTY_DIFFICULTY_ID = 23
 local EVALUATE_DELAY_SECONDS = 2
 local MAX_CHARACTER_ENTRIES = 200
 
--- Enum.LoadConfigResult.Error; every other result means the load was accepted.
+-- Enum.LoadConfigResult: Error (0) rejects the load; LoadInProgress (2) means
+-- the talent commit only started and can still fail (CONFIG_COMMIT_FAILED);
+-- NoChangesNecessary (1) and Ready (3) are done at once.
 local LOAD_CONFIG_RESULT_ERROR = 0
+local LOAD_CONFIG_RESULT_IN_PROGRESS = 2
+-- A started commit that reports neither success nor failure is checked
+-- against the active talents after this long.
+local PENDING_LOAD_TIMEOUT_SECONDS = 10
 
 local function Plain(value)
   if IsSecretValue(value) then
@@ -144,15 +150,54 @@ local function DefaultGetSelectedLoadoutID(specID)
   return ok and PositiveNumber(configID) or nil
 end
 
+-- Same follow-up as Blizzard's talent frame: keep the dropdown in sync. Only
+-- called once the talents really changed.
+local function DefaultMarkLoadoutSelected(specID, configID)
+  SafeCall(GetNamespaceFunction("C_ClassTalents", "UpdateLastSelectedSavedConfigID"), specID, configID)
+end
+
+-- Returns true when the load is done, "pending" while the commit still runs
+-- (the caller marks the loadout selected only after it succeeded), false on
+-- a rejected load.
 local function DefaultLoadLoadout(specID, configID)
   local ok, result = SafeCall(GetNamespaceFunction("C_ClassTalents", "LoadConfig"), configID, true)
   result = ok and Plain(result) or nil
   if type(result) ~= "number" or result == LOAD_CONFIG_RESULT_ERROR then
     return false
   end
-  -- Same follow-up as Blizzard's talent frame: keep the dropdown in sync.
-  SafeCall(GetNamespaceFunction("C_ClassTalents", "UpdateLastSelectedSavedConfigID"), specID, configID)
+  if result == LOAD_CONFIG_RESULT_IN_PROGRESS then
+    return "pending"
+  end
+  DefaultMarkLoadoutSelected(specID, configID)
   return true
+end
+
+local function ReadImportString(configID)
+  local ok, text = SafeCall(GetNamespaceFunction("C_Traits", "GenerateImportString"), configID)
+  text = ok and Plain(text) or nil
+  if type(text) ~= "string" or text == "" then
+    return nil
+  end
+  return text
+end
+
+-- True when the active talents differ from the saved loadout `configID`
+-- (changed in the talent tree without saving). Both sides are compared as
+-- talent export strings. Fails closed: without both strings there is no claim.
+local function DefaultIsLoadoutModified(_, configID)
+  if not configID then
+    return false
+  end
+  local okActive, activeID = SafeCall(GetNamespaceFunction("C_ClassTalents", "GetActiveConfigID"))
+  activeID = okActive and PositiveNumber(activeID) or nil
+  if not activeID or activeID == configID then
+    return false
+  end
+  local activeText, savedText = ReadImportString(activeID), ReadImportString(configID)
+  if not activeText or not savedText then
+    return false
+  end
+  return activeText ~= savedText
 end
 
 local function DefaultGetLootSpecID()
@@ -262,6 +307,8 @@ local DEFAULT_API = {
   getSavedLoadouts = DefaultGetSavedLoadouts,
   getSelectedLoadoutID = DefaultGetSelectedLoadoutID,
   loadLoadout = DefaultLoadLoadout,
+  markLoadoutSelected = DefaultMarkLoadoutSelected,
+  isLoadoutModified = DefaultIsLoadoutModified,
   getLootSpecID = DefaultGetLootSpecID,
   setLootSpecID = DefaultSetLootSpecID,
   isInCombat = DefaultIsInCombat,
@@ -284,6 +331,32 @@ local function FindByID(list, id)
   return nil
 end
 
+local SUMMARY_ICONS = {
+  ok = "|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t",
+  mismatch = "|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t",
+  unknown = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:14:14:0:0|t",
+}
+-- Fallbacks match the loadout card's status colours (SUCCESS_GREEN_BAR,
+-- TEXT_ALERT_DANGER); "unknown" keeps the row's own text colour.
+local SUMMARY_COLOR_TOKENS = { ok = "SUCCESS_GREEN_BAR", mismatch = "TEXT_ALERT_DANGER" }
+local SUMMARY_COLOR_FALLBACKS = { ok = "ff33d94d", mismatch = "ffff2429" }
+-- One status per line, read like a checklist.
+local SUMMARY_FIELD_PART_GAP = "\n"
+
+local function SummaryColorHex(status)
+  local colors = addonTable.UICommon and addonTable.UICommon.Colors
+  local color = type(colors) == "table" and colors[SUMMARY_COLOR_TOKENS[status] or ""] or nil
+  if type(color) == "table" and type(color[1]) == "number" then
+    return string.format(
+      "ff%02x%02x%02x",
+      math.floor(color[1] * 255 + 0.5),
+      math.floor(color[2] * 255 + 0.5),
+      math.floor(color[3] * 255 + 0.5)
+    )
+  end
+  return SUMMARY_COLOR_FALLBACKS[status]
+end
+
 local function CountEntries(map)
   local count = 0
   for _ in pairs(map) do
@@ -293,25 +366,40 @@ local function CountEntries(map)
 end
 
 --- Pure comparison of the live state against a stored target.
---- @param live table { specID, specName, loadouts, selectedLoadoutID, specs, lootSpecID }
+--- @param live table { specID, specName, loadouts, selectedLoadoutID, specs, lootSpecID,
+---   loadoutModified (active talents differ from the selected loadout),
+---   pendingLoadoutID (talent switch still committing) }
 --- @param target table|nil stored { configID, configName, lootSpecID }
 --- @return table model consumed by the card
 function LoadoutCheck.BuildModel(live, target)
   local loadouts = live.loadouts or {}
   local selected = live.selectedLoadoutID and FindByID(loadouts, live.selectedLoadoutID) or nil
+  local pending = live.pendingLoadoutID and FindByID(loadouts, live.pendingLoadoutID) or nil
   local talents = {
     currentID = selected and selected.id or nil,
     currentName = selected and selected.name or nil,
+    -- The selected loadout, but its talents were changed without saving.
+    modified = selected ~= nil and live.loadoutModified == true,
+    pendingID = pending and pending.id or nil,
+    pendingName = pending and pending.name or nil,
     targetID = nil,
     targetName = nil,
     status = "unknown",
     options = {},
   }
+  local talentsJudged = false
   if type(target) == "table" and target.configID then
+    talentsJudged = true
     talents.targetID = target.configID
     local targetEntry = FindByID(loadouts, target.configID)
     talents.targetName = targetEntry and targetEntry.name or target.configName
-    talents.status = talents.currentID == target.configID and "ok" or "mismatch"
+    -- A changed, unsaved tree is not the remembered loadout any more.
+    local matches = talents.currentID == target.configID and not talents.modified
+    talents.status = matches and "ok" or "mismatch"
+  end
+  -- Until the commit is through, nothing is judged: it can still fail.
+  if talents.pendingID then
+    talents.status = "pending"
   end
   for _, loadout in ipairs(loadouts) do
     talents.options[#talents.options + 1] = {
@@ -364,15 +452,151 @@ function LoadoutCheck.BuildModel(live, target)
   loot.targetName = targetLoot and targetLoot.name or nil
   loot.targetIsSpecDefault = loot.targetID == 0
 
-  local hasTarget = talents.status ~= "unknown" or loot.status ~= "unknown"
+  local hasTarget = talentsJudged or loot.status ~= "unknown"
+  local talentsOk = talents.status == "ok" or (talents.status == "unknown" and not talents.modified)
   return {
     specID = live.specID,
     specName = live.specName,
     talents = talents,
     loot = loot,
     hasTarget = hasTarget,
-    allOk = hasTarget and talents.status ~= "mismatch" and loot.status ~= "mismatch",
+    allOk = hasTarget and talentsOk and loot.status ~= "mismatch",
   }
+end
+
+local function SummaryLootName(text, isSpecDefault, name)
+  if isSpecDefault then
+    return string.format(text("LOADOUT_CHECK_LOOT_CURRENT_SPEC", "Current spec (%s)"), name or "?")
+  end
+  return name or "?"
+end
+
+--- Status parts of the accepted-invite summary for a model.
+--- @param model table from BuildModel
+--- @param text function(key, fallback) localized text
+--- @param hasTarget boolean false: nothing confirmed for the spec, the current state stays unjudged
+--- @return table|nil { parts = { { status = "ok"|"mismatch"|"unknown", text } }, allOk }
+function LoadoutCheck.BuildSummaryParts(model, text, hasTarget)
+  if type(model) ~= "table" then
+    return nil
+  end
+  if not hasTarget then
+    local currentName = model.talents.currentName or text("LOADOUT_CHECK_NO_LOADOUT", "no saved loadout")
+    if model.talents.modified then
+      currentName = string.format(text("LOADOUT_CHECK_MODIFIED_NAME", "%s (changed, not saved)"), currentName)
+    end
+    local unjudged = string.format(
+      text("LOADOUT_CHECK_SUMMARY_UNJUDGED", "%s · Loot: %s (not remembered for this dungeon yet)"),
+      currentName,
+      SummaryLootName(text, model.loot.currentIsSpecDefault, model.loot.currentName)
+    )
+    return { parts = { { status = "unknown", text = unjudged } }, allOk = false }
+  end
+  local parts = {}
+  if model.talents.status == "pending" then
+    parts[#parts + 1] = {
+      status = "unknown",
+      text = string.format(
+        text("LOADOUT_CHECK_SUMMARY_TALENTS_PENDING", "Talents: switching to %s"),
+        model.talents.pendingName or "?"
+      ),
+    }
+  elseif model.talents.status == "ok" then
+    parts[#parts + 1] = { status = "ok", text = text("LOADOUT_CHECK_SUMMARY_TALENTS_OK", "Talents OK") }
+  elseif model.talents.modified and model.talents.currentID == model.talents.targetID then
+    parts[#parts + 1] = {
+      status = "mismatch",
+      text = string.format(
+        text("LOADOUT_CHECK_SUMMARY_TALENTS_MODIFIED", "Talents: %s changed, not saved"),
+        model.talents.currentName or "?"
+      ),
+    }
+  elseif model.talents.status == "mismatch" then
+    parts[#parts + 1] = {
+      status = "mismatch",
+      text = string.format(
+        text("LOADOUT_CHECK_SUMMARY_TALENTS_MISMATCH", "Talents: %s expected"),
+        model.talents.targetName or "?"
+      ),
+    }
+  end
+  if model.loot.status == "ok" then
+    parts[#parts + 1] = { status = "ok", text = text("LOADOUT_CHECK_SUMMARY_LOOT_OK", "Loot OK") }
+  elseif model.loot.status == "mismatch" then
+    parts[#parts + 1] = {
+      status = "mismatch",
+      text = string.format(
+        text("LOADOUT_CHECK_SUMMARY_LOOT_MISMATCH", "Loot: %s expected"),
+        SummaryLootName(text, model.loot.targetIsSpecDefault, model.loot.targetName)
+      ),
+    }
+  end
+  if #parts == 0 then
+    return nil
+  end
+  return { parts = parts, allOk = model.allOk }
+end
+
+--- Plain one-line text of a summary ("Talents OK · Loot: Fire expected").
+function LoadoutCheck.FormatSummaryText(summary)
+  local texts = {}
+  for i, part in ipairs(summary.parts) do
+    texts[i] = part.text
+  end
+  local result = table.concat(texts, " · ")
+  if summary.suffix then
+    result = result .. " " .. summary.suffix
+  end
+  return result
+end
+
+--- Notice field of a summary: one line per part, led by its ready-check
+--- icon in its status colour, so the row reads at a glance; any mismatch puts
+--- the row on the warning strip (steady, no blink).
+--- @return table { value = string, warning = boolean }
+function LoadoutCheck.FormatSummaryField(summary)
+  local texts = {}
+  local hasMismatch = false
+  for i, part in ipairs(summary.parts) do
+    local piece = SUMMARY_ICONS[part.status] .. " " .. part.text
+    local colorHex = SummaryColorHex(part.status)
+    if colorHex then
+      piece = "|c" .. colorHex .. piece .. "|r"
+    end
+    texts[i] = piece
+    hasMismatch = hasMismatch or part.status == "mismatch"
+  end
+  local value = table.concat(texts, SUMMARY_FIELD_PART_GAP)
+  if summary.suffix then
+    value = value .. " " .. summary.suffix
+  end
+  return { value = value, warning = hasMismatch }
+end
+
+-- The per-character target table in `db`; with `createMissing` it is
+-- created (up to MAX_CHARACTER_ENTRIES characters).
+local function GetCharacterStore(db, characterKey, createMissing)
+  if type(db) ~= "table" or not characterKey then
+    return nil
+  end
+  if type(db.loadoutCheck) ~= "table" then
+    if not createMissing then
+      return nil
+    end
+    db.loadoutCheck = {}
+  end
+  local byCharacter = db.loadoutCheck[characterKey]
+  if type(byCharacter) ~= "table" then
+    if not createMissing then
+      return nil
+    end
+    if CountEntries(db.loadoutCheck) >= MAX_CHARACTER_ENTRIES then
+      return nil
+    end
+    byCharacter = {}
+    db.loadoutCheck[characterKey] = byCharacter
+  end
+  return byCharacter
 end
 
 function LoadoutCheck.CreateController(opts)
@@ -392,6 +616,9 @@ function LoadoutCheck.CreateController(opts)
   local handledInstanceID = nil
   local active = nil -- { mapID, dungeonName, instanceID } while the card is up
   local evaluateToken = 0
+  -- Talent switch whose commit still runs: { specID, configID, name, token }.
+  -- The loadout counts as selected only after the commit succeeded.
+  local pendingLoad = nil
 
   local function Text(key, fallback)
     local L = getL() or {}
@@ -429,29 +656,7 @@ function LoadoutCheck.CreateController(opts)
   end
 
   local function GetStore(createMissing)
-    local db = getDB()
-    local characterKey = api.getCharacterKey()
-    if type(db) ~= "table" or not characterKey then
-      return nil
-    end
-    if type(db.loadoutCheck) ~= "table" then
-      if not createMissing then
-        return nil
-      end
-      db.loadoutCheck = {}
-    end
-    local byCharacter = db.loadoutCheck[characterKey]
-    if type(byCharacter) ~= "table" then
-      if not createMissing then
-        return nil
-      end
-      if CountEntries(db.loadoutCheck) >= MAX_CHARACTER_ENTRIES then
-        return nil
-      end
-      byCharacter = {}
-      db.loadoutCheck[characterKey] = byCharacter
-    end
-    return byCharacter
+    return GetCharacterStore(getDB(), api.getCharacterKey(), createMissing)
   end
 
   local function ReadTarget(specID, mapID)
@@ -507,11 +712,16 @@ function LoadoutCheck.CreateController(opts)
     if not specID then
       return nil
     end
+    local selectedLoadoutID = api.getSelectedLoadoutID(specID)
+    local pendingLoadoutID = pendingLoad and pendingLoad.specID == specID and pendingLoad.configID or nil
     return {
       specID = specID,
       specName = specName,
       loadouts = api.getSavedLoadouts(specID) or {},
-      selectedLoadoutID = api.getSelectedLoadoutID(specID),
+      selectedLoadoutID = selectedLoadoutID,
+      -- While a switch commits, the active talents are in flux.
+      loadoutModified = not pendingLoadoutID and api.isLoadoutModified(specID, selectedLoadoutID) == true,
+      pendingLoadoutID = pendingLoadoutID,
       specs = api.getClassSpecs() or {},
       lootSpecID = api.getLootSpecID(),
     }
@@ -586,9 +796,9 @@ function LoadoutCheck.CreateController(opts)
     return active ~= nil
   end
 
-  --- One-line summary for another card (accepted invite) about the dungeon
-  -- with `mapID`; nil without a confirmed target for it and the current spec.
-  function controller.GetSummary(mapID)
+  -- Summary of the dungeon with `mapID` as status parts (see
+  -- LoadoutCheck.BuildSummaryParts); nil without a current spec.
+  local function BuildSummary(mapID)
     if not IsEnabled() or type(mapID) ~= "number" then
       return nil
     end
@@ -601,46 +811,31 @@ function LoadoutCheck.CreateController(opts)
     if not target then
       target, sourceMapID = FindLatestOtherTarget(live.specID, mapID)
     end
-    local model = LoadoutCheck.BuildModel(live, target)
-    if not target then
-      -- Nothing confirmed for this spec at all: the current state, unjudged.
-      return string.format(
-        Text("LOADOUT_CHECK_SUMMARY_UNJUDGED", "%s · Loot: %s (not remembered for this dungeon yet)"),
-        model.talents.currentName or Text("LOADOUT_CHECK_NO_LOADOUT", "no saved loadout"),
-        LootName(model.loot.currentIsSpecDefault, model.loot.currentName)
-      ),
-        false
-    end
-    local parts = {}
-    if model.talents.status == "ok" then
-      parts[#parts + 1] = Text("LOADOUT_CHECK_SUMMARY_TALENTS_OK", "Talents OK")
-    elseif model.talents.status == "mismatch" then
-      parts[#parts + 1] = string.format(
-        Text("LOADOUT_CHECK_SUMMARY_TALENTS_MISMATCH", "Talents: %s expected"),
-        model.talents.targetName or "?"
+    local summary = LoadoutCheck.BuildSummaryParts(LoadoutCheck.BuildModel(live, target), Text, target ~= nil)
+    if summary and sourceMapID then
+      summary.suffix = string.format(
+        Text("LOADOUT_CHECK_SUMMARY_FROM", "(as %s)"),
+        api.getDungeonName(sourceMapID) or Text("LOADOUT_CHECK_SUMMARY_OTHER_DUNGEON", "another dungeon")
       )
     end
-    if model.loot.status == "ok" then
-      parts[#parts + 1] = Text("LOADOUT_CHECK_SUMMARY_LOOT_OK", "Loot OK")
-    elseif model.loot.status == "mismatch" then
-      parts[#parts + 1] = string.format(
-        Text("LOADOUT_CHECK_SUMMARY_LOOT_MISMATCH", "Loot: %s expected"),
-        LootName(model.loot.targetIsSpecDefault, model.loot.targetName)
-      )
-    end
-    if #parts == 0 then
+    return summary
+  end
+
+  --- One-line summary for another card (accepted invite) about the dungeon
+  -- with `mapID`; nil without a confirmed target for it and the current spec.
+  function controller.GetSummary(mapID)
+    local summary = BuildSummary(mapID)
+    if not summary then
       return nil
     end
-    local text = table.concat(parts, " · ")
-    if sourceMapID then
-      text = text
-        .. " "
-        .. string.format(
-          Text("LOADOUT_CHECK_SUMMARY_FROM", "(as %s)"),
-          api.getDungeonName(sourceMapID) or Text("LOADOUT_CHECK_SUMMARY_OTHER_DUNGEON", "another dungeon")
-        )
-    end
-    return text, model.allOk
+    return LoadoutCheck.FormatSummaryText(summary), summary.allOk
+  end
+
+  --- The same summary as an accepted-invite field: status icon and colour per
+  -- part, warning strip on a mismatch.
+  function controller.GetSummaryField(mapID)
+    local summary = BuildSummary(mapID)
+    return summary and LoadoutCheck.FormatSummaryField(summary) or nil
   end
 
   function controller.ScheduleEvaluate()
@@ -679,14 +874,48 @@ function LoadoutCheck.CreateController(opts)
     return false
   end
 
-  function controller.SelectLoadout(configID)
-    local live = active and ReadLive() or nil
-    if not live or not FindByID(live.loadouts, configID) or RefuseInCombat() then
+  -- Ends a running talent switch: on success the loadout becomes the selected
+  -- one, on failure the card shows the unchanged talents again.
+  function controller.FinishPendingLoad(succeeded)
+    local finished = pendingLoad
+    if not finished then
       return false
     end
-    if not api.loadLoadout(live.specID, configID) then
+    pendingLoad = nil
+    if succeeded then
+      api.markLoadoutSelected(finished.specID, finished.configID)
+    else
+      printMessage(
+        string.format(
+          Text("LOADOUT_CHECK_COMMIT_FAILED", "The talent switch to %s was interrupted."),
+          finished.name or "?"
+        )
+      )
+    end
+    controller.Refresh()
+    return true
+  end
+
+  function controller.SelectLoadout(configID)
+    local live = active and ReadLive() or nil
+    local loadout = live and FindByID(live.loadouts, configID) or nil
+    if not live or not loadout or pendingLoad or RefuseInCombat() then
+      return false
+    end
+    local result = api.loadLoadout(live.specID, configID)
+    if not result then
       printMessage(Text("LOADOUT_CHECK_LOAD_FAILED", "The talent loadout could not be loaded."))
       return false
+    end
+    if result == "pending" then
+      local token = {}
+      pendingLoad = { specID = live.specID, configID = configID, name = loadout.name, token = token }
+      -- No result event at all: the active talents decide whether it worked.
+      api.after(PENDING_LOAD_TIMEOUT_SECONDS, function()
+        if pendingLoad and pendingLoad.token == token then
+          controller.FinishPendingLoad(api.isLoadoutModified(live.specID, configID) ~= true)
+        end
+      end)
     end
     Render()
     return true
@@ -714,6 +943,10 @@ function LoadoutCheck.CreateController(opts)
       HideCard()
       return false
     end
+    -- Mid-switch the selected loadout is still the old one; wait for the commit.
+    if live.pendingLoadoutID then
+      return false
+    end
     local store = GetStore(true)
     if store then
       local selected = live.selectedLoadoutID and FindByID(live.loadouts, live.selectedLoadoutID) or nil
@@ -733,11 +966,35 @@ function LoadoutCheck.CreateController(opts)
     HideCard()
   end
 
+  --- Simulation tablet: opens the real card for `mapID` without the group and
+  -- dungeon gate (no group exists in the preview). Everything else is live:
+  -- the player's loadouts and loot spec, real switches, real confirmation for
+  -- that dungeon. Also shown when all matches, so the card can be checked.
+  function controller.ShowPreview(mapID, dungeonName)
+    if type(mapID) ~= "number" or not IsEnabled() then
+      return false
+    end
+    active = { mapID = mapID, dungeonName = dungeonName, instanceID = nil, preview = true }
+    Render()
+    return active ~= nil
+  end
+
+  function controller.HidePreview()
+    if active and active.preview then
+      HideCard()
+    end
+  end
+
   function controller.HandleEvent(event)
     if event == "PLAYER_ENTERING_WORLD" then
       controller.ScheduleEvaluate()
     elseif event == "CHALLENGE_MODE_START" or event == "GROUP_LEFT" then
       HideCard()
+    elseif event == "CONFIG_COMMIT_FAILED" and pendingLoad then
+      controller.FinishPendingLoad(false)
+    elseif event == "TRAIT_CONFIG_UPDATED" and pendingLoad then
+      -- The commit went through: the active talents now carry the new loadout.
+      controller.FinishPendingLoad(true)
     elseif
       event == "PLAYER_SPECIALIZATION_CHANGED"
       or event == "TRAIT_CONFIG_UPDATED"
@@ -761,6 +1018,7 @@ local EVENTS = {
   "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED",
   "TRAIT_CONFIG_LIST_UPDATED",
+  "CONFIG_COMMIT_FAILED",
   "ACTIVE_COMBAT_CONFIG_CHANGED",
   "PLAYER_LOOT_SPEC_UPDATED",
   "PLAYER_REGEN_DISABLED",
@@ -787,6 +1045,28 @@ function LoadoutCheck.GetSummary(mapID)
     return nil
   end
   return controllerInstance.GetSummary(mapID)
+end
+
+--- The summary as an accepted-invite field ({ value, warning }), or nil.
+function LoadoutCheck.GetSummaryField(mapID)
+  if not controllerInstance then
+    return nil
+  end
+  return controllerInstance.GetSummaryField(mapID)
+end
+
+--- Opens the real card for the simulation tablet (see controller.ShowPreview).
+function LoadoutCheck.ShowPreview(mapID, dungeonName)
+  if not controllerInstance then
+    return false
+  end
+  return controllerInstance.ShowPreview(mapID, dungeonName)
+end
+
+function LoadoutCheck.HidePreview()
+  if controllerInstance then
+    controllerInstance.HidePreview()
+  end
 end
 
 function LoadoutCheck.HandleEvent(event, unit)
