@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.465`.
+Current version: `0.9.466`.
+
+Version 0.9.466: redesigned center notice cards. A header band with a
+coloured category chip and the isiLive mark, quieter field rows, a calm
+pulsing warning strip and a framed portal tile; the portal navigator uses the
+same header.
 
 Version 0.9.465: item level and Mythic+ rating in the roster are coloured by
 season tier; item levels arrive faster (other addons' inspects are reused,
@@ -95,9 +100,14 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.465 -->
+<!-- highlights-reviewed-for: 0.9.466 -->
 
 Highlights:
+- **Redesigned center notice cards.** Every card now opens with a header band:
+  a category chip in the card's colour, the isiLive mark on the right and the
+  headline below. Field rows are separated by hairlines, warnings sit on a red
+  strip that pulses calmly (steady with reduced motion), and the portal button
+  is a framed tile. The portal navigator shares the same header.
 - **Coloured item level and rating.** The roster and its tooltip colour each
   item level by this season's Mythic+ reward tiers (epic, rare, uncommon,
   poor) and each Mythic+ rating with Blizzard's own score colour, so
@@ -117,8 +127,3 @@ Highlights:
   killtracker bar, for bosses, minibosses and casters. Good for deciding whether a
   cooldown, stop or target swap is still worth it and when to start your
   burst. Preview it on a training dummy with `/isilive ttktest`.
-- **Pace at a glance.** A +/- delta on the killtracker bar shows whether the
-  key is on time: against your own slowest timed run on that dungeon and key
-  level, or how far the forecast finish lies from the time limit. The spent
-  time runs as a strip in the timer's colour; the gap to the forces is green
-  while you lead the clock and red while you fall behind.

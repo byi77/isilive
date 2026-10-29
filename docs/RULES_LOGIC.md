@@ -1384,10 +1384,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-NOTICE-TITEL-BRAND-GOLD
 - Regelnummer: 70
 - Status: aktiv
-- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften, die als Fenstertitel oder Headline gerendert werden, muessen textlich mit `isiLive - ` beginnen und im gemeinsamen warmen Goldton `1, 0.9, 0.45` angezeigt werden. Der Portal-Navigator muss seinen Header optisch an die Rich-Center-Notice-Header angleichen: cyanfarbene Eyebrow-Zeile `Portal - Navigation`, linksbuendige goldene Headline `isiLive - Midnight Season One M+ Navigator` in derselben Headline-Schriftgroesse und blaue Trennlinie unterhalb der vollstaendigen Headline. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
+- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften muessen im Locale-Text mit `isiLive - ` beginnen. Rich-Center-Notice und Portal-Navigator teilen sich denselben Kartenkopf und zeigen diesen Praefix nicht in der Headline: Das Kopfband traegt links einen Kategorie-Chip (Zustandssymbol plus Eyebrow in der Kategoriefarbe), rechts die Marke `isiLive` in der unterstuetzenden Textfarbe, darunter die Headline ohne `isiLive - ` im gemeinsamen Ueberschriftston `TEXT_HEADING` und schliesst mit einer Haarlinie ueber die volle Kartenbreite ab. Der Portal-Navigator ist eine Aktionskarte (Eyebrow `Portal - Navigation` in Aktionsgruen, Headline z. B. `Midnight Season Two M+ Navigator`); seine Portal-Halbkreis-Positionen beginnen unterhalb des Kopfbands. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
+- Ersetzte Festlegung (Benutzerfreigabe, 2026-10-29): "Alle Center-Notice- und Portal-Navigator-Ueberschriften, die als Fenstertitel oder Headline gerendert werden, muessen textlich mit `isiLive - ` beginnen und im gemeinsamen warmen Goldton `1, 0.9, 0.45` angezeigt werden. Der Portal-Navigator muss seinen Header optisch an die Rich-Center-Notice-Header angleichen: cyanfarbene Eyebrow-Zeile `Portal - Navigation`, linksbuendige goldene Headline `isiLive - Midnight Season One M+ Navigator` in derselben Headline-Schriftgroesse und blaue Trennlinie unterhalb der vollstaendigen Headline. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.". Center-Notice-Karten und Portal-Navigator wurden auf Kopfband mit Kategorie-Chip und Marke umgestellt.
 - Erforderliche Tests:
   - Locale center-notice titles use isiLive prefix in every locale
-  - Center notice headline titles use shared gold color
+  - Center notice headline titles use the shared heading color
+  - Center notice rich Show renders title, separator, field rows, teleport header
   - Portal navigator notice lays out the five portal positions in a crescent
   - Architecture portal navigator notice owns portal construction behind Notice facade
 

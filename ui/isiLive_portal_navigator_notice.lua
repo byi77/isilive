@@ -7,12 +7,14 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 local PortalNavigatorNotice = {}
 addonTable.PortalNavigatorNotice = PortalNavigatorNotice
 
+-- The crescent starts below the shared notice header band (chip row, headline
+-- and hairline end at about 77 px).
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
-  left = { point = "TOPLEFT", x = 36, y = -142, iconX = 0, iconY = -6 },
-  half_left = { point = "TOPLEFT", x = 178, y = -102, iconX = 0, iconY = -6 },
-  center = { point = "TOP", x = 0, y = -82, iconX = 0, iconY = -6 },
-  half_right = { point = "TOPRIGHT", x = -178, y = -102, iconX = 0, iconY = -6 },
-  right = { point = "TOPRIGHT", x = -36, y = -142, iconX = 0, iconY = -6 },
+  left = { point = "TOPLEFT", x = 36, y = -154, iconX = 0, iconY = -6 },
+  half_left = { point = "TOPLEFT", x = 178, y = -114, iconX = 0, iconY = -6 },
+  center = { point = "TOP", x = 0, y = -94, iconX = 0, iconY = -6 },
+  half_right = { point = "TOPRIGHT", x = -178, y = -114, iconX = 0, iconY = -6 },
+  right = { point = "TOPRIGHT", x = -36, y = -154, iconX = 0, iconY = -6 },
 }
 
 local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
@@ -137,7 +139,7 @@ local function CreateSeparator(frame, colors)
   sep:SetHeight(1)
   sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -68)
   sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -68)
-  sep:SetColorTexture(unpack(colors.BLUE_SEPARATOR or { 0.36, 0.71, 1, 0.55 }))
+  sep:SetColorTexture(unpack(colors.BORDER_NOTICE or { 0.24, 0.55, 0.82, 0.58 }))
   return sep
 end
 
@@ -251,14 +253,13 @@ local function ApplyLayout(state, layout)
     return false
   end
 
-  local eyebrow = type(layout.eyebrow) == "string" and layout.eyebrow or ""
-  if eyebrow ~= "" then
-    state.deps.setReadableText(state.eyebrowText, eyebrow)
-  else
-    state.eyebrowText:SetText("")
-  end
-
-  state.deps.setReadableText(state.titleText, title)
+  -- Same header as the rich center notice: kind chip with the eyebrow, brand
+  -- mark, headline without the "isiLive - " prefix, full-width hairline.
+  state.deps.applyHeader(
+    state,
+    { eyebrow = layout.eyebrow, title = title },
+    state.config.width - (state.config.paddingX * 2)
+  )
 
   local entryMap = {}
   for _, entry in ipairs(layout.entries or {}) do
@@ -338,6 +339,9 @@ local function BuildController(state)
     eyebrowText = state.eyebrowText,
     titleText = state.titleText,
     titleSeparator = state.titleSeparator,
+    headerBand = state.headerBand,
+    kindChip = state.kindChip,
+    brandText = state.brandText,
     entries = state.entries,
     nodes = state.nodes,
     closeButton = state.closeButton,
@@ -353,6 +357,7 @@ function PortalNavigatorNotice.Create(opts, deps)
   local eyebrowText = CreateEyebrow(frame, config, deps)
   local titleText = CreateTitle(frame, config, deps)
   local titleSeparator = CreateSeparator(frame, deps.colors)
+  local header = deps.createHeaderElements(frame)
   local closeButton = deps.createCloseButton(frame)
   local nodes = {
     left = CreateEntry(frame, config, "left", deps),
@@ -368,6 +373,9 @@ function PortalNavigatorNotice.Create(opts, deps)
     eyebrowText = eyebrowText,
     titleText = titleText,
     titleSeparator = titleSeparator,
+    headerBand = header.headerBand,
+    kindChip = header.kindChip,
+    brandText = header.brandText,
     closeButton = closeButton,
     nodes = nodes,
     entries = {

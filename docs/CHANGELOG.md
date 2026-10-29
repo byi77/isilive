@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-29 - Version 0.9.466 (patch)
+
+- Center notice cards redesigned (rule 70 updated): header band with a
+  category chip (state icon plus eyebrow in the category colour) and the
+  `isiLive` mark on the right; the headline drops the `isiLive - ` prefix and
+  uses `TEXT_HEADING`; accent line at the top in the category colour.
+- Field rows are separated by hairlines and their labels lose the colon;
+  warning rows sit on a red strip with a calm 1.2 s alpha pulse (55-100 %,
+  steady with reduced motion).
+- The portal button is a framed tile with a label strip at the bottom
+  (`Portal` or the remaining cooldown).
+- Fixed: the category icon overlapped the eyebrow; switching cards in place
+  left rows and warning strips of the previous card visible.
+- The portal navigator uses the same card header (action card, eyebrow in
+  action green); its portal crescent starts 12 px lower, below the header band.
+
 ## 2026-10-29 - Version 0.9.465 (patch)
 
 - Roster and roster tooltip: the item level is coloured by season tier,

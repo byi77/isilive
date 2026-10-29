@@ -40,6 +40,13 @@ local SUBLINE_GAP = NoticeRichLayout.SUBLINE_GAP
 local RICH_TELEPORT_STATUS_FONT_DELTA = 4
 -- Above the spell icon's native 64 px the button shows the dungeon artwork.
 local TELEPORT_ARTWORK_MIN_ICON_SIZE = 64
+-- Portal tile: 1 px frame around the icon and a dark label strip at its
+-- bottom edge that carries "Portal" or the remaining cooldown.
+local TELEPORT_LABEL_STRIP_HEIGHT = 22
+-- Warning rows breathe once per 1.2 s between 55 % and full alpha (alpha-only
+-- pulse, see the UI highlight style); reduced motion keeps them steady.
+local WARNING_PULSE_PERIOD = 1.2
+local WARNING_PULSE_MIN_ALPHA = 0.55
 local TELEPORT_FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 -- Sandbox-safe GetTime read: WoW always exposes the global, but the test
@@ -196,6 +203,40 @@ local function CreateCenterNoticeCloseButton(frame)
   })
 end
 
+-- Border and label strip follow the icon through their anchors, so the
+-- combat-deferred resize only has to move the icon itself.
+local function CreateTeleportTileChrome(button, layer)
+  if type(layer) ~= "table" or type(layer.CreateTexture) ~= "function" then
+    return
+  end
+  local borderColor = Colors.BORDER_ACTION_PRIMARY or { 0.28, 0.68, 1, 0.72 }
+  local edges = {
+    { "TOPLEFT", -1, 1, "TOPRIGHT", 1, 1, "height" },
+    { "BOTTOMLEFT", -1, -1, "BOTTOMRIGHT", 1, -1, "height" },
+    { "TOPLEFT", -1, 1, "BOTTOMLEFT", -1, -1, "width" },
+    { "TOPRIGHT", 1, 1, "BOTTOMRIGHT", 1, -1, "width" },
+  }
+  button.tileBorder = {}
+  for i, edge in ipairs(edges) do
+    local texture = layer:CreateTexture(nil, "BORDER")
+    texture:SetPoint(edge[1], button.icon, edge[1], edge[2], edge[3])
+    texture:SetPoint(edge[4], button.icon, edge[4], edge[5], edge[6])
+    if edge[7] == "height" then
+      texture:SetHeight(1)
+    else
+      texture:SetWidth(1)
+    end
+    texture:SetColorTexture(unpack(borderColor))
+    button.tileBorder[i] = texture
+  end
+  local strip = layer:CreateTexture(nil, "BACKGROUND")
+  strip:SetPoint("BOTTOMLEFT", button.icon, "BOTTOMLEFT", 0, 0)
+  strip:SetPoint("BOTTOMRIGHT", button.icon, "BOTTOMRIGHT", 0, 0)
+  strip:SetHeight(TELEPORT_LABEL_STRIP_HEIGHT)
+  strip:SetColorTexture(unpack(Colors.BLACK_OVERLAY_60 or { 0, 0, 0, 0.6 }))
+  button.labelStrip = strip
+end
+
 local function CreateCenterNoticeTeleportButton(frame, config)
   -- Use insecure action template so center notice can still be shown/hidden in combat.
   local button = CreateFrame("Button", config.teleportButtonName, frame, "InsecureActionButtonTemplate")
@@ -218,7 +259,7 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button:SetAttribute("spell1", 0)
   button.actionBg = button:CreateTexture(nil, "BACKGROUND")
   if type(button.actionBg.SetSize) == "function" then
-    button.actionBg:SetSize(config.buttonHeight + 8, config.buttonHeight + 8)
+    button.actionBg:SetSize(config.buttonHeight, config.buttonHeight)
   end
   button.actionBg:SetPoint("CENTER", button, "CENTER", 0, 0)
   button.actionBg:SetColorTexture(unpack(Colors.BLUE_ACTION_BG or { 0.04, 0.18, 0.32, 0.62 }))
@@ -251,9 +292,10 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   end
   local textParent = type(textLayer) == "table" and type(textLayer.CreateFontString) == "function" and textLayer
     or button
+  CreateTeleportTileChrome(button, textParent)
   button.cooldownText = textParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   IncreaseFontSize(button.cooldownText, RICH_TELEPORT_STATUS_FONT_DELTA)
-  button.cooldownText:SetPoint("TOP", button, "TOP", 0, -4)
+  button.cooldownText:SetPoint("CENTER", button.labelStrip or button.icon, "CENTER", 0, 0)
   button.cooldownText:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1 }))
   button.cooldownText:Hide()
 
@@ -408,7 +450,9 @@ local function SetCenterNoticeTeleportButtonSize(state, width, height, iconSize)
     state.teleportButton.actionBg:SetPoint("CENTER", state.teleportButton, "CENTER", 0, 0)
   end
   if state.teleportButton.actionBg and type(state.teleportButton.actionBg.SetSize) == "function" then
-    state.teleportButton.actionBg:SetSize(iconDimension + 8, iconDimension + 8)
+    -- Only behind the icon: the tile border frames it, a wider fill would
+    -- read as a second frame around it.
+    state.teleportButton.actionBg:SetSize(iconDimension, iconDimension)
   end
   if state.teleportButton.icon and type(state.teleportButton.icon.ClearAllPoints) == "function" then
     state.teleportButton.icon:ClearAllPoints()
@@ -422,13 +466,22 @@ local function SetCenterNoticeTeleportButtonSize(state, width, height, iconSize)
     ApplyCenterNoticeTeleportButtonIcon(state)
   end
   if state.teleportButton.overlay and type(state.teleportButton.overlay.ClearAllPoints) == "function" then
+    -- The state tint (combat red, not learned) covers the tile, not the
+    -- wider click area around it.
+    local overlayAnchor = state.teleportButton.icon or state.teleportButton
     state.teleportButton.overlay:ClearAllPoints()
-    state.teleportButton.overlay:SetPoint("TOPLEFT", state.teleportButton, "TOPLEFT", 0, 0)
-    state.teleportButton.overlay:SetPoint("BOTTOMRIGHT", state.teleportButton, "BOTTOMRIGHT", 0, 0)
+    state.teleportButton.overlay:SetPoint("TOPLEFT", overlayAnchor, "TOPLEFT", 0, 0)
+    state.teleportButton.overlay:SetPoint("BOTTOMRIGHT", overlayAnchor, "BOTTOMRIGHT", 0, 0)
   end
   if state.teleportButton.cooldownText and type(state.teleportButton.cooldownText.ClearAllPoints) == "function" then
     state.teleportButton.cooldownText:ClearAllPoints()
-    state.teleportButton.cooldownText:SetPoint("TOP", state.teleportButton.icon or state.teleportButton, "TOP", 0, -4)
+    state.teleportButton.cooldownText:SetPoint(
+      "CENTER",
+      state.teleportButton.labelStrip or state.teleportButton.icon or state.teleportButton,
+      "CENTER",
+      0,
+      0
+    )
   end
 end
 
@@ -858,6 +911,40 @@ local function ApplyPendingCenterNoticeTeleportButtonState(state)
   end
 end
 
+local function IsReducedMotion()
+  return type(SemanticUICommon) == "table"
+    and type(SemanticUICommon.IsReducedMotionEnabled) == "function"
+    and SemanticUICommon.IsReducedMotionEnabled() == true
+end
+
+-- Calm alpha breathing of the blinking warning rows (text and strip). Under
+-- reduced motion the rows are set to full alpha once and then left alone.
+local function UpdateWarningRowPulse(state, elapsed)
+  local alpha = 1
+  if IsReducedMotion() then
+    if state.warningPulseResting then
+      return
+    end
+    state.warningPulseResting = true
+  else
+    state.warningPulseResting = false
+    state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
+    local wave = (math.cos(state.warningBlinkTime * 2 * math.pi / WARNING_PULSE_PERIOD) + 1) * 0.5
+    alpha = WARNING_PULSE_MIN_ALPHA + (wave * (1 - WARNING_PULSE_MIN_ALPHA))
+  end
+  for _, row in ipairs(state.warningFieldRows) do
+    if row.label then
+      row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
+    end
+    if row.value then
+      row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
+    end
+    if row.warningBg and type(row.warningBg.SetAlpha) == "function" then
+      row.warningBg:SetAlpha(alpha)
+    end
+  end
+end
+
 local function AttachCenterNoticeFrameScripts(state)
   state.frame:SetScript("OnMouseUp", function(_, button)
     if button == "RightButton" then
@@ -875,17 +962,7 @@ local function AttachCenterNoticeFrameScripts(state)
     -- No steady-state repaint: isBlinking only changes in ShowCenterNotice,
     -- which re-applies the base color at full alpha itself.
     if type(state.warningFieldRows) == "table" then
-      state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
-      local wave = (math.sin(state.warningBlinkTime * 6) + 1) * 0.5
-      local alpha = 0.35 + (wave * 0.65)
-      for _, row in ipairs(state.warningFieldRows) do
-        if row.label then
-          row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
-        end
-        if row.value then
-          row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
-        end
-      end
+      UpdateWarningRowPulse(state, elapsed)
     end
 
     if not state.isPersistent and CurrentTime() >= state.endsAt then
@@ -935,6 +1012,9 @@ local function BuildCenterNoticeController(state)
     titleSeparator = state.titleSeparator,
     teleportHeader = state.teleportHeader,
     fieldRows = state.fieldRows,
+    headerBand = state.headerBand,
+    kindChip = state.kindChip,
+    brandText = state.brandText,
     closeButton = state.closeButton,
     teleportButton = state.teleportButton,
     SetVisible = SetVisible,
@@ -966,6 +1046,9 @@ function Notice.CreateCenterNotice(opts)
     titleSeparator = rich.titleSeparator,
     teleportHeader = rich.teleportHeader,
     fieldRows = rich.fieldRows,
+    headerBand = rich.headerBand,
+    kindChip = rich.kindChip,
+    brandText = rich.brandText,
     closeButton = closeButton,
     teleportButton = teleportButton,
     tooltip = createPrivateTooltip(frame),
@@ -1002,5 +1085,7 @@ function Notice.CreatePortalNavigatorNotice(opts)
     setReadableText = SetReadableText,
     createBodyText = CreatePortalStyleBodyText,
     createCloseButton = CreateCenterNoticeCloseButton,
+    createHeaderElements = NoticeRichLayout.CreateHeaderElements,
+    applyHeader = NoticeRichLayout.ApplyHeader,
   })
 end

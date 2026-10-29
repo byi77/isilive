@@ -33,6 +33,9 @@ local function CreateTextureStub()
   tex.SetBlendMode = function() end
   tex.SetVertexColor = function() end
   tex.SetRotation = function() end
+  tex.SetAlpha = function(self, alpha)
+    self._alpha = alpha
+  end
   tex.Hide = function(self)
     self._hidden = true
   end
@@ -579,11 +582,25 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.True(centerNotice.eyebrowText._shown, "eyebrowText must be visible")
       Assert.Equal(centerNotice.eyebrowText:GetText(), "M+ Target", "eyebrow text must propagate")
       Assert.True(centerNotice.titleText._shown, "titleText must be visible")
-      Assert.Equal(centerNotice.titleText:GetText(), "isiLive - Einladung angenommen", "title text must propagate")
+      Assert.Equal(
+        centerNotice.titleText:GetText(),
+        "Einladung angenommen",
+        "title text must propagate without the isiLive prefix the header brand already shows"
+      )
+      Assert.True(centerNotice.brandText._shown, "the header brand mark must be visible")
+      Assert.Equal(centerNotice.brandText:GetText(), "isiLive", "the header brand names isiLive once")
       Assert.Equal(centerNotice.titleSeparator._hidden, false, "titleSeparator must be visible when title is set")
+      Assert.Equal(centerNotice.headerBand._hidden, false, "the header band must be visible in rich mode")
+      Assert.Equal(centerNotice.kindChip._hidden, false, "the kind chip must be visible in rich mode")
 
       Assert.True(centerNotice.fieldRows[1].label._shown, "first field label visible")
-      Assert.Equal(centerNotice.fieldRows[1].label:GetText(), "Dungeon:", "first field label text")
+      Assert.Equal(centerNotice.fieldRows[1].label:GetText(), "Dungeon", "first field label text without its colon")
+      Assert.Equal(
+        centerNotice.fieldRows[1].divider._hidden,
+        false,
+        "a hairline separates the first from the second row"
+      )
+      Assert.True(centerNotice.fieldRows[2].divider._hidden ~= false, "the last row has no hairline below it")
       Assert.Equal(centerNotice.fieldRows[1].value:GetText(), "Akademie von Algeth'ar +13", "first field value text")
       Assert.True(centerNotice.fieldRows[2].label._shown, "second field label visible")
       Assert.Equal(centerNotice.fieldRows[2].value:GetText(), "+13 Push-Lobby", "second field value text")
@@ -596,7 +613,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
-  test("Center notice headline titles use shared gold color", function()
+  test("Center notice headline titles use the shared heading color", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
       CreateFrame = CreateFrameStub,
@@ -613,9 +630,9 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       })
 
       local r, g, b = centerNotice.titleText:GetTextColor()
-      Assert.Equal(r, 1, "center notice headline title should use the shared gold red channel")
-      Assert.Equal(g, 0.9, "center notice headline title should use the shared gold green channel")
-      Assert.Equal(b, 0.45, "center notice headline title should use the shared gold blue channel")
+      Assert.Equal(r, 0.93, "center notice headline title should use the shared heading red channel")
+      Assert.Equal(g, 0.96, "center notice headline title should use the shared heading green channel")
+      Assert.Equal(b, 1, "center notice headline title should use the shared heading blue channel")
     end)
   end)
 
@@ -705,9 +722,101 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.Equal(valueB, 0.12, "warning value blue channel must use danger tint")
       Assert.Equal(valueA, 1, "warning value starts fully visible")
 
+      Assert.Equal(centerNotice.fieldRows[2].warningBg._hidden, false, "a warning row sits on a tinted strip")
+      Assert.Equal(centerNotice.fieldRows[2].warningBar._hidden, false, "a warning row carries a warning bar")
+
       centerNotice.frame:GetScript("OnUpdate")(centerNotice.frame, 0.2)
       local _, _, _, blinkAlpha = centerNotice.fieldRows[2].value:GetTextColor()
       Assert.True(blinkAlpha < 1, "warning value alpha should pulse after an update tick")
+      Assert.True(blinkAlpha >= 0.55, "the warning pulse stays calm and never drops below 55 % alpha")
+      Assert.Equal(centerNotice.fieldRows[2].warningBg._alpha, blinkAlpha, "the warning strip pulses with its text")
+    end)
+  end)
+
+  test("Center notice warning rows stay steady with reduced motion", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+      IsiLiveDB = { reduceMotion = true },
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Hint:", value = "Not a Mythic+ dungeon", warning = true, blink = true },
+        },
+      })
+      local onUpdate = centerNotice.frame:GetScript("OnUpdate")
+      for _ = 1, 10 do
+        onUpdate(centerNotice.frame, 0.1)
+      end
+      local _, _, _, alpha = centerNotice.fieldRows[1].value:GetTextColor()
+      Assert.Equal(alpha, 1, "reduced motion keeps the warning row at full alpha")
+    end)
+  end)
+
+  test("Center notice rich card switched in place drops rows and strips of the previous card", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        eyebrow = "Group joined",
+        title = "isiLive - Joined target group",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+          { label = "Hint:", value = "Group full", warning = true },
+          { label = "Source:", value = "Simulation tablet" },
+        },
+      })
+      centerNotice.Show(nil, 12, nil, nil, {
+        eyebrow = "Dungeon",
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+          { label = "Difficulty:", value = "Normal" },
+        },
+      })
+
+      Assert.True(centerNotice.fieldRows[3].label._shown ~= true, "the third row of the previous card is hidden")
+      Assert.True(centerNotice.fieldRows[3].value._shown ~= true, "the third value of the previous card is hidden")
+      Assert.True(centerNotice.fieldRows[2].warningBg._hidden, "the warning strip of the previous card is gone")
+      Assert.True(centerNotice.fieldRows[2].divider._hidden, "the new last row has no hairline below it")
+    end)
+  end)
+
+  test("Center notice kind icon moves into the header chip and back for plain notices", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        eyebrow = "M+ Target",
+        title = "isiLive - Invite accepted",
+        fields = { { label = "Dungeon:", value = "King's Rest +15" } },
+      })
+      local icon = centerNotice.frame._isiLiveNoticeKindIcon
+      local iconX = icon._points[1][4]
+      local _, _, _, eyebrowX = centerNotice.eyebrowText:GetPoint()
+      Assert.Equal(iconX, 20, "the kind icon starts the chip at the content edge")
+      Assert.True(eyebrowX > iconX + 14, "the eyebrow starts right of the icon instead of under it")
+
+      centerNotice.Show("Plain text notice", 12, nil, nil, { persistent = true })
+      local plainX, plainY = icon._points[1][4], icon._points[1][5]
+      Assert.Equal(plainX, 9, "a plain notice gets the kind icon back in its corner")
+      Assert.Equal(plainY, -7, "a plain notice gets the kind icon back in its corner")
+      Assert.True(centerNotice.headerBand._hidden, "a plain notice has no header band")
     end)
   end)
 
@@ -921,24 +1030,24 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       )
       Assert.Equal(
         centerNotice.teleportButton:GetHeight(),
-        107,
-        "rich teleport button should span title through source row"
+        104,
+        "rich teleport button should span the field rows below the header band"
       )
       local point, relativeTo, relativePoint, x, y = centerNotice.teleportButton:GetPoint()
       Assert.Equal(point, "CENTER", "rich teleport button should anchor by its center in the right action area")
       Assert.Equal(relativeTo, centerNotice.frame, "rich teleport button should anchor to the center notice")
       Assert.Equal(relativePoint, "TOPRIGHT", "rich teleport button should calculate its y-position from the frame top")
       Assert.Equal(x, -109, "rich teleport button should sit in the free right-side interior area")
-      Assert.Equal(y, -84, "rich teleport button should align symmetrically with the rich text block")
+      Assert.Equal(y, -121, "rich teleport button should start below the header band at the first field row")
       Assert.Equal(
         centerNotice.teleportButton.icon._width,
-        93,
+        90,
         "rich teleport icon should be visually dominant inside the action area"
       )
       Assert.Equal(
         centerNotice.teleportButton.actionBg._width,
-        101,
-        "rich teleport visible blue background should only frame the icon"
+        90,
+        "rich teleport blue background sits only behind the icon, inside the tile border"
       )
     end)
   end)

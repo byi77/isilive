@@ -90,6 +90,10 @@ UICommon.Colors = {
   SURFACE_NOTICE = { 0.035, 0.05, 0.075, 0.90 },
   BORDER_NOTICE = { 0.24, 0.55, 0.82, 0.58 },
   ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
+  -- Notice card rows: hairline between field rows, tinted strip behind a
+  -- warning row (the row text keeps the warning red).
+  NOTICE_ROW_DIVIDER = { 0.58, 0.65, 0.74, 0.14 },
+  NOTICE_WARNING_ROW_BG = { 1, 0.16, 0.12, 0.13 },
   SURFACE_COMPACT_OVERLAY = { 0.025, 0.04, 0.06, 0.78 },
   TEXT_ALERT_DANGER = { 1, 0.14, 0.16 },
 
@@ -927,6 +931,11 @@ function UICommon.ApplyNoticeKind(parent, kind)
     parent._isiLiveNoticeKindRail = rail
   end
   ApplyColorTuple(rail, "SetColorTexture", style.color)
+  -- The top hairline follows the kind as well, so rail and accent read as one frame.
+  if parent._isiLiveNoticeAccent then
+    ApplyColorTuple(parent._isiLiveNoticeAccent, "SetColorTexture", style.color)
+  end
+  parent._isiLiveNoticeKindColor = style.color
   local icon = parent._isiLiveNoticeKindIcon
   if not icon then
     icon = parent:CreateTexture(nil, "OVERLAY")
