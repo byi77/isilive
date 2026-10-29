@@ -553,7 +553,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.NotNil(centerNotice.titleSeparator, "titleSeparator must be exposed")
       Assert.NotNil(centerNotice.teleportHeader, "teleportHeader must be exposed")
       Assert.NotNil(centerNotice.fieldRows, "fieldRows must be exposed")
-      Assert.Equal(#centerNotice.fieldRows, 6, "should pre-allocate 6 field rows")
+      Assert.Equal(#centerNotice.fieldRows, 8, "should pre-allocate 8 field rows")
       Assert.False(centerNotice.titleText._shown, "titleText hidden by default")
       Assert.False(centerNotice.eyebrowText._shown, "eyebrowText hidden by default")
       Assert.False(centerNotice.fieldRows[1].label._shown, "first field row hidden by default")

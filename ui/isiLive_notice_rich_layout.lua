@@ -30,7 +30,8 @@ local SUBLINE_GAP = 4
 local FIELD_LABEL_WIDTH = 144
 -- Largest cards: accepted invite (dungeon, title, leader, source, navigation)
 -- and accepted raid invite (up to six rows). Surplus fields are dropped.
-local MAX_FIELD_ROWS = 6
+-- Invite card: five rows, the Loadout label row and its two sub-rows.
+local MAX_FIELD_ROWS = 8
 -- Field labels and values follow the shared supporting and heading text roles.
 local FIELD_LABEL_COLOR = Colors.TEXT_SUPPORTING or { 0.58, 0.65, 0.74 }
 local FIELD_VALUE_COLOR = Colors.TEXT_HEADING or { 0.93, 0.96, 1 }
@@ -54,6 +55,9 @@ local HEADER_BOTTOM_GAP = 10
 local HEADER_CLOSE_RESERVE = 28
 -- Field rows sit on a hairline grid; the padding is above and below the text.
 local FIELD_ROW_PAD_Y = 5
+-- A grouped field is a sub-row of the field above it: its label is indented
+-- in the label column and no hairline separates it from that field.
+local FIELD_GROUPED_LABEL_INDENT = 10
 -- UICommon.ApplyNoticeKind's own icon anchor, restored outside rich mode.
 local KIND_ICON_DEFAULT_SIZE = 16
 local KIND_ICON_DEFAULT_X, KIND_ICON_DEFAULT_Y = 9, -7
@@ -400,7 +404,8 @@ local function ApplyRichFieldRow(state, row, field, contentWidth, rowTopY, showD
   end
 
   row.label:ClearAllPoints()
-  row.label:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -textY)
+  local labelIndent = field.grouped == true and FIELD_GROUPED_LABEL_INDENT or 0
+  row.label:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX + labelIndent, -textY)
   SetReadableText(row.label, StripLabelColon(field.label))
   row.label:SetTextColor(labelR, labelG, labelB, 1)
   row.label:Show()
@@ -475,7 +480,9 @@ local function ApplyCenterNoticeRichLayout(deps, state, payload, hasTeleportButt
       end
     end
     for i, field in ipairs(visibleFields) do
-      cursorY = cursorY + ApplyRichFieldRow(state, state.fieldRows[i], field, contentWidth, cursorY, i < #visibleFields)
+      local nextField = visibleFields[i + 1]
+      local showDivider = nextField ~= nil and nextField.grouped ~= true
+      cursorY = cursorY + ApplyRichFieldRow(state, state.fieldRows[i], field, contentWidth, cursorY, showDivider)
       actionBottomY = cursorY
     end
     cursorY = cursorY + lineGap

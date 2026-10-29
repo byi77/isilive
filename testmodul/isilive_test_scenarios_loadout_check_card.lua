@@ -102,6 +102,8 @@ local function RegisterLoadoutCheckCardTests(test, Assert, WithGlobals, LoadAddo
       local controller = BuildController()
       local model = addon.LoadoutCheck.BuildModel(BuildLive(), { configID = 102, lootSpecID = 0 })
       model.dungeonName = "Floodgate"
+      -- The judged card (remembered targets switched on).
+      model.remembers = true
 
       Assert.True(card:Show(model, controller), "a valid model renders")
       Assert.True(card:IsShown(), "the card is shown after rendering")
@@ -131,10 +133,14 @@ local function RegisterLoadoutCheckCardTests(test, Assert, WithGlobals, LoadAddo
       local controller = BuildController()
       local unknown = addon.LoadoutCheck.BuildModel(BuildLive(), nil)
       card:Show(unknown, controller)
-      Assert.NotNil(FindButton(createdFrames, "OK - remember"), "without a target the card offers to remember")
+      Assert.NotNil(FindButton(createdFrames, "OK"), "without remembered targets the card just closes with OK")
+      unknown.remembers = true
+      card:Show(unknown, controller)
+      Assert.NotNil(FindButton(createdFrames, "OK - remember"), "remembering, a missing target offers to remember")
 
       local ok = addon.LoadoutCheck.BuildModel(BuildLive({ lootSpecID = 0 }), { configID = 101, lootSpecID = 0 })
       ok.inCombat = true
+      ok.remembers = true
       card:Show(ok, controller)
       Assert.NotNil(FindButton(createdFrames, "All OK"), "a full match reads all OK")
 

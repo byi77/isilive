@@ -68,6 +68,8 @@ local function BuildWorld(opts)
       world.printed[#world.printed + 1] = message
     end,
     card = world.card,
+    -- Remembering targets is off by default; the judged path stays covered here.
+    rememberTargets = true,
     getCurrentSpec = function()
       return world.specID, world.specName
     end,
@@ -434,6 +436,27 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  test("LoadoutCheck finishes a talent switch whose commit event fires inside LoadConfig", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      WithPendingLoads(world)
+      world.deps.loadLoadout = function(specID, configID)
+        world.loads[#world.loads + 1] = { specID = specID, configID = configID }
+        LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED")
+        return "pending"
+      end
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = 0 })
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      Assert.True(world.cardController.SelectLoadout(102), "the switch starts")
+      Assert.Equal(world.marked[1], 102, "the early commit event still marks the loadout selected")
+      Assert.Equal(world.LastModel().talents.status, "ok", "the card judges the new loadout at once")
+      Assert.True(world.cardController.SelectLoadout(101), "no switch is left pending")
+    end)
+  end)
+
   test("LoadoutCheck reports an interrupted talent switch and keeps the old loadout", function()
     WithGlobals({}, function()
       local LoadoutCheck = LoadModule()
@@ -451,52 +474,53 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
-  test("LoadoutCheck decides a silent talent switch by the active talents after the timeout", function()
+  test("LoadoutCheck counts a silent talent switch as done after the timeout", function()
     WithGlobals({}, function()
       local LoadoutCheck = LoadModule()
       local world = BuildWorld()
       WithPendingLoads(world)
-      local modified = false
-      world.deps.isLoadoutModified = function()
-        return modified
-      end
       LoadoutCheck.SetDependencies(world.deps)
       Enter(LoadoutCheck, world)
 
       world.cardController.SelectLoadout(102)
       world.FlushTimers()
-      Assert.Equal(world.marked[1], 102, "active talents matching the loadout count as success")
-
-      world.cardController.SelectLoadout(101)
-      modified = true
-      world.FlushTimers()
-      Assert.Equal(#world.marked, 1, "active talents differing from the loadout count as failure")
-      Assert.True(#world.printed >= 1, "the failed silent switch is reported")
+      Assert.Equal(world.marked[1], 102, "without any result event the switch counts as done")
+      Assert.Equal(#world.printed, 0, "a silent switch reports nothing")
     end)
   end)
 
-  test("LoadoutCheck flags talents changed without saving as not the remembered loadout", function()
+  test("LoadoutCheck by default shows the active state without remembering or judging", function()
     WithGlobals({}, function()
       local LoadoutCheck = LoadModule()
       local world = BuildWorld()
-      local modified = true
-      world.deps.isLoadoutModified = function(_, configID)
-        return modified and configID == 101
-      end
-      StoreTarget(world, { configID = 101, configName = "M+ AoE", lootSpecID = 0 })
+      world.deps.rememberTargets = nil
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = FIRE_MAGE })
       LoadoutCheck.SetDependencies(world.deps)
 
       Enter(LoadoutCheck, world)
       local model = world.LastModel()
-      Assert.NotNil(model, "a changed tree shows the card instead of the green chat line")
-      Assert.True(model.talents.modified, "the model marks the unsaved change")
-      Assert.Equal(model.talents.status, "mismatch", "the changed tree is not the remembered loadout")
-      Assert.False(model.allOk, "an unsaved change is never all OK")
-      local text = LoadoutCheck.GetSummary(MAP_ID)
-      Assert.Equal(text, "Talents: M+ AoE changed, not saved · Loot OK", "the invite row names the unsaved change")
+      Assert.NotNil(model, "the card shows on every dungeon entry")
+      Assert.False(model.remembers, "the card knows nothing is remembered")
+      Assert.Equal(model.talents.status, "unknown", "a stored target is not judged against")
+      Assert.Equal(model.talents.currentName, "M+ AoE", "the active loadout is shown")
 
-      modified = false
-      Assert.Equal(LoadoutCheck.GetSummary(MAP_ID), "Talents OK · Loot OK", "a saved tree reads OK again")
+      local text = LoadoutCheck.GetSummary(MAP_ID)
+      Assert.Equal(text, "Talents: M+ AoE · Loot: Current spec (Frost)", "the invite row names the active state")
+      local subFields = LoadoutCheck.GetSummaryFields(MAP_ID)
+      Assert.Equal(#subFields, 2, "one sub-row for the talents, one for the loot spec")
+      Assert.Equal(subFields[1].label, "Talents:", "the talents label sits in the label column")
+      Assert.Equal(subFields[1].value, "|cffffd659M+ AoE|r", "the active loadout name stands out in gold")
+      Assert.Equal(subFields[2].label, "Loot:", "the loot label sits in the label column")
+      Assert.Equal(subFields[2].value, "Current spec (Frost)", "the active loot spec, no verdict")
+      Assert.False(subFields[1].warning or subFields[2].warning, "the active state is never a warning")
+
+      local stored = world.db.loadoutCheck["Player-1-0000AAAA"][FROST_MAGE][MAP_ID]
+      Assert.True(world.cardController.Confirm(), "OK closes the card")
+      Assert.False(world.cardShown, "OK hides the card")
+      Assert.True(
+        world.db.loadoutCheck["Player-1-0000AAAA"][FROST_MAGE][MAP_ID] == stored,
+        "OK stores nothing and leaves the stored data untouched"
+      )
     end)
   end)
 
@@ -532,18 +556,23 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       LoadoutCheck.SetDependencies(world.deps)
 
       StoreTarget(world, { configID = 101, configName = "M+ AoE", lootSpecID = 0 })
-      local field = LoadoutCheck.GetSummaryField(MAP_ID)
-      Assert.True(field.value:find("ReadyCheck-Ready", 1, true) ~= nil, "matching parts carry the ready icon")
-      Assert.Nil(field.value:find("NotReady", 1, true), "an all-OK row has no not-ready icon")
-      Assert.False(field.warning, "an all-OK row stays off the warning strip")
+      local subFields = LoadoutCheck.GetSummaryFields(MAP_ID)
+      Assert.True(subFields[1].value:find("ReadyCheck-Ready", 1, true) ~= nil, "matching parts carry the ready icon")
+      Assert.True(subFields[1].value:find("M+ AoE", 1, true) ~= nil, "a matching loadout names itself")
+      Assert.False(subFields[1].warning or subFields[2].warning, "an all-OK block stays off the warning strip")
+
+      StoreTarget(world, { configID = 102, configName = "M+ Single", lootSpecID = 0 })
+      subFields = LoadoutCheck.GetSummaryFields(MAP_ID)
+      Assert.True(subFields[1].value:find("NotReady", 1, true) ~= nil, "a mismatch carries the not-ready icon")
+      Assert.True(subFields[1].warning, "a mismatch puts only its own sub-row on the warning strip")
+      Assert.False(subFields[2].warning, "the matching loot sub-row stays plain")
 
       world.db.loadoutCheck = nil
-      field = LoadoutCheck.GetSummaryField(MAP_ID)
-      Assert.True(field.value:find("ReadyCheck-Waiting", 1, true) ~= nil, "an unjudged state carries the waiting icon")
-      Assert.False(field.warning, "an unjudged state is no warning")
+      subFields = LoadoutCheck.GetSummaryFields(MAP_ID)
+      Assert.Nil(subFields[1].value:find("ReadyCheck", 1, true), "an unjudged state carries no status icon")
 
       world.db.loadoutCheckEnabled = false
-      Assert.Nil(LoadoutCheck.GetSummaryField(MAP_ID), "the disabled setting hides the field")
+      Assert.Nil(LoadoutCheck.GetSummaryFields(MAP_ID), "the disabled setting hides the block")
     end)
   end)
 
@@ -556,7 +585,7 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       local text, allOk = LoadoutCheck.GetSummary(MAP_ID)
       Assert.Equal(
         text,
-        "M+ AoE · Loot: Current spec (Frost) (not remembered for this dungeon yet)",
+        "Talents: M+ AoE · Loot: Current spec (Frost)",
         "without any target the current state is shown unjudged"
       )
       Assert.False(allOk, "an unjudged state is never all OK")
@@ -564,17 +593,13 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       world.selectedLoadoutID = nil
       world.lootSpecID = FIRE_MAGE
       text = LoadoutCheck.GetSummary(MAP_ID)
-      Assert.Equal(
-        text,
-        "no saved loadout · Loot: Fire (not remembered for this dungeon yet)",
-        "the starter build reads as no saved loadout"
-      )
+      Assert.Equal(text, "Talents: no saved loadout · Loot: Fire", "the starter build reads as no saved loadout")
 
       world.db.loadoutCheck = {
         ["Player-1-0000AAAA"] = { [FIRE_MAGE] = { [MAP_ID] = { configID = 101, lootSpecID = 0 } } },
       }
       text = LoadoutCheck.GetSummary(MAP_ID)
-      Assert.True(text:find("not remembered", 1, true) ~= nil, "a target of another spec is never used")
+      Assert.Equal(text, "Talents: no saved loadout · Loot: Fire", "a target of another spec is never used")
     end)
   end)
 
@@ -675,15 +700,24 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       }
 
       render(ctx, {}, { mapID = MAP_ID })
-      local last = captured.fields[#captured.fields]
-      Assert.Equal(last.label, "Loadout-DE:", "the loadout row must be the last row")
+      local count = #captured.fields
+      local header, talents, loot = captured.fields[count - 2], captured.fields[count - 1], captured.fields[count]
+      Assert.Equal(header.label, "Loadout-DE:", "the Loadout block closes the card")
+      Assert.Equal(header.value, "", "the Loadout label row carries no value of its own")
+      Assert.Equal(talents.label, "Talents:", "Talents sits below Loadout in the label column")
+      Assert.True(talents.grouped and loot.grouped, "both sub-rows are grouped under Loadout")
       Assert.Equal(
-        last.value,
-        "|cffff2429|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t Talents: M+ Single expected|r"
-          .. "\n|cff33d94d|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t Loot OK|r",
-        "the row carries the real summary with a status icon and colour per part"
+        talents.value,
+        "|cffff2429|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t Talents: M+ Single expected|r",
+        "the talents sub-row carries the real summary with its status icon and colour"
       )
-      Assert.True(last.warning, "a mismatch puts the row on the warning strip")
+      Assert.Equal(
+        loot.value,
+        "|cff33d94d|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t Loot OK|r",
+        "the loot sub-row carries its own status"
+      )
+      Assert.True(talents.warning, "a mismatch puts its sub-row on the warning strip")
+      Assert.False(loot.warning, "the matching loot sub-row stays plain")
       Assert.Equal(captured.noticeKind, "action", "the row warning does not turn the whole card into a warning")
 
       world.db.loadoutCheckEnabled = false
@@ -691,7 +725,7 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "the disabled setting omits the row")
 
       world.db.loadoutCheckEnabled = true
-      addon.LoadoutCheck.GetSummaryField = function()
+      addon.LoadoutCheck.GetSummaryFields = function()
         error("boom")
       end
       render(ctx, {}, { mapID = MAP_ID })

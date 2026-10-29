@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-29 - Version 0.9.468 (patch)
+
+- Talent and loot check (rule 215): the card and the accepted-invite card show
+  the active talent loadout and loot spec without a verdict; which saved
+  loadout is right is the player's call. Remembering a target per dungeon and
+  spec (and judging against it) is switched off for now
+  (`REMEMBER_TARGETS_DEFAULT = false`); the card's button reads `OK` and stores
+  nothing, stored targets stay untouched in `IsiLiveDB.loadoutCheck`, and the
+  card shows on every entry of a season dungeon.
+- Removed the unsaved-change check (export-string comparison of the active
+  talents with the saved loadout); talents are not compared point by point.
+  A talent switch without any result event counts as done after 10 s, an
+  interruption still reports through `CONFIG_COMMIT_FAILED`; a commit event
+  that fires while `LoadConfig` still runs is no longer missed.
+- Accepted-invite card: `Talents` and `Loot` sit as grouped sub-rows under
+  `Loadout` in the label column (indented, no hairline in between), the
+  loadout name in the target gold; the card's field rows go up to 8. The
+  talent & loot card shows the active loadout name in the same gold.
+
 ## 2026-10-29 - Version 0.9.467 (patch)
 
 - Talent and loot check (rule 215): the accepted-invite `Loadout` row lists

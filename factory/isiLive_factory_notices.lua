@@ -84,7 +84,7 @@ local function ResolveGroupTitleKeyLevel(groupName)
   return best
 end
 
-local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, loadoutField)
+local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, loadoutFields)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
 
@@ -117,29 +117,41 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, 
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = navigationText }
   end
 
-  if type(loadoutField) == "table" then
-    fields[#fields + 1] = {
-      label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:",
-      value = loadoutField.value,
-      warning = loadoutField.warning == true,
-    }
+  -- Loadout block: its label row, then "Talents" and "Loot" as grouped
+  -- sub-rows in the label column (no hairline in between).
+  if type(loadoutFields) == "table" and #loadoutFields > 0 then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:", value = "" }
+    for _, subField in ipairs(loadoutFields) do
+      fields[#fields + 1] = {
+        label = subField.label,
+        value = subField.value,
+        warning = subField.warning == true,
+        grouped = true,
+      }
+    end
   end
 
   return fields
 end
 
--- Talent / loot spec status against the target confirmed for this dungeon
--- (rule 215) as { value, warning }: icon and colour per part; nil hides the row.
-local function ResolveAcceptedInviteLoadoutField(mapID)
+-- Active talent loadout and loot spec (rule 215) as sub-rows
+-- ({ label, value, warning }); nil hides the Loadout block.
+local function ResolveAcceptedInviteLoadoutFields(mapID)
   local loadoutCheck = addonTable.LoadoutCheck
-  if not mapID or type(loadoutCheck) ~= "table" or type(loadoutCheck.GetSummaryField) ~= "function" then
+  if not mapID or type(loadoutCheck) ~= "table" or type(loadoutCheck.GetSummaryFields) ~= "function" then
     return nil
   end
-  local ok, field = pcall(loadoutCheck.GetSummaryField, mapID)
-  if not ok or type(field) ~= "table" or type(field.value) ~= "string" or field.value == "" then
+  local ok, subFields = pcall(loadoutCheck.GetSummaryFields, mapID)
+  if not ok or type(subFields) ~= "table" then
     return nil
   end
-  return field
+  local valid = {}
+  for _, subField in ipairs(subFields) do
+    if type(subField) == "table" and type(subField.label) == "string" and type(subField.value) == "string" then
+      valid[#valid + 1] = subField
+    end
+  end
+  return #valid > 0 and valid or nil
 end
 
 -- Zone of the target dungeon (plus the portal hint); nil hides the row.
@@ -193,7 +205,7 @@ local function BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
     mapName,
     payload,
     ResolveAcceptedInviteNavigationText(ctx, mapID),
-    ResolveAcceptedInviteLoadoutField(mapID)
+    ResolveAcceptedInviteLoadoutFields(mapID)
   )
   local hasTeleportContext = activityID ~= nil or mapID ~= nil
 

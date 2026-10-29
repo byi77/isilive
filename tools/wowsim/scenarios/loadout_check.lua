@@ -1,9 +1,10 @@
 -- Pre-key talent / loot spec check (rule 215).
 --
 -- Entering a season dungeon on Mythic difficulty (23) before the key shows the
--- loadout card. The first visit has no target and offers "remember"; after a
--- confirm and a re-entry with a different loadout and loot spec the card flags
--- both, the one-click buttons fix them, and the key start closes the card.
+-- loadout card with the active loadout and loot spec. Nothing is remembered or
+-- judged (switched off for now): OK closes the card without storing anything,
+-- every entry shows it again, the one-click buttons switch loadout and loot
+-- spec, and the key start closes the card.
 --
 -- The simulator has no talent model, so this scenario installs a small one on
 -- the focus client's environment: two saved loadouts for Fire Mage and the
@@ -104,7 +105,7 @@ end
 
 return {
   name = "loadout_check",
-  description = "Pre-key talent and loot spec check: learn, flag, one-click fix, close on key start",
+  description = "Pre-key talent and loot spec check: active state, OK, one-click switches, close on key start",
   setup = {
     locale = "deDE",
     party = {
@@ -122,43 +123,33 @@ return {
     sim.Wait(3)
 
     EnterBeforeKey(sim)
-    sim.Step("First visit: nothing remembered yet")
+    sim.Step("First visit: active loadout and loot spec")
     sim.Expect(CardShown(sim), "card appears on entering a season dungeon before the key")
-    sim.ExpectText("noch nicht gemerkt", "first visit shows the not-yet-remembered status")
-    sim.ExpectText("Passt – merken", "first visit offers to remember")
+    sim.ExpectText("M%+ AoE Fire", "the card names the active loadout")
+    sim.ExpectText("Aktuelle Spec %(Fire%)", "the card names the active loot spec")
 
-    ClickCardButton(sim, "Passt – merken")
+    ClickCardButton(sim, "^OK$")
     sim.Wait(1)
-    sim.Step("Confirmed and remembered")
-    sim.Expect(not CardShown(sim), "confirm closes the card")
+    sim.Step("Closed with OK")
+    sim.Expect(not CardShown(sim), "OK closes the card")
     local stored = sim.Env().IsiLiveDB.loadoutCheck
-    sim.Expect(type(stored) == "table" and next(stored) ~= nil, "confirm stores the target in IsiLiveDB")
+    sim.Expect(stored == nil or next(stored) == nil, "OK stores nothing")
 
     sim.LeaveDungeon()
     sim.Wait(3)
     state.selected = 9102
     state.lootSpecID = FROST_MAGE
     EnterBeforeKey(sim)
-    sim.Step("Second visit: wrong loadout and loot spec")
-    sim.Expect(CardShown(sim), "re-entry checks again")
-    sim.ExpectText("erwartet: M%+ AoE Fire", "talent mismatch names the expected loadout")
-    sim.ExpectText("erwartet: Aktuelle Spec %(Fire%)", "loot mismatch names the expected loot spec")
+    sim.Step("Second visit: other loadout and loot spec")
+    sim.Expect(CardShown(sim), "every entry shows the card again")
+    sim.ExpectText("M%+ Single Target", "the card names the newly active loadout")
 
     ClickCardButton(sim, "M%+ AoE Fire")
     ClickCardButton(sim, "Aktuelle Spec")
     sim.Wait(1)
-    sim.Step("Fixed with one click each")
+    sim.Step("Switched with one click each")
     sim.Expect(state.loads[#state.loads] == 9101, "the loadout button loads the clicked loadout")
     sim.Expect(state.lootSpecID == 0, "the loot button sets the current-spec default")
-    sim.ExpectText("Alles OK", "with both fixed the confirm button reads all OK")
-
-    ClickCardButton(sim, "Alles OK")
-    sim.LeaveDungeon()
-    sim.Wait(3)
-    EnterBeforeKey(sim)
-    sim.Step("Third visit: everything matches")
-    sim.Expect(not CardShown(sim), "a full match shows no card")
-    sim.ExpectLog("print", "passen für Murder Row", nil, "a full match prints one green chat line")
 
     sim.world.instance.difficultyID = MYTHIC_KEYSTONE_DIFFICULTY_ID
     sim.StartKey({ mapID = MURDER_ROW_MAP_ID, level = 12 })

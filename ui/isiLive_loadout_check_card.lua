@@ -28,7 +28,18 @@ local STATUS_COLORS = {
   mismatch = Colors.TEXT_ALERT_DANGER,
   unknown = Colors.TEXT_SUPPORTING,
   pending = Colors.MUTED_GOLD_PCT_TEXT,
+  -- Nothing remembered to judge against: the active state in plain white.
+  current = Colors.WHITE_RGB,
 }
+
+-- Status colour key of a section: without remembered targets the active
+-- state is shown neutral, a running switch keeps its own colour.
+local function StatusColorKey(section, remembers)
+  if not remembers and section.status == "unknown" then
+    return "current"
+  end
+  return section.status
+end
 
 -- Controller of the current render; its GetText follows the isiLive language
 -- setting, which can differ from the client locale.
@@ -67,13 +78,13 @@ local function LootOptionLabel(option)
   return option.name or "?"
 end
 
-local function TalentStatusText(talents)
+local function TalentStatusText(talents, remembers)
   if talents.status == "pending" then
     return string.format(Text("LOADOUT_CHECK_STATUS_PENDING", "Switching to %s ..."), talents.pendingName or "?")
   end
   local current = talents.currentName or Text("LOADOUT_CHECK_NO_LOADOUT", "no saved loadout")
-  if talents.modified then
-    current = string.format(Text("LOADOUT_CHECK_MODIFIED_NAME", "%s (changed, not saved)"), current)
+  if not remembers and talents.status == "unknown" then
+    return current
   end
   if talents.status == "ok" then
     return string.format(Text("LOADOUT_CHECK_STATUS_OK", "OK: %s"), current)
@@ -83,7 +94,7 @@ local function TalentStatusText(talents)
   return string.format(Text("LOADOUT_CHECK_STATUS_UNKNOWN", "%s (not remembered yet)"), current)
 end
 
-local function LootStatusText(loot)
+local function LootStatusText(loot, remembers)
   local function Name(isSpecDefault, name)
     if isSpecDefault then
       return string.format(Text("LOADOUT_CHECK_LOOT_CURRENT_SPEC", "Current spec (%s)"), name or "?")
@@ -91,6 +102,9 @@ local function LootStatusText(loot)
     return name or "?"
   end
   local current = Name(loot.currentIsSpecDefault, loot.currentName)
+  if not remembers and loot.status == "unknown" then
+    return current
+  end
   if loot.status == "ok" then
     return string.format(Text("LOADOUT_CHECK_STATUS_OK", "OK: %s"), current)
   elseif loot.status == "mismatch" then
@@ -104,6 +118,9 @@ local function LootStatusText(loot)
 end
 
 local function ConfirmLabel(model)
+  if not model.remembers then
+    return Text("LOADOUT_CHECK_CONFIRM_CLOSE", "OK")
+  end
   if model.allOk then
     return Text("LOADOUT_CHECK_CONFIRM_OK", "All OK")
   elseif not model.hasTarget then
@@ -217,8 +234,10 @@ local function Render(frame, model, controller)
   Place(frame.title, Text("LOADOUT_CHECK_TITLE", "Talents & loot check"), LINE_HEIGHT + 8)
 
   Place(frame.talentHeader, Text("LOADOUT_CHECK_TALENTS", "Talents"))
-  SetColor(frame.talentStatus, STATUS_COLORS[model.talents.status])
-  Place(frame.talentStatus, TalentStatusText(model.talents), LINE_HEIGHT + 4)
+  -- The active loadout name stands out in the target gold, as on the invite card.
+  local talentColorKey = StatusColorKey(model.talents, model.remembers)
+  SetColor(frame.talentStatus, talentColorKey == "current" and Colors.GOLD_TARGET_TEXT or STATUS_COLORS[talentColorKey])
+  Place(frame.talentStatus, TalentStatusText(model.talents, model.remembers), LINE_HEIGHT + 4)
   y = LayoutOptions(frame, frame.talentButtons, model.talents.options, y, function(option)
     return option.name
   end, function(option)
@@ -227,8 +246,8 @@ local function Render(frame, model, controller)
   y = y - 4
 
   Place(frame.lootHeader, Text("LOADOUT_CHECK_LOOT", "Loot specialization"))
-  SetColor(frame.lootStatus, STATUS_COLORS[model.loot.status])
-  Place(frame.lootStatus, LootStatusText(model.loot), LINE_HEIGHT + 4)
+  SetColor(frame.lootStatus, STATUS_COLORS[StatusColorKey(model.loot, model.remembers)])
+  Place(frame.lootStatus, LootStatusText(model.loot, model.remembers), LINE_HEIGHT + 4)
   y = LayoutOptions(frame, frame.lootButtons, model.loot.options, y, LootOptionLabel, function(option)
     controller.SelectLootSpec(option.id)
   end, model.inCombat and "combat" or nil)
@@ -239,17 +258,23 @@ local function Render(frame, model, controller)
     frame.combatHint:Hide()
   end
 
-  local hint = string.format(
-    Text("LOADOUT_CHECK_HINT", "Confirming remembers the current state for %s with %s."),
-    model.dungeonName or "?",
-    model.specName or "?"
-  )
-  frame.hint:ClearAllPoints()
-  frame.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y - 2)
-  SetReadable(frame.hint, hint)
-  frame.hint:Show()
-  local hintHeight = tonumber(frame.hint:GetStringHeight()) or LINE_HEIGHT
-  y = y - 2 - hintHeight - 10
+  -- The "confirming remembers" hint only while targets are remembered.
+  if model.remembers then
+    local hint = string.format(
+      Text("LOADOUT_CHECK_HINT", "Confirming remembers the current state for %s with %s."),
+      model.dungeonName or "?",
+      model.specName or "?"
+    )
+    frame.hint:ClearAllPoints()
+    frame.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y - 2)
+    SetReadable(frame.hint, hint)
+    frame.hint:Show()
+    local hintHeight = tonumber(frame.hint:GetStringHeight()) or LINE_HEIGHT
+    y = y - 2 - hintHeight - 10
+  else
+    frame.hint:Hide()
+    y = y - 6
+  end
 
   frame.confirmButton:ClearAllPoints()
   frame.confirmButton:SetPoint("TOP", frame, "TOP", 0, y)

@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.467`.
+Current version: `0.9.468`.
+
+Version 0.9.468: the talent and loot check shows your active loadout and
+loot spec without a verdict; which saved loadout is right is your call. The
+accepted-invite card lists Talents and Loot under Loadout, the loadout name in
+gold.
 
 Version 0.9.467: the talent and loot check reads at a glance (one line per check
 with a tick or cross on the accepted-invite card), counts a talent switch only
@@ -105,7 +110,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.467 -->
+<!-- highlights-reviewed-for: 0.9.468 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:
@@ -120,11 +125,11 @@ Highlights:
   other addons are reused, and group members running Details! report theirs
   without an inspect.
 - **Talent and loot check before the key.** Entering a season dungeon in a
-  group shows your talent loadout and loot spec next to what you confirmed for
-  that dungeon and spec, with one-click switches; a full match is a green chat
-  line. The accepted-invite card shows each check on its own line with a green
-  tick or red cross, a switch counts only once it has really gone through, and
-  talents changed without saving are flagged.
+  group shows your active talent loadout and loot spec, with one-click
+  switches to every saved loadout and loot spec; which one is right is your
+  call. The accepted-invite card lists Talents and Loot under Loadout, the
+  loadout name in gold, and a switch counts only once it has really gone
+  through.
 - **Cleaner killtracker.** Before the key the empty bar glows gold with a
   slow light sweep and the target dungeon and key level pulse on it, so you
   see at a glance which key the group is about to run; during the key the
