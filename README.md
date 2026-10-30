@@ -11,6 +11,10 @@
 
 **Built for:** Mythic+ players, premade groups, and LFG runs
 
+Unreleased audit checkpoint (2026-10-30): stricter sync identity matching,
+party membership updates during active keys, and stale timestamp rejection.
+Eleven follow-up findings remain open; this checkpoint is not a release.
+
 Bloodlust lockout timers query Sated-class debuffs directly by spell ID, so
 blocked aura-list access does not prevent countdowns or ready alerts.
 

@@ -1,7 +1,9 @@
 # isiLive Architektur
 
 Versionsbasis: `0.9.469`
-Zuletzt aktualisiert: `2026-10-29`
+Zuletzt aktualisiert: `2026-10-30`
+
+Audit-Zwischenstand (2026-10-30, unveroeffentlicht): KeySync akzeptiert keine Alias-Zuordnung allein wegen eines gemeinsamen Realms und weist mehrdeutige Owner-Hinweise zurueck. Group aktualisiert Party-Mitglieder auch im laufenden Key und erhaelt bestehende Mitgliedsdaten. Sync fuehrt pro Snapshot-Bucket Zeitstempel-Wasserstandsmarken auch nach Clears. Elf Folgefindings bleiben offen; insbesondere ist die Mischung mit ungestempelten LibKS-Daten noch nicht abgesichert und die eigene Roster-Zeile fehlt nach Raid-Rueckkehr im aktiven Key.
 
 Folgeaudit (0.9.456): Sync wertet numerische Sendeergebnisse transaktional aus und erhaelt leere Payload-Felder. KeySync schliesst Ghost-Hinweise aus. Inspect behaelt bekannte Felder bei partiellen Antworten und plant Retries. TTK akzeptiert nur verifiziert lebende Ziele und beendet veraltete Kampfzustaende beim Refresh. Status nutzt die gemeinsame RuntimeMode-Difficulty-Policy; ungenutzte Queue-, Highlight- und Command-Helfer entfallen. Der Regelparser prueft Uebersicht gegen Detailbloecke.
 

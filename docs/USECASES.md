@@ -1,7 +1,9 @@
 # isiLive Anwendungsfaelle
 
 Versionsbasis: `0.9.469`
-Zuletzt aktualisiert: `2026-10-29`
+Zuletzt aktualisiert: `2026-10-30`
+
+Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Der Audit umfasst sieben Durchgaenge mit elf offenen Folgefindings; die letzte Runde brachte keine weiteren Findings. Baseline: 2845 Szenarien bestanden. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor. Die offenen Punkte sind keine bereits abgedeckten oder behobenen Regressionen.
 
 Folgeaudit (0.9.456): Deterministische Regressionen pruefen numerische Sendeablehnung mit erfolgreichem Retry, leere KEY-/HELLO-Felder, Ghost-Owner-Hinweise, partielle Inspect-Antworten mit spaeterem RIO 0, maskierten Ziel-Todesstatus und ein beim Weltwechsel nachgeholtes Kampfende. Ein synthetisches Regeldokument beweist die Ablehnung fehlender Detailbloecke; die Center-Notice prueft Artwork und Zauber-Icon-Fallback.
 

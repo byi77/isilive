@@ -719,17 +719,29 @@ local function HandleGroupRosterUpdate(deps)
   )
   deps.setWasInGroup(inGroupNow)
 
-  if deps.getActiveChallengeMapID() then
-    -- Inside an active key we do not rebuild the roster on every GROUP_ROSTER_UPDATE
-    -- so that per-member state (spec, ilvl, rio, keys) is preserved. But after a /reload
-    -- the Lua state is fresh and the roster is empty; joinedNow signals exactly that
-    -- case during an active key (no one joins a group mid-dungeon).
+  if deps.getActiveChallengeMapID() and deps.isRaidGroup() ~= true then
+    -- Refresh party membership while preserving the verified data of each member.
+    -- After a reload, first restore the mirror when its group signature matches.
     if joinedNow then
       local roster = deps.getRoster()
       if TryRestoreReloadRosterMirror(deps) then
         roster = deps.getRoster()
       end
       AddPlayerToRoster(deps, roster)
+      UpdatePartyMembersInRoster(deps, roster, nil)
+      SaveReloadRosterMirror(deps, roster)
+    end
+    if wasRaidGroupBefore then
+      deps.setWasRaidGroup(false)
+      deps.clearKnownUsers()
+      RestoreMainFrameAfterRaidIfNeeded(deps, "raid-return")
+    end
+    if not joinedNow then
+      local roster = deps.getRoster()
+      if not inGroupNow then
+        HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
+        return
+      end
       UpdatePartyMembersInRoster(deps, roster, nil)
       SaveReloadRosterMirror(deps, roster)
     end

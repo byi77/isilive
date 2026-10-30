@@ -1045,7 +1045,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings hearthstone option builder uses the client toy name for a French addon on a French client
   - Sync RegisterVerifiedAlias exposes exact sender data through a verified roster name
   - Sync RegisterVerifiedAlias rejects cross-realm and unknown sender aliases
-  - KeySync RegisterVerifiedSyncAliasForRoster maps one same-realm sender to one roster row
+  - KeySync rejects unverified same-realm sender aliases
+  - KeySync rejects ambiguous and unresolved owner hints
+  - Active M+ key tracks party replacement and preserves other members
   - KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates
   - SeasonData Midnight Season 2 maps verified challenge IDs to castable portal spells
   - SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data
@@ -2728,6 +2730,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Der verzoegerte Post-Run-Refresh nach `CHALLENGE_MODE_COMPLETED` ruft `RunFullRefresh({ keepKnownPeers = true })` auf. `ForceRefreshSyncState` loescht dabei weder bekannte Peers (`ClearKnownUsers`) noch deren Key-, Stats-, DPS- und Loc-Daten oder die isiLive-Markierung im Roster; es markiert nur den eigenen Spieler und liest den eigenen Keystein neu ein. HELLO, Key-Snapshot und REQSYNC des Refreshs gehen unveraendert raus; neue Keys der Peers ersetzen die alten ueber ihren `capturedAt`-Stempel. Die Post-Run-HELLOs bekannter Peers fallen damit unter das Known-Peer-Fenster aus Regel 159 statt je Peer einen vollen Fan-out auszuloesen. Der manuelle Refresh (Button) und das Aufloesen der Gruppe setzen den Sync-Zustand weiterhin vollstaendig zurueck. Regel 4 (RIO-Delta erst nach erfolgreichem verzoegertem Refresh) und Verzoegerung, Retries und Raid-Aufschub des Post-Run-Refreshs bleiben unveraendert; die Kick-Daten behaltener Peers verfallen nach Regel 50 weiterhin nach 45 Sekunden ohne neues Paket.
 - Erforderliche Tests:
+  - Sync rejects older timestamped snapshots
   - Mplus stress: the post-run refresh keeps known peers and answers their hellos once
   - Event handlers enable RIO delta only after delayed post-run refresh
   - Event handlers retry post-run refresh when first delayed attempt is blocked

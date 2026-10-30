@@ -1333,7 +1333,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
 end
 
 local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
-  test("Active M+ key does not rebuild roster on ongoing updates", function()
+  test("Active M+ key refreshes party members on ongoing updates", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       mainFrameVisible = true,
       wasInGroup = true,
@@ -1344,8 +1344,39 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 
     controller.HandleGroupRosterUpdate()
 
-    Assert.Nil(state.roster.player, "ongoing roster updates must not rebuild during active M+")
+    Assert.NotNil(state.roster.party1, "ongoing roster updates must refresh party slots during active M+")
     Assert.Equal(state.uiUpdates, 1, "UI should still update during active M+")
+  end)
+
+  test("Active M+ key tracks party replacement and preserves other members", function()
+    local replacement = false
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "Realm"
+        end
+        if unit == "party1" then
+          return replacement and "New" or "Old", "Realm"
+        end
+        if unit == "party2" then
+          return "Stable", "Realm"
+        end
+        return nil, nil
+      end,
+      getNumGroupMembers = function()
+        return 3
+      end,
+    })
+    controller.HandleGroupRosterUpdate()
+    state.roster.party2.keyMapID = 200
+    replacement = true
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.roster.party1.name, "New", "replacement must occupy the live slot")
+    Assert.Equal(state.roster.party2.keyMapID, 200, "unchanged member keeps verified key")
   end)
 
   test("Active M+ key rebuilds roster after /reload (joinedNow path)", function()

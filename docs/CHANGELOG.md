@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-30 - Unreleased audit checkpoint
+
+- Reject unverified same-realm sender aliases and ambiguous or unresolved owner hints.
+- Refresh party membership during an active key while preserving existing member data.
+- Reject older timestamped sync snapshots, including stale updates after a clear.
+- Add deterministic regressions and update rule-to-test mappings. This is an intermediate checkpoint: eleven follow-up findings remain open, including legacy timestamp mixing and returning from a raid during an active key. No version bump or release.
+
 ## 2026-10-29 - Version 0.9.469 (patch)
 
 - Talent and loot check (rule 215): `[LOADOUT]` lines in the runtime log

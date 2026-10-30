@@ -548,5 +548,24 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
+  test("Sync rejects older timestamped snapshots", function()
+    local sync = LoadAddonModules({ "isiLive_sync.lua" }).Sync
+    sync.SetPlayerKeyInfo("Peer", "Realm", 200, 15, 200, "test")
+    sync.SetPlayerKeyInfo("Peer", "Realm", 201, 12, 100, "test")
+    Assert.Equal(sync.GetPlayerKeyInfo("Peer", "Realm").mapID, 200, "older key cannot overwrite newer key")
+    sync.SetPlayerKeyInfo("Peer", "Realm", 0, 0, 100, "test")
+    Assert.Equal(sync.GetPlayerKeyInfo("Peer", "Realm").mapID, 200, "older clear cannot erase newer key")
+    sync.SetPlayerKeyInfo("Peer", "Realm", 0, 0, 300, "test")
+    sync.SetPlayerKeyInfo("Peer", "Realm", 201, 12, 100, "test")
+    Assert.Nil(sync.GetPlayerKeyInfo("Peer", "Realm"), "older key cannot resurrect a newer clear")
+    sync.SetPlayerLocInfo("Peer", "Realm", 10, 200, "test", 20)
+    sync.SetPlayerLocInfo("Peer", "Realm", 11, 100, "test", 21)
+    Assert.Equal(
+      sync.GetPlayerLocInfo("Peer", "Realm").instanceID,
+      20,
+      "older location cannot overwrite newer location"
+    )
+  end)
+
   RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, LoadAddonModules)
 end

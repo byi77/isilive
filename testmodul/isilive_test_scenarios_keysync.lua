@@ -1367,7 +1367,7 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
     end)
   end)
 
-  test("KeySync RegisterVerifiedSyncAliasForRoster maps one same-realm sender to one roster row", function()
+  test("KeySync rejects unverified same-realm sender aliases", function()
     local sync = BuildMockSync()
     local ctrl = BuildController(LoadAddonModules, sync)
     sync.MarkUser("Kørshad-Blackmoore")
@@ -1377,14 +1377,13 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       party1 = { name = "Kürshad", realm = "Blackmoore" },
     }
 
-    Assert.True(
-      ctrl.RegisterVerifiedSyncAliasForRoster(roster, "Kørshad-Blackmoore"),
-      "unique same-realm sender must register as a verified alias"
+    Assert.False(
+      ctrl.RegisterVerifiedSyncAliasForRoster(roster, "K?rshad-Blackmoore"),
+      "realm alone cannot prove identity"
     )
     local info = roster.party1
-    Assert.True(ctrl.ApplyKnownKeyToRosterEntry(info), "verified alias must allow sync data to backfill the roster row")
-    Assert.Equal(info.keyMapID, 239, "aliased key map must apply")
-    Assert.Equal(info.keyLevel, 17, "aliased key level must apply")
+    Assert.False(ctrl.ApplyKnownKeyToRosterEntry(info), "unverified data must not backfill the roster")
+    Assert.Nil(info.keyMapID, "unknown identity stays unresolved")
   end)
 
   test("KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates", function()
@@ -1776,6 +1775,17 @@ return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
+
+  test("KeySync rejects ambiguous and unresolved owner hints", function()
+    local ctrl = BuildController(LoadAddonModules, BuildMockSync())
+    local roster = {
+      party1 = { name = "Leader", realm = "One", keyMapID = 200 },
+      party2 = { name = "Leader", realm = "Two", keyMapID = 200 },
+    }
+    Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader"), "bare duplicate name is ambiguous")
+    roster.party2.realm = nil
+    Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-One"), "unknown realm cannot establish identity")
+  end)
 
   RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
   RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddonModules)

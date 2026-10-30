@@ -102,6 +102,7 @@ local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
 local verifiedAliasByRosterKey = {}
+local snapshotWatermarks = {}
 local syncDebugTrace = nil
 local syncDebugTraceDeep = nil
 -- Optional "would this level be recorded" checks paired with the trace
@@ -732,6 +733,7 @@ function Sync.ClearKnownUsers()
   kickInfoByPlayerKey = {}
   kickInfoGeneration = kickInfoGeneration + 1
   verifiedAliasByRosterKey = {}
+  snapshotWatermarks = {}
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
   lastIsiLiveStatsAt = 0
@@ -889,6 +891,18 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
     NormalizeKeyPayload(mapID, level, capturedAt, source)
   local previous = keyInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
+  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
+  -- without a timestamp retain their existing arrival-order semantics.
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  local stamps = snapshotWatermarks["key"]
+  if not stamps then
+    stamps = {}
+    snapshotWatermarks["key"] = stamps
+  end
+  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+    return false
+  end
+  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID or not numericLevel then
     local hadValue = type(previous) == "table"
     keyInfoByPlayerKey[key] = nil
@@ -946,6 +960,18 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
   local previous = statsInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
+  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
+  -- without a timestamp retain their existing arrival-order semantics.
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  local stamps = snapshotWatermarks["stats"]
+  if not stamps then
+    stamps = {}
+    snapshotWatermarks["stats"] = stamps
+  end
+  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+    return false
+  end
+  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   local nextValue = {
     specID = numericSpecID > 0 and numericSpecID or nil,
     ilvl = numericIlvl > 0 and numericIlvl or nil,
@@ -1007,6 +1033,18 @@ function Sync.SetPlayerDpsInfo(name, realm, dps, capturedAt, source)
   local _, numericDps, normalizedCapturedAt, normalizedSource = NormalizeDpsPayload(dps, capturedAt, source)
   local previous = dpsInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
+  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
+  -- without a timestamp retain their existing arrival-order semantics.
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  local stamps = snapshotWatermarks["dps"]
+  if not stamps then
+    stamps = {}
+    snapshotWatermarks["dps"] = stamps
+  end
+  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+    return false
+  end
+  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericDps or numericDps <= 0 then
     local hadValue = type(dpsInfoByPlayerKey[key]) == "table"
     dpsInfoByPlayerKey[key] = nil
@@ -1199,6 +1237,18 @@ function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source, instanceI
     NormalizeLocPayload(mapID, capturedAt, source, instanceID)
   local previous = locInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
+  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
+  -- without a timestamp retain their existing arrival-order semantics.
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  local stamps = snapshotWatermarks["loc"]
+  if not stamps then
+    stamps = {}
+    snapshotWatermarks["loc"] = stamps
+  end
+  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+    return false
+  end
+  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID and not numericInstanceID then
     local hadValue = type(locInfoByPlayerKey[key]) == "table"
     locInfoByPlayerKey[key] = nil
@@ -1256,6 +1306,18 @@ function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source,
     NormalizeTargetPayload(mapID, level, capturedAt, source, levelText)
   local previous = targetInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
+  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
+  -- without a timestamp retain their existing arrival-order semantics.
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  local stamps = snapshotWatermarks["target"]
+  if not stamps then
+    stamps = {}
+    snapshotWatermarks["target"] = stamps
+  end
+  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+    return false
+  end
+  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID then
     local hadValue = type(targetInfoByPlayerKey[key]) == "table"
     targetInfoByPlayerKey[key] = nil

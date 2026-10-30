@@ -652,46 +652,9 @@ local function ApplyKnownKickToRosterEntry(sync, info)
   return BackfillKick(sync, info)
 end
 
-local function RealmKeyFromPlayerKey(playerKey)
-  if type(playerKey) ~= "string" then
-    return nil
-  end
-  return playerKey:match("%-([^-]+)$")
-end
-
-local function RegisterVerifiedSyncAliasForRoster(sync, roster, sender)
-  if type(sync.RegisterVerifiedAlias) ~= "function" or type(sync.NormalizePlayerKey) ~= "function" then
-    return false
-  end
-  if type(roster) ~= "table" or type(sender) ~= "string" or sender == "" then
-    return false
-  end
-
-  local senderKey = sync.NormalizePlayerKey(sender)
-  local senderRealmKey = RealmKeyFromPlayerKey(senderKey)
-  if not senderRealmKey then
-    return false
-  end
-
-  local candidate = nil
-  local candidateCount = 0
-  for _, info in pairs(roster) do
-    if type(info) == "table" and not info.isDemoEntry then
-      local rosterKey = sync.NormalizePlayerKey(info.name, info.realm)
-      if rosterKey == senderKey then
-        return false
-      end
-      if RealmKeyFromPlayerKey(rosterKey) == senderRealmKey then
-        candidate = info
-        candidateCount = candidateCount + 1
-      end
-    end
-  end
-
-  if candidateCount ~= 1 or type(candidate) ~= "table" then
-    return false
-  end
-  return sync.RegisterVerifiedAlias(sender, nil, candidate.name, candidate.realm)
+local function RegisterVerifiedSyncAliasForRoster(_sync, _roster, _sender)
+  -- A shared realm does not establish that two different names identify one player.
+  return false
 end
 
 local function RefreshLocalPlayerKey(sync, roster)
@@ -803,19 +766,26 @@ local function FindRosterUnitByHint(roster, preferredOwnerName)
   if not hintName then
     return nil
   end
+  local match = nil
   local ghostHint = false
   for unit, info in pairs(roster or {}) do
     if type(info) == "table" and info.name == hintName then
-      if hintRealm == nil or info.realm == nil or info.realm == hintRealm then
+      local realmMatches = hintRealm == nil or info.realm == hintRealm
+      if realmMatches then
         if info.isGhost then
           ghostHint = true
+        elseif match then
+          return nil, true
         else
-          return unit
+          match = unit
         end
+      elseif hintRealm ~= nil and info.realm == nil then
+        -- An unknown realm cannot prove either a match or a mismatch.
+        return nil, true
       end
     end
   end
-  return nil, ghostHint
+  return match, match == nil and ghostHint
 end
 
 -- preferredOwnerName is an optional LFG-leader hint (e.g. "Mematiwow-Blackmoore"

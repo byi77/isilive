@@ -5,6 +5,10 @@ https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
 Current version: `0.9.469`.
 
+Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
+timestamp regression coverage updated. Eleven follow-up findings remain open;
+the released version is unchanged.
+
 Version 0.9.469: the talent and loot check writes its steps (dungeon entry,
 switches, commit result, OK) into the runtime log.
 
