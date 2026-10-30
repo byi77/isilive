@@ -41,6 +41,7 @@ local FALLBACK_TTK_DESC = "Shows in a Mythic+ key fight roughly how many seconds
   .. " hit and counted down evenly in between. A guide, not exact."
 local FALLBACK_FORCES_PACE_DESC = "Learns from your own completed keys how much enemy forces you had at each boss kill"
   .. " and shows on the killtracker bar whether the group is ahead of or short of that target for the next boss."
+  .. " Start values are used until you have runs of your own, and ticks mark all coming sections."
 
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
 

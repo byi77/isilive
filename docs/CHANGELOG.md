@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-30 - Version 0.9.471 (patch)
+
+- Forces pace (rule 145): start values from own measured runs (`data/isiLive_forces_seed.lua`, 7 of 8 Midnight S2 dungeons) answer until a learned route fits.
+- Runs with an unknown kill order (reload, boss dead at start) now show a target when a route names the same dead bosses first; they are still never learned.
+- The last section always targets 100 percent, also after all bosses are dead while forces are open.
+- The kill row draws up to four dimmed ticks for the coming sections; no tick or delta at complete forces. The pull text turns green once the next target is reached.
+- The line under the bar shows the forces still missing for the next section left of the TTK (`Benötigt noch x,xx% in diesem Abschnitt`), also during a pull; it clears once the section is reached.
+- Not confirmed in game.
+
 ## 2026-10-30 - Version 0.9.470 (patch)
 
 - Sync (rules 53, 159, 216, 217): disabled sync posts no automatic SHAREKEYS reply; the manual button still works. The own KEY echo skips the peer gate. Stamped snapshots keep their watermark against unchanged legacy data, unstamped data applies in arrival order, also after a clear. HELLO counts as first contact even after an earlier KEY. ChatThrottleLib drops re-arm the payload; server rejections stay invisible behind the library. KICK and KEY payloads are bounded and floored. The unused alias system is removed.

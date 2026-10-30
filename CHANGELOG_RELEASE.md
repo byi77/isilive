@@ -3,11 +3,17 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.470`.
+Current version: `0.9.471`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.471: the killtracker shows how much enemy forces are still needed
+before the next boss ("Needs x% more in this section", next to the TTK), also
+during a pull. Start values work before you have runs of your own, the last
+section always targets 100%, ticks mark all coming sections, and the display
+survives a reload.
 
 Version 0.9.470: audit fixes across sync, roster, key history, inspect, talent
 and loot check and LFG targets. With sync off, isiLive no longer posts your key
@@ -122,7 +128,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.470 -->
+<!-- highlights-reviewed-for: 0.9.471 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

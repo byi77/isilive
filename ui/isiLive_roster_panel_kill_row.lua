@@ -52,6 +52,9 @@ local TIME_PACE_RIGHT_INSET = 2
 -- (game/isiLive_ttk.lua).
 local TTK_FONT_SIZE = 10
 local TTK_TEXT_WIDTH = 76
+-- Same line, left of the TTK: forces still missing for the next section.
+local SECTION_TEXT_WIDTH = 240
+local SECTION_TEXT_GAP = 4
 local FILL_MOTION_TOKEN = "normal"
 local FILL_MOTION_FALLBACK_SECONDS = 0.2
 
@@ -76,6 +79,9 @@ end
 local PACE_TICK_WIDTH = 2
 local PACE_TICK_HEIGHT = 10
 local PACE_ON_TARGET_EPSILON = 0.05
+-- The bar holds the next section's tick plus these for the sections after it.
+local PACE_LATER_TICK_COUNT = 4
+local PACE_LATER_TICK_ALPHA = 0.45
 
 -- Learned forces target for the next boss (see game/isiLive_forces_pace.lua).
 -- Shown only when the setting is on and the value is a plain percentage.
@@ -112,19 +118,29 @@ local function FormatPaceDelta(delta)
   return "-" .. text, "short"
 end
 
-local function HidePaceTick(row)
-  local tick = row and row.killTrackPaceTick
+local function HideTick(tick)
   if tick and type(tick.Hide) == "function" then
     tick:Hide()
   end
 end
 
-local function ShowPaceTick(row, barWidth, target)
-  local tick = row.killTrackPaceTick
+local function HidePaceTicks(row)
+  if not row then
+    return
+  end
+  HideTick(row.killTrackPaceTick)
+  local laterTicks = row.killTrackLaterTicks
+  for i = 1, laterTicks and #laterTicks or 0 do
+    HideTick(laterTicks[i])
+  end
+end
+
+-- The 100% target of the last section is the bar's end and needs no tick.
+local function PlacePaceTick(row, tick, barWidth, target)
   if not tick then
     return
   end
-  if barWidth <= 0 then
+  if barWidth <= 0 or target >= 100 then
     tick:Hide()
     return
   end
@@ -142,6 +158,23 @@ local function ShowPaceTick(row, barWidth, target)
     tick._isiLivePaceAnchor = container
   end
   tick:Show()
+end
+
+local function IsTickTarget(target)
+  return type(target) == "number" and target == target and target >= 0
+end
+
+-- Dimmed ticks for the sections after the next one.
+local function ShowLaterPaceTicks(row, barWidth, targets)
+  local laterTicks = row.killTrackLaterTicks
+  for i = 1, laterTicks and #laterTicks or 0 do
+    local target = type(targets) == "table" and targets[i] or nil
+    if IsTickTarget(target) then
+      PlacePaceTick(row, laterTicks[i], barWidth, target)
+    else
+      HideTick(laterTicks[i])
+    end
+  end
 end
 
 local function LocalizedText(key, fallback)
@@ -198,6 +231,21 @@ local function BuildTimePaceText(data)
     return string.format(LocalizedText("TIME_PACE_PAUSED_FMT", "Pause %s"), text), paceState
   end
   return text, paceState
+end
+
+-- Forces still missing for the next section, empty once it is reached.
+local function UpdateSectionText(row, pct, paceTarget)
+  local fontString = row.killTrackSectionText
+  if not fontString then
+    return
+  end
+  if not paceTarget or pct >= paceTarget then
+    fontString:SetText("")
+    return
+  end
+  local text = FormatPercentText(paceTarget - pct)
+  local format = LocalizedText("FORCES_SECTION_MISSING_FMT", "Needs %s more in this section") -- i18n-ok
+  fontString:SetText(string.format(format, text))
 end
 
 local function UpdateTimePaceText(row, data)
@@ -476,6 +524,27 @@ local function CreatePreKeyReadyLayer(row, barContainer)
   row.killTrackShimmerSweep = sweep
 end
 
+local function CreatePaceTick(barContainer)
+  local tick = barContainer:CreateTexture(nil, "OVERLAY")
+  if type(tick.SetTexture) == "function" then
+    tick:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(tick.SetVertexColor) == "function" then
+    tick:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.MPLUS_TIMELINE_TICK) or { 0.9, 0.95, 1, 0.6 }))
+  end
+  if type(tick.SetWidth) == "function" then
+    tick:SetWidth(PACE_TICK_WIDTH)
+  end
+  if type(tick.SetHeight) == "function" then
+    tick:SetHeight(PACE_TICK_HEIGHT)
+  end
+  if type(tick.SetPoint) == "function" then
+    tick:SetPoint("CENTER", barContainer, "LEFT", 0, 0)
+  end
+  tick:Hide()
+  return tick
+end
+
 local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
@@ -557,24 +626,16 @@ local function CreateKillTrackRow(mainFrame)
 
   CreatePreKeyReadyLayer(row, barContainer)
 
-  -- Learned forces target for the next boss: a thin cool tick above the fill.
-  local paceTick = barContainer:CreateTexture(nil, "OVERLAY")
-  if type(paceTick.SetTexture) == "function" then
-    paceTick:SetTexture("Interface\\Buttons\\WHITE8X8")
+  -- Forces target of the next section: a thin cool tick above the fill; the
+  -- sections after it use the same tick, dimmed.
+  local paceTick = CreatePaceTick(barContainer)
+  local laterTicks = {}
+  for i = 1, PACE_LATER_TICK_COUNT do
+    laterTicks[i] = CreatePaceTick(barContainer)
+    if type(laterTicks[i].SetAlpha) == "function" then
+      laterTicks[i]:SetAlpha(PACE_LATER_TICK_ALPHA)
+    end
   end
-  if type(paceTick.SetVertexColor) == "function" then
-    paceTick:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.MPLUS_TIMELINE_TICK) or { 0.9, 0.95, 1, 0.6 }))
-  end
-  if type(paceTick.SetWidth) == "function" then
-    paceTick:SetWidth(PACE_TICK_WIDTH)
-  end
-  if type(paceTick.SetHeight) == "function" then
-    paceTick:SetHeight(PACE_TICK_HEIGHT)
-  end
-  if type(paceTick.SetPoint) == "function" then
-    paceTick:SetPoint("CENTER", barContainer, "LEFT", 0, 0)
-  end
-  paceTick:Hide()
 
   -- Frame above the bar container for text drawn on the bar.
   local barOverlay = CreateFrame("Frame", nil, box)
@@ -686,11 +747,23 @@ local function CreateKillTrackRow(mainFrame)
     })
   end
 
+  local sectionText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  sectionText:SetPoint("TOPRIGHT", ttkText, "TOPLEFT", -SECTION_TEXT_GAP, 0)
+  sectionText:SetWidth(SECTION_TEXT_WIDTH)
+  sectionText:SetJustifyH("RIGHT")
+  sectionText:SetText("")
+  ApplyFontStringSize(sectionText, TTK_FONT_SIZE)
+  if type(sectionText.SetTextColor) == "function" then
+    sectionText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 }))
+  end
+  row.killTrackSectionText = sectionText
+
   row.killTrackBarContainer = barContainer
   row.killTrackBarBg = barBg
   row.killTrackBarFill = barFill
   row.killTrackBarPull = barPull
   row.killTrackPaceTick = paceTick
+  row.killTrackLaterTicks = laterTicks
   row.killTrackTargetText = targetText
   row.killTrackTargetLevelText = targetLevelText
   row.killTrackBarOverlay = barOverlay
@@ -929,20 +1002,24 @@ local function UpdateKillTrackRow(row, deps)
         pctText:SetTextColor(textColor[1], textColor[2], textColor[3])
       end
     end
-    local paceTarget = ResolveDisplayedPaceTarget(data)
+    -- Complete forces have no section left to reach.
+    local paceTarget = not isComplete and ResolveDisplayedPaceTarget(data) or nil
     if paceTarget then
-      ShowPaceTick(row, w, paceTarget)
+      PlacePaceTick(row, row.killTrackPaceTick, w, paceTarget)
+      ShowLaterPaceTicks(row, w, data.paceLaterTargets)
     else
-      HidePaceTick(row)
+      HidePaceTicks(row)
     end
+    UpdateSectionText(row, pct, paceTarget)
     UpdateTimePaceText(row, data)
     if pullText then
       if data.inCombat and pullPct > 0 then
         pullText:SetText("+" .. FormatPercentText(pullPct))
         if type(pullText.SetTextColor) == "function" then
-          pullText:SetTextColor(
-            unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
-          )
+          -- Green as soon as the running pull has reached the next section.
+          local pullColor = (paceTarget and pct >= paceTarget) and (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
+            or (colors.LIGHT_BLUE_LEVEL_TEXT or { 0.65, 0.85, 1.0 })
+          pullText:SetTextColor(pullColor[1], pullColor[2], pullColor[3])
         end
       elseif paceTarget then
         -- The live pull keeps priority; between pulls the slot shows how far
@@ -959,7 +1036,8 @@ local function UpdateKillTrackRow(row, deps)
       end
     end
   else
-    HidePaceTick(row)
+    HidePaceTicks(row)
+    UpdateSectionText(row, 0, nil)
     UpdateTimePaceText(row, nil)
     if barContainer and type(barContainer.Show) == "function" then
       barContainer:Show()

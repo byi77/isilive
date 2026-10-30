@@ -7,6 +7,8 @@ addonTable = addonTable or {}
 -- Learns, per dungeon and boss kill order, the enemy-forces percentage the
 -- player's own completed runs had banked when each boss died, and answers
 -- which forces percentage the current run should reach before the next boss.
+-- A dungeon without a fitting learned route falls back to the start values in
+-- data/isiLive_forces_seed.lua.
 --
 -- KillTrack owns every scenario read and hands this module already validated
 -- snapshots ({ mapID, percent, percentResolved, bosses, bossesResolved }).
@@ -29,12 +31,14 @@ local MAX_ROUTES_PER_MAP = 24
 -- No dungeon has anywhere near this many boss criteria; longer persisted
 -- orders are treated as corrupt.
 local MAX_BOSSES = 32
+local FULL_FORCES_PERCENT = 100
 
 -- Run state for the key currently in progress (nil outside a run).
 --   trackedFromStart: run began with CHALLENGE_MODE_START in this session
 --   seeded: the first resolved boss list has been seen
 --   learnable: no boss was already dead when tracking began
 --   orderComplete: the kill order covers every dead boss (no seeded kills)
+--   seen: every dead boss by criteria index, with or without a checkpoint
 local run = nil
 
 -- Bumped whenever the run state that feeds GetPaceTarget changes: a new,
@@ -212,6 +216,70 @@ local function RouteStartsWith(route, prefix)
   return true
 end
 
+-- With a known kill order the route has to start with it. Without one (reload
+-- mid-run, a kill seen without a forces reading) the route only has to name
+-- the same dead bosses first: the next target does not depend on their order.
+local function RouteFitsRun(route, kills)
+  if run.orderComplete then
+    return RouteStartsWith(route, run.order)
+  end
+  for i = 1, kills do
+    if not run.seen[route.order[i]] then
+      return false
+    end
+  end
+  return true
+end
+
+local function CollectFittingRoutes(routes, kills)
+  local fitting = {}
+  if type(routes) ~= "table" then
+    return fitting
+  end
+  for routeKey, route in pairs(routes) do
+    if IsValidRoute(routeKey, route) and #route.order == run.totalBosses and RouteFitsRun(route, kills) then
+      fitting[#fitting + 1] = route
+    end
+  end
+  return fitting
+end
+
+local function GetSeedRoutes(seasonID, mapID)
+  local seed = addonTable.ForcesSeed
+  local seasonBucket = type(seed) == "table" and seed[seasonID] or nil
+  local mapBucket = type(seasonBucket) == "table" and seasonBucket[mapID] or nil
+  return type(mapBucket) == "table" and mapBucket.routes or nil
+end
+
+-- The player's own learned routes win; the shipped start values only answer
+-- while no learned route fits this run.
+local function GetFittingRoutes(mapID, kills)
+  local fitting = CollectFittingRoutes(GetMapRoutes(run.seasonID, mapID, false), kills)
+  if #fitting > 0 then
+    return fitting
+  end
+  return CollectFittingRoutes(GetSeedRoutes(run.seasonID, mapID), kills)
+end
+
+-- Number of dead bosses when the current run can show a target on `mapID`,
+-- otherwise nil.
+local function ResolvePacedKills(mapID)
+  if type(run) ~= "table" or not run.seeded then
+    return nil
+  end
+  if not IsPositiveInteger(mapID) or run.mapID ~= mapID or run.seasonID == nil then
+    return nil
+  end
+  if not IsPositiveInteger(run.totalBosses) then
+    return nil
+  end
+  local kills = 0
+  for _ in pairs(run.seen) do
+    kills = kills + 1
+  end
+  return kills
+end
+
 -- Starts tracking a fresh run. Called by KillTrack on CHALLENGE_MODE_START
 -- before the first scenario read of that run.
 function ForcesPace.BeginRun()
@@ -261,8 +329,8 @@ function ForcesPace.Observe(snapshot)
 
   if not run.seeded then
     -- Bosses already dead when tracking begins cannot be placed in the kill
-    -- order: they are marked as seen, and the run neither learns nor shows a
-    -- pace target.
+    -- order: they are marked as seen and the run does not learn. It still
+    -- shows a target, matched by which bosses are dead.
     for i = 1, #bosses do
       local boss = bosses[i]
       if boss.completed == true then
@@ -281,7 +349,7 @@ function ForcesPace.Observe(snapshot)
       local boss = bosses[i]
       if boss.completed == true and not run.seen[boss.index] then
         -- This kill has no verified checkpoint. A later forces reading cannot
-        -- reconstruct it, so never learn or pace this incomplete route.
+        -- reconstruct it, so never learn this incomplete route.
         run.seen[boss.index] = true
         run.learnable = false
         run.orderComplete = false
@@ -357,37 +425,58 @@ function ForcesPace.CommitRun()
   return true
 end
 
--- Target forces percentage for the next boss of the current run on `mapID`:
--- the minimum checkpoint at the next kill position across all stored routes
--- of the current season and dungeon whose kill order starts with the current
--- kill order. nil when nothing verified is known.
+-- Target forces percentage for the next section of the current run on `mapID`:
+-- the minimum checkpoint at the next kill position across the routes that fit
+-- the run. The last section always targets 100: a key only completes with full
+-- forces, however early a stored run happened to kill its last boss. nil when
+-- nothing verified is known.
 function ForcesPace.GetPaceTarget(mapID)
-  if type(run) ~= "table" or not run.seeded or not run.orderComplete then
+  local kills = ResolvePacedKills(mapID)
+  if not kills then
     return nil
   end
-  if not IsPositiveInteger(mapID) or run.mapID ~= mapID or run.seasonID == nil then
-    return nil
-  end
-  local total = run.totalBosses
-  local kills = #run.order
-  if not IsPositiveInteger(total) or kills >= total then
-    return nil
-  end
-  local routes = GetMapRoutes(run.seasonID, mapID, false)
-  if not routes then
-    return nil
+  if kills + 1 >= run.totalBosses then
+    return FULL_FORCES_PERCENT
   end
   local nextPosition = kills + 1
   local target = nil
-  for routeKey, route in pairs(routes) do
-    if IsValidRoute(routeKey, route) and #route.order == total and RouteStartsWith(route, run.order) then
-      local checkpoint = route.checkpoints[nextPosition]
-      if target == nil or checkpoint < target then
-        target = checkpoint
-      end
+  local fitting = GetFittingRoutes(mapID, kills)
+  for i = 1, #fitting do
+    local checkpoint = fitting[i].checkpoints[nextPosition]
+    if target == nil or checkpoint < target then
+      target = checkpoint
     end
   end
   return target
+end
+
+-- Targets of the sections after the next one, ascending and below 100, taken
+-- from the leanest fitting route. nil when there is none to show.
+function ForcesPace.GetLaterTargets(mapID)
+  local kills = ResolvePacedKills(mapID)
+  if not kills or kills + 2 >= run.totalBosses then
+    return nil
+  end
+  local previous = ForcesPace.GetPaceTarget(mapID)
+  if not previous then
+    return nil
+  end
+  local leanest = nil
+  local fitting = GetFittingRoutes(mapID, kills)
+  for i = 1, #fitting do
+    if leanest == nil or fitting[i].leanScore < leanest.leanScore then
+      leanest = fitting[i]
+    end
+  end
+  local later = {}
+  for position = kills + 2, run.totalBosses - 1 do
+    local checkpoint = leanest.checkpoints[position]
+    if checkpoint > previous and checkpoint < FULL_FORCES_PERCENT then
+      later[#later + 1] = checkpoint
+      previous = checkpoint
+    end
+  end
+  return #later > 0 and later or nil
 end
 
 -- Display toggle (default on). Learning continues while the display is off,

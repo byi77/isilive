@@ -504,9 +504,11 @@ local function SetDemoTimerData(ctx, runtimeState)
       mapID = targetMapID,
       inCombat = true,
       pullPercent = 3.21,
-      -- Learned forces target for the next boss: shows the pace tick. The
+      -- Forces target for the next boss above the demo percent: shows the pace
+      -- tick and the missing forces next to the TTK. The
       -- live pull keeps the text slot, as it does in a real run.
-      paceTarget = 45.1,
+      paceTarget = 52.5,
+      paceLaterTargets = { 72.4 },
       -- Time pace delta on the bar: ahead of the slowest timed +12.
       timePace = { mode = "reference", delta = -72, keyLevel = 12 },
     })

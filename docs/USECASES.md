@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.470`
+Versionsbasis: `0.9.471`
 Zuletzt aktualisiert: `2026-10-30`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -619,8 +619,8 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe fuer den naechsten Boss 
 2. Verarbeitung: `KillTrack` liest alle Szenario-Kriterien einmal je Refresh, waehlt Enemy Forces ueber die gesperrte `criteriaID` (sonst das einzige beziehungsweise groesste gewichtete Kriterium) und reicht Map, verifizierten Prozentwert und Bossliste an `ForcesPace` weiter. `ForcesPace` haengt neu tote Bosse in Kriterienindex-Reihenfolge mit dem Prozentwert auf eine Nachkommastelle an.
 3. Regel: Gelernt wird bei `CHALLENGE_MODE_COMPLETED` nur ein Run, der ab `CHALLENGE_MODE_START` verfolgt wurde, ohne vorab tote Bosse und mit allen Bossen erfasst; je Route bleibt der Run mit der kleinsten Summe der Kill-Prozente, `runs` zaehlt jeden gelernten Run. `CHALLENGE_MODE_RESET` verwirft den Run.
 4. Regel: Secret- oder unlesbare Boss-Kriterien erzeugen keinen Killeintrag, eine unaufgeloeste Season verhindert Lernen und Anzeige, beschaedigte gespeicherte Routen werden ignoriert.
-5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Boss und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang.
-6. Erfolgskriterium: Ohne gelernte passende Route, nach dem letzten Boss oder bei ausgeschaltetem Setting sieht die Killtracker-Zeile genau wie bisher aus.
+5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Abschnitt, bis zu vier gedimmte Striche fuer die spaeteren Abschnitte und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang und wird gruen, sobald das Ziel erreicht ist. Der letzte Abschnitt zielt auf 100 %, auch nach dem letzten Boss, solange die Forces offen sind. Ohne passende gelernte Route antworten mitgelieferte Startwerte aus eigenen Runs; ein Run mit unbekannter Killreihenfolge (Reload, Boss bei Start tot) zeigt ein Ziel, wird aber nie gelernt.
+6. Erfolgskriterium: Ohne gelernte oder mitgelieferte passende Route, bei vollstaendigen Forces oder bei ausgeschaltetem Setting sieht die Killtracker-Zeile genau wie bisher aus.
 
 ## UC-30 Zeit-Tempo im M+-Killtracker
 

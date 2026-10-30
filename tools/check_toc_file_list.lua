@@ -28,10 +28,11 @@ local TRACKED_DIRS = { "core", "factory", "game", "locale", "logic", "ui" }
 -- Files that may live in the TOC but aren't under TRACKED_DIRS — explicitly
 -- listed so the existence check still applies, but the missing-reference
 -- check skips them. `libs/` is vendored; `data/` holds the MDT-synced forces
--- DB (one file, referenced explicitly in TOC).
+-- DB and the forces pace start values (each referenced explicitly in TOC).
 local EXTRA_TOC_PATHS = {
   ["libs/ChatThrottleLib/ChatThrottleLib.lua"] = true,
   ["data/isiLive_mplus_forces.lua"] = true,
+  ["data/isiLive_forces_seed.lua"] = true,
   ["isiLive.lua"] = true,
 }
 

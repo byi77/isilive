@@ -249,6 +249,7 @@ local function NewRow(barWidth)
     killTrackTargetLevelText = NewTextStub(),
     killTrackPctText = NewTextStub(),
     killTrackPullText = NewTextStub(),
+    killTrackSectionText = NewTextStub(),
   }
 end
 
@@ -362,7 +363,7 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
-  test("ForcesPace does not learn or pace a run already in progress when tracking began", function()
+  test("ForcesPace paces but never learns a run already in progress when tracking began", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = LoadPaceModules(LoadAddonModules)
@@ -372,7 +373,7 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
       env.scenario.Kill(1)
       env.scenario.SetForces(60)
       addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
-      Assert.Nil(addon.KillTrack.GetData().paceTarget, "an unknown kill order must not show a pace target")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 50, "the dead bosses alone select the next target")
       env.scenario.SetForces(150)
       env.scenario.Kill(2)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
@@ -502,18 +503,85 @@ local function RegisterLookupTests(test, Assert, WithGlobals, LoadAddonModules)
       env.scenario.SetForces(120)
       env.scenario.Kill(3)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
-      Assert.Equal(addon.KillTrack.GetData().paceTarget, 85, "the single remaining route gives the last target")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 100, "the last section targets full forces, not the stored 85")
 
       env.scenario.SetForces(260)
       env.scenario.Kill(2)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
-      Assert.Nil(addon.KillTrack.GetData().paceTarget, "with every boss dead there is no next target")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 100, "with every boss dead the forces still have to complete")
 
       env.scenario.ResetBosses()
       addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
       env.scenario.Kill(3)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
       Assert.Nil(addon.KillTrack.GetData().paceTarget, "a kill order no stored route starts with has no target")
+    end)
+  end)
+
+  test("ForcesPace start values answer until a learned route fits and every shipped route is valid", function()
+    local env = BuildEnv({ mapID = 586, total = 1000 })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      local seasonID = addon.SeasonData.GetActiveSeasonID()
+      addon.ForcesSeed = {
+        [seasonID] = {
+          [586] = { routes = { ["1-2-3"] = Route({ 1, 2, 3 }, { 28.7, 55.8, 85.2 }) } },
+        },
+      }
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 28.7, "without learned routes the start value answers")
+
+      env.db.forcesPace = {
+        [seasonID] = { [586] = { routes = { ["1-2-3"] = Route({ 1, 2, 3 }, { 31, 60, 90 }) } } },
+      }
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 31, "a fitting learned route replaces the start value")
+
+      env.scenario.Kill(2)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Nil(addon.KillTrack.GetData().paceTarget, "start values never invent a target for another kill order")
+    end)
+
+    local shipped = {}
+    local chunk = Assert.NotNil(loadfile("data/isiLive_forces_seed.lua"), "the start value file must load")
+    chunk("isiLive", shipped)
+    for _, maps in pairs(shipped.ForcesSeed) do
+      for _, bucket in pairs(maps) do
+        for routeKey, route in pairs(bucket.routes) do
+          Assert.Equal(table.concat(route.order, "-"), routeKey, "the route key must match its order")
+          Assert.Equal(#route.checkpoints, #route.order, "every boss needs a checkpoint")
+          local score = 0
+          for _, checkpoint in ipairs(route.checkpoints) do
+            score = score + checkpoint
+          end
+          Assert.True(math.abs(score - route.leanScore) < 0.05, "the lean score must be the checkpoint sum")
+        end
+      end
+    end
+  end)
+
+  test("ForcesPace later targets come from the leanest fitting route, ascending and below 100", function()
+    local env = BuildEnv({ bossCount = 4 })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      SeedRoutes(addon, env.db, {
+        ["1-2-3-4"] = Route({ 1, 2, 3, 4 }, { 20, 45, 70, 95 }),
+        ["1-3-2-4"] = Route({ 1, 3, 2, 4 }, { 25, 50, 75, 99 }),
+      })
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      local data = addon.KillTrack.GetData()
+      Assert.Equal(data.paceTarget, 20, "the next target stays the minimum over every route")
+      Assert.Equal(#data.paceLaterTargets, 2, "the last section's 100 is no later tick")
+      Assert.Equal(data.paceLaterTargets[1], 45, "later targets follow the leanest route")
+      Assert.Equal(data.paceLaterTargets[2], 70, "later targets follow the leanest route")
+
+      env.scenario.SetForces(100)
+      env.scenario.Kill(1)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      env.scenario.Kill(2)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Nil(addon.KillTrack.GetData().paceLaterTargets, "only the last section is left after the next one")
     end)
   end)
 
@@ -567,7 +635,7 @@ local function RegisterCriteriaTests(test, Assert, WithGlobals, LoadAddonModules
       env.scenario.forces.quantity = SECRET
       env.scenario.forces.quantityString = SECRET
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
-      Assert.Nil(addon.ForcesPace.GetPaceTarget(MAP_ID), "the missing checkpoint closes the route")
+      Assert.Equal(addon.ForcesPace.GetPaceTarget(MAP_ID), 50, "the missing checkpoint only stops the learning")
       env.scenario.SetForces(180)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
       env.scenario.Kill(2)
@@ -761,10 +829,94 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.Equal(row.killTrackPullText._text, "+3.00%", "the live pull keeps the text slot")
       Assert.Equal(
         row.killTrackPullText._color[1],
-        addon.UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT[1],
-        "the pull text keeps its color"
+        addon.UICommon.Colors.GREEN_HINT_TEXT[1],
+        "a pull that has reached the next section is green"
       )
       Assert.True(row.killTrackPaceTick._shown, "the tick stays visible during a pull")
+    end)
+  end)
+
+  test("UpdateKillTrackRow keeps the pull text blue below the section and hides the 100 percent tick", function()
+    local env = BuildEnv({ total = 10000 })
+    WithGlobals(env.globals, function()
+      local addon = StartPacedRun(env, 3000)
+      addon.KillTrack.HandleEvent("PLAYER_REGEN_DISABLED")
+      env.scenario.SetForces(3300)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(
+        row.killTrackPullText._color[1],
+        addon.UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT[1],
+        "a pull below the next section keeps the pull color"
+      )
+      addon.KillTrack.HandleEvent("PLAYER_REGEN_ENABLED")
+
+      env.scenario.Kill(1)
+      env.scenario.Kill(2)
+      env.scenario.SetForces(8000)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.False(row.killTrackPaceTick._shown, "the 100 percent target is the bar's end, not a tick")
+
+      env.scenario.forces.completed = true
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackPctText._text, "100%", "completed forces read as 100")
+    end)
+  end)
+
+  test("UpdateKillTrackRow shows the forces missing for the next section, also during a pull", function()
+    local env = BuildEnv({ total = 10000 })
+    WithGlobals(env.globals, function()
+      local addon = StartPacedRun(env, 3000)
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(
+        row.killTrackSectionText._text,
+        "Needs 10.00% more in this section",
+        "the line names the missing forces"
+      )
+
+      addon.KillTrack.HandleEvent("PLAYER_REGEN_DISABLED")
+      env.scenario.SetForces(3500)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(
+        row.killTrackSectionText._text,
+        "Needs 5.00% more in this section",
+        "the pull text does not replace the line"
+      )
+
+      env.scenario.SetForces(4000)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackSectionText._text, "", "a reached section clears the line")
+
+      env.scenario.SetForces(1000)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      env.db.forcesPaceEnabled = false
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackSectionText._text, "", "a disabled setting clears the line")
+    end)
+  end)
+
+  test("UpdateKillTrackRow draws dimmed ticks for the later sections", function()
+    local env = BuildEnv({ total = 10000 })
+    WithGlobals(env.globals, function()
+      local addon = StartPacedRun(env, 1000)
+      local row = NewRow(200)
+      row.killTrackLaterTicks = { NewTextureStub(), NewTextureStub() }
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      local later = row.killTrackLaterTicks
+      Assert.True(later[1]._shown, "the second section gets a later tick")
+      Assert.Equal(later[1]._points[1][4], 140, "70% of a 200px bar puts the tick at 140px")
+      Assert.False(later[2]._shown == true, "an unused later tick stays hidden")
+
+      env.db.forcesPaceEnabled = false
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.False(later[1]._shown, "a disabled setting hides the later ticks")
     end)
   end)
 

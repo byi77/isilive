@@ -580,6 +580,22 @@ local function ResolvePaceTarget()
   return nil
 end
 
+-- Targets of the sections after the next one, or nil.
+local function ResolvePaceLaterTargets()
+  if not state.active then
+    return nil
+  end
+  local pace = addonTable.ForcesPace
+  if type(pace) ~= "table" or type(pace.GetLaterTargets) ~= "function" then
+    return nil
+  end
+  local ok, targets = pcall(pace.GetLaterTargets, state.mapID)
+  if ok and type(targets) == "table" then
+    return targets
+  end
+  return nil
+end
+
 -- Run lifecycle (BeginRun / CommitRun / DiscardRun) and the combat pause
 -- (PauseStatus / ResumeStatus, TimePace only) for both pace modules.
 local function CallPace(method)
@@ -607,6 +623,7 @@ function KillTrack.GetData()
     inCombat = displayPull,
     pullPercent = displayPull and pull.pullPercent or 0,
     paceTarget = ResolvePaceTarget(),
+    paceLaterTargets = ResolvePaceLaterTargets(),
     timePace = ResolveTimePace(),
   }
 end
