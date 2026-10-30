@@ -366,6 +366,33 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
     end)
   end)
 
+  test("TimePace scales the dungeon's time curve to the time limit until a reference exists", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      local seasonID = addon.SeasonData.GetActiveSeasonID()
+      addon.TimeSeed = {
+        [seasonID] = { progress = { 0.25, 0.5, 1 }, [MAP_ID] = { 0.2, 0.6, 1 } },
+      }
+      StartRun(addon, env)
+      Advance(addon, env, 30, 15, 0)
+      Assert.Nil(
+        addon.KillTrack.GetData().timePace,
+        "the curve waits for 5% progress and 60 seconds like the projection"
+      )
+
+      -- progress = 0.5 * 0.5 + 0.5 / 3 = 0.41667 lies at 2/3 between 0.25 and
+      -- 0.5, so the curve is at 0.4667 of the 1800 s limit: 840 s.
+      Advance(addon, env, 800, 150, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the curve must answer mid-run")
+      Assert.Equal(status.mode, "reference", "the curve answers like a reference")
+      Assert.True(math.abs(status.delta + 40) < 0.5, "40 s ahead of the curve scaled to the limit")
+
+      addon.TimeSeed[seasonID][MAP_ID] = { 0.9, 0.6, 1 }
+      Assert.Equal(addon.KillTrack.GetData().timePace.mode, "projection", "a broken curve falls back to the projection")
+    end)
+  end)
+
   test("TimePace uses the projection for a key level without a reference", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()

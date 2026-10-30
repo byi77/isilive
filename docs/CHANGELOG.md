@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-31 - Version 0.9.472 (patch)
+
+- Forces pace (rule 145): the start values are now medians of timed +12 to +18 keys from public Warcraft Logs reports and cover all eight Midnight S2 dungeons. Learned routes keep their priority.
+- Time pace (rule 191): without an own reference the delta comes from the dungeon's time curve (`data/isiLive_time_seed.lua`), built from barely timed keys and scaled to the key's time limit. The plain projection remains the fallback.
+- Both files are generated data and refresh about once a week.
+- Release: `release.yml` stops while pull requests are open.
+- Not confirmed in game.
+
 ## 2026-10-30 - Version 0.9.471 (patch)
 
 - Forces pace (rule 145): start values from own measured runs (`data/isiLive_forces_seed.lua`, 7 of 8 Midnight S2 dungeons) answer until a learned route fits.

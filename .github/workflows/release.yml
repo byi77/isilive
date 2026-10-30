@@ -18,11 +18,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Require processed pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OPEN="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --json number --jq 'map(.number) | join(", ")')"
+          if [ -n "${OPEN}" ]; then
+            echo "::error::Merge or close open pull requests before a release: ${OPEN}"
+            exit 1
+          fi
       - name: Validate Release Trigger
         env:
           EVENT_NAME: ${{ github.event_name }}

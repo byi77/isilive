@@ -106,9 +106,9 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] Zeit-Tempo und Forces-Tempo brauchen keine Pflege: beide lernen je
   `seasonID` und starten in der neuen Season leer (Prognose statt Vergleich,
   kein Zielstrich), bis die ersten eigenen Runs abgeschlossen sind.
-- [ ] Optional Startwerte fuer das Forces-Tempo in `data/isiLive_forces_seed.lua`
-  eintragen, ausschliesslich aus eigenen gemessenen Runs, niemals aus anderen
-  Addons.
+- [ ] `data/isiLive_forces_seed.lua` und `data/isiLive_time_seed.lua` sind generiert
+  (privater Workspace, `research/mplus-timepace`). Dort die neue Season eintragen;
+  Werte nie aus anderen Addons uebernehmen.
 - [ ] Mindestens `enUS` und `deDE` im Spiel kontrollieren.
 
 ## 6. Dokumentation, Release und CI

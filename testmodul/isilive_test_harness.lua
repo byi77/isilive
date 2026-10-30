@@ -57,6 +57,7 @@ local FILE_PATHS = {
   ["isiLive_bloodlust_button_warning.lua"] = "game/isiLive_bloodlust_button_warning.lua",
   ["isiLive_vip_dk_assist.lua"] = "game/isiLive_vip_dk_assist.lua",
   ["isiLive_forces_seed.lua"] = "data/isiLive_forces_seed.lua",
+  ["isiLive_time_seed.lua"] = "data/isiLive_time_seed.lua",
   ["isiLive_forces_pace.lua"] = "game/isiLive_forces_pace.lua",
   ["isiLive_time_pace.lua"] = "game/isiLive_time_pace.lua",
   ["isiLive_ttk.lua"] = "game/isiLive_ttk.lua",
@@ -240,7 +241,12 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_roster_panel_helpers.lua",
   },
   -- KillTrack hands every scenario snapshot to ForcesPace and TimePace (TOC order).
-  ["isiLive_killtrack.lua"] = { "isiLive_forces_seed.lua", "isiLive_forces_pace.lua", "isiLive_time_pace.lua" },
+  ["isiLive_killtrack.lua"] = {
+    "isiLive_forces_seed.lua",
+    "isiLive_time_seed.lua",
+    "isiLive_forces_pace.lua",
+    "isiLive_time_pace.lua",
+  },
   ["isiLive_factory.lua"] = {
     "isiLive_factory_frame_bridge.lua",
     "isiLive_factory_kick_tracker.lua",

@@ -14,8 +14,12 @@ addonTable = addonTable or {}
 --                 made the timer, so being ahead of it means on time. The
 --                 answer is elapsed time minus the reference's time at the
 --                 same progress (negative = ahead).
---   projection -- without a reference: elapsed time divided by progress,
---                 compared against the key's time limit.
+--   curve      -- without a reference: the dungeon's time curve from
+--                 data/isiLive_time_seed.lua, scaled to the key's time limit.
+--                 It answers like a reference; a key on the curve finishes
+--                 exactly on the limit.
+--   projection -- without a curve: elapsed time divided by progress, compared
+--                 against the key's time limit.
 --
 -- During a pull the clock runs while progress only moves on kills, so the
 -- answer drifts towards late and snaps back when mobs die. KillTrack
@@ -402,6 +406,17 @@ local function ReferenceTimeAt(entry, progress)
   return times[#times]
 end
 
+-- Time curve of a dungeon as a reference entry with a duration of 1, or nil.
+local function GetSeedCurve(seasonID, mapID)
+  local seed = addonTable.TimeSeed
+  local seasonBucket = type(seed) == "table" and seed[seasonID] or nil
+  if type(seasonBucket) ~= "table" then
+    return nil
+  end
+  local entry = { duration = 1, times = seasonBucket[mapID], progress = seasonBucket.progress }
+  return IsValidReference(entry) and entry or nil
+end
+
 local function ComputeStatus(mapID)
   local progress = run.progress
   if not IsFiniteNumber(progress) or progress <= 0 or progress >= 1 then
@@ -427,6 +442,11 @@ local function ComputeStatus(mapID)
   end
   if not IsFiniteNumber(timer.timeLimit) or timer.timeLimit <= 0 then
     return nil
+  end
+  local curve = run.seasonID ~= nil and GetSeedCurve(run.seasonID, mapID) or nil
+  if curve then
+    local onCurve = ReferenceTimeAt(curve, progress) * timer.timeLimit
+    return { mode = "reference", delta = elapsed - onCurve, keyLevel = keyLevel }
   end
   return { mode = "projection", projected = elapsed / progress, timeLimit = timer.timeLimit }
 end
