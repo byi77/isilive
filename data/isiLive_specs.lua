@@ -67,7 +67,7 @@ addonTable.SpecManifest = {
       name = "Devourer",
       shortLabel = "Devou",
       primaryStat = "intellect",
-      lfg = { intellect = false, attackPower = true, magicDamage = false, physicalDamage = true },
+      lfg = { intellect = true, attackPower = false, magicDamage = true, physicalDamage = false },
     },
     -- Druid
     [102] = {

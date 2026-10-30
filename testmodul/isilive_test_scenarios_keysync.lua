@@ -7,7 +7,6 @@ local function BuildMockSync()
   local locStore = {}
   local kickStore = {}
   local knownUsers = {}
-  local aliases = {}
 
   local function Key(name, realm)
     local text = tostring(name or "")
@@ -24,7 +23,7 @@ local function BuildMockSync()
 
   local function Lookup(store, name, realm)
     local key = Key(name, realm)
-    return store[key] or (aliases[key] and store[aliases[key]]) or nil
+    return store[key]
   end
 
   return {
@@ -35,18 +34,10 @@ local function BuildMockSync()
       knownUsers[Key(name, realm)] = true
     end,
     NormalizePlayerKey = Key,
-    RegisterVerifiedAlias = function(senderName, senderRealm, rosterName, rosterRealm)
-      local senderKey = Key(senderName, senderRealm)
-      if not knownUsers[senderKey] then
-        return false
-      end
-      aliases[Key(rosterName, rosterRealm)] = senderKey
-      return true
-    end,
     IsUnitKnown = function(getUnitNameAndRealm, unit)
       local name, realm = getUnitNameAndRealm(unit)
       local key = Key(name, realm)
-      return knownUsers[key] == true or (aliases[key] and knownUsers[aliases[key]] == true)
+      return knownUsers[key] == true
     end,
     RegisterPrefix = function()
       table.insert(calls, { fn = "RegisterPrefix" })
@@ -169,7 +160,7 @@ local function BuildController(loadAddonModules, sync, overrides)
   })
 end
 
-local function RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
+local function RegisterKeySyncPresenceTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync ghost owner hint never selects a ghost or another holder", function()
     local ctrl = BuildController(LoadAddonModules, BuildMockSync())
     local roster = {
@@ -339,18 +330,24 @@ local function RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
   end)
 
   test("KeySync ResolveActiveKeyOwnerUnit hint picks leader when mapID is ambiguous", function()
-    local sync = BuildMockSync()
-    local ctrl = BuildController(LoadAddonModules, sync)
-    local roster = {
-      player = { name = "Me", realm = "R", keyMapID = 200, keyLevel = 10 },
-      party1 = { name = "Leader", realm = "R", keyMapID = 200, keyLevel = 14 },
-      party2 = { name = "Other", realm = "R", keyMapID = 200, keyLevel = 8 },
-    }
-    Assert.Equal(
-      ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader"),
-      "party1",
-      "bare-name hint must disambiguate matching roster unit"
-    )
+    WithGlobals({
+      GetRealmName = function()
+        return "R"
+      end,
+    }, function()
+      local sync = BuildMockSync()
+      local ctrl = BuildController(LoadAddonModules, sync)
+      local roster = {
+        player = { name = "Me", realm = "R", keyMapID = 200, keyLevel = 10 },
+        party1 = { name = "Leader", realm = "R", keyMapID = 200, keyLevel = 14 },
+        party2 = { name = "Other", realm = "R", keyMapID = 200, keyLevel = 8 },
+      }
+      Assert.Equal(
+        ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader"),
+        "party1",
+        "bare-name hint must disambiguate matching roster unit"
+      )
+    end)
   end)
 
   test("KeySync ResolveActiveKeyOwnerUnit hint with realm matches Name-Realm entry", function()
@@ -1377,34 +1374,9 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       party1 = { name = "Kürshad", realm = "Blackmoore" },
     }
 
-    Assert.False(
-      ctrl.RegisterVerifiedSyncAliasForRoster(roster, "K?rshad-Blackmoore"),
-      "realm alone cannot prove identity"
-    )
     local info = roster.party1
     Assert.False(ctrl.ApplyKnownKeyToRosterEntry(info), "unverified data must not backfill the roster")
     Assert.Nil(info.keyMapID, "unknown identity stays unresolved")
-  end)
-
-  test("KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates", function()
-    local sync = BuildMockSync()
-    local ctrl = BuildController(LoadAddonModules, sync)
-    sync.MarkUser("Kørshad-Blackmoore")
-    sync.SetPlayerKeyInfo("Kørshad-Blackmoore", nil, 239, 17)
-
-    local roster = {
-      party1 = { name = "Kürshad", realm = "Blackmoore" },
-      party2 = { name = "Kyrshad", realm = "Blackmoore" },
-    }
-
-    Assert.False(
-      ctrl.RegisterVerifiedSyncAliasForRoster(roster, "Kørshad-Blackmoore"),
-      "ambiguous same-realm candidates must not register an alias"
-    )
-    local info = roster.party1
-    Assert.False(ctrl.ApplyKnownKeyToRosterEntry(info), "unverified alias must not backfill roster state")
-    Assert.Nil(info.keyMapID, "ambiguous alias must leave key map unresolved")
-    Assert.Nil(info.keyLevel, "ambiguous alias must leave key level unresolved")
   end)
 
   test("KeySync ApplyKnownKeyToRosterEntry skips when _localSpecFresh is set", function()
@@ -1787,7 +1759,95 @@ return function(test, ctx)
     Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-One"), "unknown realm cannot establish identity")
   end)
 
-  RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
+  test("KeySync bare owner hint names the local realm only", function()
+    WithGlobals({
+      GetRealmName = function()
+        return "Argent Dawn"
+      end,
+    }, function()
+      local ctrl = BuildController(LoadAddonModules, BuildMockSync())
+      local roster = {
+        party1 = { name = "Leader", realm = "Ravencrest", keyMapID = 200 },
+        party2 = { name = "Other", realm = "Ravencrest", keyMapID = 200 },
+      }
+      Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader"), "a namesake on another realm is not the leader")
+      roster.party1.realm = "ArgentDawn"
+      Assert.Equal(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader"), "party1", "realm spelling must not matter")
+      roster.party1.realm = "Ravencrest"
+      Assert.Equal(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-Ravencrest"), "party1", "full hint matches")
+    end)
+  end)
+
+  test("KeySync owner hint treats an empty roster realm as unknown", function()
+    local ctrl = BuildController(LoadAddonModules, BuildMockSync())
+    local roster = {
+      party1 = { name = "Leader", realm = "" },
+      party2 = { name = "Other", realm = "One", keyMapID = 200 },
+    }
+    Assert.Nil(ctrl.ResolveActiveKeyOwnerUnit(roster, 200, "Leader-One"), "an empty realm proves no mismatch")
+  end)
+
+  local function WithRealSyncController(fn)
+    WithGlobals({
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local ctrl = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function()
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "0.9.99"
+        end,
+        getUnitRio = function()
+          return nil
+        end,
+        isFrameVisible = function()
+          return true
+        end,
+        canRespondToRefreshRequest = function()
+          return true
+        end,
+      })
+      fn(ctrl, addon.Sync)
+    end)
+  end
+
+  test("KeySync keeps mirrored values until the peer reports its own state", function()
+    WithRealSyncController(function(ctrl, sync)
+      local info = {
+        name = "Peer",
+        realm = "Realm",
+        keyMapID = 200,
+        keyLevel = 15,
+        syncDps = 4000,
+        syncLocMapID = 300,
+        _reloadMirrorRestored = true,
+      }
+      ctrl.ApplyKnownKeyToRosterEntry(info)
+      Assert.Equal(info.keyMapID, 200, "an empty cache after a reload must not wipe the mirrored key")
+      Assert.Equal(info.syncDps, 4000, "an empty cache must not wipe the mirrored dps")
+      Assert.Equal(info.syncLocMapID, 300, "an empty cache must not wipe the mirrored location")
+      sync.ProcessAddonMessage("ISILIVE", "KEY:0:0:100:test", "Peer-Realm", "Me", "Realm", "PARTY")
+      ctrl.ApplyKnownKeyToRosterEntry(info)
+      Assert.Nil(info.keyMapID, "a reported clear must still reach the mirrored row")
+      Assert.Equal(info.syncDps, 4000, "the clear of one bucket must leave the other mirrored buckets alone")
+    end)
+  end)
+
+  test("KeySync keeps the key of a ghost row without sync data", function()
+    WithRealSyncController(function(ctrl)
+      local info = { name = "Peer", realm = "Realm", keyMapID = 200, keyLevel = 15, isGhost = true }
+      ctrl.ApplyKnownKeyToRosterEntry(info)
+      Assert.Equal(info.keyMapID, 200, "a ghost row keeps its last known key")
+      Assert.Equal(info.keyLevel, 15, "a ghost row keeps its last known level")
+    end)
+  end)
+
+  RegisterKeySyncPresenceTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, LoadAddonModules)
 end

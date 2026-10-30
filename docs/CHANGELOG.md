@@ -1,11 +1,24 @@
 # Changelog
 
+## 2026-10-30 - Version 0.9.470 (patch)
+
+- Sync (rules 53, 159, 216, 217): disabled sync posts no automatic SHAREKEYS reply; the manual button still works. The own KEY echo skips the peer gate. Stamped snapshots keep their watermark against unchanged legacy data, unstamped data applies in arrival order, also after a clear. HELLO counts as first contact even after an earlier KEY. ChatThrottleLib drops re-arm the payload; server rejections stay invisible behind the library. KICK and KEY payloads are bounded and floored. The unused alias system is removed.
+- Key history (rules 119, 154): a reset no longer takes stale completion data, and a contradicting struct at COMPLETED counts as missing data. One post-run chain per run; a new START cancels it.
+- Roster (rules 220-222, 229, 230): unreadable names and masked realms no longer replace or create rows, the raid return in a key restores the own row and announces the client, and unchanged groups skip the rebuild. The reload mirror carries `savedAt` and expires after one hour, so the first reload after this update drops the old mirror once.
+- Inspect (rule 220): one pending operation per member across queue, retry and in-flight, keyed by GUID.
+- Stats (rule 221): identity and database readiness are separate; legacy runs migrate once and only with a known character.
+- Forces and runtime mode (rules 60, 213): unreadable map reads keep the last verified state; only a readable answer ends a key.
+- Loadout check (rule 215): unresolved specs retry on timers and events, switching the check off hides the card and blocks its actions, and a running talent switch finishes correctly.
+- LFG (rules 1, 213): `activityInfo.mapID` is an instance ID (verified in game); it resolves through the season maps or not at all. Relisting drops the accepted listing identity, a same-name leader on another realm counts as a handover.
+- Data: Devourer counts as Intellect and magic damage in the LFG bonus profile (from guides, not confirmed in game). Portal cooldowns no longer show 00:00 while running.
+- Audit scope: events/trackers, factory/core, UI and locale were not reviewed. All fixes are proven with simulated APIs only, not in game.
+
 ## 2026-10-30 - Unreleased audit checkpoint
 
 - Reject unverified same-realm sender aliases and ambiguous or unresolved owner hints.
 - Refresh party membership during an active key while preserving existing member data.
 - Reject older timestamped sync snapshots, including stale updates after a clear.
-- Add deterministic regressions and update rule-to-test mappings. This is an intermediate checkpoint: eleven follow-up findings remain open, including legacy timestamp mixing and returning from a raid during an active key. No version bump or release.
+- Add deterministic regressions and update rule-to-test mappings. This is an intermediate checkpoint: the follow-up findings, including legacy timestamp mixing and returning from a raid during an active key, are fixed but not confirmed in game. No version bump or release.
 
 ## 2026-10-29 - Version 0.9.469 (patch)
 

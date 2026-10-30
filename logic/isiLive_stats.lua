@@ -97,7 +97,14 @@ local function ResolveLocalPlayerKey(getUnitNameAndRealm)
   end
 
   local name, realm = getUnitNameAndRealm("player")
-  return NormalizeName(name, realm)
+  -- UNKNOWNOBJECT is the client's localized placeholder for an unresolved name.
+  if name == "Unknown" or name == rawget(_G, "UNKNOWNOBJECT") then
+    return nil
+  end
+  local key = NormalizeName(name, realm)
+  -- A name without a resolvable realm yields "name-": that is not a character
+  -- identity, and persisting or migrating under it would be a guess.
+  return key and string.match(key, "^.+%-.+$") or nil
 end
 
 local function MigrateAndPrunePersistentPlayerStats(localPlayerKey)
@@ -106,7 +113,7 @@ local function MigrateAndPrunePersistentPlayerStats(localPlayerKey)
   local db = rawget(_G, "IsiLiveDB")
   local stats = db and db.stats
   if not stats then
-    return
+    return false
   end
   local persistentLastRuns = EnsurePlayerLastRunByCharacterTable(stats)
   local legacyLastRuns = type(stats.playerLastRuns) == "table" and stats.playerLastRuns or nil
@@ -123,6 +130,7 @@ local function MigrateAndPrunePersistentPlayerStats(localPlayerKey)
   stats.dungeons = nil
   stats.players = nil
   stats.playerLastRuns = nil
+  return true
 end
 
 local function ResolveDamageMeterAPI()
@@ -272,17 +280,33 @@ function Stats.CreateController(opts)
   -- At that point the player unit may not exist yet (UnitExists("player") can
   -- return false) and SavedVariables (IsiLiveDB) are not yet restored.
   local localPlayerKey = nil
-  local initialized = false
+  local migrated = false
   local sessionPlayerLastRuns = {}
   local sessionPlayerLastRunMisses = {}
 
+  local function PersistOwnRun(selfRun)
+    local db = rawget(_G, "IsiLiveDB")
+    if selfRun and localPlayerKey and db and db.stats then
+      EnsurePlayerLastRunByCharacterTable(db.stats)[localPlayerKey] = selfRun
+    end
+  end
+
+  -- Identity and database become ready independently, so each is retried until
+  -- it is there. The migration deletes the legacy tables and therefore waits
+  -- for both; a run captured in the meantime stays in the session snapshot and
+  -- reaches the character key here.
   local function EnsureInitialized()
-    if initialized then
+    if migrated then
       return
     end
-    initialized = true
-    localPlayerKey = ResolveLocalPlayerKey(getUnitNameAndRealm)
-    MigrateAndPrunePersistentPlayerStats(localPlayerKey)
+    localPlayerKey = localPlayerKey or ResolveLocalPlayerKey(getUnitNameAndRealm)
+    if not localPlayerKey then
+      return
+    end
+    migrated = MigrateAndPrunePersistentPlayerStats(localPlayerKey)
+    if migrated then
+      PersistOwnRun(sessionPlayerLastRuns[localPlayerKey])
+    end
   end
 
   local controller = {}
@@ -340,13 +364,7 @@ function Stats.CreateController(opts)
       end
     end
 
-    local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
-    if selfRun and localPlayerKey then
-      local db = rawget(_G, "IsiLiveDB")
-      if db and db.stats then
-        EnsurePlayerLastRunByCharacterTable(db.stats)[localPlayerKey] = selfRun
-      end
-    end
+    PersistOwnRun(localPlayerKey and runSnapshot[localPlayerKey] or nil)
 
     return recordedAnyPlayer
   end

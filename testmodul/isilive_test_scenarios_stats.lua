@@ -839,10 +839,140 @@ local function RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddo
   end)
 end
 
+local function RegisterStatsIdentityTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function DamageMeter(dps)
+    return {
+      GetCombatSessionFromType = function()
+        return {
+          durationSeconds = 1800,
+          combatSources = { { name = "Me", amountPerSecond = dps, totalAmount = dps * 1800 } },
+        }
+      end,
+    }
+  end
+
+  local function BuildController(addon, identity)
+    return addon.Stats.CreateController({
+      getRoster = function()
+        return { player = { name = "Me", realm = "Realm" } }
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return identity.name, identity.realm
+        end
+        return nil
+      end,
+    })
+  end
+
+  test("Stats stores the own run under the character key once an unknown identity resolves", function()
+    local db = { stats = {} }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "Realm"
+      end,
+      C_DamageMeter = DamageMeter(1000),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local identity = {}
+      local controller = BuildController(addon, identity)
+
+      Assert.Nil(controller.GetPlayerLastRunDps("Me", "Realm"), "no run is known yet")
+      identity.name, identity.realm = "Me", "Realm"
+
+      Assert.True(controller.RecordRun(2649, 13, true), "the run is captured")
+      Assert.NotNil(db.stats.playerLastRunByCharacter["me-realm"], "the own run is stored under the resolved key")
+      Assert.Equal(db.stats.playerLastRunByCharacter["me-realm"].dps, 1000, "the stored run keeps its DPS")
+    end)
+  end)
+
+  test("Stats persists a run captured before the identity resolved once it is known", function()
+    local db = { stats = {} }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "Realm"
+      end,
+      C_DamageMeter = DamageMeter(2000),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local identity = {}
+      local controller = BuildController(addon, identity)
+
+      Assert.True(controller.RecordRun(2649, 13, true), "the run is captured without an identity")
+      Assert.Nil(next(db.stats.playerLastRunByCharacter or {}), "no character key is guessed")
+
+      identity.name, identity.realm = "Me", "Realm"
+      Assert.Equal(controller.GetPlayerLastRunDps("Me", "Realm"), 2000, "the session keeps the run")
+      Assert.Equal(db.stats.playerLastRunByCharacter["me-realm"].dps, 2000, "the waiting run reaches the character key")
+    end)
+  end)
+
+  test("Stats keeps legacy runs until the identity resolves and migrates them exactly once", function()
+    local db = {
+      stats = {
+        playerLastRuns = {
+          ["me-realm"] = { dps = 111 },
+          ["alt-realm"] = { dps = 222 },
+        },
+        playerLastRun = { dps = 333 },
+      },
+    }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local identity = {}
+      local controller = BuildController(addon, identity)
+
+      Assert.Nil(controller.GetPlayerLastRunDps("Me", "Realm"), "no identity, no answer")
+      Assert.NotNil(db.stats.playerLastRuns, "legacy runs wait for the identity")
+      Assert.Equal(db.stats.playerLastRuns["me-realm"].dps, 111, "the own legacy run is untouched")
+
+      identity.name, identity.realm = "Me", "Realm"
+      Assert.Equal(controller.GetPlayerLastRunDps("Me", "Realm"), 111, "the own legacy run is migrated")
+      Assert.Nil(db.stats.playerLastRuns, "legacy storage is cleared after migration")
+      Assert.Nil(db.stats.playerLastRunByCharacter["alt-realm"], "another character's entry is not adopted")
+
+      db.stats.playerLastRuns = { ["me-realm"] = { dps = 999 } }
+      Assert.Equal(controller.GetPlayerLastRunDps("Me", "Realm"), 111, "migration runs exactly once")
+    end)
+  end)
+
+  test("Stats does not take the unknown placeholder for a character", function()
+    for _, placeholder in ipairs({ "Unknown", "Unbekannt" }) do
+      local db = { stats = { playerLastRuns = { ["me-realm"] = { dps = 111 } } } }
+      WithGlobals({ IsiLiveDB = db, UNKNOWNOBJECT = "Unbekannt" }, function()
+        local addon = LoadAddonModules({ "isiLive_stats.lua" })
+        local controller = BuildController(addon, { name = placeholder, realm = "Realm" })
+
+        Assert.Nil(controller.GetPlayerLastRunDps("Me", "Realm"), "a placeholder answers nothing")
+        Assert.NotNil(db.stats.playerLastRuns, "a placeholder does not consume the legacy data")
+      end)
+    end
+  end)
+
+  test("Stats does not derive a character key from a name without a resolvable realm", function()
+    local db = { stats = { playerLastRuns = { ["me-realm"] = { dps = 111 } } } }
+    WithGlobals({ IsiLiveDB = db, GetRealmName = false }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = BuildController(addon, { name = "Me", realm = "" })
+
+      Assert.Nil(controller.GetPlayerLastRunDps("Me", "Realm"), "an incomplete identity answers nothing")
+      Assert.NotNil(db.stats.playerLastRuns, "an incomplete identity does not consume the legacy data")
+    end)
+  end)
+end
+
 local function RegisterStatsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterStatsIdentityTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)

@@ -13,6 +13,7 @@ local LFGDetect = {}
 addonTable.LFGDetect = LFGDetect
 local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 local Validators = addonTable.Validators or {}
+local StringUtils = addonTable.StringUtils
 local EntryResolver = assert(addonTable.LFGEntryResolver, "isiLive: LFGEntryResolver missing")
 local MapIDFromActivityID =
   assert(EntryResolver.MapIDFromActivityID, "isiLive: LFGEntryResolver.MapIDFromActivityID missing")
@@ -86,8 +87,6 @@ local rosterEstablishedSinceAccept = false
 local lastShownNoticeSearchResultID = nil
 local acceptedInviteNoticeBlockedUntilReset = false
 local lastFiredTargetDungeonChatSearchResultID = nil
-local pendingTargetDungeonChatEntry = nil
-local pendingTargetDungeonChatSearchResultID = nil
 
 -- Injected by the factory after UpdateMPlusTeleportButton is available.
 -- Replaces the previous direct _factoryCtx access (ARCH-1 fix).
@@ -278,10 +277,6 @@ end
 
 local ResolveEntryTitleLevelText =
   assert(EntryResolver.ResolveEntryTitleLevelText, "isiLive: LFGEntryResolver.ResolveEntryTitleLevelText missing")
-local function ClearPendingTargetDungeonChat()
-  pendingTargetDungeonChatEntry = nil
-  pendingTargetDungeonChatSearchResultID = nil
-end
 
 local function GetLocalPlayerFullName()
   local isExistingUnit = rawget(Validators, "IsExistingUnit")
@@ -349,23 +344,6 @@ local function MaybeFireTargetDungeonChatFromAccept(entry, searchResultID)
   if (resolvedLevel or resolvedLevelText) and searchResultID ~= nil then
     lastFiredTargetDungeonChatSearchResultID = searchResultID
   end
-end
-
-local function FlushPendingTargetDungeonChat()
-  if pendingTargetDungeonChatEntry == nil then
-    return
-  end
-  local entry = pendingTargetDungeonChatEntry
-  local searchResultID = pendingTargetDungeonChatSearchResultID
-  ClearPendingTargetDungeonChat()
-  MaybeFireTargetDungeonChatFromAccept(entry, searchResultID)
-end
-
-local function QueueTargetDungeonChatFromAccept(entry, searchResultID)
-  if type(entry) ~= "table" or not entry.mapID then
-    return
-  end
-  MaybeFireTargetDungeonChatFromAccept(entry, searchResultID)
 end
 
 -- Renders the post-accept Center Notice. Pulls ALL data from the supplied
@@ -460,16 +438,21 @@ local function OnInviteAccepted(searchResultID)
     tostring(titleLevel)
   )
   if mapID then
+    -- The status event can follow the roster recovery of the same accept. The
+    -- group already stands then, and no further GROUP_ROSTER_UPDATE has to come.
+    local alreadyInGroup = rosterEstablishedSinceAccept and searchResultID == acceptedInviteSearchResultID
     pendingInvites[searchResultID] = nil
     activeInviteLeader = leaderName
     activeInviteGroupName = type(entry.groupName) == "string" and entry.groupName ~= "" and entry.groupName or nil
     activeInviteTitleLevel = titleLevel
     activeInviteTitleLevelText = titleLevelText
     acceptedInviteSearchResultID = searchResultID
-    pendingAcceptedInviteMapID = mapID
-    -- Fresh accept: the upcoming PARTY_LEADER_CHANGED is the initial
-    -- convert-to-party-lead, not a handoff. See state-block comment above.
-    rosterEstablishedSinceAccept = false
+    if not alreadyInGroup then
+      pendingAcceptedInviteMapID = mapID
+      -- Fresh accept: the upcoming PARTY_LEADER_CHANGED is the initial
+      -- convert-to-party-lead, not a handoff. See state-block comment above.
+      rosterEstablishedSinceAccept = false
+    end
     local detectedBefore = detectedMapID
     detectedMapID = mapID
     -- One snapshot line for the whole accept instead of one per field.
@@ -479,7 +462,7 @@ local function OnInviteAccepted(searchResultID)
         .. "titleLevel=%s titleLevelText=%s searchResultID=%s",
       tostring(detectedBefore),
       tostring(mapID),
-      tostring(mapID),
+      tostring(pendingAcceptedInviteMapID),
       tostring(leaderName),
       tostring(activeInviteGroupName),
       tostring(titleLevel),
@@ -490,7 +473,7 @@ local function OnInviteAccepted(searchResultID)
     -- Announce chat with the SAME entry the notice just rendered before the
     -- highlight refresh can synchronously re-enter the resolver-driven status
     -- path with stale queue-state text.
-    QueueTargetDungeonChatFromAccept(entry, searchResultID)
+    MaybeFireTargetDungeonChatFromAccept(entry, searchResultID)
     TriggerHighlightUpdate("invite")
     return
   end
@@ -560,7 +543,6 @@ local function OnInviteDeclined(searchResultID)
     activeInviteTitleLevel = nil
     activeInviteTitleLevelText = nil
     acceptedInviteSearchResultID = nil
-    ClearPendingTargetDungeonChat()
     TriggerHighlightUpdate("queue")
   end
 end
@@ -615,7 +597,6 @@ local function ClearDetectedState()
     activeInviteTitleLevel = nil
     activeInviteTitleLevelText = nil
     acceptedInviteSearchResultID = nil
-    ClearPendingTargetDungeonChat()
     TriggerHighlightUpdate("queue")
   end
 end
@@ -647,7 +628,6 @@ local function ClearAllStateImpl()
     or activeInviteTitleLevel ~= nil
     or activeInviteTitleLevelText ~= nil
     or acceptedInviteSearchResultID ~= nil
-    or pendingTargetDungeonChatEntry ~= nil
   Log("clear_all_state", "hadState=%s", tostring(hadState))
   detectedMapID = nil
   lastQueueMapID = nil
@@ -663,7 +643,6 @@ local function ClearAllStateImpl()
   lastShownNoticeSearchResultID = nil
   acceptedInviteNoticeBlockedUntilReset = false
   lastFiredTargetDungeonChatSearchResultID = nil
-  ClearPendingTargetDungeonChat()
   pendingInvites = {}
   -- Reset alongside pendingInvites: entries are added per declined invite and
   -- were otherwise never dropped in bulk, so the map grew for the whole
@@ -755,8 +734,19 @@ local function CheckActiveGroup()
     mapID = MapIDFromActivityID(info.activityID)
   end
 
-  if mapID and mapID ~= lastQueueMapID then
+  -- A cleared target with the listing still active counts as new as well, or
+  -- the listing would stay undetected until its dungeon changes.
+  if mapID and (mapID ~= lastQueueMapID or detectedMapID == nil) then
     Log("queue_listing_detected", "mapID=%s lastQueueMapID=%s", tostring(mapID), tostring(lastQueueMapID))
+    if detectedMapID ~= nil and detectedMapID ~= mapID then
+      -- Relisted on another dungeon: title level, leader and group name of the
+      -- accepted listing describe the old target and must not move to this one.
+      activeInviteLeader = nil
+      activeInviteGroupName = nil
+      activeInviteTitleLevel = nil
+      activeInviteTitleLevelText = nil
+      acceptedInviteSearchResultID = nil
+    end
     lastQueueMapID = mapID
     detectedMapID = mapID
     activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
@@ -820,6 +810,82 @@ local function FindAcceptedSearchResultID()
   return nil
 end
 
+local function SplitQualifiedName(fullName)
+  if type(fullName) ~= "string" or fullName == "" then
+    return nil, nil
+  end
+  local name, realm = string.match(fullName, "^([^%-]+)%-(.+)$")
+  if name then
+    return name, realm
+  end
+  return fullName, nil
+end
+
+local function ReadSafeString(value)
+  if IsSecretValue(value) or type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
+
+local function ReadLocalRealm()
+  local getRealmName = rawget(_G, "GetRealmName")
+  if type(getRealmName) ~= "function" then
+    return nil
+  end
+  local ok, realm = pcall(getRealmName)
+  if not ok then
+    return nil
+  end
+  return ReadSafeString(realm)
+end
+
+-- Name and realm of the current group leader, or nil when the client cannot
+-- tell (solo, API missing, secret values). The realm is nil for leaders on
+-- the player's own realm.
+local function ResolveCurrentGroupLeader()
+  local unitIsGroupLeader = rawget(_G, "UnitIsGroupLeader")
+  local unitFullName = rawget(_G, "UnitFullName")
+  if type(unitIsGroupLeader) ~= "function" or type(unitFullName) ~= "function" then
+    return nil, nil
+  end
+  for _, unit in ipairs({ "player", "party1", "party2", "party3", "party4" }) do
+    local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
+    if okLeader and not IsSecretValue(isLeader) and isLeader == true then
+      local okName, name, realm = pcall(unitFullName, unit)
+      if not okName or IsSecretValue(name) or IsSecretValue(realm) then
+        return nil, nil
+      end
+      return ReadSafeString(name), ReadSafeString(realm)
+    end
+  end
+  return nil, nil
+end
+
+-- True when the current group leader is the leader of a listing. A name alone
+-- is no identity: a side without a realm stands for the local realm, and when
+-- that realm cannot be read the leader counts as different.
+local function IsCurrentLeader(listingLeader)
+  local listingName, listingRealm = SplitQualifiedName(listingLeader)
+  if not listingName then
+    return false
+  end
+  local leaderName, leaderRealm = ResolveCurrentGroupLeader()
+  if leaderName ~= listingName then
+    return false
+  end
+  if not listingRealm and not leaderRealm then
+    return true
+  end
+  local localRealm = ReadLocalRealm()
+  local resolvedListingRealm = listingRealm or localRealm
+  local resolvedLeaderRealm = leaderRealm or localRealm
+  if not resolvedListingRealm or not resolvedLeaderRealm then
+    return false
+  end
+  return StringUtils.NormalizeRealmName(resolvedListingRealm) == StringUtils.NormalizeRealmName(resolvedLeaderRealm)
+end
+
 -- Resolves which pendingInvites entry the player has just accepted, for use
 -- in the GROUP_ROSTER_UPDATE race-recovery branch (when GROUP_ROSTER_UPDATE
 -- arrives before LFG_LIST_APPLICATION_STATUS_UPDATED("inviteaccepted")).
@@ -827,8 +893,10 @@ end
 -- Resolution priority — strictly deterministic, never picks 1-of-N:
 --   1. WoW LFG API authoritative: status == "inviteaccepted" on one of the
 --      player's own applications. Single source of truth from Blizzard.
---   2. Unambiguous fallback: exactly one pendingInvites entry exists. With
---      a single candidate there is nothing to guess.
+--   2. Unambiguous fallback: exactly one pendingInvites entry exists and the
+--      current group leader does not contradict its listing leader. A group
+--      led by someone else was joined another way (for example a friend's
+--      invite); the explicit inviteaccepted event still resolves a real accept.
 --   3. Nil — defer. Multiple pendingInvites with no API disambiguation must
 --      wait for the explicit inviteaccepted event, which carries its own
 --      authoritative searchResultID.
@@ -869,6 +937,10 @@ local function ResolveAcceptedPendingInvite()
     end
   end
   if count == 1 and type(soleEntry) == "table" and soleEntry.mapID then
+    if soleEntry.leaderName and ResolveCurrentGroupLeader() and not IsCurrentLeader(soleEntry.leaderName) then
+      Log("accept_deferred", "reason=other_leader searchResultID=%s", tostring(soleID))
+      return nil, nil
+    end
     Log(
       "accept_resolved",
       "source=single_pending searchResultID=%s mapID=%s",
@@ -878,66 +950,6 @@ local function ResolveAcceptedPendingInvite()
     return soleID, soleEntry
   end
   return nil, nil
-end
-
-local function SplitQualifiedName(fullName)
-  if type(fullName) ~= "string" or fullName == "" then
-    return nil, nil
-  end
-  local name, realm = string.match(fullName, "^([^%-]+)%-(.+)$")
-  if name then
-    return name, realm
-  end
-  return fullName, nil
-end
-
-local function ReadSafeString(value)
-  if IsSecretValue(value) or type(value) ~= "string" or value == "" then
-    return nil
-  end
-  return value
-end
-
--- Name and realm of the current group leader, or nil when the client cannot
--- tell (solo, API missing, secret values). The realm is nil for leaders on
--- the player's own realm.
-local function ResolveCurrentGroupLeader()
-  local unitIsGroupLeader = rawget(_G, "UnitIsGroupLeader")
-  local unitFullName = rawget(_G, "UnitFullName")
-  if type(unitIsGroupLeader) ~= "function" or type(unitFullName) ~= "function" then
-    return nil, nil
-  end
-  for _, unit in ipairs({ "player", "party1", "party2", "party3", "party4" }) do
-    local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
-    if okLeader and not IsSecretValue(isLeader) and isLeader == true then
-      local okName, name, realm = pcall(unitFullName, unit)
-      if not okName or IsSecretValue(name) or IsSecretValue(realm) then
-        return nil, nil
-      end
-      return ReadSafeString(name), ReadSafeString(realm)
-    end
-  end
-  return nil, nil
-end
-
--- True when the current group leader is the leader of the accepted listing.
--- WoW fires PARTY_LEADER_CHANGED on joining a listed group, and the live
--- client delivers it before or after the first GROUP_ROSTER_UPDATE; a leader
--- that still matches the listing is that join, not a handoff. A realm only
--- has to match when both sides carry one (same-realm leaders come without).
-local function IsListingLeaderStillLeading()
-  local listingName, listingRealm = SplitQualifiedName(activeInviteLeader)
-  if not listingName then
-    return false
-  end
-  local leaderName, leaderRealm = ResolveCurrentGroupLeader()
-  if leaderName ~= listingName then
-    return false
-  end
-  if listingRealm and leaderRealm then
-    return string.gsub(listingRealm, "[%s%-]", "") == string.gsub(leaderRealm, "[%s%-]", "")
-  end
-  return true
 end
 
 -- Clears the LFG-listing identity (leader / title level / accepted search-
@@ -954,7 +966,6 @@ local function ClearAcceptedInviteListingIdentity(reason)
     and activeInviteTitleLevel == nil
     and activeInviteTitleLevelText == nil
     and acceptedInviteSearchResultID == nil
-    and pendingTargetDungeonChatEntry == nil
     and pendingAcceptedInviteMapID == nil
   then
     return
@@ -975,7 +986,6 @@ local function ClearAcceptedInviteListingIdentity(reason)
   acceptedInviteSearchResultID = nil
   pendingAcceptedInviteMapID = nil
   lastFiredTargetDungeonChatSearchResultID = nil
-  ClearPendingTargetDungeonChat()
   TriggerHighlightUpdate("queue")
 end
 
@@ -1026,7 +1036,7 @@ function LFGDetect.HandleEvent(event, ...)
         tostring(activeInviteLeader),
         tostring(activeInviteTitleLevel)
       )
-    elseif activeInviteLeader ~= nil and IsListingLeaderStillLeading() then
+    elseif activeInviteLeader ~= nil and IsCurrentLeader(activeInviteLeader) then
       Log("plc_listing_leader_keep", "leader=%s", tostring(activeInviteLeader))
     elseif activeInviteLeader ~= nil or acceptedInviteSearchResultID ~= nil then
       ClearAcceptedInviteListingIdentity("PARTY_LEADER_CHANGED")
@@ -1074,7 +1084,6 @@ function LFGDetect.HandleEvent(event, ...)
     -- inGroup=true reached: the group has formed. Any future
     -- PARTY_LEADER_CHANGED is a genuine handoff, not the initial convert.
     rosterEstablishedSinceAccept = true
-    FlushPendingTargetDungeonChat()
     -- Joined a group: if we have a pending invite but detectedMapID was not
     -- set yet (e.g. GROUP_ROSTER_UPDATE arrived before the inviteaccepted
     -- status event), resolve deterministically — never guess 1-of-N.

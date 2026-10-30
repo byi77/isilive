@@ -375,11 +375,19 @@ end
 -- One delayed refresh with retries. The former follow-up refreshes (6 s after a
 -- successful refresh) always hit the 10 s refresh debounce and never refreshed
 -- anything; they were removed in 0.9.417.
-local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
+--
+-- Every run owns one chain: `chain` is the token of the key end that started
+-- it, and a callback whose token is no longer current belongs to an older run.
+local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, chain)
+  if chain ~= ctx.postRunRefreshChain then
+    return
+  end
+
   if IsRaidModeActive(ctx) then
     SetPendingPostChallengeRefresh(ctx, {
       frame = frame,
       retriesRemaining = retriesRemaining,
+      chain = chain,
     })
     return
   end
@@ -391,6 +399,7 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
     -- RIO was ever fetched and any delta would be computed against the pre-run
     -- snapshot. There is nothing left to refresh either -- the roster the
     -- delta describes is gone -- so this returns without enabling.
+    ctx.postRunRefreshChain = nil
     return
   end
 
@@ -402,7 +411,7 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
 
   if not refreshed and retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
-      RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1)
+      RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1, chain)
     end)
     return
   end
@@ -413,8 +422,45 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining)
   -- computed against a pre-run snapshot that was never updated.
   if refreshed then
     ctx.enableRioDeltaDisplay()
+  else
+    -- Rule 4 is still waiting for a success, so a later key-end event of this
+    -- run may start over. A successful chain stays in place and keeps the
+    -- other key-end event of the same run from refreshing again.
+    ctx.postRunRefreshChain = nil
   end
   RefreshRosterAfterRunStateChange(ctx, frame)
+end
+
+-- COMPLETED and the RESET that follows it end the same run; whichever arrives
+-- first starts the chain and the other one joins it. A run ends with at most
+-- one of each, so a repeated event belongs to another run, even one whose
+-- CHALLENGE_MODE_START was never seen here (joined as a replacement).
+local function StartPostRunRefreshChain(ctx, frame, event)
+  local current = ctx.postRunRefreshChain
+  if current and not current[event] then
+    current[event] = true
+    return
+  end
+
+  SetPendingPostChallengeRefresh(ctx, nil)
+  local chain = { [event] = true }
+  ctx.postRunRefreshChain = chain
+  if ctx.timerAfter then
+    ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
+      RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES, chain)
+    end)
+    return
+  end
+
+  RunDelayedPostChallengeRefresh(ctx, frame, 0, chain)
+end
+
+-- True when completion info names another key than the run stashed at start.
+-- Without a stash nothing can contradict it.
+local function CompletionContradictsRun(runInfo, identity)
+  return type(runInfo) == "table"
+    and type(identity) == "table"
+    and (runInfo.mapID ~= identity.mapID or (identity.level > 0 and runInfo.level ~= identity.level))
 end
 
 local function RefreshReadyCheckUI(ctx)
@@ -637,7 +683,12 @@ function ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
   end
 
   SetPendingPostChallengeRefresh(ctx, nil)
-  RunDelayedPostChallengeRefresh(ctx, pending.frame or frame, pending.retriesRemaining or POST_RUN_REFRESH_RETRIES)
+  RunDelayedPostChallengeRefresh(
+    ctx,
+    pending.frame or frame,
+    pending.retriesRemaining or POST_RUN_REFRESH_RETRIES,
+    pending.chain
+  )
   return true
 end
 
@@ -667,12 +718,14 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       ctx.logRuntimeTrace("[RC] challenge_mode_start state_set var=readyCheckActive val=false")
     end
     SetPendingPostChallengeRefresh(ctx, nil)
+    ctx.postRunRefreshChain = nil
     if type(ctx.resetKickStats) == "function" then
       ctx.resetKickStats()
     end
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil
+    ctx.awaitingCompletionInfo = false
     ctx.activeChallengeRunIdentity = ResolveActiveChallengeRunIdentity()
     ctx.setReadyCheckActive(false)
     -- Clear stale ready/declined marks: if a READY_CHECK landed just before
@@ -716,20 +769,32 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.handleLFGDetectEvent(event)
     local runInfo = ResolveCompletedRunInfo()
     local identity = ctx.activeChallengeRunIdentity
-    if event == "CHALLENGE_MODE_RESET" and runInfo and type(identity) == "table" then
-      -- A reset carries no completion of its own. Completion info that names a
-      -- different key than the one stashed at start is left over from an
-      -- earlier run; recording under it would file this key's damage under the
-      -- wrong dungeon and consume the stash the abandoned path needs.
-      if runInfo.mapID ~= identity.mapID or (identity.level > 0 and runInfo.level ~= identity.level) then
+    if event == "CHALLENGE_MODE_RESET" then
+      -- A reset carries no completion of its own, and the struct keeps the last
+      -- finished key: equal map and level do not prove it belongs to this run.
+      -- It only counts while COMPLETED fired without data for this very run.
+      local awaitingCompletionInfo = ctx.awaitingCompletionInfo
+      ctx.awaitingCompletionInfo = false
+      if not awaitingCompletionInfo or CompletionContradictsRun(runInfo, identity) then
         runInfo = nil
+      elseif runInfo then
+        -- Same ownership step as below: from here on the completion path holds
+        -- the run, also while its capture still waits for a retry.
+        ctx.activeChallengeRunIdentity = nil
       end
-    elseif event == "CHALLENGE_MODE_COMPLETED" and runInfo then
+    elseif CompletionContradictsRun(runInfo, identity) then
+      -- The struct still names the previous key; this run's data may follow by
+      -- the reset, and until then the stash stays the run's only identity.
+      runInfo = nil
+      ctx.awaitingCompletionInfo = true
+    elseif runInfo then
       -- The run has real completion info, so the completion path owns it. The
       -- stash is dropped now rather than on a successful capture: while a
       -- capture retry is still pending, the following reset must not record the
       -- same key a second time as abandoned.
       ctx.activeChallengeRunIdentity = nil
+    else
+      ctx.awaitingCompletionInfo = true
     end
     if type(ctx.logRuntimeTracef) == "function" then
       ctx.logRuntimeTracef(
@@ -753,14 +818,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end
     ctx.updateStatusLine()
     ctx.notifyPostChallengeSync()
-    if ctx.timerAfter then
-      ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
-        RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES)
-      end)
-      return
-    end
-
-    RunDelayedPostChallengeRefresh(ctx, frame, 0)
+    StartPostRunRefreshChain(ctx, frame, event)
   end
 
   return {

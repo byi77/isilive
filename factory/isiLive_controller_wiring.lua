@@ -643,11 +643,6 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function()
       return false
     end
-  config.registerVerifiedSyncAliasForRoster = type(deps.registerVerifiedSyncAliasForRoster) == "function"
-      and deps.registerVerifiedSyncAliasForRoster
-    or function(_roster, _sender)
-      return false
-    end
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
   config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
   config.getRoster = RequireFunction(state.getRoster, "state.getRoster")
@@ -758,7 +753,6 @@ local function BuildEventHandlersDepsFromContext(ctx)
     triggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     getShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
     getShareKeysLocalCooldownRemaining = ctx.GetShareKeysLocalCooldownRemaining,
-    registerVerifiedSyncAliasForRoster = ctx.registerVerifiedSyncAliasForRoster,
     sendOwnKeystoneToChat = function()
       local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
       local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil

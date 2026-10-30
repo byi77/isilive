@@ -328,6 +328,10 @@ local function CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
     function(checked)
       local db = config.getDB()
       db.loadoutCheckEnabled = checked
+      local loadoutCheck = addonTable.LoadoutCheck
+      if type(loadoutCheck) == "table" and type(loadoutCheck.ApplyEnabledSetting) == "function" then
+        loadoutCheck.ApplyEnabledSetting()
+      end
     end,
     "SETTINGS_LOADOUT_CHECK",
     CheckboxDescriptionOptions(labels.SETTINGS_LOADOUT_CHECK_DESC or FALLBACK_LOADOUT_CHECK_DESC)

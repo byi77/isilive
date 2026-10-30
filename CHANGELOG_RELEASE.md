@@ -3,11 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.469`.
+Current version: `0.9.470`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
-timestamp regression coverage updated. Eleven follow-up findings remain open;
+timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.470: audit fixes across sync, roster, key history, inspect, talent
+and loot check and LFG targets. With sync off, isiLive no longer posts your key
+when a group member asks for it. Devourer counts as Intellect and magic damage
+in the LFG bonus check.
 
 Version 0.9.469: the talent and loot check writes its steps (dungeon entry,
 switches, commit result, OK) into the runtime log.
@@ -117,7 +122,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.469 -->
+<!-- highlights-reviewed-for: 0.9.470 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

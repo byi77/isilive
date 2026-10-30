@@ -221,9 +221,6 @@ local function BuildContext(opts)
   ctx.refreshKickColumn = OptionalFunction(opts.refreshKickColumn, function()
     return false
   end)
-  ctx.registerVerifiedSyncAliasForRoster = OptionalFunction(opts.registerVerifiedSyncAliasForRoster, function()
-    return false
-  end)
   ctx.sendOwnKeystoneToChat = OptionalFunction(opts.sendOwnKeystoneToChat, function()
     return false
   end)

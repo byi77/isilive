@@ -24,6 +24,7 @@ addonTable.SyncReceiveFactory = function(deps)
   local FormatBytes = deps.FormatBytes
   local SplitPayload = deps.SplitPayload
   local ParseKickPayload = deps.ParseKickPayload
+  local IsSyncEnabled = deps.IsSyncEnabled
   local MAX_ADDON_MESSAGE_LENGTH = 255
 
   -- Player names inside BRLUST / PI payloads are written by the sender, whose
@@ -89,12 +90,17 @@ addonTable.SyncReceiveFactory = function(deps)
 
     local keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, keyMapID, keyLevel, nil, LIBKEYSTONE_SOURCE)
     local previousStats = Sync.GetPlayerStatsInfo(sender, nil)
+    -- The format has no empty rating field, so senders write 0 for "unknown".
+    local reportedRating = playerRating
+    if reportedRating == 0 then
+      reportedRating = previousStats and previousStats.rio or nil
+    end
     local statsUpdated = Sync.SetPlayerStatsInfo(
       sender,
       nil,
       previousStats and previousStats.specID or nil,
       previousStats and previousStats.ilvl or nil,
-      playerRating,
+      reportedRating,
       nil,
       LIBKEYSTONE_SOURCE
     )
@@ -136,7 +142,8 @@ addonTable.SyncReceiveFactory = function(deps)
   -- @return table|nil Result with fields: shouldAck, shouldRequestRefresh, shouldShareKeys, sender,
   --   peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource,
   --   keyUpdated, statsUpdated, dpsUpdated, locUpdated, targetUpdated, kickUpdated,
-  --   shareKeysCooldownRemain (number|nil, mirrored share-keys lock from a peer).
+  --   shareKeysCooldownRemain (number|nil, mirrored share-keys lock from a peer),
+  --   shareKeysReplySuppressed (boolean, the sync setting forbids the automatic chat reply).
   --   Returns nil when the message is rejected or the prefix is unrecognized.
   local function ProcessAddonMessage(prefix, message, sender, localName, localRealm, channel)
     if prefix == LIBKEYSTONE_SYNC_PREFIX then
@@ -201,9 +208,13 @@ addonTable.SyncReceiveFactory = function(deps)
       local mapID = ToFiniteNumber(parts[2])
       local level = ToFiniteNumber(parts[3])
       local capturedAt = ToFiniteNumber(parts[4])
+      -- Skip self-echo: the local key writes own this entry, and the peer gates
+      -- must not apply to the local player.
       if mapID and level and (parts[4] == nil or capturedAt) then
         payloadValid = true
-        keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, mapID, level, capturedAt, parts[5])
+        if senderKey ~= selfKey then
+          keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, mapID, level, capturedAt, parts[5])
+        end
       end
     elseif bucket == "STATS" and parts[2] and parts[3] and parts[4] then
       local specID = ToFiniteNumber(parts[2])
@@ -327,6 +338,10 @@ addonTable.SyncReceiveFactory = function(deps)
     local peerProtocolVersion = nil
     local peerCapturedAt = nil
     local peerSource = nil
+    -- Read before HELLO stores its info: a joining client sends KEY and STATS
+    -- ahead of its HELLO, so only an earlier HELLO or ACK proves the peer took
+    -- part in a fan-out. Plain data messages do not.
+    local senderHadHello = shouldAck and Sync.GetPlayerHelloInfo(sender, nil) ~= nil or false
     if isHelloMessage or isAckMessage then
       peerAddonVersion = parts[2]
       if isHelloMessage then
@@ -362,9 +377,9 @@ addonTable.SyncReceiveFactory = function(deps)
       shouldAck = false
     end
 
-    -- Read before MarkUser: lets the HELLO fan-out tell a peer it has never
-    -- synced with from one re-announcing itself on a roster change.
-    local senderWasKnown = shouldAck and Sync.IsUserKnown(sender) == true or false
+    -- Lets the HELLO fan-out tell a peer it has never synced with from one
+    -- re-announcing itself on a roster change.
+    local senderWasKnown = shouldAck and senderHadHello
     if payloadValid then
       Sync.MarkUser(sender)
     end
@@ -414,6 +429,7 @@ addonTable.SyncReceiveFactory = function(deps)
       targetUpdated = targetUpdated and true or false,
       kickUpdated = kickUpdated and true or false,
       shouldShareKeys = shouldShareKeys and true or false,
+      shareKeysReplySuppressed = shouldShareKeys and not IsSyncEnabled() or false,
       shareKeysCooldownRemain = shareKeysCooldownRemain,
       combatAnnounce = combatAnnounce,
       powerInfusionAnnounce = powerInfusionAnnounce,

@@ -270,6 +270,72 @@ local function RegisterBloodlustButtonWarningTests(test, Assert, WithGlobals, Lo
       Assert.Equal(#overlays[1].textures, 2, "shared cross overlay should create both red bars")
     end)
   end)
+
+  local function BuildAuraController(overlays, button)
+    return LoadController().CreateController({
+      getDB = function()
+        return { vipBloodlustDebuffButtonWarningEnabled = true }
+      end,
+      isLocalBloodlustClass = function()
+        return true
+      end,
+      scanBloodlustButtons = function()
+        return { button }
+      end,
+      createOverlay = function(target)
+        return BuildOverlay(target, overlays)
+      end,
+    })
+  end
+
+  test("BloodlustButtonWarning reads Sated by spell ID while the aura list is blocked", function()
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(spellID)
+          return spellID == 57724 and { spellId = 57724 } or nil
+        end,
+        GetAuraDataByIndex = function()
+          return nil
+        end,
+      },
+    }, function()
+      local overlays = {}
+      BuildAuraController(overlays, { id = "lust-button" }).Refresh()
+      Assert.Equal(#overlays, 1, "the spell ID lookup must find the debuff")
+      Assert.True(overlays[1].shown, "the cross must show while Sated is active")
+    end)
+  end)
+
+  test("BloodlustButtonWarning keeps the cross while the debuff cannot be read", function()
+    local secret = {}
+    local auraState = { spellId = 57724 }
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(spellID)
+          if auraState == secret then
+            return secret
+          end
+          return spellID == 57724 and auraState or nil
+        end,
+      },
+    }, function()
+      local overlays = {}
+      local controller = BuildAuraController(overlays, { id = "lust-button" })
+      controller.Refresh()
+      Assert.True(overlays[1].shown, "setup: the cross must show")
+
+      auraState = secret
+      controller.Refresh()
+      Assert.True(overlays[1].shown, "an unreadable debuff must not take the cross away")
+
+      auraState = nil
+      controller.Refresh()
+      Assert.False(overlays[1].shown, "a readable absent debuff must hide the cross")
+    end)
+  end)
 end
 
 return function(test, ctx)

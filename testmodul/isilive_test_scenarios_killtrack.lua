@@ -411,6 +411,103 @@ local function RegisterTickerTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.True(env.tickers[1].cancelled, "the following tick must cancel the ticker instead of idling")
     end)
   end)
+
+  local SECRET_MAP_ID = {}
+  local UNREADABLE_MAP_READS = {
+    {
+      label = "API exception",
+      read = function()
+        error("transient API failure")
+      end,
+    },
+    {
+      label = "secret value",
+      read = function()
+        return SECRET_MAP_ID
+      end,
+    },
+    {
+      label = "non-numeric value",
+      read = function()
+        return "556"
+      end,
+    },
+  }
+  local function BuildUnreadableMapEnv()
+    return BuildKillTrackEnv({
+      scenario = { quantity = 40, total = 100 },
+      globals = {
+        issecretvalue = function(value)
+          return value == SECRET_MAP_ID
+        end,
+      },
+    })
+  end
+
+  test("KillTrack keeps the verified run through an unreadable challenge map and recovers", function()
+    for _, case in ipairs(UNREADABLE_MAP_READS) do
+      local env = BuildUnreadableMapEnv()
+      WithGlobals(env.globals, function()
+        local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+        local readMap = env.globals.C_ChallengeMode.GetActiveChallengeMapID
+        addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+        env.globals.C_ChallengeMode.GetActiveChallengeMapID = case.read
+        addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+        env.tickers[1].fn()
+        env.tickers[1].fn()
+
+        local data = addon.KillTrack.GetData()
+        Assert.True(data.active, case.label .. ": the run must stay active")
+        Assert.Equal(data.percent, 40, case.label .. ": the verified percent must survive")
+        Assert.Equal(data.rawCount, 40, case.label .. ": the verified count must survive")
+        Assert.Equal(data.total, 100, case.label .. ": the verified total must survive")
+        Assert.Equal(data.mapID, 556, case.label .. ": the verified map must survive")
+        Assert.False(env.tickers[1].cancelled, case.label .. ": the ticker must stay alive for the recovery")
+
+        env.globals.C_ChallengeMode.GetActiveChallengeMapID = readMap
+        env.scenario.SetQuantity(55)
+        env.tickers[1].fn()
+        Assert.Equal(addon.KillTrack.GetData().rawCount, 55, case.label .. ": the next valid read must update again")
+      end)
+    end
+  end)
+
+  test("KillTrack run end clears the snapshot and the ticker while the map is unreadable", function()
+    for _, event in ipairs({ "CHALLENGE_MODE_COMPLETED", "CHALLENGE_MODE_RESET" }) do
+      local env = BuildUnreadableMapEnv()
+      WithGlobals(env.globals, function()
+        local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+        addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+        env.globals.C_ChallengeMode.GetActiveChallengeMapID = UNREADABLE_MAP_READS[1].read
+        addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+        addon.KillTrack._DispatchEvent(event)
+
+        local data = addon.KillTrack.GetData()
+        Assert.False(data.active, event .. " must end the run")
+        Assert.Equal(data.percent, 0, event .. " must clear the percent")
+        Assert.Nil(data.mapID, event .. " must clear the map")
+        Assert.True(env.tickers[1].cancelled, event .. " must stop the ticker")
+      end)
+    end
+  end)
+
+  test("KillTrack start does not carry an old snapshot into a run with an unreadable map", function()
+    local env = BuildUnreadableMapEnv()
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+      env.globals.C_ChallengeMode.GetActiveChallengeMapID = UNREADABLE_MAP_READS[1].read
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+      local data = addon.KillTrack.GetData()
+      Assert.False(data.active, "a new start must not stay active on the previous run's snapshot")
+      Assert.Equal(data.percent, 0, "a new start must not show the previous run's percent")
+      Assert.Nil(data.mapID, "a new start must not show the previous run's map")
+    end)
+  end)
 end
 
 local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddonModules)

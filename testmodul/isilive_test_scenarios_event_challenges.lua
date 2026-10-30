@@ -628,6 +628,357 @@ local function RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules,
   end)
 end
 
+local function RegisterStaleCompletionTests(test, Assert, LoadAddonModules, Fixtures)
+  -- Real dispatcher plus a mutable completion struct: `completion` is what
+  -- GetChallengeCompletionInfo answers at the moment each event is dispatched.
+  local function BuildRunDriver(opts)
+    opts = opts or {}
+    local driver = { recordedRuns = {}, scheduled = {}, completion = opts.completion }
+    local inChallenge = false
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return inChallenge
+      end,
+      timerAfter = function(seconds, callback)
+        table.insert(driver.scheduled, { seconds = seconds, callback = callback })
+      end,
+      recordRun = function(mapID, level, onTime)
+        if driver.captureBlocked then
+          return false
+        end
+        table.insert(driver.recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        return true
+      end,
+    })
+
+    function driver.Dispatch(event)
+      local previousChallengeMode = _G.C_ChallengeMode
+      _G.C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 2649
+        end,
+        GetActiveKeystoneInfo = function()
+          return 13, {}, true
+        end,
+        GetChallengeCompletionInfo = function()
+          return driver.completion
+        end,
+      }
+      inChallenge = event == "CHALLENGE_MODE_START"
+      controller:Dispatch(event)
+      _G.C_ChallengeMode = previousChallengeMode
+    end
+
+    function driver.FireCaptureRetries()
+      for _, entry in ipairs(driver.scheduled) do
+        if entry.seconds == 1 then
+          entry.callback()
+        end
+      end
+    end
+
+    return driver
+  end
+
+  local PREVIOUS_RUN = { mapChallengeModeID = 2649, level = 13, time = 123456, onTime = true }
+  local EMPTY_COMPLETION = { mapChallengeModeID = 0, level = 0, time = 0, onTime = false }
+
+  test("Event handlers keep an abandoned key abandoned when stale completion info names the same key", function()
+    local driver = BuildRunDriver({ completion = PREVIOUS_RUN })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#driver.recordedRuns, 1, "the abandoned key must record exactly one run")
+    Assert.Equal(driver.recordedRuns[1].mapID, 2649, "the run must keep the running key's map id")
+    Assert.Equal(driver.recordedRuns[1].level, 13, "the run must keep the running key's level")
+    Assert.False(driver.recordedRuns[1].onTime, "an equal map and level do not prove this run was timed")
+  end)
+
+  test("Event handlers accept completion info that arrives after the completed event by reset", function()
+    local driver = BuildRunDriver({ completion = EMPTY_COMPLETION })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.Equal(#driver.recordedRuns, 0, "completion without data must not record yet")
+
+    driver.completion = { mapChallengeModeID = 2649, level = 13, time = 654321, onTime = true }
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#driver.recordedRuns, 1, "the delayed completion must record exactly once")
+    Assert.True(driver.recordedRuns[1].onTime, "the delayed completion must keep its timed flag")
+  end)
+
+  test("Event handlers do not add an abandoned run when delayed completion info awaits its capture", function()
+    local driver = BuildRunDriver({ completion = EMPTY_COMPLETION })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    driver.completion = { mapChallengeModeID = 2649, level = 13, time = 654321, onTime = true }
+    driver.captureBlocked = true
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    driver.captureBlocked = false
+    driver.FireCaptureRetries()
+
+    Assert.Equal(#driver.recordedRuns, 1, "the delayed completion must record exactly once")
+    Assert.True(driver.recordedRuns[1].onTime, "the capture retry must keep the completed result")
+  end)
+
+  test("Event handlers rule out delayed completion info naming another key", function()
+    local driver = BuildRunDriver({ completion = EMPTY_COMPLETION })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    driver.completion = { mapChallengeModeID = 2662, level = 10, time = 654321, onTime = true }
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#driver.recordedRuns, 1, "the run must fall back to its stashed identity")
+    Assert.Equal(driver.recordedRuns[1].mapID, 2649, "foreign completion info must not relabel the run")
+    Assert.False(driver.recordedRuns[1].onTime, "foreign completion info must not lend its timed flag")
+  end)
+
+  test("Event handlers do not take completion info naming another key at the completed event", function()
+    local driver = BuildRunDriver({ completion = { mapChallengeModeID = 2662, level = 10, time = 1, onTime = true } })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.Equal(#driver.recordedRuns, 0, "the previous key's struct must not be recorded for this run")
+
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.recordedRuns, 1, "the run must fall back to its stashed identity")
+    Assert.Equal(driver.recordedRuns[1].mapID, 2649, "the previous key must not relabel the run")
+    Assert.False(driver.recordedRuns[1].onTime, "the previous key must not lend its timed flag")
+  end)
+
+  test("Event handlers accept the real completion after a contradicting struct at the completed event", function()
+    local driver = BuildRunDriver({ completion = { mapChallengeModeID = 2662, level = 10, time = 1, onTime = true } })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    driver.completion = { mapChallengeModeID = 2649, level = 13, time = 654321, onTime = true }
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#driver.recordedRuns, 1, "the delayed completion must record exactly once")
+    Assert.Equal(driver.recordedRuns[1].mapID, 2649, "the delayed completion must name this run")
+    Assert.True(driver.recordedRuns[1].onTime, "the delayed completion must keep its timed flag")
+  end)
+
+  test("Event handlers keep completion info at the completed event without a stashed run", function()
+    local driver = BuildRunDriver({ completion = { mapChallengeModeID = 2662, level = 10, time = 1, onTime = true } })
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.Equal(#driver.recordedRuns, 1, "without a known run nothing contradicts the completion")
+    Assert.Equal(driver.recordedRuns[1].mapID, 2662, "the completion must keep its own map id")
+  end)
+
+  test("Event handlers record nothing on a reset without any known run", function()
+    -- No CHALLENGE_MODE_START was seen, for example after a reload during the
+    -- key: the completion struct cannot be tied to anything that ended now.
+    local driver = BuildRunDriver({ completion = PREVIOUS_RUN })
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#driver.recordedRuns, 0, "a reset without run evidence must not record a success")
+  end)
+
+  test("Event handlers do not hand a pending capture retry to the next key", function()
+    local driver = BuildRunDriver({ completion = PREVIOUS_RUN })
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.captureBlocked = true
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.captureBlocked = false
+    driver.FireCaptureRetries()
+    Assert.Equal(#driver.recordedRuns, 0, "the old retry must not record into the new key")
+
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.recordedRuns, 1, "the new key must record its own abandoned run")
+    Assert.False(driver.recordedRuns[1].onTime, "the new key must not inherit the old timed result")
+  end)
+end
+
+local function RegisterPostRunRefreshChainTests(test, Assert, LoadAddonModules, Fixtures)
+  local function BuildChainDriver(opts)
+    opts = opts or {}
+    local driver = { refreshCalls = 0, enableCalls = 0, scheduled = {}, inRaid = false }
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    driver.controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        table.insert(driver.scheduled, { seconds = seconds, callback = callback })
+      end,
+      isRaidGroup = function()
+        return driver.inRaid
+      end,
+      runFullRefresh = function()
+        driver.refreshCalls = driver.refreshCalls + 1
+        if opts.refreshResult then
+          return opts.refreshResult(driver.refreshCalls)
+        end
+        return true
+      end,
+      enableRioDeltaDisplay = function()
+        driver.enableCalls = driver.enableCalls + 1
+      end,
+    })
+
+    function driver.FireDue()
+      local index = 1
+      while driver.scheduled[index] do
+        driver.scheduled[index].callback()
+        index = index + 1
+        Assert.True(index < 30, "post-run refresh chain must terminate")
+      end
+      driver.scheduled = {}
+    end
+
+    return driver
+  end
+
+  test("Event handlers run one post-run refresh for completed and reset of the same key", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 1, "both key-end events must share one post-run refresh")
+    Assert.Equal(driver.enableCalls, 1, "the shared refresh must enable the RIO delta once")
+  end)
+
+  test("Event handlers skip the post-run refresh on a reset after the refresh already succeeded", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.FireDue()
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 1, "a late reset of the same key must not refresh a second time")
+  end)
+
+  test("Event handlers run the post-run refresh of a completed key whose start was never seen", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.FireDue()
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+    Assert.Equal(driver.refreshCalls, 1, "setup: the first key refreshes once")
+
+    -- Joined as a replacement: the second key ends without any START here.
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.FireDue()
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 2, "the second key must get its own refresh, once")
+    Assert.Equal(driver.enableCalls, 2, "the second key must enable its RIO delta")
+  end)
+
+  test("Event handlers run the post-run refresh of an abandoned key whose start was never seen", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 2, "a second reset ends another key and must refresh")
+  end)
+
+  test("Event handlers run the post-run refresh for a reset alone", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 1, "an abandoned key must still get its post-run refresh")
+    Assert.Equal(driver.enableCalls, 1, "the refresh must enable the RIO delta")
+  end)
+
+  test("Event handlers discard a scheduled post-run refresh when the next key starts", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 0, "work scheduled for the old key must not run into the new key")
+    Assert.Equal(driver.enableCalls, 0, "stale work must not enable the RIO delta")
+  end)
+
+  test("Event handlers discard a pending post-run retry when the next key starts", function()
+    local driver = BuildChainDriver({
+      refreshResult = function()
+        return false
+      end,
+    })
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.scheduled[1].callback()
+    Assert.Equal(driver.refreshCalls, 1, "the first attempt must run")
+    Assert.Equal(#driver.scheduled, 2, "the failed attempt must schedule a retry")
+
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.scheduled[2].callback()
+
+    Assert.Equal(driver.refreshCalls, 1, "the retry of the old key must not run into the new key")
+  end)
+
+  test("Event handlers share one post-run chain across retries and a following reset", function()
+    local driver = BuildChainDriver({
+      refreshResult = function(attempt)
+        return attempt >= 2
+      end,
+    })
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.scheduled[1].callback()
+    Assert.Equal(driver.enableCalls, 0, "a failed attempt must not enable the RIO delta")
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.scheduled, 2, "the reset must join the retry instead of scheduling more work")
+    driver.scheduled[2].callback()
+
+    Assert.Equal(driver.refreshCalls, 2, "the chain must stop after its successful retry")
+    Assert.Equal(driver.enableCalls, 1, "the delta must enable after the successful retry only")
+  end)
+
+  test("Event handlers let a reset try again after the post-run chain ran out of retries", function()
+    local driver = BuildChainDriver({
+      refreshResult = function(attempt)
+        return attempt > 6
+      end,
+    })
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.FireDue()
+    Assert.Equal(driver.refreshCalls, 6, "the first attempt and all retries must have failed")
+    Assert.Equal(driver.enableCalls, 0, "an exhausted chain must not enable the RIO delta")
+
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 7, "rule 4 still waits for a success, so the reset may try once more")
+    Assert.Equal(driver.enableCalls, 1, "the successful refresh must enable the RIO delta")
+  end)
+
+  test("Event handlers keep a raid-deferred post-run refresh in the chain of its key", function()
+    local driver = BuildChainDriver()
+    driver.controller:Dispatch("CHALLENGE_MODE_START")
+    driver.controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.inRaid = true
+    driver.FireDue()
+    Assert.Equal(driver.refreshCalls, 0, "the refresh must wait while the group is a raid")
+    driver.inRaid = false
+    driver.controller:Dispatch("CHALLENGE_MODE_RESET")
+    driver.FireDue()
+    driver.controller:Dispatch("GROUP_ROSTER_UPDATE")
+    driver.FireDue()
+
+    Assert.Equal(driver.refreshCalls, 1, "deferred refresh and reset must share one refresh after the raid")
+    Assert.Equal(driver.enableCalls, 1, "the deferred refresh must enable the RIO delta")
+  end)
+end
+
 local function RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers refresh the roster once when the key end auto-opens the window", function()
     local function CountRosterRefreshes(showResult)
@@ -977,6 +1328,8 @@ return function(test, ctx)
   RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterStaleCompletionTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterPostRunRefreshChainTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
 end

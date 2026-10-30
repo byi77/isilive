@@ -492,6 +492,128 @@ return function(test, ctx)
     Assert.True(sawCooldown, "wired receiver must log the cooldown trigger")
   end)
 
+  -- Real parser, dispatcher and wiring. The SHAREKEYS bytes come from the real
+  -- sender while sync is still on; `syncEnabled` is applied afterwards.
+  local function RunWiredSyncReceiver(opts, run)
+    local state = { sentLines = {}, addonMessages = {}, cooldownTriggers = 0 }
+    WithGlobals({
+      GetTime = function()
+        return 7000
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      IsInGroup = function(category)
+        return category ~= 2
+      end,
+      IsiLiveDB = { syncEnabled = true },
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(state.addonMessages, { prefix = prefix, message = message, channel = channel })
+          return true
+        end,
+      },
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+    }, function()
+      local addon =
+        LoadAddonModules({ "isiLive_sync.lua", "isiLive_event_handlers.lua", "isiLive_controller_wiring.lua" })
+      addon.ContextHelpers.BuildOwnKeystoneAnnounceLine = function()
+        return "[KEY] PSF +12"
+      end
+      addon.ContextHelpers.SendPartyChatMessage = function(line)
+        table.insert(state.sentLines, line)
+        return true
+      end
+      local controller = addon.ControllerWiring.CreateEventHandlersControllerFromContext(
+        addon.EventHandlers,
+        BuildKeystoneCtx({
+          sync = addon.Sync,
+          isInGroup = function()
+            return true
+          end,
+          isRaidGroup = function()
+            return opts.inRaid == true
+          end,
+          getUnitNameAndRealm = function(unit)
+            if unit == "player" then
+              return "Me", "Realm"
+            end
+            return nil, nil
+          end,
+          TriggerShareKeysCooldown = function()
+            state.cooldownTriggers = state.cooldownTriggers + 1
+          end,
+          sendIsiLiveHello = function(force, source)
+            addon.Sync.SendHello({ version = "1.0", force = force, source = source, allowHidden = true })
+          end,
+          sendRefreshResponse = function()
+            addon.Sync.SendKey({ mapID = 2649, level = 12, capturedAt = 7000, force = true, allowHidden = true })
+          end,
+          sendLibKeystonePartyData = function()
+            addon.Sync.SendLibKeystonePartyData({ mapID = 2649, level = 12, rio = 3000 })
+          end,
+        })
+      )
+      Assert.True(addon.Sync.SendShareKeysRequest(), "real sender must emit the SHAREKEYS bytes")
+      local wire = table.remove(state.addonMessages, 1)
+      _G.IsiLiveDB.syncEnabled = opts.syncEnabled
+      run(controller, addon, wire)
+    end)
+    return state
+  end
+
+  test("ControllerWiring disabled sync posts no automatic SHAREKEYS reply but keeps the button lock", function()
+    local state = RunWiredSyncReceiver({ syncEnabled = false }, function(controller, _addon, wire)
+      controller:Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.message, wire.channel, "Peer-Realm")
+    end)
+    Assert.Equal(#state.sentLines, 0, "disabled sync must not publish the own key after a peer request")
+    Assert.Equal(#state.addonMessages, 0, "disabled sync must not answer SHAREKEYS with addon messages")
+    Assert.Equal(state.cooldownTriggers, 1, "the local button lock stays active on every received SHAREKEYS")
+  end)
+
+  test("ControllerWiring disabled sync answers no peer request on any automatic path", function()
+    local state = RunWiredSyncReceiver({ syncEnabled = false }, function(controller, addon)
+      local prefix = addon.Sync.GetPrefix()
+      -- COMPONENT-ONLY: the receiver stays silent, so no sender run is needed to
+      -- pin this path; the literal only has to pass as a well-formed peer HELLO.
+      controller:Dispatch("CHAT_MSG_ADDON", prefix, "HELLO:1.0:2:100:group", "PARTY", "Peer-Realm")
+      controller:Dispatch("CHAT_MSG_ADDON", prefix, "REQSYNC", "PARTY", "Peer-Realm")
+      controller:Dispatch("CHAT_MSG_ADDON", "LibKS", "R", "PARTY", "Peer-Realm")
+    end)
+    Assert.Equal(#state.sentLines, 0, "disabled sync must not post to chat")
+    Assert.Equal(#state.addonMessages, 0, "disabled sync must not answer HELLO, REQSYNC or LibKeystone requests")
+  end)
+
+  test("ControllerWiring raid suppresses the SHAREKEYS reply while sync stays enabled", function()
+    local state = RunWiredSyncReceiver({ syncEnabled = true, inRaid = true }, function(controller, _addon, wire)
+      controller:Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.message, wire.channel, "Peer-Realm")
+    end)
+    Assert.Equal(#state.sentLines, 0, "raid must block the automatic reply")
+    Assert.Equal(state.cooldownTriggers, 0, "raid drops the message before the share-keys path")
+  end)
+
+  test("ControllerWiring enabled sync answers one SHAREKEYS with chat and honors the reply cooldown", function()
+    local state = RunWiredSyncReceiver({ syncEnabled = true }, function(controller, _addon, wire)
+      controller:Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.message, wire.channel, "Peer-Realm")
+      controller:Dispatch("CHAT_MSG_ADDON", wire.prefix, wire.message, wire.channel, "Peer-Realm")
+    end)
+    Assert.Equal(#state.sentLines, 1, "enabled sync must answer once within the 30 second reply cooldown")
+    Assert.Equal(state.sentLines[1], "[KEY] PSF +12", "enabled sync must post the own key line")
+    Assert.Equal(state.cooldownTriggers, 2, "every received SHAREKEYS keeps triggering the button lock")
+  end)
+
   -- In-group failure path: SendPartyChatMessage returns false -> log + return false
 
   test("sendOwnKeystoneToChat logs send_failed when ContextHelpers.SendPartyChatMessage returns false", function()

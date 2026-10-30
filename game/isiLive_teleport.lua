@@ -152,8 +152,10 @@ function Teleport.ResolveMapIDByActivityID(activityID)
     return nil
   end
 
-  local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
-  if not mapID or mapID <= 0 then
+  local instanceID = rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId")
+  local mapID = type(SeasonData.GetMapIDByInstanceID) == "function" and SeasonData.GetMapIDByInstanceID(instanceID)
+    or nil
+  if not mapID then
     return nil
   end
 

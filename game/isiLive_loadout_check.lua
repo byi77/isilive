@@ -26,14 +26,17 @@ local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 local MYTHIC_PARTY_DIFFICULTY_ID = 23
 local EVALUATE_DELAY_SECONDS = 2
 local MAX_CHARACTER_ENTRIES = 200
+-- Timer retries of an entry evaluation without a readable spec; spec and talent
+-- events can still recover it afterwards.
+local MAX_UNRESOLVED_RETRIES = 3
 
 -- Enum.LoadConfigResult: Error (0) rejects the load; LoadInProgress (2) means
 -- the talent commit only started and can still fail (CONFIG_COMMIT_FAILED);
 -- NoChangesNecessary (1) and Ready (3) are done at once.
 local LOAD_CONFIG_RESULT_ERROR = 0
 local LOAD_CONFIG_RESULT_IN_PROGRESS = 2
--- A started commit that reports neither success nor failure is checked
--- against the active talents after this long.
+-- A started commit that reports neither success nor failure counts as done
+-- after this long: an interrupted one reports itself (CONFIG_COMMIT_FAILED).
 local PENDING_LOAD_TIMEOUT_SECONDS = 10
 -- Remembering a confirmed target per dungeon and spec (and judging against
 -- it) is switched off for now (user decision 2026-10-29): the card and the
@@ -164,6 +167,11 @@ local function DefaultMarkLoadoutSelected(specID, configID)
   SafeCall(GetNamespaceFunction("C_ClassTalents", "UpdateLastSelectedSavedConfigID"), specID, configID)
 end
 
+local function DefaultGetActiveConfigID()
+  local ok, configID = SafeCall(GetNamespaceFunction("C_ClassTalents", "GetActiveConfigID"))
+  return ok and PositiveNumber(configID) or nil
+end
+
 -- Returns true when the load is done, "pending" while the commit still runs
 -- (the caller marks the loadout selected only after it succeeded), false on
 -- a rejected load.
@@ -288,6 +296,7 @@ local DEFAULT_API = {
   getSelectedLoadoutID = DefaultGetSelectedLoadoutID,
   loadLoadout = DefaultLoadLoadout,
   markLoadoutSelected = DefaultMarkLoadoutSelected,
+  getActiveConfigID = DefaultGetActiveConfigID,
   getLootSpecID = DefaultGetLootSpecID,
   setLootSpecID = DefaultSetLootSpecID,
   isInCombat = DefaultIsInCombat,
@@ -681,6 +690,10 @@ function LoadoutCheck.CreateController(opts)
   -- Instance the card was already handled for (shown, confirmed or closed);
   -- cleared on leaving it so the next entry checks again.
   local handledInstanceID = nil
+  -- Qualifying instance whose evaluation found no readable spec yet:
+  -- { instanceID, retries, timerPending }. Not handled, so it is evaluated
+  -- again; only a fired timer counts as a retry.
+  local unresolved = nil
   local active = nil -- { mapID, dungeonName, instanceID } while the card is up
   local evaluateToken = 0
   -- Talent switch whose commit still runs: { specID, configID, name, token }.
@@ -771,10 +784,29 @@ function LoadoutCheck.CreateController(opts)
     return model
   end
 
+  -- Keeps the instance open for another evaluation; the timer retries stay
+  -- bounded per instance, and events in between do not use them up.
+  local function NoteUnresolved(instanceID)
+    if not unresolved or unresolved.instanceID ~= instanceID then
+      unresolved = { instanceID = instanceID, retries = 0 }
+    end
+    if not unresolved.timerPending and unresolved.retries < MAX_UNRESOLVED_RETRIES then
+      unresolved.timerPending = true
+      controller.ScheduleEvaluate()
+    end
+  end
+
   local function Render()
-    local model = BuildCurrentModel()
+    local enabled = IsEnabled()
+    local model = enabled and BuildCurrentModel() or nil
     if not model then
+      local openInstanceID = active and active.instanceID or nil
       HideCard()
+      -- The player did not close this card, the spec just cannot be read now.
+      if enabled and openInstanceID then
+        handledInstanceID = nil
+        NoteUnresolved(openInstanceID)
+      end
       return
     end
     local target = GetCard()
@@ -790,19 +822,20 @@ function LoadoutCheck.CreateController(opts)
   function controller.Evaluate()
     if not IsQualifyingContext() then
       handledInstanceID = nil
+      unresolved = nil
       HideCard()
       return false
     end
     local mapID, dungeonName, instanceID = api.resolveSeasonDungeon()
     if not mapID then
       handledInstanceID = nil
+      unresolved = nil
       HideCard()
       return false
     end
     if handledInstanceID == instanceID then
       return false
     end
-    handledInstanceID = instanceID
     active = { mapID = mapID, dungeonName = dungeonName, instanceID = instanceID }
     -- Everything matches the confirmed target: one green chat line instead of
     -- the card. A missing target or any difference still shows the card.
@@ -817,7 +850,14 @@ function LoadoutCheck.CreateController(opts)
       model and model.loot and model.loot.currentName,
       not model and "no_model" or model.allOk and "chat_ok" or "card"
     )
-    if model and model.allOk then
+    if not model then
+      HideCard()
+      NoteUnresolved(instanceID)
+      return false
+    end
+    handledInstanceID = instanceID
+    unresolved = nil
+    if model.allOk then
       active = nil
       printMessage(
         "|cff33ff99"
@@ -882,6 +922,10 @@ function LoadoutCheck.CreateController(opts)
     local token = evaluateToken
     api.after(EVALUATE_DELAY_SECONDS, function()
       if token == evaluateToken then
+        if unresolved then
+          unresolved.timerPending = false
+          unresolved.retries = unresolved.retries + 1
+        end
         controller.Evaluate()
       end
     end)
@@ -890,7 +934,23 @@ function LoadoutCheck.CreateController(opts)
   function controller.Refresh()
     if active then
       Render()
+    elseif unresolved then
+      controller.Evaluate()
     end
+  end
+
+  --- Called when the player toggles the setting. Switching off closes the card
+  -- and drops scheduled evaluations; switching on waits for the next entry. A
+  -- running talent commit is left alone: it still reports its real result.
+  function controller.ApplyEnabledSetting()
+    if IsEnabled() then
+      return
+    end
+    evaluateToken = evaluateToken + 1
+    handledInstanceID = nil
+    unresolved = nil
+    HideCard()
+    TraceEvent(trace, "event=disabled")
   end
 
   function controller.GetText(key, fallback)
@@ -911,6 +971,15 @@ function LoadoutCheck.CreateController(opts)
       return true
     end
     return false
+  end
+
+  -- A click that was already on its way when the check got switched off.
+  local function RefuseWhenDisabled()
+    if IsEnabled() then
+      return false
+    end
+    HideCard()
+    return true
   end
 
   -- Ends a running talent switch: on success the loadout becomes the selected
@@ -937,6 +1006,9 @@ function LoadoutCheck.CreateController(opts)
   end
 
   function controller.SelectLoadout(configID)
+    if RefuseWhenDisabled() then
+      return false
+    end
     local live = active and ReadLive() or nil
     local loadout = live and FindByID(live.loadouts, configID) or nil
     if not live or not loadout or pendingLoad or RefuseInCombat() then
@@ -970,6 +1042,9 @@ function LoadoutCheck.CreateController(opts)
   end
 
   function controller.SelectLootSpec(lootSpecID)
+    if RefuseWhenDisabled() then
+      return false
+    end
     local live = active and ReadLive() or nil
     if not live or type(lootSpecID) ~= "number" then
       return false
@@ -988,6 +1063,9 @@ function LoadoutCheck.CreateController(opts)
 
   -- Confirm: the current state becomes the target for this dungeon and spec.
   function controller.Confirm()
+    if RefuseWhenDisabled() then
+      return false
+    end
     local live = active and ReadLive() or nil
     if not live then
       HideCard()
@@ -1041,14 +1119,21 @@ function LoadoutCheck.CreateController(opts)
     end
   end
 
-  function controller.HandleEvent(event)
+  -- Only a readable config other than the active one rules the update out; the
+  -- commit timeout still ends a switch without any proof.
+  local function IsOtherConfigUpdate(configID)
+    local updatedID, activeID = PositiveNumber(configID), api.getActiveConfigID()
+    return updatedID ~= nil and activeID ~= nil and updatedID ~= activeID
+  end
+
+  function controller.HandleEvent(event, arg1)
     if event == "PLAYER_ENTERING_WORLD" then
       controller.ScheduleEvaluate()
     elseif event == "CHALLENGE_MODE_START" or event == "GROUP_LEFT" then
       HideCard()
     elseif event == "CONFIG_COMMIT_FAILED" and pendingLoad then
       controller.FinishPendingLoad(false, event)
-    elseif event == "TRAIT_CONFIG_UPDATED" and pendingLoad then
+    elseif event == "TRAIT_CONFIG_UPDATED" and pendingLoad and not IsOtherConfigUpdate(arg1) then
       -- The commit went through: the active talents now carry the new loadout.
       controller.FinishPendingLoad(true, event)
     elseif
@@ -1125,6 +1210,13 @@ function LoadoutCheck.HidePreview()
   end
 end
 
+--- Applies a toggled loadoutCheckEnabled at once (see controller.ApplyEnabledSetting).
+function LoadoutCheck.ApplyEnabledSetting()
+  if controllerInstance then
+    controllerInstance.ApplyEnabledSetting()
+  end
+end
+
 function LoadoutCheck.HandleEvent(event, unit)
   if not controllerInstance then
     return
@@ -1132,7 +1224,7 @@ function LoadoutCheck.HandleEvent(event, unit)
   if event == "PLAYER_SPECIALIZATION_CHANGED" and unit ~= nil and unit ~= "player" then
     return
   end
-  controllerInstance.HandleEvent(event)
+  controllerInstance.HandleEvent(event, unit)
 end
 
 --- Creates the module's own event frame once. Called from the factory at load

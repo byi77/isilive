@@ -43,6 +43,8 @@ local MAX_SYNC_RIO = 100000
 -- Roughly two orders of magnitude above realistic end-of-expansion dps, so it
 -- only ever catches broken or hostile values, never a real parse.
 local MAX_SYNC_DPS = 100000000
+-- Far above any interrupt or stun cooldown; the kick column renders this value.
+local MAX_SYNC_KICK_REMAIN = 3600
 
 local function ToFiniteNumber(value)
   local numericValue = tonumber(value)
@@ -101,7 +103,6 @@ local kickInfoGeneration = 0
 local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
-local verifiedAliasByRosterKey = {}
 local snapshotWatermarks = {}
 local syncDebugTrace = nil
 local syncDebugTraceDeep = nil
@@ -287,7 +288,14 @@ local function ParseKickPayload(message)
 
   local numericState = ToFiniteNumber(stateRaw)
   local numericRemain = ToFiniteNumber(remainRaw)
-  if not ((numericState == -1 or numericState == 0 or numericState == 1) and numericRemain and numericRemain >= 0) then
+  if
+    not (
+      (numericState == -1 or numericState == 0 or numericState == 1)
+      and numericRemain
+      and numericRemain >= 0
+      and numericRemain <= MAX_SYNC_KICK_REMAIN
+    )
+  then
     return nil
   end
 
@@ -325,7 +333,7 @@ local function ParseKickPayload(message)
         local sidStr, remainStr = entry:match("^(%d+),(%d+)$")
         local sid = ToFiniteNumber(sidStr)
         local rem = ToFiniteNumber(remainStr)
-        if not sid or not rem or rem <= 0 then
+        if not sid or not rem or rem <= 0 or rem > MAX_SYNC_KICK_REMAIN then
           return nil
         end
         if count < 8 then
@@ -499,6 +507,8 @@ local function NormalizeKeyPayload(mapID, level, capturedAt, source)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
+  numericLevel = numericLevel and math.floor(numericLevel)
+  numericMapID = numericMapID and math.floor(numericMapID)
   if
     not numericLevel
     or numericLevel <= 0
@@ -661,50 +671,7 @@ end
 -- @return boolean
 function Sync.IsUserKnown(name, realm)
   local key = Sync.NormalizePlayerKey(name, realm)
-  local aliasKey = key and verifiedAliasByRosterKey[key] or nil
-  return key and (isiLiveUsersByKey[key] == true or (aliasKey and isiLiveUsersByKey[aliasKey] == true)) or false
-end
-
-local function GetRealmKey(playerKey)
-  if type(playerKey) ~= "string" then
-    return nil
-  end
-  return playerKey:match("%-([^-]+)$")
-end
-
-local function ResolveLookupKey(store, name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  if type(store) == "table" and store[key] ~= nil then
-    return key
-  end
-  local aliasKey = verifiedAliasByRosterKey[key]
-  if type(aliasKey) == "string" and aliasKey ~= "" and type(store) == "table" and store[aliasKey] ~= nil then
-    return aliasKey
-  end
-  return key
-end
-
-function Sync.RegisterVerifiedAlias(senderName, senderRealm, rosterName, rosterRealm)
-  local senderKey = Sync.NormalizePlayerKey(senderName, senderRealm)
-  local rosterKey = Sync.NormalizePlayerKey(rosterName, rosterRealm)
-  if StringUtils.IsBlank(senderKey) or StringUtils.IsBlank(rosterKey) or senderKey == rosterKey then
-    return false
-  end
-  if isiLiveUsersByKey[senderKey] ~= true then
-    return false
-  end
-  if GetRealmKey(senderKey) ~= GetRealmKey(rosterKey) then
-    return false
-  end
-  if verifiedAliasByRosterKey[rosterKey] == senderKey then
-    return false
-  end
-  verifiedAliasByRosterKey[rosterKey] = senderKey
-  SyncLogDeep("alias_registered", "sender=%s roster=%s", tostring(senderKey), tostring(rosterKey))
-  return true
+  return key and isiLiveUsersByKey[key] == true or false
 end
 
 --- Returns whether the given WoW unit belongs to a known sync peer.
@@ -732,7 +699,6 @@ function Sync.ClearKnownUsers()
   targetInfoByPlayerKey = {}
   kickInfoByPlayerKey = {}
   kickInfoGeneration = kickInfoGeneration + 1
-  verifiedAliasByRosterKey = {}
   snapshotWatermarks = {}
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
@@ -845,7 +811,10 @@ function Sync.SetPlayerHelloAckInfo(name, realm, addonVersion)
     previous.addonVersion = normalizedAddonVersion
     previous.source = "ack"
     previous.receivedAt = GetSyncTimestamp()
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    -- An ACK carries no capture time, so a stamped hello keeps its interval.
+    if ToFiniteNumber(previous.capturedAt) == nil then
+      SetEntryPreviousSyncStamp(previous, previousStamp)
+    end
     return changed
   end
 
@@ -873,6 +842,58 @@ function Sync.GetPlayerHelloInfo(name, realm)
   return helloInfoByPlayerKey[key]
 end
 
+-- Monotonic per-peer gate for timestamped snapshots. Only stamps supplied by the
+-- peer move the watermark, and only an older stamp is refused: stamps have
+-- one-second resolution, so equal stamps keep their arrival order. An unstamped
+-- snapshot carries no capture time and applies in arrival order, also after a
+-- stamped clear, because LibKeystone data of a peer whose stamped sends are gated
+-- is real. ClearKnownUsers drops all marks with the session.
+-- A mark also records that the peer reported this bucket in the session.
+-- @return boolean true when the snapshot may be applied.
+-- @return boolean true when an unstamped snapshot arrives over a verified stamp;
+--   an identical payload must then keep the stored capture metadata.
+local function AdmitSnapshot(kind, key, capturedAt)
+  local marks = snapshotWatermarks[kind]
+  if not marks then
+    marks = {}
+    snapshotWatermarks[kind] = marks
+  end
+  local mark = marks[key] or 0
+  local incomingStamp = ToFiniteNumber(capturedAt)
+  if not incomingStamp or incomingStamp <= 0 then
+    marks[key] = mark
+    return true, mark > 0
+  end
+  if incomingStamp < mark then
+    return false, false
+  end
+  marks[key] = incomingStamp
+  return true, false
+end
+
+-- An identical payload only refreshes metadata. Over a verified stamp the
+-- capture metadata stays, so the entry keeps its real sync interval.
+local function RefreshUnchangedEntry(entry, keepsVerifiedStamp, capturedAt, source, previousStamp)
+  entry.receivedAt = GetSyncTimestamp()
+  if keepsVerifiedStamp then
+    return
+  end
+  entry.capturedAt = capturedAt
+  entry.source = source
+  SetEntryPreviousSyncStamp(entry, previousStamp)
+end
+
+--- Returns whether a peer reported a sync bucket since the last ClearKnownUsers.
+-- @param kind string "key", "stats", "dps", "loc" or "target".
+-- @param name string Player name.
+-- @param realm string|nil Realm name.
+-- @return boolean
+function Sync.HasPeerReported(kind, name, realm)
+  local marks = snapshotWatermarks[kind]
+  local key = Sync.NormalizePlayerKey(name, realm)
+  return marks ~= nil and key ~= nil and marks[key] ~= nil
+end
+
 --- Stores a received keystone payload for a peer. Clears the entry when mapID or level is invalid.
 -- @param name string Sender name.
 -- @param realm string|nil Sender realm.
@@ -891,18 +912,10 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
     NormalizeKeyPayload(mapID, level, capturedAt, source)
   local previous = keyInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
-  -- without a timestamp retain their existing arrival-order semantics.
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  local stamps = snapshotWatermarks["key"]
-  if not stamps then
-    stamps = {}
-    snapshotWatermarks["key"] = stamps
-  end
-  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("key", key, capturedAt)
+  if not isAdmitted then
     return false
   end
-  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID or not numericLevel then
     local hadValue = type(previous) == "table"
     keyInfoByPlayerKey[key] = nil
@@ -910,10 +923,7 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
   end
 
   if previous and previous.mapID == numericMapID and previous.level == numericLevel then
-    previous.capturedAt = normalizedCapturedAt
-    previous.source = normalizedSource
-    previous.receivedAt = GetSyncTimestamp()
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
     return false
   end
 
@@ -934,7 +944,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {mapID, level, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerKeyInfo(name, realm)
-  local key = ResolveLookupKey(keyInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -960,18 +970,10 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
   local previous = statsInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
-  -- without a timestamp retain their existing arrival-order semantics.
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  local stamps = snapshotWatermarks["stats"]
-  if not stamps then
-    stamps = {}
-    snapshotWatermarks["stats"] = stamps
-  end
-  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("stats", key, capturedAt)
+  if not isAdmitted then
     return false
   end
-  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   local nextValue = {
     specID = numericSpecID > 0 and numericSpecID or nil,
     ilvl = numericIlvl > 0 and numericIlvl or nil,
@@ -994,10 +996,7 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     and previous.ilvl == nextValue.ilvl
     and previous.rio == nextValue.rio
   then
-    previous.capturedAt = nextValue.capturedAt
-    previous.source = nextValue.source
-    previous.receivedAt = nextValue.receivedAt
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    RefreshUnchangedEntry(previous, keepsVerifiedStamp, nextValue.capturedAt, nextValue.source, previousStamp)
     return false
   end
 
@@ -1010,7 +1009,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {specID, ilvl, rio, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerStatsInfo(name, realm)
-  local key = ResolveLookupKey(statsInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -1033,18 +1032,10 @@ function Sync.SetPlayerDpsInfo(name, realm, dps, capturedAt, source)
   local _, numericDps, normalizedCapturedAt, normalizedSource = NormalizeDpsPayload(dps, capturedAt, source)
   local previous = dpsInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
-  -- without a timestamp retain their existing arrival-order semantics.
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  local stamps = snapshotWatermarks["dps"]
-  if not stamps then
-    stamps = {}
-    snapshotWatermarks["dps"] = stamps
-  end
-  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("dps", key, capturedAt)
+  if not isAdmitted then
     return false
   end
-  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericDps or numericDps <= 0 then
     local hadValue = type(dpsInfoByPlayerKey[key]) == "table"
     dpsInfoByPlayerKey[key] = nil
@@ -1052,10 +1043,7 @@ function Sync.SetPlayerDpsInfo(name, realm, dps, capturedAt, source)
   end
 
   if previous and previous.dps == numericDps then
-    previous.capturedAt = normalizedCapturedAt
-    previous.source = normalizedSource
-    previous.receivedAt = GetSyncTimestamp()
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
     return false
   end
 
@@ -1075,7 +1063,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {dps, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerDpsInfo(name, realm)
-  local key = ResolveLookupKey(dpsInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -1186,7 +1174,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {hasKick, onCooldown, cooldownRemain, capturedAt, receivedAt, receivedAtGetTime}
 function Sync.GetPlayerKickInfo(name, realm)
-  local key = ResolveLookupKey(kickInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -1237,18 +1225,10 @@ function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source, instanceI
     NormalizeLocPayload(mapID, capturedAt, source, instanceID)
   local previous = locInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
-  -- without a timestamp retain their existing arrival-order semantics.
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  local stamps = snapshotWatermarks["loc"]
-  if not stamps then
-    stamps = {}
-    snapshotWatermarks["loc"] = stamps
-  end
-  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("loc", key, capturedAt)
+  if not isAdmitted then
     return false
   end
-  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID and not numericInstanceID then
     local hadValue = type(locInfoByPlayerKey[key]) == "table"
     locInfoByPlayerKey[key] = nil
@@ -1256,10 +1236,7 @@ function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source, instanceI
   end
 
   if previous and previous.mapID == numericMapID and previous.instanceID == numericInstanceID then
-    previous.capturedAt = normalizedCapturedAt
-    previous.source = normalizedSource
-    previous.receivedAt = GetSyncTimestamp()
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
     return false
   end
 
@@ -1280,7 +1257,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {mapID, instanceID, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerLocInfo(name, realm)
-  local key = ResolveLookupKey(locInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -1306,18 +1283,10 @@ function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source,
     NormalizeTargetPayload(mapID, level, capturedAt, source, levelText)
   local previous = targetInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
-  -- Only compare timestamps explicitly supplied by the peer. Legacy snapshots
-  -- without a timestamp retain their existing arrival-order semantics.
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  local stamps = snapshotWatermarks["target"]
-  if not stamps then
-    stamps = {}
-    snapshotWatermarks["target"] = stamps
-  end
-  if incomingStamp and incomingStamp > 0 and stamps[key] and incomingStamp < stamps[key] then
+  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("target", key, capturedAt)
+  if not isAdmitted then
     return false
   end
-  stamps[key] = incomingStamp and incomingStamp > 0 and incomingStamp or nil
   if not numericMapID then
     local hadValue = type(targetInfoByPlayerKey[key]) == "table"
     targetInfoByPlayerKey[key] = nil
@@ -1330,10 +1299,7 @@ function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source,
     and previous.level == numericLevel
     and previous.levelText == normalizedLevelText
   then
-    previous.capturedAt = normalizedCapturedAt
-    previous.source = normalizedSource
-    previous.receivedAt = GetSyncTimestamp()
-    SetEntryPreviousSyncStamp(previous, previousStamp)
+    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
     return false
   end
 
@@ -1355,7 +1321,7 @@ end
 -- @param realm string|nil Realm name.
 -- @return table|nil {mapID, level, levelText, capturedAt, source, receivedAt, previousSyncStamp}
 function Sync.GetPlayerTargetInfo(name, realm)
-  local key = ResolveLookupKey(targetInfoByPlayerKey, name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
@@ -1374,15 +1340,13 @@ function Sync.GetPlayerSyncSummary(name, realm)
   if StringUtils.IsBlank(key) then
     return nil
   end
-  local aliasKey = verifiedAliasByRosterKey[key]
-
   local candidates = {
-    { kind = "hello", data = helloInfoByPlayerKey[key] or (aliasKey and helloInfoByPlayerKey[aliasKey]) },
-    { kind = "key", data = keyInfoByPlayerKey[key] or (aliasKey and keyInfoByPlayerKey[aliasKey]) },
-    { kind = "stats", data = statsInfoByPlayerKey[key] or (aliasKey and statsInfoByPlayerKey[aliasKey]) },
-    { kind = "dps", data = dpsInfoByPlayerKey[key] or (aliasKey and dpsInfoByPlayerKey[aliasKey]) },
-    { kind = "loc", data = locInfoByPlayerKey[key] or (aliasKey and locInfoByPlayerKey[aliasKey]) },
-    { kind = "target", data = targetInfoByPlayerKey[key] or (aliasKey and targetInfoByPlayerKey[aliasKey]) },
+    { kind = "hello", data = helloInfoByPlayerKey[key] },
+    { kind = "key", data = keyInfoByPlayerKey[key] },
+    { kind = "stats", data = statsInfoByPlayerKey[key] },
+    { kind = "dps", data = dpsInfoByPlayerKey[key] },
+    { kind = "loc", data = locInfoByPlayerKey[key] },
+    { kind = "target", data = targetInfoByPlayerKey[key] },
   }
 
   local best = nil
@@ -1518,12 +1482,25 @@ end
 -- present (priority-queued, fair-shared with other addons). Falls back to
 -- raw C_ChatInfo.SendAddonMessage if the lib is unavailable. Returns true
 -- if the message was accepted for dispatch (either enqueued by CTL or
--- handed to Blizzard), false if it was rejected outright.
-local function DispatchAddonMessage(prefix, payload, channel, priority, target)
+-- handed to Blizzard), false if it was rejected outright. CTL reports a drop
+-- through its callback: synchronously for an unavailable channel, later for a
+-- queued message; onDropped covers the later case. CTL discards the Blizzard
+-- send result, so a server rejection stays invisible on this path.
+local function DispatchAddonMessage(prefix, payload, channel, priority, target, onDropped)
   local ctl = rawget(_G, "ChatThrottleLib")
   if ctl and type(ctl.SendAddonMessage) == "function" then
-    local ok = pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel, target)
-    return ok
+    local accepted = true
+    local function OnCtlResult(_, didSend)
+      if didSend == false then
+        accepted = false
+        if onDropped then
+          onDropped()
+        end
+      end
+    end
+    local ok =
+      pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel, target, nil, OnCtlResult)
+    return ok and accepted
   end
   local chatInfo = rawget(_G, "C_ChatInfo")
   if type(chatInfo) == "table" and type(chatInfo.SendAddonMessage) == "function" then
@@ -1663,7 +1640,11 @@ function Sync.SendKey(opts)
     return
   end
 
-  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL", nil, function()
+    if lastKeyPayloadSent == dedupePayload then
+      lastKeyPayloadSent = nil
+    end
+  end)
   if sent == true then
     lastIsiLiveKeyAt = now
     lastKeyPayloadSent = dedupePayload
@@ -1699,7 +1680,11 @@ function Sync.SendStats(opts)
     return
   end
 
-  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK", nil, function()
+    if lastStatsPayloadSent == dedupePayload then
+      lastStatsPayloadSent = nil
+    end
+  end)
   if sent == true then
     lastIsiLiveStatsAt = now
     lastStatsPayloadSent = dedupePayload
@@ -1734,7 +1719,11 @@ function Sync.SendDps(opts)
     return
   end
 
-  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK", nil, function()
+    if lastDpsPayloadSent == dedupePayload then
+      lastDpsPayloadSent = nil
+    end
+  end)
   if sent == true then
     lastIsiLiveDpsAt = now
     lastDpsPayloadSent = dedupePayload
@@ -1819,7 +1808,11 @@ function Sync.SendLoc(opts)
     return
   end
 
-  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK", nil, function()
+    if lastLocPayloadSent == dedupePayload then
+      lastLocPayloadSent = nil
+    end
+  end)
   if sent == true then
     lastIsiLiveLocAt = now
     lastLocPayloadSent = dedupePayload
@@ -1859,7 +1852,11 @@ function Sync.SendTarget(opts)
     return
   end
 
-  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL", nil, function()
+    if lastTargetPayloadSent == dedupePayload then
+      lastTargetPayloadSent = nil
+    end
+  end)
   if sent == true then
     lastIsiLiveTargetAt = now
     lastTargetPayloadSent = dedupePayload
@@ -2159,5 +2156,6 @@ if type(receiveFactory) == "function" then
     FormatBytes = FormatBytes,
     SplitPayload = SplitPayload,
     ParseKickPayload = ParseKickPayload,
+    IsSyncEnabled = IsSyncEnabled,
   })
 end

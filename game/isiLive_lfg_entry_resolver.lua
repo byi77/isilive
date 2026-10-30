@@ -33,8 +33,11 @@ function Resolver.MapIDFromActivityID(activityID)
   if type(lfgList) == "table" and type(lfgList.GetActivityInfoTable) == "function" then
     local ok, info = pcall(lfgList.GetActivityInfoTable, numID)
     if ok and type(info) == "table" and rawget(info, "isMythicPlusActivity") == true then
-      local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-      if mapID and mapID > 0 then
+      local instanceID = rawget(info, "mapID") or rawget(info, "mapId")
+      local mapID = type(seasonData) == "table"
+        and type(seasonData.GetMapIDByInstanceID) == "function"
+        and seasonData.GetMapIDByInstanceID(instanceID)
+      if mapID then
         ACTIVITY_TO_MAP[numID] = mapID
         return mapID
       end

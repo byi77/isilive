@@ -378,9 +378,18 @@ local function HandleShareKeysRequest(ctx, syncResult, sender)
   if type(ctx.logRuntimeTracef) == "function" then
     ctx.logRuntimeTracef("[SHAREKEYS] received sender=%s", resolvedSender)
   end
-  local didShareOwnKey = type(ctx.sendOwnKeystoneToChat) == "function" and ctx.sendOwnKeystoneToChat() == true
+  -- The reply publishes the own key because of a peer's request, so the sync
+  -- setting governs it. The button lock below stays: it publishes nothing.
+  local replySuppressed = syncResult.shareKeysReplySuppressed == true
+  local didShareOwnKey = not replySuppressed
+    and type(ctx.sendOwnKeystoneToChat) == "function"
+    and ctx.sendOwnKeystoneToChat() == true
   if type(ctx.logRuntimeTracef) == "function" then
-    ctx.logRuntimeTracef("[SHAREKEYS] reply_result sender=%s sent=%s", resolvedSender, tostring(didShareOwnKey))
+    if replySuppressed then
+      ctx.logRuntimeTracef("[SHAREKEYS] reply_suppressed sender=%s reason=sync_disabled", resolvedSender)
+    else
+      ctx.logRuntimeTracef("[SHAREKEYS] reply_result sender=%s sent=%s", resolvedSender, tostring(didShareOwnKey))
+    end
   end
   if type(ctx.triggerShareKeysCooldown) == "function" then
     ctx.triggerShareKeysCooldown()
@@ -521,6 +530,8 @@ local function BuildSyncReplyThrottles(ctx)
     end
     lastPeerFanOutAt = now
     missedFanOutBySender = {}
+    -- Every older sighting predates this fan-out, which reads like no sighting.
+    lastSeenAtBySender = {}
     return true
   end
 
@@ -1100,10 +1111,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     if syncResult.powerInfusionAnnounce then
       ctx.showPowerInfusionAnnounce(syncResult.powerInfusionAnnounce)
-    end
-
-    if type(ctx.registerVerifiedSyncAliasForRoster) == "function" then
-      ctx.registerVerifiedSyncAliasForRoster(ctx.getRoster(), syncResult.sender)
     end
 
     ApplySyncRosterChanges(ctx, syncResult)

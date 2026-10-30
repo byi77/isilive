@@ -7,6 +7,7 @@ addonTable.KeySync = KeySync
 
 local SeasonData = addonTable.SeasonData or {}
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local StringUtils = addonTable.StringUtils
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 local GetPartyInstanceIDFromInfo = addonTable.Validators.GetPartyInstanceIDFromInfo
 
@@ -382,8 +383,19 @@ local function CanBackfillPendingInspectValue(info, currentValue)
   return currentValue == nil
 end
 
+-- After a reload the sync cache starts empty while the row carries mirrored
+-- values, so an empty cache only counts once the peer reported that bucket.
+local function HoldsUnreportedMirrorValue(sync, kind, info)
+  return info._reloadMirrorRestored == true
+    and type(sync.HasPeerReported) == "function"
+    and not sync.HasPeerReported(kind, info.name, info.realm)
+end
+
 local function BackfillKey(sync, info)
   local keyInfo = sync.GetPlayerKeyInfo(info.name, info.realm)
+  if not keyInfo and (info.isGhost or HoldsUnreportedMirrorValue(sync, "key", info)) then
+    return false
+  end
   local newMapID = keyInfo and keyInfo.mapID or nil
   local newLevel = keyInfo and keyInfo.level or nil
   if info.keyMapID == newMapID and info.keyLevel == newLevel then
@@ -441,7 +453,7 @@ local function BackfillDps(sync, info)
   -- a group disband (clearKnownUsers wipes the sync cache, but the ghost row
   -- still represents historical state — symmetric to how ilvl/rio are handled
   -- above: no reset branch, so they stick when the sync cache returns nil).
-  if info.syncDps ~= nil and not info.isGhost then
+  if info.syncDps ~= nil and not info.isGhost and not HoldsUnreportedMirrorValue(sync, "dps", info) then
     info.syncDps = nil
     return true
   end
@@ -462,7 +474,11 @@ local function BackfillLoc(sync, info)
     end
     return changed
   end
-  if (info.syncLocMapID ~= nil or info.syncLocInstanceID ~= nil) and not info.isGhost then
+  if
+    (info.syncLocMapID ~= nil or info.syncLocInstanceID ~= nil)
+    and not info.isGhost
+    and not HoldsUnreportedMirrorValue(sync, "loc", info)
+  then
     info.syncLocMapID = nil
     info.syncLocInstanceID = nil
     return true
@@ -652,11 +668,6 @@ local function ApplyKnownKickToRosterEntry(sync, info)
   return BackfillKick(sync, info)
 end
 
-local function RegisterVerifiedSyncAliasForRoster(_sync, _roster, _sender)
-  -- A shared realm does not establish that two different names identify one player.
-  return false
-end
-
 local function RefreshLocalPlayerKey(sync, roster)
   InvalidateBagScan()
   local playerInfo = roster and roster.player
@@ -758,20 +769,43 @@ local function SplitNameRealm(nameRealm)
   return name, realmPart
 end
 
--- Returns the roster unit whose (name[, realm]) matches the LFG-style hint, or
--- nil when no entry matches. The hint's realm is optional — if absent, name
--- alone is enough because Blizzard's API omits the realm for same-realm names.
+-- Realm spellings differ between APIs ("Argent Dawn", "ArgentDawn"); nil means
+-- the realm is unknown.
+local function ResolveRealmIdentity(realm)
+  if type(realm) ~= "string" or realm == "" or IsSecretValue(realm) then
+    return nil
+  end
+  return string.lower(StringUtils.NormalizeRealmName(realm))
+end
+
+local function ReadLocalRealmIdentity()
+  local getRealmName = rawget(_G, "GetRealmName")
+  if type(getRealmName) ~= "function" then
+    return nil
+  end
+  local ok, realm = pcall(getRealmName)
+  return ok and ResolveRealmIdentity(realm) or nil
+end
+
+-- Returns the roster unit whose (name, realm) matches the LFG-style hint, or
+-- nil when no entry matches. A hint without realm names the local realm, because
+-- Blizzard's API omits the realm for same-realm names. A name match whose realm
+-- cannot be compared blocks the hint: it proves neither a match nor a mismatch.
 local function FindRosterUnitByHint(roster, preferredOwnerName)
   local hintName, hintRealm = SplitNameRealm(preferredOwnerName)
   if not hintName then
     return nil
   end
+  local expectedRealm = hintRealm and ResolveRealmIdentity(hintRealm) or ReadLocalRealmIdentity()
   local match = nil
   local ghostHint = false
   for unit, info in pairs(roster or {}) do
     if type(info) == "table" and info.name == hintName then
-      local realmMatches = hintRealm == nil or info.realm == hintRealm
-      if realmMatches then
+      local entryRealm = ResolveRealmIdentity(info.realm)
+      if expectedRealm == nil or entryRealm == nil then
+        return nil, true
+      end
+      if entryRealm == expectedRealm then
         if info.isGhost then
           ghostHint = true
         elseif match then
@@ -779,9 +813,6 @@ local function FindRosterUnitByHint(roster, preferredOwnerName)
         else
           match = unit
         end
-      elseif hintRealm ~= nil and info.realm == nil then
-        -- An unknown realm cannot prove either a match or a mismatch.
-        return nil, true
       end
     end
   end
@@ -986,10 +1017,6 @@ function KeySync.CreateController(opts)
       )
     end
     return changed, nonKickChanged
-  end
-
-  function controller.RegisterVerifiedSyncAliasForRoster(roster, sender)
-    return RegisterVerifiedSyncAliasForRoster(sync, roster, sender)
   end
 
   function controller.RefreshLocalPlayerKey(roster)

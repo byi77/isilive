@@ -93,8 +93,12 @@ end
 -- Forces tracking and the M+ timer depend on live challenge-mode data and must
 -- keep using this, not the wider full-profile check.
 -- @return boolean
--- The running key's challenge map ID, or nil when no key runs or the value is
--- masked, missing or not a positive integer.
+-- A read that fails says nothing about the run: the last verified map answers
+-- until the API reads again, and only a readable answer ends a key.
+local verifiedChallengeMapID = nil
+
+-- The running key's challenge map ID, or nil when no key runs. A masked or
+-- failed read keeps the last verified answer.
 function RuntimeMode.ReadVerifiedChallengeMapID()
   local api = rawget(_G, "C_ChallengeMode")
   if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
@@ -102,11 +106,13 @@ function RuntimeMode.ReadVerifiedChallengeMapID()
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
   if not ok or IsSecretValue(mapID) then
-    return nil
+    return verifiedChallengeMapID
   end
   if not addonTable.Validators.IsFiniteNumber(mapID) or mapID <= 0 or mapID % 1 ~= 0 then
+    verifiedChallengeMapID = nil
     return nil
   end
+  verifiedChallengeMapID = mapID
   return mapID
 end
 

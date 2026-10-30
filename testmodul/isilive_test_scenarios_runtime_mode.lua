@@ -128,6 +128,34 @@ return function(test, ctx)
     end)
   end)
 
+  test("RuntimeMode keeps a verified key through an unreadable map read", function()
+    local read = function()
+      return 2649
+    end
+    local globals = BuildInstanceGlobals("party", 8, nil)
+    globals.C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return read()
+      end,
+    }
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({})
+      Assert.True(addon.RuntimeMode.IsActiveChallenge(), "a readable map starts the key")
+      read = function()
+        error("transient read failure")
+      end
+      Assert.True(addon.RuntimeMode.IsActiveChallenge(), "a failed read says nothing about the run")
+      read = function()
+        return nil
+      end
+      Assert.False(addon.RuntimeMode.IsActiveChallenge(), "a readable answer without a map ends the key")
+      read = function()
+        error("transient read failure")
+      end
+      Assert.False(addon.RuntimeMode.IsActiveChallenge(), "an ended key does not come back on a failed read")
+    end)
+  end)
+
   test("RuntimeMode fails closed when instance data is unavailable", function()
     WithGlobals({}, function()
       local addon = LoadAddonModules({})

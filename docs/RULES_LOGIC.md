@@ -18,11 +18,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
    - `- Erforderliche Tests:`
 5. Unter `Erforderliche Tests` muessen exakte deterministische Testnamen aus `tools/validate_usecases.lua` stehen.
 6. Keine Sortierung noetig: neue Regeln immer unten anhaengen (erst in `Regeluebersicht`, dann als neuer Detailblock).
+   Die Nummern 218, 219 und 223 bis 228 wurden nie vergeben; Luecken sind kein Fehler, Nummern werden nicht nachbesetzt.
 7. Optionales Feld `- Ersetzte Festlegung (Version, Datum): ...` zwischen `Zusammenfassung` und `Erforderliche Tests`. Pflicht, sobald eine bereits gepinnte Formulierung einer aktiven Regel inhaltlich geaendert wird: alter Wortlaut woertlich in Anfuehrungszeichen, danach Grund und Umfang der Ablosung. Wird eine Regel als Ganzes ersetzt, gilt weiterhin `Status: veraltet` mit Verweis auf die Nachfolgeregel.
 
 ## Regeluebersicht
 
-1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
+1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten. `activityInfo.mapID` ist eine Instanz-ID (ingame 2026-10-30) und wird nur ueber die Maps der aktiven Season in eine Challenge-Map uebersetzt.
 2. Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Blockierte Show/Hide-Wechsel werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
@@ -81,7 +82,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 57. Der Ingame-Testmodus muss die aktuellen Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Multi-Kick-Tooltip-Extras, Statsbox, Portal-Navigator, Centerbox-Portal mit Navigationszeile, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip, spec-genaue LFG-Bonusmarker, isiLive-Nutzer-Marker im Dummy-Roster, Ready-Check-Hold-Zeilen, Share-Keys-Cooldown, Death-Alert-Preview, Power-Infusion-Preview, Sound-Preview und das verschiebbare Demo-Simulations-Tablet setzen und beim Verlassen wieder bereinigen; das Tablet muss responsiv an der realen Main-UI andocken und seine lokalen Vorschauaktionen kompakt kategorisieren.
 58. `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` muessen den M+-Timer-Snapshot und die sichtbaren BR-/BL-CD-Timer sofort vollstaendig wegraeumen und die CD-Tracker-Zeile neu rendern; `PLAYER_ENTERING_WORLD` waehrend eines laufenden Keys darf den Timer nicht stoppen.
 59. Der untere M+-Killtracker zeigt vor Key-Start verifizierte Ziel-Dungeon-Daten aus der Target-Dungeon-Aufloesung linksbuendig auf dem leeren Balken an, Balken und Prozent-Platzhalter bleiben sichtbar; der leere Balken leuchtet dabei in gedaempftem Gold mit einem langsam darueberlaufenden Lichtstreifen; eine Keystufe wird nur bei positiver numerischer Aufloesung ergaenzt. Bis zum Key-Start pulsiert diese Ziel-Anzeige (Name und Keystufe zwischen voller und 35 % Deckkraft, nie ganz ausgeblendet; mit reduzierter Bewegung ruhig). Ab Key-Start fuellt sich der Balken wieder mit dem Fortschritt; Dungeonname und Keystufe bleiben ruhig (ohne Puls) auf dem blauen bzw. gruenen Balken stehen, die Keystufe dann nur aus dem gestarteten M+-Timer.
-60. Der M+-Killtracker muss den sichtbaren Gesamtfortschritt am Kampfende und ueber seinen aktiven Refresh-Ticker aus geschuetzt gelesenen Live-Scenario-Daten aktualisieren; fehlerhafte oder unverifizierbare Scenario-Reads behalten den letzten verifizierten Snapshot.
+60. Der M+-Killtracker muss den sichtbaren Gesamtfortschritt am Kampfende und ueber seinen aktiven Refresh-Ticker aus geschuetzt gelesenen Live-Scenario-Daten aktualisieren; fehlerhafte oder unverifizierbare Scenario-Reads und unlesbare aktive Map-IDs behalten den letzten verifizierten Snapshot.
 61. Die verworfene LFG-Invite-Liste bleibt entfernt: Es gibt kein Modul, keinen TOC-Eintrag, kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring; `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen.
 62. Addon-eigene sichtbare FontStrings und private Tooltips muessen fuer `ruRU` und konkrete kyrillische Payload-Texte einen kyrillisch-faehigen Font verwenden, unabhaengig vom WoW-Client-Locale.
 63. Die M+Marker-Leiste muss native SecureActionButton-Worldmarker-Attribute verwenden, ihre sicheren Klickflaechen ueber konkurrierenden UI-Sibling-Frames halten und darf keine geschuetzten Marker-APIs direkt aufrufen.
@@ -146,7 +147,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 118. Die Run-Identitaet am Keyende (Map-ID, Level, Zeit, In-Time-Flag) wird aus `C_ChallengeMode.GetChallengeCompletionInfo()` gelesen; `GetCompletionInfo` ist seit Patch 12.0.0 entfernt und darf nur noch als Fallback fuer aeltere Clients aufgerufen werden. Ohne aufgeloeste Run-Identitaet findet keine DPS-Erfassung statt.
 
-119. Ein abgebrochener Key (verlassen, nicht abgeschlossen) zeichnet den DPS-Snapshot trotzdem auf. Die Run-Identitaet dafuer wird beim `CHALLENGE_MODE_START` aus dem laufenden Keystein gemerkt; ein abgeschlossener Key loescht diesen Merker, damit er nie doppelt aufzeichnet.
+119. Ein abgebrochener Key (verlassen, nicht abgeschlossen) zeichnet den DPS-Snapshot trotzdem auf. Die Run-Identitaet dafuer wird beim `CHALLENGE_MODE_START` aus dem laufenden Keystein gemerkt; ein abgeschlossener Key loescht diesen Merker, damit er nie doppelt aufzeichnet. Ein Reset uebernimmt Completion-Daten nur, wenn zuvor `CHALLENGE_MODE_COMPLETED` desselben Runs ohne Daten lief.
 
 120. Eine Completion-Info mit Map-ID oder Stufe `<= 0` (dokumentierte Null-Defaults) gilt nicht als Abschluss; beim Reset zaehlt sie nur, wenn sie zum gemerkten laufenden Key passt.
 
@@ -216,7 +217,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 153. Der eigene Kick-Tracker loest Basis-Cooldown und Talent-Reduktion einmal pro Spell- oder Talentwechsel auf und behaelt die talentierte Abklingzeit fuer jeden weiteren Kick; ein Spec ohne Interrupt wird nicht bei jedem Cast neu aufgeloest, und der Kick-Poll schreibt den eigenen Zustand nur bei Aenderung, nach Entfernung oder spaetestens alle zehn Sekunden.
 
-154. Key-Ende und Kampfende loesen keine doppelten Roster-Refreshes aus: nach dem Key-Ende laeuft nur ein verzoegerter Refresh mit Retries und kein Follow-up-Refresh, ein Auto-Open beim Key-Ende ersetzt die zweite Roster-Kette, ein nach dem Kampf nachgeholtes Einblenden ersetzt das Post-Combat-`updateUI`, und `PLAYER_REGEN_ENABLED` holt die Season-Auswertung nur nach, solange sie aussteht.
+154. Key-Ende und Kampfende loesen keine doppelten Roster-Refreshes aus: nach dem Key-Ende laeuft pro Run nur ein verzoegerter Refresh mit Retries und kein Follow-up-Refresh, ein Auto-Open beim Key-Ende ersetzt die zweite Roster-Kette, ein nach dem Kampf nachgeholtes Einblenden ersetzt das Post-Combat-`updateUI`, und `PLAYER_REGEN_ENABLED` holt die Season-Auswertung nur nach, solange sie aussteht.
 
 155. Addon-Nachrichten mit fremdem Praefix werden vor Raid-Pruefung und Spielernamen-Aufloesung verworfen; Sync-Spielerschluessel werden je aufgeloestem Name-Realm-Paar zwischengespeichert, und Sync-, Roster- und Teleport-Traces bauen weder Argumente noch Closures, solange ihre Log-Stufe aus ist.
 
@@ -226,7 +227,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 158. In einem bereits laufenden Raid verarbeitet `GROUP_ROSTER_UPDATE` nur noch Roster-Ausblendung und Leader-Watch; die Uebergaenge in den Raid und aus ihm laufen vollstaendig.
 
-159. Der Peer-State-Fan-out antwortet auf jedes HELLO eines bisher unbekannten Peers, aber hoechstens einmal je zehn Sekunden auf HELLOs bekannter Peers und nicht auf ein REQSYNC innerhalb von drei Sekunden nach dem letzten Fan-out; LibKeystone-Anfragen werden hoechstens einmal je zwei Sekunden beantwortet.
+159. Der Peer-State-Fan-out antwortet auf jedes HELLO eines bisher unbekannten Peers (ohne fruehere HELLO- oder ACK-Nachricht; reine Datenpakete vor dem HELLO zaehlen nicht), aber hoechstens einmal je zehn Sekunden auf HELLOs bekannter Peers und nicht auf ein REQSYNC innerhalb von drei Sekunden nach dem letzten Fan-out; LibKeystone-Anfragen werden hoechstens einmal je zwei Sekunden beantwortet.
 
 160. Das ESC-Mount-Panel liest das Mount-Journal je Aktualisierung in einem einzigen Durchlauf ohne Zwischentabellen, und `LFG_LIST_SEARCH_RESULT_UPDATED` mit numerischer Result-ID endet ohne Capture, Log und Challenge-Pruefung.
 
@@ -298,7 +299,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 214. Ein `/reload`, Logout oder Absturz waehrend der Demo-Vorschau veraendert keine Benutzereinstellung: Die Demo legt die vorherigen Werte zusaetzlich in der DB ab, und `ADDON_LOADED` spielt einen liegengebliebenen Snapshot vor Schema-Pruefung und `ApplyDBSettings` zurueck.
 
-215. Betritt der Spieler in einer Gruppe einen Dungeon der aktiven M+-Saison auf Mythisch-Schwierigkeit, solange kein Key laeuft, zeigt eine Karte sein aktives Talent-Loadout und seine Beutespezialisierung ohne Bewertung; jedes gespeicherte Loadout und jede Beutespezialisierung ist per Klick waehlbar (nur ausserhalb des Kampfes), `OK` schliesst die Karte. Welches Loadout das richtige ist, entscheidet der Spieler: isiLive prueft keine einzelnen Talentpunkte. Das Merken eines Soll-Stands pro Dungeon und Spec samt Vergleich (gruene Chatzeile bei voller Uebereinstimmung, Haken/Kreuz pro Teil) ist vorerst abgeschaltet (`REMEMBER_TARGETS_DEFAULT = false`); bereits gespeicherte Ziele bleiben in `IsiLiveDB.loadoutCheck` unangetastet. Die Einladungskarte zeigt denselben Ist-Stand als Zeile `Loadout:` (darunter die Unterzeilen `Talente` mit dem Loadout-Namen in Gold und `Beute` in der Label-Spalte). Ein Loadout-Wechsel, dessen Commit noch laeuft (`LoadConfig` = LoadInProgress), gilt erst nach `TRAIT_CONFIG_UPDATED` als ausgewaehlt, auch wenn das Ereignis schon waehrend `LoadConfig` eintrifft; `CONFIG_COMMIT_FAILED` meldet den Abbruch im Chat, ohne Ereignis gilt der Wechsel nach 10 s als erfolgt. Waehrend des Wechsels sind Talent-Buttons und `OK` gesperrt (Setting `loadoutCheckEnabled`, Default an). Jeder Schritt (Eintritt, Wechsel, Commit-Ergebnis samt Quelle, `OK`) steht als `[LOADOUT]`-Zeile im Runtime-Log.
+215. Betritt der Spieler in einer Gruppe einen Dungeon der aktiven M+-Saison auf Mythisch-Schwierigkeit, solange kein Key laeuft, zeigt eine Karte sein aktives Talent-Loadout und seine Beutespezialisierung ohne Bewertung; jedes gespeicherte Loadout und jede Beutespezialisierung ist per Klick waehlbar (nur ausserhalb des Kampfes), `OK` schliesst die Karte. Welches Loadout das richtige ist, entscheidet der Spieler: isiLive prueft keine einzelnen Talentpunkte. Das Merken eines Soll-Stands pro Dungeon und Spec samt Vergleich (gruene Chatzeile bei voller Uebereinstimmung, Haken/Kreuz pro Teil) ist vorerst abgeschaltet (`REMEMBER_TARGETS_DEFAULT = false`); bereits gespeicherte Ziele bleiben in `IsiLiveDB.loadoutCheck` unangetastet. Die Einladungskarte zeigt denselben Ist-Stand als Zeile `Loadout:` (darunter die Unterzeilen `Talente` mit dem Loadout-Namen in Gold und `Beute` in der Label-Spalte). Ein Loadout-Wechsel, dessen Commit noch laeuft (`LoadConfig` = LoadInProgress), gilt erst nach `TRAIT_CONFIG_UPDATED` als ausgewaehlt, auch wenn das Ereignis schon waehrend `LoadConfig` eintrifft; `CONFIG_COMMIT_FAILED` meldet den Abbruch im Chat, ohne Ereignis gilt der Wechsel nach 10 s als erfolgt. Waehrend des Wechsels sind Talent-Buttons und `OK` gesperrt (Setting `loadoutCheckEnabled`, Default an; Abschalten schliesst die offene Karte sofort). Jeder Schritt (Eintritt, Wechsel, Commit-Ergebnis samt Quelle, `OK`) steht als `[LOADOUT]`-Zeile im Runtime-Log.
+
+216. Bei ausgeschalteter Sync-Einstellung beantwortet der Client eingehende Anfragen automatisch weder per Addon-Nachricht noch im Gruppenchat; manuelles Teilen per Button bleibt moeglich und die lokale Button-Sperre bleibt aktiv.
+
+217. Ein Sync-Paket ohne Timestamp bewegt die Wasserstandsmarke eines Peers nie und gilt in Empfangsreihenfolge, auch nach einem gestempelten Loeschen; identische Daten behalten Stempel und Quelle, nur aeltere gestempelte Pakete werden verworfen, gleich alte gelten in Empfangsreihenfolge, und Self-Echos von `KEY` laufen nicht durch dieses Gate.
+
+220. Die Inspect-Warteschlangen halten pro Mitglied hoechstens einen ausstehenden Vorgang ueber Queue, Retry und laufendes Inspect; ein Retry gehoert ueber die GUID zum Mitglied, nicht zum Unit-Token, und endet, sobald der Token frei ist.
+
+221. Die Stats-Migration wartet auf eine vollstaendige eigene Identitaet und die Datenbank: Legacy-Laeufe bleiben bis dahin erhalten, ein zwischenzeitlich erfasster Lauf erreicht danach den Charakter-Schluessel, und ein Name ohne Realm ist keine Identitaet.
+
+222. Kehrt die Gruppe im laufenden Key aus dem Raid zur Party zurueck, wird die eigene Roster-Zeile zusammen mit den Mitgliedern wiederhergestellt und der Client meldet sich mit Hello und Snapshot neu an; normale Mitgliederwechsel erhalten die vorhandenen Daten, eine unveraenderte Gruppe wird nicht neu aufgebaut, ein unlesbarer Name oder Platzhalter ersetzt keine Zeile, und ein unlesbarer Map-Read beendet den Key nicht.
+
+229. Der Reload-Mirror traegt die echte Serverzeit des Speicherns: Ein undatierter oder ueber eine Stunde alter Mirror wird verworfen statt wiederhergestellt, und ein unlesbarer Name loescht den letzten guten Mirror nicht.
+
+230. Beim Roster-Update sendet der Client sein Hello vor dem Key-Snapshot, damit Empfaenger ihn noch als unbekannten Peer beantworten.
 
 ## Regelbloecke
 
@@ -966,7 +981,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-SHAREKEYS-SPAMSCHUTZ
 - Regelnummer: 53
 - Status: aktiv
-- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren Gruppenchat-Post dispatcht; verifizierte Instanzgruppen nutzen `INSTANCE_CHAT`, verifizierte normale Gruppen nutzen `PARTY`, und ohne verifizierten Gruppenchat-Kanal bleibt der sichtbare Post geschlossen. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich im Gruppenchat angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen Gruppenchat-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt. Waehrend einer laufenden Sperre muss der Button die Restzeit als Cooldown-Text stabil anzeigen; Lokalisierungs- oder Layout-Refreshes duerfen ihn nicht auf den nackten Buttontext zuruecksetzen. Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neue Gruppenmitglieder; der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale 30s-Fenster. Gespiegelt wird ausschliesslich eine lokal entstandene Sperre (eigener wirksamer Klick oder empfangenes `SHAREKEYS`); eine Sperre, die selbst durch einen empfangenen `SKCD`-Mirror gesetzt oder verlaengert wurde, verliert die lokale Ownership und darf nicht erneut gebroadcastet werden, damit der Cooldown nicht endlos zwischen den Clients reflektiert. Die Button-Sperre wirkt zusaetzlich als gemeinsames Ruhefenster fuer den Antwortpfad: solange sie laeuft, wird auf eingehende `SHAREKEYS` kein eigener Key erneut in den Chat gepostet (der eigene Klick schreibt den Antwort-Zeitstempel nicht, die Button-Sperre schliesst diese Luecke).
+- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren Gruppenchat-Post dispatcht; verifizierte Instanzgruppen nutzen `INSTANCE_CHAT`, verifizierte normale Gruppen nutzen `PARTY`, und ohne verifizierten Gruppenchat-Kanal bleibt der sichtbare Post geschlossen. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich im Gruppenchat angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen Gruppenchat-Post ausloesen koennen. Das gilt auch bei ausgeschalteter Sync-Einstellung, die nur die automatische Antwort unterdrueckt (Regel 216). Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt. Waehrend einer laufenden Sperre muss der Button die Restzeit als Cooldown-Text stabil anzeigen; Lokalisierungs- oder Layout-Refreshes duerfen ihn nicht auf den nackten Buttontext zuruecksetzen. Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neue Gruppenmitglieder; der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale 30s-Fenster. Gespiegelt wird ausschliesslich eine lokal entstandene Sperre (eigener wirksamer Klick oder empfangenes `SHAREKEYS`); eine Sperre, die selbst durch einen empfangenen `SKCD`-Mirror gesetzt oder verlaengert wurde, verliert die lokale Ownership und darf nicht erneut gebroadcastet werden, damit der Cooldown nicht endlos zwischen den Clients reflektiert. Die Button-Sperre wirkt zusaetzlich als gemeinsames Ruhefenster fuer den Antwortpfad: solange sie laeuft, wird auf eingehende `SHAREKEYS` kein eigener Key erneut in den Chat gepostet (der eigene Klick schreibt den Antwort-Zeitstempel nicht, die Button-Sperre schliesst diese Luecke).
 - Erforderliche Tests:
   - Roster panel share keys button debounces rapid clicks
   - Roster panel share keys button dispatches SHAREKEYS before party chat
@@ -1043,12 +1058,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings hearthstone selector shows English toy names when the addon language differs from the client
   - Settings hearthstone selector uses client toy names when the addon language matches the client
   - Settings hearthstone option builder uses the client toy name for a French addon on a French client
-  - Sync RegisterVerifiedAlias exposes exact sender data through a verified roster name
-  - Sync RegisterVerifiedAlias rejects cross-realm and unknown sender aliases
   - KeySync rejects unverified same-realm sender aliases
   - KeySync rejects ambiguous and unresolved owner hints
   - Active M+ key tracks party replacement and preserves other members
-  - KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates
   - SeasonData Midnight Season 2 maps verified challenge IDs to castable portal spells
   - SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data
   - SpellUtils.GetTeleportCooldownRemaining normalizes wrapped portal cooldown start times
@@ -1192,7 +1204,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MPLUS-KILLTRACKER-LIVE-FORCES-REFRESH
 - Regelnummer: 60
 - Status: aktiv
-- Zusammenfassung: Der M+-Killtracker muss nach `PLAYER_REGEN_ENABLED` die Live-Scenario-Daten erneut lesen, den sichtbaren Gesamtfortschritt sofort aktualisieren und die aktualisierte Rohmenge als Basis fuer den naechsten Pull verwenden. Solange der Key aktiv ist, muss auch der Killtracker-Refresh-Ticker Live-Scenario-Daten neu lesen, bevor er die UI benachrichtigt. Zugriffe auf `C_ScenarioInfo` muessen ueber den geschuetzten optionalen Globalzugriff und `pcall` laufen; fehlende, fehlerhafte, ungueltige oder geheime Step-/Criteria-Daten bleiben unresolved und duerfen den letzten verifizierten Killtracker-Snapshot weder loeschen noch durch synthetische Nullwerte ersetzen. Das gilt ausdruecklich auch, wenn `quantityString` und `quantity` gleichzeitig unlesbar sind: dann bleibt der vollstaendige vorherige Snapshot stehen, einschliesslich des bereits gelesenen Gesamtwerts: Rohmenge, Gesamtwert und Prozentwert werden nur gemeinsam fortgeschrieben, damit kein in sich widerspruechlicher Zwischenstand entsteht. Die verzoegerte Nachanzeige nach Kampfende darf ausschliesslich das Zeitfenster beenden, fuer das sie selbst geplant wurde; ein erneuter Pull innerhalb des Fensters uebernimmt die Anzeige, und der aeltere Callback muss wirkungslos bleiben.
+- Zusammenfassung: Der M+-Killtracker muss nach `PLAYER_REGEN_ENABLED` die Live-Scenario-Daten erneut lesen, den sichtbaren Gesamtfortschritt sofort aktualisieren und die aktualisierte Rohmenge als Basis fuer den naechsten Pull verwenden. Solange der Key aktiv ist, muss auch der Killtracker-Refresh-Ticker Live-Scenario-Daten neu lesen, bevor er die UI benachrichtigt. Zugriffe auf `C_ScenarioInfo` muessen ueber den geschuetzten optionalen Globalzugriff und `pcall` laufen; fehlende, fehlerhafte, ungueltige oder geheime Step-/Criteria-Daten bleiben unresolved und duerfen den letzten verifizierten Killtracker-Snapshot weder loeschen noch durch synthetische Nullwerte ersetzen. Das gilt ausdruecklich auch, wenn `quantityString` und `quantity` gleichzeitig unlesbar sind: dann bleibt der vollstaendige vorherige Snapshot stehen, einschliesslich des bereits gelesenen Gesamtwerts: Rohmenge, Gesamtwert und Prozentwert werden nur gemeinsam fortgeschrieben, damit kein in sich widerspruechlicher Zwischenstand entsteht. Dasselbe gilt fuer `C_ChallengeMode.GetActiveChallengeMapID`: Nur eine saubere Antwort ohne positive Map-ID bestaetigt, dass kein Key laeuft; fehlende API, Fehler, secret oder ein unerwarteter Typ lassen Snapshot und Ticker unveraendert, bis ein gueltiger Read gelingt oder `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` den Lauf beenden. `CHALLENGE_MODE_START` verwirft einen vorherigen Snapshot immer, bevor gelesen wird. Die verzoegerte Nachanzeige nach Kampfende darf ausschliesslich das Zeitfenster beenden, fuer das sie selbst geplant wurde; ein erneuter Pull innerhalb des Fensters uebernimmt die Anzeige, und der aeltere Callback muss wirkungslos bleiben.
 - Erforderliche Tests:
   - Mplus stress: 10000 unavailable scenario reads preserve the verified key snapshot
   - Mplus stress: visible five minute key refreshes forces without full roster renders
@@ -1202,6 +1214,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KillTrack preserves verified live forces when scenario criteria are unreadable
   - KillTrack keeps the verified count when both quantity sources are secret
   - KillTrack keeps the whole snapshot when a masked update carries a new total
+  - KillTrack keeps the verified run through an unreadable challenge map and recovers
+  - KillTrack run end clears the snapshot and the ticker while the map is unreadable
+  - KillTrack start does not carry an old snapshot into a run with an unreadable map
   - KillTrack keeps the new pull visible when the previous grace callback fires
   - Architecture combat utility refresh keeps hidden Mythic+ pre-render without visible full render
 
@@ -1782,13 +1797,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-VIP-BLOODLUST-DEBUFF-BUTTON-WARNUNG
 - Regelnummer: 91
 - Status: aktiv
-- Zusammenfassung: Die VIP-Bloodlust-Debuff-Button-Warnung persistiert als `vipBloodlustDebuffButtonWarningEnabled`, ist fuer neue oder sanitizte DBs standardmaessig aus und bleibt als normale, nicht eingerueckte Option direkt unter dem Gilded-Brutosaur-Mute im VIP-Settings-Abschnitt immer sichtbar, unabhaengig von der aktuell gespielten Klasse; erst danach trennt eine duenne blaue Linie den folgenden DK-Settings-Block ab. Zur Laufzeit darf die Warnung nur ausserhalb von Raid-Hard-off wirken, wenn der Schalter explizit aktiv ist, der lokale Spieler ueber `UnitClass("player")` als eine Bloodlust-Klasse `SHAMAN`, `MAGE`, `EVOKER` oder `HUNTER` verifiziert ist, ein verifizierter Harmful-Aura-Scan auf `player` eine gepflegte Erschoepfungs-/Satt-Spell-ID (`57723`, `57724`, `80354`, `264689`, `390435`, `95809`) meldet und ein sichtbarer Actionbar-Button eindeutig eine der gepflegten Bloodlust-Klassen- oder Pet-Spell-IDs (`2825`, `32182`, `80353`, `264667`, `390386`, `466904`, `90355`, `160452`) traegt. Drums-Spell-IDs zaehlen fuer diese Warnung nicht. Icon-, Textur-, Namens-, Klassenlisten-Ratefallbacks oder synthetische Button-Ziele sind nicht erlaubt. Wenn Setting, Klasse, Debuff oder Button-Ziel nicht verifiziert sind, muss die Warnung geschlossen unsichtbar bleiben; wenn der Debuff ablaeuft, ein Button verschwindet, die Spezialisierung wechselt oder `PLAYER_REGEN_ENABLED` eine zuvor blockierte Anzeige ermoeglicht, muss der Zustand ueber den zentralen Eventpfad neu gelesen werden.
+- Zusammenfassung: Die VIP-Bloodlust-Debuff-Button-Warnung persistiert als `vipBloodlustDebuffButtonWarningEnabled`, ist fuer neue oder sanitizte DBs standardmaessig aus und bleibt als normale, nicht eingerueckte Option direkt unter dem Gilded-Brutosaur-Mute im VIP-Settings-Abschnitt immer sichtbar, unabhaengig von der aktuell gespielten Klasse; erst danach trennt eine duenne blaue Linie den folgenden DK-Settings-Block ab. Zur Laufzeit darf die Warnung nur ausserhalb von Raid-Hard-off wirken, wenn der Schalter explizit aktiv ist, der lokale Spieler ueber `UnitClass("player")` als eine Bloodlust-Klasse `SHAMAN`, `MAGE`, `EVOKER` oder `HUNTER` verifiziert ist, ein verifizierter Harmful-Aura-Read auf `player` (zuerst `GetPlayerAuraBySpellID` wie beim CD-Tracker, weil die Aura-Liste im Key blockiert sein kann, danach die Liste) eine gepflegte Erschoepfungs-/Satt-Spell-ID (`57723`, `57724`, `80354`, `264689`, `390435`, `95809`) meldet und ein sichtbarer Actionbar-Button eindeutig eine der gepflegten Bloodlust-Klassen- oder Pet-Spell-IDs (`2825`, `32182`, `80353`, `264667`, `390386`, `466904`, `90355`, `160452`) traegt. Drums-Spell-IDs zaehlen fuer diese Warnung nicht. Icon-, Textur-, Namens-, Klassenlisten-Ratefallbacks oder synthetische Button-Ziele sind nicht erlaubt. Wenn Setting, Klasse, Debuff oder Button-Ziel nicht verifiziert sind, muss die Warnung geschlossen unsichtbar bleiben; ein nicht lesbarer Debuff-Zustand aendert eine bereits sichtbare Warnung nicht, bis eine lesbare Antwort vorliegt; wenn der Debuff ablaeuft, ein Button verschwindet, die Spezialisierung wechselt oder `PLAYER_REGEN_ENABLED` eine zuvor blockierte Anzeige ermoeglicht, muss der Zustand ueber den zentralen Eventpfad neu gelesen werden.
 - Erforderliche Tests:
   - BloodlustButtonWarning shows a cross on a Bloodlust button while debuffed when enabled
   - BloodlustButtonWarning hides when the setting is missing disabled or the class is not verified
   - BloodlustButtonWarning hides an existing overlay when the debuff expires
   - BloodlustButtonWarning central event path ignores non-player UNIT_AURA and refreshes player events
   - BloodlustButtonWarning default dependencies use exact Bloodlust spells and ignore drums
+  - BloodlustButtonWarning reads Sated by spell ID while the aura list is blocked
+  - BloodlustButtonWarning keeps the cross while the debuff cannot be read
   - SpellManifest keeps the former Battle Res, Lust, Sated and PI ID sets
   - CombatEvents announces every manifest Battle Res and Lust cast through the real controller
   - CdTracker reports every manifest Sated debuff as active Lust lockout
@@ -2220,12 +2237,22 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ABGEBROCHENER-KEY-DPS-SNAPSHOT
 - Regelnummer: 119
 - Status: aktiv
-- Zusammenfassung: Ein Key, der ohne Abschluss endet -- verlassen, abgebrochen oder mitten im Lauf die Gruppe verlassen --, zeichnet den Last-Run-DPS-Snapshot trotzdem auf. Weil dafuer keine Completion-Info existiert, wird die Run-Identitaet (Map-ID und Keysteinstufe) bei `CHALLENGE_MODE_START` aus `C_ChallengeMode.GetActiveChallengeMapID()` und `GetActiveKeystoneInfo()` gemerkt; beide Reads fallen bei fehlender API oder maskierten Werten geschlossen aus, und ohne verifizierte Map-ID entsteht kein Merker. Der Snapshot traegt `onTime=false`. Ausgeloest wird er bei `CHALLENGE_MODE_RESET` und beim Instanz- beziehungsweise Gruppenwechsel nach `PLAYER_ENTERING_WORLD`, weil ein Gruppenaustritt mitten im Key kein Reset-Event erzeugt; der Damage-Meter haelt seine Session ueber diesen Moment hinaus. Sobald `CHALLENGE_MODE_COMPLETED` eine gueltige Completion-Info liefert, gehoert der Run dem Completion-Pfad und der Merker wird sofort geloescht, auch wenn die erste Aufzeichnung noch auf einen Retry wartet; so wird ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet. Benutzerentscheidung vom 2026-09-17.
+- Zusammenfassung: Ein Key, der ohne Abschluss endet -- verlassen, abgebrochen oder mitten im Lauf die Gruppe verlassen --, zeichnet den Last-Run-DPS-Snapshot trotzdem auf. Weil dafuer keine Completion-Info existiert, wird die Run-Identitaet (Map-ID und Keysteinstufe) bei `CHALLENGE_MODE_START` aus `C_ChallengeMode.GetActiveChallengeMapID()` und `GetActiveKeystoneInfo()` gemerkt; beide Reads fallen bei fehlender API oder maskierten Werten geschlossen aus, und ohne verifizierte Map-ID entsteht kein Merker. Der Snapshot traegt `onTime=false`. Ausgeloest wird er bei `CHALLENGE_MODE_RESET` und beim Instanz- beziehungsweise Gruppenwechsel nach `PLAYER_ENTERING_WORLD`, weil ein Gruppenaustritt mitten im Key kein Reset-Event erzeugt; der Damage-Meter haelt seine Session ueber diesen Moment hinaus. Eine Completion-Info, die bei `CHALLENGE_MODE_COMPLETED` dem gemerkten Key in Map oder Stufe widerspricht, gehoert zum vorigen Key und zaehlt wie fehlende Daten. Sobald `CHALLENGE_MODE_COMPLETED` eine gueltige Completion-Info liefert, gehoert der Run dem Completion-Pfad und der Merker wird sofort geloescht, auch wenn die erste Aufzeichnung noch auf einen Retry wartet; so wird ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet. `CHALLENGE_MODE_RESET` traegt keine eigene Completion und die API behaelt den letzten abgeschlossenen Key; gleiche Map und Stufe belegen deshalb keine Zugehoerigkeit zum aktuellen Run. Ein Reset wertet Completion-Daten nur aus, wenn `CHALLENGE_MODE_COMPLETED` in diesem Run ohne Daten lief und die Daten dem gemerkten Key nicht widersprechen; sonst bleibt es beim Abbruch-Pfad, und ohne bekannten Run wird nichts aufgezeichnet. Benutzerentscheidung vom 2026-09-17.
 - Ersetzte Festlegung (Audit, 2026-09-22): zuvor "Eine erfolgreiche Aufzeichnung eines abgeschlossenen Runs loescht den Merker, sodass ein durchgelaufener Key nie zusaetzlich als abgebrochener Run aufgezeichnet wird." Geloescht wurde der Merker nur bei erfolgreicher Aufzeichnung; schlug die erste Erfassung fehl und lieferte der folgende Reset keine Completion-Info mehr, wurde derselbe abgeschlossene Key zusaetzlich als abgebrochener Run mit `onTime=false` erfasst. Die Absicht der Regel bleibt unveraendert, nur der Loeschzeitpunkt wird vorgezogen.
+- Ersetzte Festlegung (Audit, 2026-10-30): zuvor verwarf ein Reset Completion-Daten nur bei abweichender Map oder Stufe. Ein ohne `CHALLENGE_MODE_COMPLETED` abgebrochener Key uebernahm dadurch den alten Erfolg desselben Keys mit `onTime=true`.
 - Erforderliche Tests:
   - Event handlers record an abandoned key from the identity stashed at start
   - Event handlers do not record an abandoned run for a key that completed
   - Event handlers do not record a completed key as abandoned while its capture retry is pending
+  - Event handlers keep an abandoned key abandoned when stale completion info names the same key
+  - Event handlers accept completion info that arrives after the completed event by reset
+  - Event handlers do not add an abandoned run when delayed completion info awaits its capture
+  - Event handlers rule out delayed completion info naming another key
+  - Event handlers record nothing on a reset without any known run
+  - Event handlers do not take completion info naming another key at the completed event
+  - Event handlers accept the real completion after a contradicting struct at the completed event
+  - Event handlers keep completion info at the completed event without a stashed run
+  - Event handlers do not hand a pending capture retry to the next key
 
 ### RULE-COMPLETION-INFO-NULLDEFAULTS
 - Regelnummer: 120
@@ -2609,10 +2636,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-KEYENDE-KAMPFENDE-OHNE-DOPPEL-REFRESH
 - Regelnummer: 154
 - Status: aktiv
-- Zusammenfassung: Nach `CHALLENGE_MODE_COMPLETED` laeuft genau ein verzoegerter Post-Run-Refresh mit Retries; ein erfolgreicher Refresh plant keinen Follow-up-Refresh mehr ein, die Regel-4-Freigabe des RIO-Deltas bleibt unveraendert, und ein im Raid zurueckgestellter Refresh behaelt nur seine verbleibenden Retries. Oeffnet `CHALLENGE_MODE_COMPLETED` die Main-UI in der Gruppe per Auto-Open tatsaechlich (`setMainFrameVisible(true)` meldet `true`), entfaellt die anschliessende zweite Roster-Kette, weil der Show-Callback sie bereits ausgefuehrt hat. Fuehrt `PLAYER_REGEN_ENABLED` ein im Kampf zurueckgestelltes Einblenden in der Gruppe tatsaechlich aus, entfaellt das nachfolgende `updateUI`; ohne dieses Einblenden laeuft es weiterhin und schreibt im Kampf veraltete Rollen-Marker-Makros neu. `refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")` wertet die Season nur aus, solange eine Auswertung aussteht (anfangs, nach einer im Kampf uebersprungenen oder ohne Map-Tabelle gebliebenen Auswertung oder nach einer nicht schluessigen Auswahl); `PLAYER_LOGIN` und `CHALLENGE_MODE_MAPS_UPDATE` werten wie in Regel 97 immer aus.
+- Zusammenfassung: Pro Run laeuft genau eine Post-Run-Kette: `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` teilen sich einen verzoegerten Refresh mit Retries, das spaetere der beiden Events schliesst sich der Kette an oder entfaellt nach deren Erfolg, und `CHALLENGE_MODE_START` entwertet alle noch geplante Arbeit. Ein Run endet mit hoechstens je einem der beiden Events; ein wiederholtes Event gehoert deshalb zu einem anderen Run, auch ohne gesehenes `CHALLENGE_MODE_START` (Ersatzspieler), und startet eine neue Kette. Bleibt die Kette ohne Erfolg oder ist die Gruppe weg, darf ein spaeteres Key-Ende-Event desselben Runs neu ansetzen. Ein erfolgreicher Refresh plant keinen Follow-up-Refresh mehr ein, die Regel-4-Freigabe des RIO-Deltas bleibt unveraendert, und ein im Raid zurueckgestellter Refresh behaelt nur seine verbleibenden Retries und die Zugehoerigkeit zu seiner Kette. Oeffnet `CHALLENGE_MODE_COMPLETED` die Main-UI in der Gruppe per Auto-Open tatsaechlich (`setMainFrameVisible(true)` meldet `true`), entfaellt die anschliessende zweite Roster-Kette, weil der Show-Callback sie bereits ausgefuehrt hat. Fuehrt `PLAYER_REGEN_ENABLED` ein im Kampf zurueckgestelltes Einblenden in der Gruppe tatsaechlich aus, entfaellt das nachfolgende `updateUI`; ohne dieses Einblenden laeuft es weiterhin und schreibt im Kampf veraltete Rollen-Marker-Makros neu. `refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")` wertet die Season nur aus, solange eine Auswertung aussteht (anfangs, nach einer im Kampf uebersprungenen oder ohne Map-Tabelle gebliebenen Auswertung oder nach einer nicht schluessigen Auswahl); `PLAYER_LOGIN` und `CHALLENGE_MODE_MAPS_UPDATE` werten wie in Regel 97 immer aus.
 - Ersetzte Festlegung (0.9.417, 2026-10-07): zuvor "Ein Post-Run-Follow-up-Refresh, dessen `runFullRefresh` abgewiesen wird (der Refresh-Debounce ist laenger als die Follow-up-Verzoegerung), kehrt ohne Roster-Kette, ohne RIO-Delta-Aenderung und ohne weiteren Follow-up zurueck; der erste verzoegerte Refresh mit Retries und die Regel-4-Freigabe des RIO-Deltas bleiben unveraendert, und ein im Raid zurueckgestellter Follow-up behaelt diese Eigenschaft." Die zwei Follow-up-Refreshes (je 6 s nach einem erfolgreichen Refresh) liefen immer in den 10-s-Refresh-Debounce und aktualisierten nichts; auf User-Entscheidung wurden sie ganz entfernt. Die uebrigen Festlegungen der Regel sind unveraendert.
+- Ersetzte Festlegung (Audit, 2026-10-30): zuvor "Nach `CHALLENGE_MODE_COMPLETED` laeuft genau ein verzoegerter Post-Run-Refresh mit Retries". `CHALLENGE_MODE_RESET` startete daneben eine eigene Kette, sodass ein normales Key-Ende zwei Vollrefreshes ausloeste.
 - Erforderliche Tests:
   - Event handlers schedule no post-run follow-up after a successful delayed refresh
+  - Event handlers run one post-run refresh for completed and reset of the same key
+  - Event handlers skip the post-run refresh on a reset after the refresh already succeeded
+  - Event handlers run the post-run refresh for a reset alone
+  - Event handlers discard a scheduled post-run refresh when the next key starts
+  - Event handlers discard a pending post-run retry when the next key starts
+  - Event handlers share one post-run chain across retries and a following reset
+  - Event handlers let a reset try again after the post-run chain ran out of retries
+  - Event handlers run the post-run refresh of a completed key whose start was never seen
+  - Event handlers run the post-run refresh of an abandoned key whose start was never seen
+  - Event handlers keep a raid-deferred post-run refresh in the chain of its key
   - Event handlers refresh the roster once when the key end auto-opens the window
   - Event handlers do not repeat the post-combat render after a deferred show
   - ControllerWiring season refresh at combat end only catches up a pending evaluation
@@ -2660,6 +2698,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Ein initiales HELLO (Regel 82) wird weiterhin mit `ACK` beantwortet. Der volle Peer-State-Fan-out folgt immer, wenn der Absender vor dieser Nachricht nicht als isiLive-Nutzer bekannt war; bei bekanntem Absender nur, wenn dieser Client in den letzten zehn Sekunden keinen Fan-out gesendet hat. Ein REQSYNC loest den Fan-out nur aus, wenn der letzte Fan-out mindestens drei Sekunden zurueckliegt. Ohne Zeitquelle wird jede Anfrage beantwortet. Eine LibKeystone-Anfrage `R` wird hoechstens einmal je zwei Sekunden beantwortet, weil die Antwort als Gruppen-Broadcast alle Anfragenden bedient.
 - Erforderliche Tests:
+  - Sync HELLO after an earlier KEY still reaches the fan-out as an unknown peer
   - Mplus stress: peer state fan-outs answer new peers but not every repeated hello
   - Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
@@ -3239,10 +3278,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-INVITE-ZIEL-ERHALT
 - Regelnummer: 213
 - Status: aktiv
-- Zusammenfassung: Ein angenommener LFG-Invite behaelt seinen Ziel-Dungeon ueber den Gruppenbeitritt, damit Center Notice, `Ziel-Dungeon`-Chatzeile, Statuszeile und Teleport-Highlight nicht zufaellig ausfallen (Audit 2026-10-25, etwa 2 von 10 Invites ohne Anzeige). Drei Festlegungen: (1) WoW feuert beim Beitritt in eine gelistete Gruppe `PARTY_LEADER_CHANGED` vor oder nach dem ersten `GROUP_ROSTER_UPDATE`. LFGDetect behandelt einen Leiterwechsel nach etabliertem Roster nur dann als Uebergabe, wenn der aktuelle Gruppenleiter (`UnitIsGroupLeader` + `UnitFullName`) nicht der `leaderName` des angenommenen Listings ist; Namen muessen gleich sein, Realms nur, wenn beide Seiten einen tragen (Leerzeichen und Bindestriche ignoriert). Ist der Leiter nicht bestimmbar oder ein Wert secret, gilt der Wechsel wie bisher als Uebergabe. (2) Die Annahme eines Invites laesst Blizzard die uebrigen Bewerbungen im selben Frame als `cancelled` melden, bevor `IsInGroup()` wahr ist. Solange LFGDetect eine angenommene Einladung haelt (`GetAcceptedInviteSearchResultID() ~= nil`), loescht ein negativer Bewerbungsstatus das letzte Queue-Ziel nicht. (3) Das Event-Gate laesst `LFG_LIST_APPLICATION_STATUS_UPDATED` mit `invited` und `inviteaccepted` auch im Kampf und bei versteckter Main-UI durch; in diesem Zustand laufen nur die Gruppeneinladungs-Ansage (Regel 143), `LFGDetect.HandleEvent` und fuer `inviteaccepted` die Statuszeilen-Aktualisierung. Frame-Anzeige und sichere Teleport-Attribute stellen sich im Kampf selbst zurueck; Test-Mode-Abbruch und Queue-Join-Erfassung bleiben gesperrt.
+- Zusammenfassung: Ein angenommener LFG-Invite behaelt seinen Ziel-Dungeon ueber den Gruppenbeitritt, damit Center Notice, `Ziel-Dungeon`-Chatzeile, Statuszeile und Teleport-Highlight nicht zufaellig ausfallen (Audit 2026-10-25, etwa 2 von 10 Invites ohne Anzeige). Drei Festlegungen: (1) WoW feuert beim Beitritt in eine gelistete Gruppe `PARTY_LEADER_CHANGED` vor oder nach dem ersten `GROUP_ROSTER_UPDATE`. LFGDetect behandelt einen Leiterwechsel nach etabliertem Roster nur dann als Uebergabe, wenn der aktuelle Gruppenleiter (`UnitIsGroupLeader` + `UnitFullName`) nicht der `leaderName` des angenommenen Listings ist; Namen muessen gleich sein, und eine Seite ohne Realm steht fuer den lokalen Realm (`GetRealmName`), der dann mit dem Realm der anderen Seite verglichen wird (Leerzeichen und Satzzeichen ignoriert). Tragen beide Seiten keinen Realm, gilt die Identitaet als gleich. Ist der noetige lokale Realm nicht lesbar, gilt der Wechsel als Uebergabe. Ist der Leiter nicht bestimmbar oder ein Wert secret, gilt der Wechsel wie bisher als Uebergabe. Derselbe Vergleich schuetzt die Beitritts-Recovery: Ein einzelner offener Invite gilt beim `GROUP_ROSTER_UPDATE` nicht als angenommen, wenn ein lesbarer Gruppenleiter nicht sein Listing-Leiter ist; das explizite `inviteaccepted` loest eine echte Annahme weiterhin auf und setzt nach der Recovery keinen neuen Annahme-Schutz, damit ein spaeterer Gruppenaustritt den Zustand raeumt. Wechselt die aktive Listung der Gruppe auf einen anderen Dungeon, entfallen Titel-Level, Leiter, Gruppenname und `acceptedInviteSearchResultID` des angenommenen Listings; eine noch aktive Listung wird nach geloeschtem Ziel erneut erkannt. (2) Die Annahme eines Invites laesst Blizzard die uebrigen Bewerbungen im selben Frame als `cancelled` melden, bevor `IsInGroup()` wahr ist. Solange LFGDetect eine angenommene Einladung haelt (`GetAcceptedInviteSearchResultID() ~= nil`), loescht ein negativer Bewerbungsstatus das letzte Queue-Ziel nicht. (3) Das Event-Gate laesst `LFG_LIST_APPLICATION_STATUS_UPDATED` mit `invited` und `inviteaccepted` auch im Kampf und bei versteckter Main-UI durch; in diesem Zustand laufen nur die Gruppeneinladungs-Ansage (Regel 143), `LFGDetect.HandleEvent` und fuer `inviteaccepted` die Statuszeilen-Aktualisierung. Frame-Anzeige und sichere Teleport-Attribute stellen sich im Kampf selbst zurueck; Test-Mode-Abbruch und Queue-Join-Erfassung bleiben gesperrt.
+- Ersetzte Festlegung (Audit-Finding 06, 2026-10-30): zuvor "Namen muessen gleich sein, Realms nur, wenn beide Seiten einen tragen (Leerzeichen und Bindestriche ignoriert)". Damit blieb die Bindung an `Alex-Ravencrest` bestehen, wenn ein gleichnamiger Leiter vom lokalen Realm uebernahm. Namensgleichheit allein belegt keine Identitaet; abgeloest wird nur der Realm-Vergleich aus Festlegung (1).
 - Erforderliche Tests:
+  - RuntimeMode keeps a verified key through an unreadable map read
   - LFGDetect PARTY_LEADER_CHANGED after the roster update keeps the identity while the listing leader leads
   - LFGDetect PARTY_LEADER_CHANGED after the roster update clears the identity for a different leader
+  - LFGDetect PARTY_LEADER_CHANGED clears a bare listing when the leader carries a foreign or unknown realm
+  - LFGDetect relisting on another dungeon drops the accepted listing identity
+  - LFGDetect finds the own listing again after the run cleared the identity
+  - LFGDetect does not take the single pending invite for a group led by someone else
+  - LFGDetect recovers the single pending invite for a group led by its listing leader
+  - LFGDetect clears the target on leaving when inviteaccepted followed the roster recovery
   - negative status keeps target while an accepted LFG invite is active
   - LFG invite and accept reach the dungeon detection in combat and while hidden
   - ConfigBuilders hidden gate keeps LFG status blocked
@@ -3260,7 +3307,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 - Regelnummer: 215
 - Status: aktiv
-- Zusammenfassung: Nach `PLAYER_ENTERING_WORLD` prueft `game/isiLive_loadout_check.lua` nach 2 Sekunden, ob der Spieler in einer Gruppe (nicht im Raid) in einer Party-Instanz mit `difficultyID` 23 (Mythisch, Key noch nicht gestartet) steht, deren Instanz-ID ueber `C_ChallengeMode.GetMapUIInfo` zu einem Dungeon der aktiven Saison gehoert, und ob kein Key laeuft. Nur dann zeigt eine eigene Karte das aktive Talent-Loadout (`C_ClassTalents.GetLastSelectedSavedConfigID`, Starter-Build zaehlt als kein Loadout) und die Beutespezialisierung (`GetLootSpecialization`). Sollwert ist ausschliesslich der vom Spieler zuletzt bestaetigte Stand unter `IsiLiveDB.loadoutCheck[Charakter-GUID][SpecID][ChallengeMapID]`; ohne gespeicherten Stand wird nichts als richtig oder falsch bewertet (No-Guess), die Karte zeigt nur den Ist-Stand und bietet das Merken an. Beutespezialisierung 0 (aktuelle Spec) und die explizit gewaehlte aktuelle Spec gelten als dieselbe Beute. Jedes gespeicherte Loadout der aktuellen Spec (`C_ClassTalents.LoadConfig` mit sofortigem Anwenden, danach `UpdateLastSelectedSavedConfigID`) und jede Spec der Klasse sowie "aktuelle Spec" (`SetLootSpecialization`) sind per Klick waehlbar; im Kampf werden beide Wechsel mit Chat-Hinweis abgelehnt, ein fehlgeschlagenes `LoadConfig` meldet sich im Chat. Bestaetigen speichert den aktuellen Stand als neuen Sollwert und schliesst die Karte; Schliessen per `×` speichert nichts. Stimmen Talente und Beutespezialisierung beide mit einem gemerkten Stand ueberein, erscheint keine Karte, sondern genau eine gruene Chatzeile mit Loadout, Beutespezialisierung und Dungeon. Die Karte "Einladung angenommen" zeigt als letzte Zeile `Loadout:` den Stand gegen den fuer diesen Dungeon und die aktuelle Spec gemerkten Sollwert (`Talente OK` bzw. `Talente: <Soll> erwartet`, ebenso fuer Beute; nicht bewertbare Teile entfallen). Fehlt fuer diesen Dungeon ein gemerkter Stand, nimmt die Zeile auf ausdrueckliche Benutzerentscheidung vom 2026-10-28 den zuletzt bestaetigten Stand derselben Spec aus einem anderen Dungeon als Vorschlag und haengt `(wie <Dungeon>)` an; massgeblich ist der beim Bestaetigen gespeicherte Zeitstempel `confirmedAt`, Eintraege ohne Zeitstempel gelten als aelteste, bei Gleichstand gewinnt die kleinere Map-ID. Gibt es fuer die Spec gar keinen gemerkten Stand, zeigt die Zeile den Ist-Stand ohne Bewertung (`<Loadout> · Beute: <Spec> (fuer diesen Dungeon noch nicht gemerkt)`). Die Karte beim Betreten bewertet ausschliesslich gegen den Sollwert des eigenen Dungeons. Bei deaktiviertem Setting oder einem Fehler entfaellt die Zeile. Die Karte erscheint je Instanzbetritt einmal, schliesst bei `CHALLENGE_MODE_START` und `GROUP_LEFT`, und ein erneuter Betritt nach Verlassen prueft wieder. Das Modul registriert seine Events statisch ueber einen eigenen Event-Frame beim Laden (Setting `loadoutCheckEnabled`, Default an, Pattern A).
+- Zusammenfassung: Nach `PLAYER_ENTERING_WORLD` prueft `game/isiLive_loadout_check.lua` nach 2 Sekunden, ob der Spieler in einer Gruppe (nicht im Raid) in einer Party-Instanz mit `difficultyID` 23 (Mythisch, Key noch nicht gestartet) steht, deren Instanz-ID ueber `C_ChallengeMode.GetMapUIInfo` zu einem Dungeon der aktiven Saison gehoert, und ob kein Key laeuft. Nur dann zeigt eine eigene Karte das aktive Talent-Loadout (`C_ClassTalents.GetLastSelectedSavedConfigID`, Starter-Build zaehlt als kein Loadout) und die Beutespezialisierung (`GetLootSpecialization`). Sollwert ist ausschliesslich der vom Spieler zuletzt bestaetigte Stand unter `IsiLiveDB.loadoutCheck[Charakter-GUID][SpecID][ChallengeMapID]`; ohne gespeicherten Stand wird nichts als richtig oder falsch bewertet (No-Guess), die Karte zeigt nur den Ist-Stand und bietet das Merken an. Beutespezialisierung 0 (aktuelle Spec) und die explizit gewaehlte aktuelle Spec gelten als dieselbe Beute. Jedes gespeicherte Loadout der aktuellen Spec (`C_ClassTalents.LoadConfig` mit sofortigem Anwenden, danach `UpdateLastSelectedSavedConfigID`) und jede Spec der Klasse sowie "aktuelle Spec" (`SetLootSpecialization`) sind per Klick waehlbar; im Kampf werden beide Wechsel mit Chat-Hinweis abgelehnt, ein fehlgeschlagenes `LoadConfig` meldet sich im Chat. Bestaetigen speichert den aktuellen Stand als neuen Sollwert und schliesst die Karte; Schliessen per `×` speichert nichts. Stimmen Talente und Beutespezialisierung beide mit einem gemerkten Stand ueberein, erscheint keine Karte, sondern genau eine gruene Chatzeile mit Loadout, Beutespezialisierung und Dungeon. Die Karte "Einladung angenommen" zeigt als letzte Zeile `Loadout:` den Stand gegen den fuer diesen Dungeon und die aktuelle Spec gemerkten Sollwert (`Talente OK` bzw. `Talente: <Soll> erwartet`, ebenso fuer Beute; nicht bewertbare Teile entfallen). Fehlt fuer diesen Dungeon ein gemerkter Stand, nimmt die Zeile auf ausdrueckliche Benutzerentscheidung vom 2026-10-28 den zuletzt bestaetigten Stand derselben Spec aus einem anderen Dungeon als Vorschlag und haengt `(wie <Dungeon>)` an; massgeblich ist der beim Bestaetigen gespeicherte Zeitstempel `confirmedAt`, Eintraege ohne Zeitstempel gelten als aelteste, bei Gleichstand gewinnt die kleinere Map-ID. Gibt es fuer die Spec gar keinen gemerkten Stand, zeigt die Zeile den Ist-Stand ohne Bewertung (`<Loadout> · Beute: <Spec> (fuer diesen Dungeon noch nicht gemerkt)`). Die Karte beim Betreten bewertet ausschliesslich gegen den Sollwert des eigenen Dungeons. Bei deaktiviertem Setting oder einem Fehler entfaellt die Zeile. Die Karte erscheint je Instanzbetritt einmal, schliesst bei `CHALLENGE_MODE_START` und `GROUP_LEFT`, und ein erneuter Betritt nach Verlassen prueft wieder. Ist beim Betreten keine Spec lesbar, gilt die Instanz nicht als behandelt: Die Auswertung laeuft bis zu dreimal per Timer und danach bei jedem Spec-, Talent-, Beute- oder Kampf-Event erneut, bis die Karte erscheint oder die Instanz verlassen wird; als Retry zaehlt nur ein abgelaufener Timer, und dasselbe gilt, wenn eine offene Karte ihre Spec spaeter voruebergehend nicht lesen kann. Ein laufender Talentwechsel endet nicht durch `TRAIT_CONFIG_UPDATED` einer lesbar anderen Config als der aktiven. Eine bestaetigte oder geschlossene Karte oeffnet sich im selben Instanzbesuch nicht wieder. Das Abschalten des Settings schliesst eine offene Karte sofort, verwirft geplante Auswertungen und laesst veraltete Klicks auf Loadout, Beute und `OK` wirkungslos; ein bereits laufender Talent-Commit meldet weiterhin sein echtes Ergebnis. Einschalten oeffnet die Karte nicht selbst, sondern wirkt ab der naechsten Auswertung (naechstes `PLAYER_ENTERING_WORLD`). Das Modul registriert seine Events statisch ueber einen eigenen Event-Frame beim Laden (Setting `loadoutCheckEnabled`, Default an, Pattern A).
 - Erforderliche Tests:
   - LoadoutCheck shows the current state without a target and remembers it on confirm
   - LoadoutCheck flags a different loadout and loot spec and switches both with one click
@@ -3276,4 +3323,104 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LoadoutCheck invite summary shows the unjudged state without any target for the spec
   - LoadoutCheck invite summary suggests the latest target of the same spec from another dungeon
   - LoadoutCheck entry card ignores targets confirmed in other dungeons and stamps the confirm time
+  - LoadoutCheck shows the card in the same instance once a missing spec resolves
+  - LoadoutCheck retries a missing spec a bounded number of times without any event
+  - LoadoutCheck keeps a closed card closed until the next instance entry
+  - LoadoutCheck stops retrying a missing spec after leaving the dungeon
+  - LoadoutCheck brings an open card back after the spec was unreadable for one refresh
+  - LoadoutCheck spends its retries on timers and not on event bursts
+  - LoadoutCheck ignores a config update of another config while a talent switch runs
+  - LoadoutCheck hides an open card and blocks its actions once switched off
+  - LoadoutCheck hides the card on the next refresh when the setting is off
+  - LoadoutCheck switch-off cancels a scheduled evaluation and re-enabling waits for the next one
+  - LoadoutCheck finishes a running talent switch after being switched off
+  - Settings loadout check checkbox hides the open card at once
   - factory_controllers: RenderAcceptedInviteNotice adds the loadout check summary as last row
+
+### RULE-SYNC-AUS-KEINE-AUTOMATISCHE-ANTWORT
+- Regelnummer: 216
+- Status: aktiv
+- Zusammenfassung: Ist `IsiLiveDB.syncEnabled` ausgeschaltet, loest eine eingehende Anfrage keine automatische Veroeffentlichung aus. `SHAREKEYS` postet den eigenen Key nicht in den Gruppenchat: `ProcessAddonMessage` meldet `shareKeysReplySuppressed`, und `HandleShareKeysRequest` ruft den Antwortpfad dann nicht auf. HELLO-ACK, Peer-State-Fan-out, REQSYNC-Antwort, LibKeystone-Antwort und SKCD-Spiegelung bleiben durch die Sendeguards von `Sync` geschlossen. Die lokale Button-Sperre aus Regel 53 laeuft weiter, weil sie nichts veroeffentlicht. Der ausdrueckliche Klick auf den Share-Keys-Button bleibt moeglich und postet den eigenen Key, sendet aber kein `SHAREKEYS`. Empfang und Anzeige fremder Daten aendern sich nicht.
+- Erforderliche Tests:
+  - ControllerWiring disabled sync posts no automatic SHAREKEYS reply but keeps the button lock
+  - ControllerWiring disabled sync answers no peer request on any automatic path
+  - ControllerWiring raid suppresses the SHAREKEYS reply while sync stays enabled
+  - ControllerWiring enabled sync answers one SHAREKEYS with chat and honors the reply cooldown
+  - Roster panel share keys button still posts the own key manually while sync is disabled
+
+### RULE-SYNC-WASSERSTAND-UNGESTEMPELTE-DATEN
+- Regelnummer: 217
+- Status: aktiv
+- Zusammenfassung: Die Wasserstandsmarke je Peer und Datenart (Key, Stats, DPS, Ort, Ziel) steigt nur durch explizite positive Peer-Timestamps; aeltere gestempelte Pakete werden verworfen, gleich alte gelten in Empfangsreihenfolge, weil die Stempel nur Sekunden aufloesen. Ungestempelte Pakete (LibKeystone, alte isiLive-Versionen) bewegen die Marke nie. Identische ungestempelte Daten erneuern nur `receivedAt` und behalten `capturedAt`, Quelle und Sync-Intervall. Geaenderte ungestempelte Daten gelten in Empfangsreihenfolge, auch nach einem gestempelten Loeschen, weil ein isiLive-Peer mit gesperrtem Versand ueber LibKeystone echte Daten liefert. Self-Echos von `KEY` laufen nicht durch das Gate, denn der lokale Spieler schreibt seinen Eintrag selbst. Eine Marke belegt zugleich, dass der Peer diesen Bereich in der Sitzung gemeldet hat: Erst danach loescht ein leerer Sync-Cache die aus dem Reload-Mirror wiederhergestellten Key-, DPS- und Ortswerte; Ghost-Zeilen behalten ihren Key.
+- Ersetzte Festlegung (Audit, 2026-10-30): Regel 217 "ein gestempeltes Loeschen kann es nicht wiederbeleben". Dieser Tombstone verwarf echte LibKeystone-Keys und blockte die lokalen Schreibwege des eigenen Keys; nur der Stempelvergleich bleibt.
+- Erforderliche Tests:
+  - Sync rejects older timestamped snapshots
+  - Sync unchanged LibKeystone key keeps the watermark against older stamped keys
+  - Sync unchanged LibKeystone stats keep the watermark against older stamped stats
+  - Sync changed legacy data applies in arrival order without lowering the watermark
+  - Sync stamped clear blocks older stamped data and accepts unstamped data in arrival order
+  - Sync ClearKnownUsers resets watermarks for the next session
+  - Sync ignores the own KEY echo so local key writes stay authoritative
+  - Sync identical legacy data keeps the sync interval of the stamped entry
+  - Sync ACK does not report a zero interval for a stamped hello
+  - Sync LibKeystone zero rating reports no rating and keeps the known one
+  - KeySync keeps mirrored values until the peer reports its own state
+  - KeySync keeps the key of a ghost row without sync data
+
+### RULE-INSPECT-EIN-VORGANG-PRO-MITGLIED
+- Regelnummer: 220
+- Status: aktiv
+- Zusammenfassung: Pro Mitglied steht hoechstens ein ausstehender Vorgang ueber `inspectQueue`, `retryQueue` und das laufende Inspect. `ScheduleRetry` ist der einzige Weg in die Retry-Queue (ein Eintrag pro Unit, keiner solange die Unit in der Queue steht); Retry-Eintraege und das laufende Inspect merken sich die GUID. Ein wiederholtes Enqueue desselben Mitglieds bleibt wirkungslos, solange ein Retry oder das laufende Inspect es abdeckt. Ein neuer Besitzer des Unit-Tokens ersetzt den fremden Retry und wird sofort eingereiht; ein Mitglied, das den Slot wechselt, nimmt seinen Vorgang mit. Ein erzwungener Refresh ersetzt einen wartenden Retry und bleibt neben einem laufenden Inspect als eigene Arbeit in der Queue, weil dessen Antwort aelter sein kann. Ein faelliger Retry fuer einen freien Unit-Token endet; offline Mitglieder behalten ihren Token und damit den Retry.
+- Ersetzte Festlegung (Audit, 2026-10-30): Regel 177 "Retry-Eintraege der Inspect-Queue (...) werden nie verworfen". Ein Retry fuer einen freien Unit-Token wird jetzt verworfen, das naechste Roster-Update reiht den neuen Besitzer ein; der Detailblock von Regel 177 bleibt append-only unveraendert.
+- Erforderliche Tests:
+  - Inspect retry holds one entry per unreachable member and dispatches once on recovery
+  - Inspect timeout does not add a second retry for a queued or waiting member
+  - Inspect retry yields to a forced refresh without duplicating the member
+  - Inspect retry of a former member gives way to the new owner of the unit token
+  - Inspect moves a waiting member's retry along when the member changes slot
+  - Inspect drops the retry of a member who left the group
+  - Inspect incomplete reply keeps its retry delay across roster updates
+  - Inspect slot change keeps one running inspect and accepts its reply
+  - Inspect reply of a member who left releases the dispatcher
+  - Inspect timeout follows a member who changed slot
+
+### RULE-STATS-IDENTITAET-VOR-MIGRATION
+- Regelnummer: 221
+- Status: aktiv
+- Zusammenfassung: `EnsureInitialized` versucht Identitaet und Datenbank getrennt erneut, bis beide bereit sind, und die Migration laeuft genau einmal. Bis dahin bleiben `playerLastRuns` und die uebrigen Legacy-Tabellen unangetastet. Ein Lauf, der ohne Identitaet erfasst wurde, bleibt im Sitzungs-Snapshot und wird nach der Aufloesung unter dem Charakter-Schluessel gespeichert. Ein Name ohne aufloesbaren Realm ergibt keinen Schluessel; es wird kein Charakter-Schluessel geraten.
+- Erforderliche Tests:
+  - Stats stores the own run under the character key once an unknown identity resolves
+  - Stats persists a run captured before the identity resolved once it is known
+  - Stats keeps legacy runs until the identity resolves and migrates them exactly once
+  - Stats does not derive a character key from a name without a resolvable realm
+  - Stats does not take the unknown placeholder for a character
+
+### RULE-ROSTER-RAID-RUECKKEHR-IM-KEY
+- Regelnummer: 222
+- Status: aktiv
+- Zusammenfassung: Der Eintritt in den Raid leert das Roster samt eigener Zeile. Der aktive Challenge-Zweig von `HandleGroupRosterUpdate` stellt bei der Rueckkehr zur Party deshalb die eigene Zeile vor den Mitgliedern wieder her, obwohl `joinedNow` dort false ist. Normale Mitgliederwechsel im Key lassen die eigene Zeile unberuehrt und erhalten die verifizierten Mitgliedsdaten.
+- Erforderliche Tests:
+  - Group does not take a masked realm read for the local realm
+  - Active key restores own and party rows after party to raid to party
+  - Active key member update keeps the verified own and party data
+  - Active key keeps a member through an unreadable or placeholder name
+  - Active key keeps the realm of a member whose realm read fell back
+  - Active key raid return announces the client like the party path
+  - Active key leaves the rows alone while the group stays the same
+  - factory_controllers: GetActiveChallengeMapID keeps a verified run through unreadable reads
+
+### RULE-ROSTER-MIRROR-FRISCH
+- Regelnummer: 229
+- Status: aktiv
+- Zusammenfassung: `SaveReloadRosterMirror` schreibt `savedAt` aus `GetServerTime`. `TryRestoreReloadRosterMirror` verwirft einen Mirror ohne Zeitstempel, aus der Zukunft oder aelter als eine Stunde, denn er stammt dann aus einer beendeten Sitzung; alte Mirrors ohne `savedAt` zaehlen fail-closed als veraltet. Ein unlesbarer Mitgliedsname liest die Gruppe nicht, deshalb bleibt der letzte gute Mirror beim Speichern und Wiederherstellen erhalten.
+- Erforderliche Tests:
+  - Reload mirror survives an unreadable member name
+  - Reload mirror restores only a dated and recent snapshot
+  - Reload mirror records the server time of the save
+
+### RULE-GRUPPE-HELLO-VOR-SNAPSHOT
+- Regelnummer: 230
+- Status: aktiv
+- Zusammenfassung: Der Party-Pfad von `HandleGroupRosterUpdate` sendet `HELLO` vor dem Key-Snapshot. Empfaenger antworten einem unbekannten Absender mit dem Fan-out, und jedes fruehere Paket haette diesen Client bereits bekannt gemacht.
+- Erforderliche Tests:
+  - Group announces the client before the key snapshot

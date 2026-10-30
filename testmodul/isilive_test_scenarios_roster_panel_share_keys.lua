@@ -325,6 +325,148 @@ local function RegisterShareKeysDispatchOrderTest()
       Assert.Equal(effectOrder[2].channel, "PARTY", "own key line must still announce to party chat")
     end)
   end)
+
+  test("Roster panel share keys button still posts the own key manually while sync is disabled", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local effectOrder = {}
+    local addonMessages = 0
+    local currentTime = 350
+
+    local globals = WithVerifiedHomePartyGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      SendChatMessage = function(text, channel)
+        table.insert(effectOrder, {
+          kind = "chat",
+          text = text,
+          channel = channel,
+        })
+      end,
+      print = function() end,
+      IsiLiveDB = { syncEnabled = false },
+      C_ChatInfo = {
+        SendAddonMessage = function()
+          addonMessages = addonMessages + 1
+          return true
+        end,
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2662,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = addon.Sync.SendShareKeysRequest,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2662,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      shareKeysButton = Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: undefined-field
+
+      Assert.Equal(addonMessages, 0, "disabled sync must not broadcast the SHAREKEYS request")
+      Assert.Equal(#effectOrder, 1, "the explicit click must still post the own key")
+      Assert.Equal(effectOrder[1].kind, "chat", "the explicit click must use the chat path")
+      Assert.Equal(effectOrder[1].channel, "PARTY", "the own key line must reach party chat")
+    end)
+  end)
 end
 
 local function RegisterShareKeysEndToEndButtonRuntimeTest()

@@ -224,9 +224,9 @@ function SpellUtils.GetTeleportCooldownRemaining(spellID)
   return remaining
 end
 
+-- HH:MM with started minutes rounded up: a running cooldown never reads 00:00.
 function SpellUtils.FormatCooldownSeconds(sec)
-  sec = math.ceil(sec or 0)
-  local totalMinutes = math.floor(sec / 60)
+  local totalMinutes = math.ceil((sec or 0) / 60)
   local h = math.floor(totalMinutes / 60)
   local m = totalMinutes % 60
   return string.format("%02d:%02d", h, m)

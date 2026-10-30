@@ -8,6 +8,9 @@ local IsSecretValue = addonTable.Validators.IsSecretValue
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 local function ValueText(value)
+  if IsSecretValue(value) then
+    return "<secret>"
+  end
   if value == nil then
     return "nil"
   end
@@ -171,6 +174,17 @@ local function AppendChallengeInfo(lines)
   end
 end
 
+local function ListText(values)
+  if IsSecretValue(values) or type(values) ~= "table" then
+    return ValueText(values)
+  end
+  local parts = {}
+  for index, value in ipairs(values) do
+    parts[index] = ValueText(value)
+  end
+  return table.concat(parts, ",")
+end
+
 local function AppendLfgInfo(lines)
   local ok, result = SafeCallTable("C_LFGList", "GetActiveEntryInfo")
   if not ok then
@@ -179,12 +193,11 @@ local function AppendLfgInfo(lines)
   end
 
   local entryInfo = result[1]
-  if type(entryInfo) == "table" then
+  if not IsSecretValue(entryInfo) and type(entryInfo) == "table" then
     lines[#lines + 1] = string.format(
       "[SEASON] activeLfgEntry activityID=%s activityIDs=%s name=%s",
       ValueText(entryInfo.activityID),
-      type(entryInfo.activityIDs) == "table" and table.concat(entryInfo.activityIDs, ",")
-        or ValueText(entryInfo.activityIDs),
+      ListText(entryInfo.activityIDs),
       ValueText(entryInfo.name)
     )
   else

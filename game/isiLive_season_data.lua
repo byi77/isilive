@@ -901,6 +901,29 @@ function SeasonData.GetMapIDByActivityID(activityID, seasonID)
   return type(activityToMap) == "table" and activityToMap[numericActivityID] or nil
 end
 
+-- C_LFGList activity info names a dungeon by its instance ID (verified ingame
+-- 2026-10-30: Murder Row reports 2813, its challenge map is 587). Only the
+-- season's own maps can answer, and an instance shared by two challenge maps
+-- stays unresolved instead of picking one.
+function SeasonData.GetMapIDByInstanceID(instanceID, seasonID)
+  local numericInstanceID = tonumber(instanceID)
+  local validators = addonTable.Validators
+  local mapToTeleport = SeasonData.GetMapToTeleport(seasonID)
+  if not numericInstanceID or type(validators) ~= "table" or type(mapToTeleport) ~= "table" then
+    return nil
+  end
+  local resolved = nil
+  for mapID in pairs(mapToTeleport) do
+    if validators.ResolveChallengeMapInstanceID(mapID) == numericInstanceID then
+      if resolved then
+        return nil
+      end
+      resolved = mapID
+    end
+  end
+  return resolved
+end
+
 function SeasonData.GetMdtDirectory(seasonID)
   local season = SeasonData.GetSeasonConfig(seasonID)
   if type(season) ~= "table" or type(season.mdtDirectory) ~= "string" or season.mdtDirectory == "" then

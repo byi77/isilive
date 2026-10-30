@@ -111,6 +111,217 @@ local function RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(controller.isInspecting, "party1", "controller should track currently inspected unit")
     end)
   end)
+
+  local function WithRetryWorld(world, body)
+    world.now = world.now or 100
+    world.notified = world.notified or {}
+    WithGlobals({
+      GetTime = function()
+        return world.now
+      end,
+      UnitExists = function(unit)
+        return world.guids[unit] ~= nil
+      end,
+      UnitGUID = function(unit)
+        return world.guids[unit]
+      end,
+      UnitIsVisible = function()
+        return world.visible == true
+      end,
+      CanInspect = function()
+        return true
+      end,
+      NotifyInspect = function(unit)
+        table.insert(world.notified, unit)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      body(addon.Inspect.CreateController({ inspectDelay = 0, retryInterval = 5 }))
+    end)
+  end
+
+  test("Inspect retry holds one entry per unreachable member and dispatches once on recovery", function()
+    local world = { guids = { party1 = "guid-party1" }, visible = false }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Peer", realm = "Realm" } }
+      for _ = 1, 20 do
+        controller.EnqueueInspect("party1", roster)
+        controller.OnUpdate()
+      end
+      Assert.Equal(#controller.retryQueue, 1, "repeated enqueues leave one retry")
+      Assert.Equal(#controller.inspectQueue, 0, "nothing stays queued")
+      Assert.True(controller.HasPendingWork(), "the member stays pending")
+
+      world.visible = true
+      world.now = 105
+      controller.OnUpdate()
+      controller.OnUpdate()
+      Assert.Equal(#world.notified, 1, "recovery dispatches one inspect")
+      Assert.Equal(#controller.retryQueue, 0, "the retry is consumed")
+
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(#controller.inspectQueue, 0, "a member in flight is not queued again")
+    end)
+  end)
+
+  test("Inspect timeout does not add a second retry for a queued or waiting member", function()
+    local world = { guids = { party1 = "guid-party1" }, visible = true }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Peer", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      Assert.Equal(controller.isInspecting, "party1", "the member is in flight")
+
+      controller.InvalidateMember("party1", roster)
+      Assert.Equal(#controller.inspectQueue, 1, "a forced refresh during flight is kept as new work")
+
+      world.now = 110
+      controller.OnUpdate()
+      Assert.Nil(controller.isInspecting, "the timeout releases the dispatcher")
+      Assert.Equal(#controller.retryQueue, 0, "the queued member needs no retry on top")
+      Assert.Equal(#controller.inspectQueue, 1, "the queued work survives the timeout")
+    end)
+  end)
+
+  test("Inspect retry yields to a forced refresh without duplicating the member", function()
+    local world = { guids = { party1 = "guid-party1" }, visible = false }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Peer", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      Assert.Equal(#controller.retryQueue, 1, "the member waits for a retry")
+
+      world.visible = true
+      controller.InvalidateMember("party1", roster)
+      Assert.Equal(#controller.retryQueue, 0, "the forced refresh replaces the retry")
+      Assert.Equal(#controller.inspectQueue, 1, "the forced refresh is queued")
+      controller.OnUpdate()
+      Assert.Equal(#world.notified, 1, "the forced refresh runs before the retry time")
+    end)
+  end)
+
+  test("Inspect retry of a former member gives way to the new owner of the unit token", function()
+    local world = { guids = { party1 = "guid-old", party2 = "guid-other" }, visible = false }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Old", realm = "Realm" }, party2 = { name = "Other", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      Assert.Equal(#controller.retryQueue, 1, "the former member waits for a retry")
+
+      world.guids.party1 = "guid-new"
+      world.visible = true
+      roster.party1 = { name = "New", realm = "Realm" }
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(#controller.retryQueue, 0, "the stale retry is gone")
+      Assert.Equal(#controller.inspectQueue, 1, "the new member is queued without waiting for the old retry")
+      controller.OnUpdate()
+      Assert.Equal(world.notified[1], "party1", "the new member is inspected")
+    end)
+  end)
+
+  test("Inspect moves a waiting member's retry along when the member changes slot", function()
+    local world = { guids = { party1 = "guid-a" }, visible = false }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+
+      world.guids = { party2 = "guid-a" }
+      roster = { party2 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party2", roster)
+      Assert.Equal(#controller.retryQueue, 0, "the old slot's retry belongs to the same member")
+      Assert.Equal(#controller.inspectQueue, 1, "the member stays pending exactly once")
+    end)
+  end)
+
+  test("Inspect incomplete reply keeps its retry delay across roster updates", function()
+    local world = { guids = { party1 = "guid-party1" }, visible = true }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Peer", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      controller.OnInspectReady("guid-party1", roster, function()
+        return nil
+      end, function()
+        return nil
+      end)
+      Assert.Equal(#controller.retryQueue, 1, "the incomplete reply waits for a retry")
+
+      world.now = 101
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      Assert.Equal(#world.notified, 1, "a roster update does not bypass the retry delay")
+      Assert.Equal(#controller.retryQueue, 1, "the retry stays scheduled")
+    end)
+  end)
+
+  test("Inspect slot change keeps one running inspect and accepts its reply", function()
+    local world = { guids = { party2 = "guid-a" }, visible = true }
+    WithRetryWorld(world, function(controller)
+      local roster = { party2 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party2", roster)
+      controller.OnUpdate()
+      Assert.Equal(controller.isInspecting, "party2", "the inspect runs")
+
+      world.guids = { party1 = "guid-a" }
+      roster = { party1 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(#controller.inspectQueue, 0, "the running inspect covers the moved member")
+
+      controller.OnInspectReady("guid-a", roster, function()
+        return 3000
+      end, function()
+        return "Frost"
+      end)
+      Assert.Nil(controller.isInspecting, "the reply releases the dispatcher")
+      Assert.Equal(roster.party1.spec, "Frost", "the reply lands on the member's new slot")
+    end)
+  end)
+
+  test("Inspect reply of a member who left releases the dispatcher", function()
+    local world = { guids = { party2 = "guid-a" }, visible = true }
+    WithRetryWorld(world, function(controller)
+      local roster = { party2 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party2", roster)
+      controller.OnUpdate()
+
+      world.guids = {}
+      Assert.False(controller.OnInspectReady("guid-a", {}), "no roster row takes the reply")
+      Assert.Nil(controller.isInspecting, "the dispatcher does not wait for the timeout")
+    end)
+  end)
+
+  test("Inspect timeout follows a member who changed slot", function()
+    local world = { guids = { party2 = "guid-a" }, visible = true }
+    WithRetryWorld(world, function(controller)
+      local roster = { party2 = { name = "A", realm = "Realm" } }
+      controller.EnqueueInspect("party2", roster)
+      controller.OnUpdate()
+
+      world.guids = { party1 = "guid-a", party2 = "guid-b" }
+      world.now = 103
+      controller.OnUpdate()
+      Assert.Equal(#controller.retryQueue, 1, "the timed out member keeps one retry")
+      Assert.Equal(controller.retryQueue[1].unit, "party1", "the retry follows the member")
+      Assert.Equal(controller.retryQueue[1].guid, "guid-a", "the retry names the member")
+    end)
+  end)
+
+  test("Inspect drops the retry of a member who left the group", function()
+    local world = { guids = { party1 = "guid-party1" }, visible = false }
+    WithRetryWorld(world, function(controller)
+      local roster = { party1 = { name = "Peer", realm = "Realm" } }
+      controller.EnqueueInspect("party1", roster)
+      controller.OnUpdate()
+      Assert.Equal(#controller.retryQueue, 1, "the member waits for a retry")
+
+      world.guids = {}
+      world.now = 105
+      controller.OnUpdate()
+      Assert.Equal(#controller.retryQueue, 0, "a retry for a vacant unit token ends")
+      Assert.False(controller.HasPendingWork(), "the loop has nothing left to wait for")
+    end)
+  end)
 end
 
 local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)

@@ -458,7 +458,7 @@ Neue Spezialisierung:
 - `check_spec_coverage.lua` meldet fehlende Pflichtfelder, fehlende Interrupt-Entscheidungen und neue Literal-Tabellen mit Spec-ID-Schluesseln ausserhalb von `data/`.
 
 Bekannte, bewusst nicht entschiedene Datenlage (Stand 2026-10-20):
-- Devourer (1480) zaehlt im LFG-Bonusprofil als Attack-Power-Nutzer mit physischem Schaden, in der Stats-Box als Intelligenz-Spec. Beide Werte sind unveraendert aus dem Bestand uebernommen.
+- Devourer (1480) zaehlt seit 2026-10-30 auch im LFG-Bonusprofil als Intelligenz-Nutzer mit magischem Schaden, passend zur Stats-Box. Quellen: Icy-Veins- und Method-Guides (Intellekt, Void-/Cosmic-Schaden); Ingame-Pruefung steht aus.
 - `390435` heisst laut Wowhead `Exhaustion`; der ausloesende Spell ist dort nicht genannt und bleibt im Manifest offen.
 
 ### 3.15 Time to Kill (TTK) und Zeit-Tempo

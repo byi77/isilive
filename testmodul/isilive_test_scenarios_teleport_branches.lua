@@ -215,13 +215,18 @@ return function(test, ctx)
 
   test("ResolveMapIDByActivityID accepts the snake-case mapId field", function()
     WithTeleport({
+      SeasonData = {
+        GetMapIDByInstanceID = function(instanceID)
+          return instanceID == 777 and 501 or nil
+        end,
+      },
       C_LFGList = {
         GetActivityInfoTable = function()
           return { mapId = 777 } -- WoW-style alternate casing
         end,
       },
     }, function(addon)
-      Assert.Equal(addon.Teleport.ResolveMapIDByActivityID(123), 777, "mapId fallback must resolve")
+      Assert.Equal(addon.Teleport.ResolveMapIDByActivityID(123), 501, "mapId fallback must resolve")
     end)
   end)
 

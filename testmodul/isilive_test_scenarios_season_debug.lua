@@ -82,4 +82,36 @@ return function(test, ctx)
       )
     end)
   end)
+
+  test("SeasonDebug dump survives secret API values during a key", function()
+    local secret = setmetatable({}, {
+      __tostring = function()
+        error("attempt to convert a secret value")
+      end,
+    })
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return secret
+        end,
+        GetActiveKeystoneInfo = function()
+          return secret, 1
+        end,
+      },
+      C_LFGList = {
+        GetActiveEntryInfo = function()
+          return { activityID = secret, activityIDs = { 456, secret }, name = secret }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_season_debug.lua" })
+      local joined = table.concat(addon.SeasonDebug.BuildDumpLines(), "\n")
+      Assert.True(joined:find("activeChallengeMapID=<secret>", 1, true) ~= nil, "a secret map must be marked")
+      Assert.True(joined:find("activeKeystone level=<secret>", 1, true) ~= nil, "a secret level must be marked")
+      Assert.True(joined:find("activityIDs=456,<secret>", 1, true) ~= nil, "a secret list entry must be marked")
+    end)
+  end)
 end

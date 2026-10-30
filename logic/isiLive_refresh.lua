@@ -22,7 +22,7 @@ function Refresh.CreateController(opts)
   local triggerGroupRosterUpdate = opts.triggerGroupRosterUpdate or function() end
   local forceRefreshSyncState = opts.forceRefreshSyncState or function(_refreshOpts) end
   local sendIsiLiveHello = opts.sendIsiLiveHello or function(_force, _source) end
-  local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force, _source) end
+  local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force, _source, _allowHidden) end
   local sendOwnBackgroundSnapshot = opts.sendOwnBackgroundSnapshot or function(_source) end
   local sendRefreshRequest = opts.sendRefreshRequest or function(_force) end
   local queueForceRefreshData = opts.queueForceRefreshData or function() end
@@ -126,7 +126,7 @@ function Refresh.CreateController(opts)
 
     forceRefreshSyncState(refreshOpts)
     sendIsiLiveHello(true, "refresh")
-    sendOwnKeySnapshot(true, "refresh")
+    sendOwnKeySnapshot(true, "refresh", true)
     sendRefreshRequest(true)
     queueForceRefreshData()
     updateUI()
@@ -159,7 +159,9 @@ function Refresh.CreateController(opts)
       -- aren't mislabelled.
       local source = pendingPostChallengeSync and "post-challenge" or "owned-key-changed"
       pendingPostChallengeSync = false
-      sendOwnKeySnapshot(true, source)
+      -- allowHidden: the trigger is consumed here, a hidden window must not
+      -- swallow the only send of the new key (rule 52).
+      sendOwnKeySnapshot(true, source, true)
     else
       sendOwnBackgroundSnapshot("owned-key-refresh")
     end

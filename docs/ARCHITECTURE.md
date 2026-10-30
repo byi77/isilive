@@ -1,9 +1,9 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.469`
+Versionsbasis: `0.9.470`
 Zuletzt aktualisiert: `2026-10-30`
 
-Audit-Zwischenstand (2026-10-30, unveroeffentlicht): KeySync akzeptiert keine Alias-Zuordnung allein wegen eines gemeinsamen Realms und weist mehrdeutige Owner-Hinweise zurueck. Group aktualisiert Party-Mitglieder auch im laufenden Key und erhaelt bestehende Mitgliedsdaten. Sync fuehrt pro Snapshot-Bucket Zeitstempel-Wasserstandsmarken auch nach Clears. Elf Folgefindings bleiben offen; insbesondere ist die Mischung mit ungestempelten LibKS-Daten noch nicht abgesichert und die eigene Roster-Zeile fehlt nach Raid-Rueckkehr im aktiven Key.
+Audit-Zwischenstand (2026-10-30, unveroeffentlicht): KeySync akzeptiert keine Alias-Zuordnung allein wegen eines gemeinsamen Realms und weist mehrdeutige Owner-Hinweise zurueck. Group aktualisiert Party-Mitglieder auch im laufenden Key und erhaelt bestehende Mitgliedsdaten. Sync fuehrt pro Snapshot-Bucket Zeitstempel-Wasserstandsmarken auch nach Clears. Die Folgefindings aus Audit und Nachaudit sind im Code behoben, ungestempelte LibKS-Daten gelten in Empfangsreihenfolge, und die Raid-Rueckkehr im aktiven Key stellt die eigene Zeile wieder her. Ein Ingame-Nachweis steht aus.
 
 Folgeaudit (0.9.456): Sync wertet numerische Sendeergebnisse transaktional aus und erhaelt leere Payload-Felder. KeySync schliesst Ghost-Hinweise aus. Inspect behaelt bekannte Felder bei partiellen Antworten und plant Retries. TTK akzeptiert nur verifiziert lebende Ziele und beendet veraltete Kampfzustaende beim Refresh. Status nutzt die gemeinsame RuntimeMode-Difficulty-Policy; ungenutzte Queue-, Highlight- und Command-Helfer entfallen. Der Regelparser prueft Uebersicht gegen Detailbloecke.
 
@@ -441,7 +441,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.469                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.470                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

@@ -529,11 +529,21 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          local instanceByMap = { [2662] = 9662, [2441] = 9441, [2442] = 9441 }
+          return nil, nil, nil, nil, nil, instanceByMap[mapID]
+        end,
+      },
       C_LFGList = {
         GetActivityInfoTable = function(activityID)
-          activityInfoCalls = activityInfoCalls + 1
           if activityID == 9900 then
-            return { mapID = 2662 }
+            activityInfoCalls = activityInfoCalls + 1
+            return { mapID = 9662 }
+          elseif activityID == 9901 then
+            return { mapID = 9441 } -- instance shared by two challenge maps
+          elseif activityID == 9902 then
+            return { mapID = 2649 } -- a season challenge ID, but no instance of this season
           end
           return nil
         end,
@@ -597,7 +607,9 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
       local genericActivitySpell = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
       local genericMapSpell = addon.Teleport.ResolveTeleportSpellIDByMapID(2662)
 
-      Assert.Equal(mapFirst, 2662, "activity map should resolve directly from activity info")
+      Assert.Equal(mapFirst, 2662, "the instance ID of the activity must resolve to its challenge map")
+      Assert.Nil(addon.Teleport.ResolveMapIDByActivityID(9901), "a shared instance must not pick a challenge map")
+      Assert.Nil(addon.Teleport.ResolveMapIDByActivityID(9902), "an instance ID is no challenge map ID")
       Assert.Equal(mapSecond, 2662, "activity map resolver should use cached value")
       Assert.Equal(first, 445414, "activity map should resolve to mapped teleport spell")
       Assert.Equal(second, 445414, "cached activity map should keep same resolved spell")
@@ -690,6 +702,12 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          local instanceByMap = { [2662] = 9662, [2441] = 9441, [2442] = 9441 }
+          return nil, nil, nil, nil, nil, instanceByMap[mapID]
+        end,
+      },
       C_LFGList = {
         GetActivityInfoTable = function(activityID)
           activityInfoCalls = activityInfoCalls + 1
@@ -697,7 +715,7 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
             return nil
           end
           if exposeMap then
-            return { mapID = 2662 }
+            return { mapID = 9662 }
           end
           return { fullName = "Late Map Payload" }
         end,

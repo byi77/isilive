@@ -93,16 +93,20 @@ local function BuildLFGGroupRosterTraceLogger(ctx, modules)
 end
 
 local function InitializeGameAPIHelpers(ctx, runtimeState)
+  -- A read that fails says nothing about the run, so the last verified map
+  -- answers until the API reads again. Only a readable answer ends a key.
+  local verifiedChallengeMapID = nil
   ctx.GetActiveChallengeMapID = function()
     local challengeMode = rawget(_G, "C_ChallengeMode")
     if type(challengeMode) ~= "table" or type(challengeMode.GetActiveChallengeMapID) ~= "function" then
-      return nil
+      return verifiedChallengeMapID
     end
     local ok, mapID = pcall(challengeMode.GetActiveChallengeMapID)
-    if not ok or IsSecretValue(mapID) or type(mapID) ~= "number" or mapID <= 0 then
-      return nil
+    if not ok or IsSecretValue(mapID) then
+      return verifiedChallengeMapID
     end
-    return mapID
+    verifiedChallengeMapID = type(mapID) == "number" and mapID > 0 and mapID or nil
+    return verifiedChallengeMapID
   end
   ctx.IsReadyCheckActive = function()
     return runtimeState.IsReadyCheckActive()

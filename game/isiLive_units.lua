@@ -264,12 +264,17 @@ function Units.GetUnitNameAndRealm(unit)
   -- pcall-guarded: in 12.0 M+ keys both UnitFullName and UnitName can return
   -- Secret Values for tainted units. The downstream Sync.NormalizePlayerKey
   -- treats nil as "self-realm fallback", so an early bail-out is safe.
+  -- Third return true: the realm read was masked, so the local realm below is
+  -- a guess. An empty realm from a readable call does mean the local realm.
   local name, realm
+  local realmMasked = false
   local fullName = rawget(_G, "UnitFullName")
   if type(fullName) == "function" then
     local ok, n, r = pcall(fullName, unit)
     if ok and not IsSecretValue(n) and not IsSecretValue(r) then
       name, realm = n, r
+    else
+      realmMasked = true
     end
   end
   if not name then
@@ -292,7 +297,7 @@ function Units.GetUnitNameAndRealm(unit)
     end
     realm = okRealm and not IsSecretValue(resolvedRealm) and type(resolvedRealm) == "string" and resolvedRealm or ""
   end
-  return name, realm
+  return name, realm, realmMasked
 end
 
 function Units.GetPlayerSpecName()

@@ -170,6 +170,9 @@ local function BuildGroupControllerOptions(state, overrides)
         force = force == true,
       })
     end,
+    getServerTime = overrides.getServerTime or function()
+      return 1000
+    end,
     getReloadRosterMirror = overrides.getReloadRosterMirror or function()
       return state.reloadRosterMirror
     end,
@@ -1372,6 +1375,8 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
       end,
     })
     controller.HandleGroupRosterUpdate()
+    -- COMPONENT-ONLY: the key seed stands in for sync data; this fixture has no
+    -- sync store and the test pins only that the row survives the slot change.
     state.roster.party2.keyMapID = 200
     replacement = true
     controller.HandleGroupRosterUpdate()
@@ -1404,8 +1409,336 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     Assert.Equal(#state.mainFrameVisibleCalls, 0, "reload-in-key must not auto-show or auto-hide the main frame")
   end)
 
+  test("Active key restores own and party rows after party to raid to party", function()
+    local memberCount = 5
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return memberCount
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+    })
+
+    state.roster = { player = { name = "TestPlayer", realm = "TestRealm" } }
+    controller.HandleGroupRosterUpdate()
+    Assert.NotNil(state.roster.party1, "party rows exist before the raid")
+
+    memberCount = 6
+    controller.HandleGroupRosterUpdate()
+    Assert.Nil(state.roster.player, "the raid clears the roster")
+
+    memberCount = 5
+    controller.HandleGroupRosterUpdate()
+    Assert.NotNil(state.roster.player, "the own row returns with the party")
+    Assert.Equal(state.roster.player.name, "TestPlayer", "the own row carries the player's identity")
+    Assert.Equal(state.roster.party1.name, "Party1", "party rows return as well")
+    Assert.Equal(state.roster.party4.name, "Party4", "the whole party returns")
+    Assert.False(state.wasRaidGroup, "the raid state ends with the party")
+    Assert.Equal(state.knownUsersCleared, 1, "the raid return resets known users once")
+  end)
+
+  test("Active key member update keeps the verified own and party data", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+    })
+    state.roster = {
+      player = { name = "TestPlayer", realm = "TestRealm", ilvl = 640, rio = 3200 },
+      party1 = { name = "Party1", realm = "Realm1", ilvl = 630, rio = 2900, spec = "Frost" },
+    }
+    local playerEntry = state.roster.player
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.roster.player, playerEntry, "a normal update does not rebuild the own row")
+    Assert.Equal(state.roster.player.ilvl, 640, "the own item level stays")
+    Assert.Equal(state.roster.party1.rio, 2900, "the party member's score stays")
+    Assert.Equal(state.roster.party1.spec, "Frost", "the party member's spec stays")
+  end)
+
+  test("Active key keeps a member through an unreadable or placeholder name", function()
+    local unreadable = nil
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
+        if unreadable == "Unknown" then
+          return "Unknown", "TestRealm"
+        end
+        if unreadable == "nil" then
+          return nil, nil
+        end
+        return "Party1", "Realm1"
+      end,
+    })
+    state.roster = {
+      player = { name = "TestPlayer", realm = "TestRealm" },
+      party1 = { name = "Party1", realm = "Realm1", ilvl = 630, rio = 2900 },
+    }
+
+    for _, value in ipairs({ "Unknown", "nil" }) do
+      unreadable = value
+      controller.HandleGroupRosterUpdate()
+      Assert.Equal(state.roster.party1.name, "Party1", "the slot keeps the verified member")
+      Assert.Equal(state.roster.party1.ilvl, 630, "the verified data stays")
+    end
+
+    unreadable = nil
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.roster.party1.rio, 2900, "the recovered read finds the same member")
+    Assert.Equal(CountRosterEntries(state.roster), 2, "no ghost is left behind")
+  end)
+
+  test("Active key keeps the realm of a member whose realm read fell back", function()
+    local memberRealm = "Realm1"
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
+        return "Party1", memberRealm
+      end,
+    })
+    state.roster = {
+      player = { name = "TestPlayer", realm = "TestRealm" },
+      party1 = { name = "Party1", realm = "Realm1", ilvl = 630 },
+    }
+
+    memberRealm = "TestRealm"
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.roster.party1.realm, "Realm1", "a masked realm does not rename the member")
+    Assert.Equal(state.roster.party1.ilvl, 630, "the verified data stays")
+    Assert.Equal(CountRosterEntries(state.roster), 2, "no ghost is left behind")
+  end)
+
+  test("Group does not take a masked realm read for the local realm", function()
+    local masked = true
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
+        if masked then
+          return "Party1", "TestRealm", true
+        end
+        return "Party1", "Realm1"
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+    Assert.Nil(state.roster.party1, "a guessed realm must not create a row under the wrong identity")
+
+    masked = false
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.roster.party1.realm, "Realm1", "the row appears once the realm reads")
+  end)
+
+  test("Reload mirror survives an unreadable member name", function()
+    local unreadable = false
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
+        if unreadable then
+          return "Unknown", "TestRealm"
+        end
+        return "Party1", "Realm1"
+      end,
+    })
+    state.roster = {
+      player = { name = "TestPlayer", realm = "TestRealm" },
+      party1 = { name = "Party1", realm = "Realm1" },
+    }
+    controller.SaveReloadRosterMirror()
+    Assert.NotNil(state.reloadRosterMirror.signature, "the mirror exists")
+
+    unreadable = true
+    controller.HandleGroupRosterUpdate()
+    Assert.False(controller.SaveReloadRosterMirror(), "an unreadable group writes no mirror")
+    Assert.Equal(state.reloadMirrorClears, 0, "the last good mirror stays")
+    Assert.NotNil(state.reloadRosterMirror.signature, "the last good mirror keeps its data")
+  end)
+
+  test("Active key raid return announces the client like the party path", function()
+    local memberCount = 6
+    local order = {}
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      wasRaidGroup = true,
+      getNumGroupMembers = function()
+        return memberCount
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      sendIsiLiveHello = function(force, source)
+        table.insert(order, "hello:" .. tostring(force) .. ":" .. tostring(source))
+      end,
+      sendOwnKeySnapshot = function(force, source)
+        table.insert(order, "key:" .. tostring(force) .. ":" .. tostring(source))
+      end,
+    })
+
+    memberCount = 5
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.knownUsersCleared, 1, "the raid return resets known users")
+    Assert.Equal(#order, 2, "the raid return sends hello and snapshot once")
+    Assert.Equal(order[1], "hello:false:group", "the hello goes first without forcing")
+    Assert.Equal(order[2], "key:false:group", "the snapshot uses the normal path")
+
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(#order, 2, "a following update announces nothing")
+  end)
+
+  test("Active key leaves the rows alone while the group stays the same", function()
+    local leader = "player"
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
+      unitIsGroupLeader = function(unit)
+        return unit == leader
+      end,
+    })
+    state.roster = {
+      player = { name = "TestPlayer", realm = "TestRealm" },
+      party1 = { name = "Party1", realm = "Realm1", ilvl = 630 },
+    }
+    controller.HandleGroupRosterUpdate()
+    local row = state.roster.party1
+    local writes = state.reloadMirrorWrites
+
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.roster.party1, row, "an unchanged group keeps the row")
+    Assert.Equal(state.reloadMirrorWrites, writes, "an unchanged group writes no mirror")
+
+    leader = "party1"
+    controller.HandleGroupRosterUpdate()
+    Assert.True(state.roster.party1.isLeader, "the leader flag stays current")
+    Assert.Equal(state.reloadMirrorWrites, writes + 1, "a changed row refreshes the mirror")
+  end)
+
+  test("Group announces the client before the key snapshot", function()
+    local order = {}
+    local controller = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      sendIsiLiveHello = function()
+        table.insert(order, "hello")
+      end,
+      sendOwnKeySnapshot = function()
+        table.insert(order, "key")
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(order[1], "hello", "peers learn the client from its hello")
+    Assert.Equal(order[2], "key", "the snapshot follows the hello")
+  end)
+
+  test("Group publishes the own key while the main window is hidden", function()
+    local allowHidden = nil
+    local controller = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      sendOwnKeySnapshot = function(_force, _source, hiddenAllowed)
+        allowHidden = hiddenAllowed
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(allowHidden, true, "a closed window must not hold the own key back from the group")
+  end)
+
+  test("Reload mirror restores only a dated and recent snapshot", function()
+    local function RestoreWith(savedAt)
+      local mirror = {
+        savedAt = savedAt,
+        signature = "Member-Realm|TestPlayer-TestRealm",
+        members = {
+          ["TestPlayer-TestRealm"] = { name = "TestPlayer", realm = "TestRealm" },
+          ["Member-Realm"] = { name = "Member", realm = "Realm", ilvl = 640 },
+        },
+      }
+      local controller, state = BuildGroupController(LoadAddonModules, {
+        wasInGroup = false,
+        reloadRosterMirror = mirror,
+        getNumGroupMembers = function()
+          return 2
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "TestPlayer", "TestRealm"
+          end
+          return "Member", "Realm"
+        end,
+        getServerTime = function()
+          return 100000
+        end,
+      })
+      controller.HandleGroupRosterUpdate()
+      return state
+    end
+
+    Assert.Equal(RestoreWith(99000).roster.party1.ilvl, 640, "a recent mirror restores")
+    local stale = RestoreWith(1000)
+    Assert.Nil(stale.roster.party1.ilvl, "an old mirror does not restore")
+    Assert.True(stale.reloadMirrorClears >= 1, "an old mirror is dropped")
+    Assert.Nil(RestoreWith(nil).roster.party1.ilvl, "an undated mirror does not restore")
+    Assert.Nil(RestoreWith(200000).roster.party1.ilvl, "a mirror from the future does not restore")
+  end)
+
+  test("Reload mirror records the server time of the save", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      getServerTime = function()
+        return 4242
+      end,
+    })
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.reloadRosterMirror.savedAt, 4242, "the mirror carries the real save time")
+  end)
+
   test("Reload roster mirror suppresses group-join side effects outside active key", function()
     local mirror = {
+      savedAt = 1000,
       signature = "Party1-Realm1|Party2-Realm2|Party3-Realm3|Party4-Realm4|TestPlayer-TestRealm",
       members = {
         ["TestPlayer-TestRealm"] = {
@@ -1454,6 +1787,7 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 
   test("Reload roster mirror drops non-finite persisted values", function()
     local mirror = {
+      savedAt = 1000,
       signature = "Member-Realm|TestPlayer-TestRealm",
       members = {
         ["TestPlayer-TestRealm"] = {
@@ -1494,6 +1828,7 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 
   test("Reload roster mirror restores verified data when group signature matches", function()
     local mirror = {
+      savedAt = 1000,
       signature = "Member-Realm|TestPlayer-TestRealm",
       members = {
         ["TestPlayer-TestRealm"] = {
@@ -1565,6 +1900,7 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 
   test("Reload roster mirror restores verified target key when group signature matches", function()
     local mirror = {
+      savedAt = 1000,
       signature = "Member-Realm|TestPlayer-TestRealm",
       targetKey = {
         mapID = 2441,
@@ -1626,6 +1962,7 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     local controller, state = BuildGroupController(LoadAddonModules, {
       wasInGroup = false,
       reloadRosterMirror = {
+        savedAt = 1000,
         signature = "Other-Realm|TestPlayer-TestRealm",
         targetKey = {
           mapID = 2441,

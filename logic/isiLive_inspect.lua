@@ -49,6 +49,59 @@ local function IsForceRefreshQueued(info)
   return type(info) == "table" and info._refreshQueued == true
 end
 
+-- A unit token names a slot, not a person: the GUID recorded with in-flight and
+-- retry work tells the same member apart from a new owner of the token. Without
+-- a readable GUID on either side the work counts as the same member's.
+local function IsSameMember(pendingGuid, guid)
+  return pendingGuid == nil or guid == nil or pendingGuid == guid
+end
+
+local function IsMemberInFlight(controller, unit, guid)
+  if guid and controller.isInspectingGuid == guid then
+    return true
+  end
+  return controller.isInspecting == unit and IsSameMember(controller.isInspectingGuid, guid)
+end
+
+-- Clears the retry work this enqueue replaces and reports whether `unit` still
+-- has a retry covering the member. A new owner of the token supersedes the
+-- retry, and a member who changed slots leaves the old slot's entry behind for
+-- the enqueue that follows. _refreshQueued does not replace a retry: an
+-- incomplete reply sets it too and owes the retry delay.
+local function ReconcileRetries(controller, unit, guid)
+  local covered = false
+  for i = #controller.retryQueue, 1, -1 do
+    local entry = controller.retryQueue[i]
+    if entry.unit == unit then
+      if IsSameMember(entry.guid, guid) then
+        covered = true
+      else
+        table.remove(controller.retryQueue, i)
+      end
+    elseif guid and entry.guid == guid then
+      table.remove(controller.retryQueue, i)
+    end
+  end
+  return covered
+end
+
+-- The single way into the retry queue: one entry per unit, none while the unit
+-- is queued anyway.
+local function ScheduleRetry(controller, unit, nextRetry)
+  if IsUnitInInspectQueue(controller, unit) then
+    return
+  end
+  local guid = GetUnitGUIDSafe(unit)
+  for _, entry in ipairs(controller.retryQueue) do
+    if entry.unit == unit then
+      entry.guid = guid
+      entry.nextRetry = nextRetry
+      return
+    end
+  end
+  table.insert(controller.retryQueue, { unit = unit, guid = guid, nextRetry = nextRetry })
+end
+
 local function EnqueueInspect(controller, unit, roster)
   if not unit or not roster or IsGhostRosterUnit(unit, roster) or not IsExistingUnit(unit) then
     return
@@ -85,6 +138,10 @@ local function EnqueueInspect(controller, unit, roster)
     not IsUnitInInspectQueue(controller, unit)
     and rosterEntry
     and (forceRefreshQueued or not rosterEntry.ilvl or not rosterEntry.rio or not rosterEntry.spec)
+    -- A forced refresh may postdate the request in flight, so it stays queued
+    -- as its own work; anything else waits for that reply.
+    and (forceRefreshQueued or not IsMemberInFlight(controller, unit, guid))
+    and not ReconcileRetries(controller, unit, guid)
   then
     local logFn = forceRefreshQueued and controller.logRuntimeTracef or controller.logRuntimeTracefDeep
     if logFn then
@@ -147,6 +204,12 @@ local function InvalidateMember(controller, unit, roster)
   end
   info._localSpecFresh = nil
   info._refreshQueued = true
+  -- The member changed, so this inspect does not wait out an older retry.
+  for i = #controller.retryQueue, 1, -1 do
+    if controller.retryQueue[i].unit == unit then
+      table.remove(controller.retryQueue, i)
+    end
+  end
   EnqueueInspect(controller, unit, roster)
   return true
 end
@@ -245,6 +308,21 @@ local function FindRosterUnitByGuid(roster, guid)
   return nil
 end
 
+-- Group token whose live GUID is `guid`. The roster can be stale here, the
+-- token cannot: a member keeps the GUID across slot changes.
+local function FindGroupUnitByGuid(guid)
+  if GetUnitGUIDSafe("player") == guid then
+    return "player"
+  end
+  for i = 1, 4 do
+    local unit = "party" .. i
+    if GetUnitGUIDSafe(unit) == guid then
+      return unit
+    end
+  end
+  return nil
+end
+
 local function RemoveUnitFromQueues(controller, unit)
   for i = #controller.inspectQueue, 1, -1 do
     if controller.inspectQueue[i] == unit then
@@ -261,17 +339,19 @@ end
 -- Own inspect finished: release the dispatcher. A readable item level alone is
 -- not a completed inspect, so missing fields keep the member pending and get a
 -- retry instead of marking the work done; last known values stay.
-local function FinishOwnInspect(controller, unit, roster, result)
+local function ReleaseOwnInspect(controller)
   controller.isInspecting = nil
+  controller.isInspectingGuid = nil
   local getTimeFn = rawget(_G, "GetTime")
   controller.lastInspectTime = type(getTimeFn) == "function" and getTimeFn() or 0
+end
+
+local function FinishOwnInspect(controller, unit, roster, result)
+  ReleaseOwnInspect(controller)
   if roster[unit] then
     roster[unit]._refreshQueued = result.incomplete and true or nil
     if result.incomplete then
-      table.insert(controller.retryQueue, {
-        unit = unit,
-        nextRetry = controller.lastInspectTime + controller.retryInterval,
-      })
+      ScheduleRetry(controller, unit, controller.lastInspectTime + controller.retryInterval)
     end
   end
 end
@@ -297,9 +377,15 @@ local function OnInspectReady(controller, guid, roster, getters)
     return false
   end
   local inspectedUnit = controller.isInspecting
-  local isOwn = inspectedUnit ~= nil and GetUnitGUIDSafe(inspectedUnit) == guid
-  local unit = isOwn and inspectedUnit or FindRosterUnitByGuid(roster, guid)
+  local isOwnToken = inspectedUnit ~= nil and GetUnitGUIDSafe(inspectedUnit) == guid
+  -- The GUID recorded at dispatch keeps a reply ours when the member changed
+  -- slots while the request ran.
+  local isOwn = isOwnToken or (inspectedUnit ~= nil and controller.isInspectingGuid == guid)
+  local unit = isOwnToken and inspectedUnit or FindRosterUnitByGuid(roster, guid)
   if not unit then
+    if isOwn then
+      ReleaseOwnInspect(controller)
+    end
     return false
   end
 
@@ -341,11 +427,17 @@ local function OnInspectTimeout(controller, now)
       tostring(controller.retryInterval)
     )
   end
-  table.insert(controller.retryQueue, {
-    unit = controller.isInspecting,
-    nextRetry = now + controller.retryInterval,
-  })
+  local unit = controller.isInspecting
+  local guid = controller.isInspectingGuid
+  if guid and GetUnitGUIDSafe(unit) ~= guid then
+    -- The member changed slots or left; the token belongs to someone else now.
+    unit = FindGroupUnitByGuid(guid)
+  end
+  if unit then
+    ScheduleRetry(controller, unit, now + controller.retryInterval)
+  end
   controller.isInspecting = nil
+  controller.isInspectingGuid = nil
 end
 
 local function IsUnitInspectable(unit)
@@ -419,6 +511,7 @@ local function TryDispatchInspect(controller, now)
       )
     end
     controller.isInspecting = unit
+    controller.isInspectingGuid = GetUnitGUIDSafe(unit)
     controller.lastInspectTime = now
     local okNotify = pcall(NotifyInspect, unit)
     if not okNotify and controller.logRuntimeTracef then
@@ -432,7 +525,7 @@ local function TryDispatchInspect(controller, now)
         tostring(controller.retryInterval)
       )
     end
-    table.insert(controller.retryQueue, { unit = unit, nextRetry = now + controller.retryInterval })
+    ScheduleRetry(controller, unit, now + controller.retryInterval)
   end
 
   return true
@@ -442,9 +535,15 @@ local function ProcessRetryQueue(controller, now)
   for i = #controller.retryQueue, 1, -1 do
     local entry = controller.retryQueue[i]
     if now >= entry.nextRetry then
-      if IsUnitInspectable(entry.unit) then
+      -- Offline members keep their token; a vacant one means the member left,
+      -- and a roster update enqueues whoever takes the slot next.
+      if not IsExistingUnit(entry.unit) then
         table.remove(controller.retryQueue, i)
-        table.insert(controller.inspectQueue, 1, entry.unit)
+      elseif IsUnitInspectable(entry.unit) then
+        table.remove(controller.retryQueue, i)
+        if not IsUnitInInspectQueue(controller, entry.unit) then
+          table.insert(controller.inspectQueue, 1, entry.unit)
+        end
       else
         entry.nextRetry = now + controller.retryInterval
       end
@@ -529,6 +628,7 @@ function Inspect.CreateController(config)
   controller.inspectQueue = {}
   controller.retryQueue = {}
   controller.isInspecting = nil
+  controller.isInspectingGuid = nil
   controller.lastInspectTime = 0
   controller.ilvlCache = {}
   controller.rioCache = {}
@@ -543,6 +643,7 @@ function Inspect.CreateController(config)
     controller.inspectQueue = {}
     controller.retryQueue = {}
     controller.isInspecting = nil
+    controller.isInspectingGuid = nil
   end
 
   -- True while a unit is queued, waiting for a retry, or awaiting its

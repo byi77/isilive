@@ -34,6 +34,16 @@ local function RegisterSpellKnownAndCooldownTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Spell utils cooldown format shows a running cooldown as at least one minute", function()
+    local format = LoadAddonModules({ "isiLive_spell_utils.lua" }).SpellUtils.FormatCooldownSeconds
+    Assert.Equal(format(0), "00:00", "only a finished cooldown may read 00:00")
+    Assert.Equal(format(1), "00:01", "the last second must not read as ready")
+    Assert.Equal(format(59), "00:01", "the last minute must not read as ready")
+    Assert.Equal(format(60), "00:01", "a full minute stays one minute")
+    Assert.Equal(format(61), "00:02", "a started minute counts as remaining")
+    Assert.Equal(format(3600), "01:00", "a full hour rolls over")
+  end)
+
   test("Spell utils cooldown-safe lookup returns defaults without API", function()
     local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
     local startTime, duration, isEnabled = addon.SpellUtils.GetSpellCooldownSafe(42)

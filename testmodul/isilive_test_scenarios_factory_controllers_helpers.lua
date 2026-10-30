@@ -380,6 +380,40 @@ return function(test, ctx)
     )
   end)
 
+  test("factory_controllers: GetActiveChallengeMapID keeps a verified run through unreadable reads", function()
+    local addon = Load()
+    local rs = BuildRuntimeStateStub()
+    local c = BuildCtx(rs, BuildModulesStub())
+    local read = 2649
+    local secretMapID = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secretMapID
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          if read == "error" then
+            error("boom", 0)
+          end
+          return read
+        end,
+      },
+    }, function()
+      InitializeHelpers(c, addon)
+      Assert.Equal(c.GetActiveChallengeMapID(), 2649, "the run is verified")
+
+      read = "error"
+      Assert.Equal(c.GetActiveChallengeMapID(), 2649, "an API error does not end the run")
+      read = secretMapID
+      Assert.Equal(c.GetActiveChallengeMapID(), 2649, "a secret does not end the run")
+
+      read = nil
+      Assert.Nil(c.GetActiveChallengeMapID(), "a readable empty answer ends the run")
+      read = "error"
+      Assert.Nil(c.GetActiveChallengeMapID(), "an ended run does not come back")
+    end)
+  end)
+
   test("factory_controllers: GetActiveChallengeMapID returns nil when API raises", function()
     local addon = Load()
     local rs = BuildRuntimeStateStub()

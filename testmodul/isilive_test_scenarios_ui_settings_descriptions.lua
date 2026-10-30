@@ -444,4 +444,79 @@ return function(test, ctx)
       ---@diagnostic enable: undefined-field
     end)
   end)
+
+  test("Settings loadout check checkbox hides the open card at once", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua", "isiLive_loadout_check.lua" })
+      local hides = 0
+      addon.LoadoutCheck.SetDependencies({
+        getDB = function()
+          return db
+        end,
+        card = {
+          Show = function() end,
+          Hide = function()
+            hides = hides + 1
+          end,
+        },
+        getCurrentSpec = function()
+          return 64, "Frost"
+        end,
+        getClassSpecs = function()
+          return {}
+        end,
+        getSavedLoadouts = function()
+          return {}
+        end,
+        getSelectedLoadoutID = function()
+          return nil
+        end,
+        getLootSpecID = function()
+          return 0
+        end,
+      })
+      Assert.True(addon.LoadoutCheck.ShowPreview(525, "Dungeon"), "the card must be open before the click")
+
+      Assert.NotNil(
+        addon.SettingsPanel.Create({
+          getL = function()
+            return {}
+          end,
+          getCurrentLocale = function()
+            return "enUS"
+          end,
+          setLanguage = function() end,
+          getDB = function()
+            return db
+          end,
+          onMobNameplateChange = function() end,
+          onMplusForcesToggle = function() end,
+        }),
+        "settings panel must build"
+      )
+      ---@diagnostic disable: undefined-field
+      local check =
+        Assert.NotNil(FindFrame(createdFrames, "CheckButton", "SETTINGS_LOADOUT_CHECK"), "loadout checkbox must exist")
+      local onClick = Assert.NotNil(check._scripts and check._scripts.OnClick, "loadout OnClick")
+      check:SetChecked(false)
+      onClick(check, "LeftButton")
+      ---@diagnostic enable: undefined-field
+
+      Assert.Equal(db.loadoutCheckEnabled, false, "the click must persist the setting")
+      Assert.True(hides >= 1, "the click must hide the open card")
+      Assert.False(addon.LoadoutCheck.GetController().IsActive(), "the card must not stay active")
+    end)
+  end)
 end

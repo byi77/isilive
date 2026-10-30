@@ -1198,11 +1198,14 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   -- Live order seen 2026-10-25: the join PLC can arrive right AFTER the first
   -- GROUP_ROSTER_UPDATE. When the group leader is still the listing leader,
   -- that PLC is the join, not a handoff, and the accepted identity stays.
-  local function BuildLeaderGlobals(leaderUnit, leaderName, leaderRealm, listingLeaderName)
+  local function BuildLeaderGlobals(leaderUnit, leaderName, leaderRealm, listingLeaderName, localRealm)
     return {
       C_LFGList = BuildC_LFGList({
         [778] = { activityID = 514, name = "|Kt635|k", leaderName = listingLeaderName },
       }, nil),
+      GetRealmName = function()
+        return localRealm
+      end,
       UnitIsGroupLeader = function(unit)
         return unit == leaderUnit
       end,
@@ -1221,14 +1224,27 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       local cases = {
         { label = "cross-realm leader", listing = "Sagehd-Ravencrest", name = "Sagehd", realm = "Ravencrest" },
         { label = "realm with a space", listing = "Sagehd-ArgentDawn", name = "Sagehd", realm = "Argent Dawn" },
-        { label = "same-realm listing", listing = "Sagehd", name = "Sagehd", realm = "Ravencrest" },
+        {
+          label = "same-realm listing",
+          listing = "Sagehd",
+          name = "Sagehd",
+          realm = "Ravencrest",
+          localRealm = "Ravencrest",
+        },
+        { label = "bare listing and bare leader", listing = "Sagehd", name = "Sagehd" },
+        {
+          label = "listing realm equals the local realm of a bare leader",
+          listing = "Sagehd-ArgentDawn",
+          name = "Sagehd",
+          localRealm = "Argent Dawn",
+        },
       }
       for _, case in ipairs(cases) do
         local globals, fire = BuildLFGDetectEnv({
           IsInGroup = function()
             return true
           end,
-          globals = BuildLeaderGlobals("party1", case.name, case.realm, case.listing),
+          globals = BuildLeaderGlobals("party1", case.name, case.realm, case.listing, case.localRealm),
         })
         WithGlobals(globals, function()
           local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
@@ -1258,13 +1274,15 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       { label = "other player", unit = "party2", name = "Newlead", realm = "Ravencrest" },
       { label = "same name, other realm", unit = "party1", name = "Sagehd", realm = "Blackrock" },
       { label = "player took the lead", unit = "player", name = "Isiplayer", realm = "Blackrock" },
+      { label = "same name on the local realm", unit = "party2", name = "Sagehd", localRealm = "Blackrock" },
+      { label = "same name, local realm unknown", unit = "party2", name = "Sagehd" },
     }
     for _, case in ipairs(cases) do
       local globals, fire = BuildLFGDetectEnv({
         IsInGroup = function()
           return true
         end,
-        globals = BuildLeaderGlobals(case.unit, case.name, case.realm, "Sagehd-Ravencrest"),
+        globals = BuildLeaderGlobals(case.unit, case.name, case.realm, "Sagehd-Ravencrest", case.localRealm),
       })
       WithGlobals(globals, function()
         local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
@@ -1280,6 +1298,147 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
         )
       end)
     end
+  end)
+
+  test(
+    "LFGDetect PARTY_LEADER_CHANGED clears a bare listing when the leader carries a foreign or unknown realm",
+    function()
+      local cases = {
+        { label = "foreign realm", realm = "Ravencrest", localRealm = "Blackrock" },
+        { label = "local realm unknown", realm = "Ravencrest" },
+      }
+      for _, case in ipairs(cases) do
+        local globals, fire = BuildLFGDetectEnv({
+          IsInGroup = function()
+            return true
+          end,
+          globals = BuildLeaderGlobals("party2", "Sagehd", case.realm, "Sagehd", case.localRealm),
+        })
+        WithGlobals(globals, function()
+          local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+          fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+          fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+          fire("GROUP_ROSTER_UPDATE")
+          fire("PARTY_LEADER_CHANGED")
+          fire("GROUP_ROSTER_UPDATE")
+
+          Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), case.label .. ": handoff must drop activeInviteLeader")
+        end)
+      end
+    end
+  )
+
+  test("LFGDetect relisting on another dungeon drops the accepted listing identity", function()
+    local activeEntry = nil
+    local lfgList = BuildC_LFGList({
+      [778] = { activityID = 514, name = "+15 go", leaderName = "Sagehd" },
+    }, nil)
+    lfgList.GetActiveEntryInfo = function()
+      return activeEntry
+    end
+    local globals, fire = BuildLFGDetectEnv({
+      IsInGroup = function()
+        return true
+      end,
+      globals = { C_LFGList = lfgList },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+      fire("GROUP_ROSTER_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetActiveInviteTitleLevel(), 15, "setup: the accept captures the title level")
+
+      activeEntry = { activityID = 514, name = "+15 go", leaderName = "Sagehd" }
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetActiveInviteTitleLevel(), 15, "the same dungeon keeps the listing identity")
+
+      activeEntry = { activityID = 504, name = "+15 go", leaderName = "Sagehd" }
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 250, "the relisted dungeon must become the target")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteTitleLevel(), "the old title level must not move to the new dungeon")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteGroupName(), "the old group name must not stay")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), "the old accepted leader must not stay")
+      Assert.Nil(addon.LFGDetect.GetAcceptedInviteSearchResultID(), "the accepted listing is gone")
+    end)
+  end)
+
+  test("LFGDetect finds the own listing again after the run cleared the identity", function()
+    local activeEntry = { activityID = 514, name = "Own group", leaderName = "Me" }
+    local globals, fire = BuildLFGDetectEnv({
+      IsInGroup = function()
+        return true
+      end,
+      globals = { C_LFGList = BuildC_LFGList({}, activeEntry) },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "setup: the own listing sets the target")
+
+      fire("CHALLENGE_MODE_RESET")
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "setup: the run end clears the target")
+
+      fire("GROUP_ROSTER_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "the still active listing must be detected again")
+    end)
+  end)
+
+  test("LFGDetect does not take the single pending invite for a group led by someone else", function()
+    local globals, fire = BuildLFGDetectEnv({
+      IsInGroup = function()
+        return true
+      end,
+      globals = BuildLeaderGlobals("party1", "Friend", "Realm", "Listing-Owner", "Realm"),
+    })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+      fire("GROUP_ROSTER_UPDATE")
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "a friend's group must not become the listing's target")
+      Assert.Nil(addon.LFGDetect.GetAcceptedInviteSearchResultID(), "no accept may be assumed")
+
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "the explicit accept must still resolve the invite")
+    end)
+  end)
+
+  test("LFGDetect recovers the single pending invite for a group led by its listing leader", function()
+    local globals, fire = BuildLFGDetectEnv({
+      IsInGroup = function()
+        return true
+      end,
+      globals = BuildLeaderGlobals("party1", "Listing", "Owner", "Listing-Owner", "Realm"),
+    })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+      fire("GROUP_ROSTER_UPDATE")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "the race recovery must keep working")
+      Assert.Equal(addon.LFGDetect.GetAcceptedInviteSearchResultID(), 778, "the recovered accept must be kept")
+    end)
+  end)
+
+  test("LFGDetect clears the target on leaving when inviteaccepted followed the roster recovery", function()
+    local inGroup = true
+    local globals, fire = BuildLFGDetectEnv({
+      IsInGroup = function()
+        return inGroup
+      end,
+      globals = BuildLeaderGlobals("party1", "Listing", "Owner", "Listing-Owner", "Realm"),
+    })
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "invited")
+      fire("GROUP_ROSTER_UPDATE")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 778, "inviteaccepted")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "setup: the target stays after the late status event")
+
+      inGroup = false
+      fire("GROUP_ROSTER_UPDATE")
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "leaving the group must clear the target")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteTitleLevelText(), "leaving the group must clear the listing title")
+    end)
   end)
 
   -- Regression for the initial-convert race: WoW fires PARTY_LEADER_CHANGED
@@ -2305,7 +2464,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
           GetActivityInfoTable = function(activityID)
             activityCalls = activityCalls + 1
             if activityID == 9001 then
-              return { mapID = 2773, isMythicPlusActivity = true }
+              return { mapID = 9773, isMythicPlusActivity = true }
             end
             return nil
           end,
@@ -2314,6 +2473,9 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
     })
     WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      addon.SeasonData.GetMapIDByInstanceID = function(instanceID)
+        return instanceID == 9773 and 2773 or nil
+      end
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 50, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 50, "inviteaccepted")
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 2773, "first lookup must populate cache and resolve")

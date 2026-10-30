@@ -85,6 +85,10 @@ local function BuildDeps(opts)
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or emptyfn,
     sendIsiLiveHello = opts.sendIsiLiveHello or emptyfn,
     sendRefreshRequest = opts.sendRefreshRequest or emptyfn,
+    getServerTime = opts.getServerTime or function()
+      local getServerTime = rawget(_G, "GetServerTime")
+      return type(getServerTime) == "function" and tonumber(getServerTime()) or nil
+    end,
     getReloadRosterMirror = opts.getReloadRosterMirror or function()
       return nil
     end,
@@ -124,23 +128,53 @@ local function MemberKey(name, realm)
   return (name or "Unknown") .. "-" .. (realm or "")
 end
 
+-- UNKNOWNOBJECT is the client's localized placeholder for a name it has not
+-- received yet: "Unknown" in English, "Unbekannt" in German.
 local function IsConcreteMemberName(name)
-  return type(name) == "string" and name ~= "" and name ~= "Unknown"
+  return type(name) == "string" and name ~= "" and name ~= "Unknown" and name ~= rawget(_G, "UNKNOWNOBJECT")
 end
 
-local function ReadCurrentGroupMembers(deps)
+-- A masked UnitFullName leaves the unit layer with the local realm as fallback.
+-- During a key a member who keeps slot and name keeps the verified realm, so
+-- that read cannot turn the row into a ghost and a stranger.
+local function ReadPartyMemberIdentity(deps, unit, roster)
+  local name, realm, realmMasked = deps.getUnitNameAndRealm(unit)
+  if not IsConcreteMemberName(name) then
+    return nil, nil
+  end
+  local known = type(roster) == "table" and roster[unit] or nil
+  if
+    type(known) == "table"
+    and not known.isGhost
+    and known.name == name
+    and type(known.realm) == "string"
+    and known.realm ~= ""
+    and deps.getActiveChallengeMapID()
+  then
+    realm = known.realm
+  elseif realmMasked then
+    -- The realm is the local one only by guess, which would make a cross-realm
+    -- member someone else.
+    return nil, nil
+  end
+  return name, realm
+end
+
+-- Second return true: the group exists, but a name cannot be read right now.
+-- That says nothing about the group, unlike no group or a raid-sized one.
+local function ReadCurrentGroupMembers(deps, roster)
   if deps.isInGroup() ~= true then
-    return nil
+    return nil, false
   end
   local members = deps.getNumGroupMembers()
   if type(members) ~= "number" or members <= 0 or members > 5 then
-    return nil
+    return nil, false
   end
 
   local current = {}
   local playerName, playerRealm = deps.getUnitNameAndRealm("player")
   if not IsConcreteMemberName(playerName) then
-    return nil
+    return nil, true
   end
   current[#current + 1] = {
     unit = "player",
@@ -151,9 +185,9 @@ local function ReadCurrentGroupMembers(deps)
 
   for i = 1, members - 1 do
     local unit = "party" .. i
-    local name, realm = deps.getUnitNameAndRealm(unit)
-    if not IsConcreteMemberName(name) then
-      return nil
+    local name, realm = ReadPartyMemberIdentity(deps, unit, roster)
+    if not name then
+      return nil, true
     end
     current[#current + 1] = {
       unit = unit,
@@ -163,7 +197,7 @@ local function ReadCurrentGroupMembers(deps)
     }
   end
 
-  return current
+  return current, false
 end
 
 local function BuildGroupSignatureFromMembers(members)
@@ -211,8 +245,6 @@ local MIRROR_ENTRY_FIELDS = {
   "syncDps",
   "syncLocMapID",
   "syncLocInstanceID",
-  "syncTargetMapID",
-  "syncTargetLevel",
 }
 
 local function CloneRosterEntryForMirror(info)
@@ -266,8 +298,25 @@ local function CloneReloadRosterTargetSnapshot(source)
   return snapshot
 end
 
+-- A reload restores a mirror within moments. An older one stems from a session
+-- that ended in this group, which may have dissolved since.
+local RELOAD_MIRROR_MAX_AGE_SECONDS = 3600
+
+local function IsReloadMirrorRecent(deps, mirror)
+  local savedAt = tonumber(mirror.savedAt)
+  local now = tonumber(deps.getServerTime())
+  if not savedAt or not now then
+    return false
+  end
+  local age = now - savedAt
+  return age >= 0 and age <= RELOAD_MIRROR_MAX_AGE_SECONDS
+end
+
 local function SaveReloadRosterMirror(deps, roster)
-  local members = ReadCurrentGroupMembers(deps)
+  local members, unreadable = ReadCurrentGroupMembers(deps, roster)
+  if unreadable then
+    return false
+  end
   local signature = BuildGroupSignatureFromMembers(members)
   if not signature then
     deps.clearReloadRosterMirror()
@@ -290,6 +339,7 @@ local function SaveReloadRosterMirror(deps, roster)
   end
 
   local snapshot = {
+    savedAt = deps.getServerTime(),
     signature = signature,
     members = byKey,
   }
@@ -308,8 +358,15 @@ local function TryRestoreReloadRosterMirror(deps)
     deps.clearReloadRosterMirror()
     return false
   end
+  if not IsReloadMirrorRecent(deps, mirror) then
+    deps.clearReloadRosterMirror()
+    return false
+  end
 
-  local members = ReadCurrentGroupMembers(deps)
+  local members, unreadable = ReadCurrentGroupMembers(deps)
+  if unreadable then
+    return false
+  end
   local signature = BuildGroupSignatureFromMembers(members)
   if not signature or signature ~= mirror.signature then
     deps.clearReloadRosterMirror()
@@ -553,6 +610,7 @@ end
 local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   -- 1. Identify current group members to protect them from ghosting
   local currentMemberKeys = {}
+  local partyIdentities = {}
   local unreadablePartySlots = {}
   local fullGroupJoinSoundPlayed = false
   local name, realm = deps.getUnitNameAndRealm("player")
@@ -563,9 +621,10 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   local members = deps.getNumGroupMembers()
   for i = 1, members - 1 do
     local unit = "party" .. i
-    local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
+    local memberName, memberRealm = ReadPartyMemberIdentity(deps, unit, roster)
     if memberName then
       currentMemberKeys[MemberKey(memberName, memberRealm)] = true
+      partyIdentities[unit] = { name = memberName, realm = memberRealm }
     else
       -- A transient UnitExists race should not turn a still-occupied slot into a ghost.
       unreadablePartySlots[unit] = true
@@ -621,8 +680,9 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
 
   for i = 1, members - 1 do
     local unit = "party" .. i
-    local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
-    if memberName then
+    local identity = partyIdentities[unit]
+    if identity then
+      local memberName, memberRealm = identity.name, identity.realm
       local _, memberClass = deps.getUnitClass(unit)
       local memberLanguage = deps.getUnitServerLanguage(unit, memberRealm)
 
@@ -642,8 +702,6 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
       local syncDps = existing and existing.syncDps
       local syncLocMapID = existing and existing.syncLocMapID
       local syncLocInstanceID = existing and existing.syncLocInstanceID
-      local syncTargetMapID = existing and existing.syncTargetMapID
-      local syncTargetLevel = existing and existing.syncTargetLevel
 
       roster[unit] = {
         name = memberName,
@@ -661,8 +719,6 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
         syncDps = syncDps,
         syncLocMapID = syncLocMapID,
         syncLocInstanceID = syncLocInstanceID,
-        syncTargetMapID = syncTargetMapID,
-        syncTargetLevel = syncTargetLevel,
         isGhost = false,
         _refreshQueued = refreshQueued,
         _localSpecFresh = localSpecFresh,
@@ -706,6 +762,78 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   PruneGhosts(roster)
 end
 
+-- Refreshes the fields a roster event can change without a member change.
+-- False when the rows do not match the group, which then needs the full rebuild.
+local function RefreshUnchangedActiveRows(deps, roster, members)
+  if type(members) ~= "table" then
+    return false
+  end
+  local partyRows = 0
+  for unit, info in pairs(roster) do
+    if string.find(unit, "^party") and not info.isGhost then
+      partyRows = partyRows + 1
+    end
+  end
+  if partyRows ~= #members - 1 then
+    return false
+  end
+  for _, member in ipairs(members) do
+    local info = roster[member.unit]
+    if type(info) ~= "table" or info.isGhost or MemberKey(info.name, info.realm) ~= member.key then
+      return false
+    end
+  end
+
+  local changed = false
+  for _, member in ipairs(members) do
+    if member.unit ~= "player" then
+      local info = roster[member.unit]
+      local previousRole, previousLeader = info.role, info.isLeader
+      info.role = deps.getUnitRole(member.unit)
+      info.isLeader = deps.unitIsGroupLeader(member.unit) == true
+      -- Inspect re-applies the inspected spec role over the assigned one.
+      deps.enqueueInspect(member.unit)
+      changed = changed or info.role ~= previousRole or info.isLeader ~= previousLeader
+    end
+  end
+  if changed then
+    SaveReloadRosterMirror(deps, roster)
+  end
+  return true
+end
+
+-- Refreshes party membership during a key while preserving each member's
+-- verified data. After a reload, the mirror comes first when its group
+-- signature matches.
+local function HandleActiveKeyRosterUpdate(deps, joinedNow, wasRaidGroupBefore)
+  local roster = deps.getRoster()
+  if joinedNow and TryRestoreReloadRosterMirror(deps) then
+    roster = deps.getRoster()
+  end
+  if wasRaidGroupBefore then
+    deps.setWasRaidGroup(false)
+    deps.clearKnownUsers()
+    RestoreMainFrameAfterRaidIfNeeded(deps, "raid-return")
+  end
+  -- Entering the raid emptied the roster, the player's own row included, and
+  -- UpdatePartyMembersInRoster rebuilds only the other members.
+  local rebuildOwnRow = joinedNow or wasRaidGroupBefore
+  if rebuildOwnRow then
+    AddPlayerToRoster(deps, roster)
+  end
+  if rebuildOwnRow or not RefreshUnchangedActiveRows(deps, roster, (ReadCurrentGroupMembers(deps, roster))) then
+    UpdatePartyMembersInRoster(deps, roster, nil)
+    SaveReloadRosterMirror(deps, roster)
+  end
+  if wasRaidGroupBefore then
+    -- Every client dropped its known users on the raid return.
+    deps.sendIsiLiveHello(false, "group")
+    deps.sendOwnKeySnapshot(false, "group", true)
+  end
+  deps.updateUI()
+  deps.updateLeaderButtons()
+end
+
 local function HandleGroupRosterUpdate(deps)
   local wasInGroupBefore = deps.getWasInGroup() == true
   local inGroupNow = deps.isInGroup() == true
@@ -720,33 +848,11 @@ local function HandleGroupRosterUpdate(deps)
   deps.setWasInGroup(inGroupNow)
 
   if deps.getActiveChallengeMapID() and deps.isRaidGroup() ~= true then
-    -- Refresh party membership while preserving the verified data of each member.
-    -- After a reload, first restore the mirror when its group signature matches.
-    if joinedNow then
-      local roster = deps.getRoster()
-      if TryRestoreReloadRosterMirror(deps) then
-        roster = deps.getRoster()
-      end
-      AddPlayerToRoster(deps, roster)
-      UpdatePartyMembersInRoster(deps, roster, nil)
-      SaveReloadRosterMirror(deps, roster)
+    if not inGroupNow then
+      HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
+      return
     end
-    if wasRaidGroupBefore then
-      deps.setWasRaidGroup(false)
-      deps.clearKnownUsers()
-      RestoreMainFrameAfterRaidIfNeeded(deps, "raid-return")
-    end
-    if not joinedNow then
-      local roster = deps.getRoster()
-      if not inGroupNow then
-        HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
-        return
-      end
-      UpdatePartyMembersInRoster(deps, roster, nil)
-      SaveReloadRosterMirror(deps, roster)
-    end
-    deps.updateUI()
-    deps.updateLeaderButtons()
+    HandleActiveKeyRosterUpdate(deps, joinedNow, wasRaidGroupBefore)
     return
   end
 
@@ -816,14 +922,16 @@ local function HandleGroupRosterUpdate(deps)
   deps.resetInspectQueues()
 
   AddPlayerToRoster(deps, roster)
-  UpdatePartyMembersInRoster(deps, roster, joinedNow and not restoredFromReloadMirror and nil or deps)
+  UpdatePartyMembersInRoster(deps, roster, deps)
 
-  deps.sendOwnKeySnapshot(joinedNow and not restoredFromReloadMirror, "group")
+  -- The hello first: receivers answer an unknown sender with a fan-out, and any
+  -- earlier payload would already have made this client a known one.
+  deps.sendIsiLiveHello(joinedNow and not restoredFromReloadMirror, "group")
+  deps.sendOwnKeySnapshot(joinedNow and not restoredFromReloadMirror, "group", true)
   SaveReloadRosterMirror(deps, roster)
   deps.updateUI()
   deps.updateMPlusTeleportButton()
   deps.updateLeaderButtons()
-  deps.sendIsiLiveHello(joinedNow and not restoredFromReloadMirror, "group")
   if joinedNow then
     -- Delay to ensure IsInGroup() has settled before sending addon messages.
     -- Reload-mirror restores are not fresh joins, but still need one live

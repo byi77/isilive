@@ -368,6 +368,36 @@ return function(test, ctx)
       end)
     end)
 
+    test.it("Units GetUnitNameAndRealm flags the local realm of a failed read as a guess", function()
+      local fullNameFails = true
+      WithGlobals({
+        UnitExists = function()
+          return true
+        end,
+        UnitFullName = function()
+          if fullNameFails then
+            error("masked")
+          end
+          return "Member", nil
+        end,
+        UnitName = function()
+          return "Member"
+        end,
+        GetRealmName = function()
+          return "Local"
+        end,
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_units.lua" })
+        local _, realm, masked = addon.Units.GetUnitNameAndRealm("party1")
+        Assert.Equal(realm, "Local")
+        Assert.True(masked, "a failed read makes the local realm a guess")
+        fullNameFails = false
+        local _, readableRealm, readableMasked = addon.Units.GetUnitNameAndRealm("party1")
+        Assert.Equal(readableRealm, "Local")
+        Assert.False(readableMasked, "an empty realm from a readable call is the local realm")
+      end)
+    end)
+
     test.it("Units GetUnitNameAndRealm returns nil/nil for missing unit", function()
       WithGlobals({
         UnitExists = function()

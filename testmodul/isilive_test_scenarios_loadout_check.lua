@@ -897,6 +897,267 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(lootSet, FIRE_MAGE, "SetLootSpecialization receives the clicked spec")
     end)
   end)
+
+  test("LoadoutCheck shows the card in the same instance once a missing spec resolves", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      world.specID = nil
+      LoadoutCheck.SetDependencies(world.deps)
+
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+      Assert.Equal(#world.shows, 0, "without a spec no model exists, so no card")
+      Assert.False(controller.IsActive(), "an unresolved evaluation must not count as an open card")
+
+      world.specID = FROST_MAGE
+      LoadoutCheck.HandleEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.Equal(#world.shows, 1, "the spec event must show the card in the same instance")
+      Assert.True(controller.IsActive(), "the recovered card must be active")
+
+      world.FlushTimers()
+      Assert.Equal(#world.shows, 1, "the outstanding retry must not show the card a second time")
+    end)
+  end)
+
+  test("LoadoutCheck retries a missing spec a bounded number of times without any event", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      world.specID = nil
+      LoadoutCheck.SetDependencies(world.deps)
+
+      Enter(LoadoutCheck, world)
+      local rounds = 0
+      while #world.pending > 0 do
+        rounds = rounds + 1
+        Assert.True(rounds <= 3, "retries must stay bounded")
+        world.FlushTimers()
+      end
+      Assert.Equal(rounds, 3, "a spec that never resolves gets exactly three timer retries")
+
+      local recovering = BuildWorld()
+      recovering.specID = nil
+      LoadoutCheck.SetDependencies(recovering.deps)
+      Enter(LoadoutCheck, recovering)
+      recovering.specID = FROST_MAGE
+      recovering.FlushTimers()
+      Assert.Equal(#recovering.shows, 1, "a spec resolving before the retry must show the card without an event")
+      Assert.Equal(#recovering.pending, 0, "a resolved evaluation must stop retrying")
+    end)
+  end)
+
+  test("LoadoutCheck keeps a closed card closed until the next instance entry", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+      controller.Dismiss()
+      LoadoutCheck.HandleEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.False(controller.Evaluate(), "the same instance must not evaluate again after closing")
+      Assert.Equal(#world.shows, 1, "a closed card must not reopen on a spec event")
+
+      local dungeon = world.dungeon
+      world.dungeon = nil
+      Enter(LoadoutCheck, world)
+      world.dungeon = dungeon
+      Enter(LoadoutCheck, world)
+      Assert.Equal(#world.shows, 2, "leaving and entering again must show the card")
+    end)
+  end)
+
+  test("LoadoutCheck stops retrying a missing spec after leaving the dungeon", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      world.specID = nil
+      LoadoutCheck.SetDependencies(world.deps)
+
+      Enter(LoadoutCheck, world)
+      world.dungeon = nil
+      world.specID = FROST_MAGE
+      world.FlushTimers()
+      LoadoutCheck.HandleEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.Equal(#world.shows, 0, "outside the dungeon the recovery must not show a card")
+      Assert.Equal(#world.pending, 0, "outside the dungeon no retry may stay scheduled")
+    end)
+  end)
+
+  test("LoadoutCheck brings an open card back after the spec was unreadable for one refresh", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+      Assert.True(world.cardShown, "setup: the card must be open")
+
+      world.specID = nil
+      LoadoutCheck.HandleEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.False(world.cardShown, "without a model the card cannot stay up")
+
+      world.specID = FROST_MAGE
+      LoadoutCheck.HandleEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+      Assert.True(world.cardShown, "the player never closed the card, so it must come back")
+      Assert.True(controller.IsActive(), "the recovered card must be active")
+    end)
+  end)
+
+  test("LoadoutCheck spends its retries on timers and not on event bursts", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      world.specID = nil
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_LIST_UPDATED")
+      LoadoutCheck.HandleEvent("PLAYER_LOOT_SPEC_UPDATED")
+      LoadoutCheck.HandleEvent("ACTIVE_COMBAT_CONFIG_CHANGED")
+      Assert.Equal(#world.pending, 1, "a burst must not stack retry timers")
+
+      world.FlushTimers()
+      world.FlushTimers()
+      world.specID = FROST_MAGE
+      world.FlushTimers()
+      Assert.Equal(#world.shows, 1, "the third timer retry must still run after the burst")
+    end)
+  end)
+
+  test("LoadoutCheck ignores a config update of another config while a talent switch runs", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      local marked = {}
+      world.deps.loadLoadout = function()
+        return "pending"
+      end
+      world.deps.markLoadoutSelected = function(_, configID)
+        marked[#marked + 1] = configID
+      end
+      world.deps.getActiveConfigID = function()
+        return 900
+      end
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+
+      Assert.True(controller.SelectLoadout(102), "setup: the switch must start")
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED", 555)
+      Assert.Equal(#marked, 0, "an update of another config proves nothing about this commit")
+
+      LoadoutCheck.HandleEvent("CONFIG_COMMIT_FAILED")
+      Assert.Equal(#marked, 0, "the failed commit must not count as selected")
+
+      Assert.True(controller.SelectLoadout(102), "setup: the second switch must start")
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED", 900)
+      Assert.Equal(marked[1], 102, "the update of the active config finishes the switch")
+    end)
+  end)
+
+  test("LoadoutCheck hides an open card and blocks its actions once switched off", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+      Assert.True(world.cardShown, "the card must be open before switching off")
+
+      world.db.loadoutCheckEnabled = false
+      Assert.False(controller.SelectLoadout(102), "a stale loadout click must do nothing")
+      Assert.Equal(#world.loads, 0, "a stale loadout click must not reach LoadConfig")
+      Assert.False(world.cardShown, "a stale click must close the card")
+
+      Assert.False(controller.SelectLootSpec(FIRE_MAGE), "a stale loot click must do nothing")
+      Assert.Equal(#world.lootSets, 0, "a stale loot click must not change the loot spec")
+
+      Assert.False(controller.Confirm(), "a stale confirm must do nothing")
+      Assert.Nil(world.db.loadoutCheck, "a stale confirm must not store a target")
+    end)
+  end)
+
+  test("LoadoutCheck hides the card on the next refresh when the setting is off", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+
+      world.db.loadoutCheckEnabled = false
+      LoadoutCheck.HandleEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.False(world.cardShown, "a refresh must hide the card of a disabled check")
+      Assert.False(LoadoutCheck.GetController().IsActive(), "a disabled check must not stay active")
+      Assert.False(LoadoutCheck.GetController().SelectLoadout(102), "no loadout switch after switching off")
+      Assert.Equal(#world.loads, 0, "LoadConfig must stay untouched")
+    end)
+  end)
+
+  test("LoadoutCheck switch-off cancels a scheduled evaluation and re-enabling waits for the next one", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      LoadoutCheck.SetDependencies(world.deps)
+
+      LoadoutCheck.HandleEvent("PLAYER_ENTERING_WORLD")
+      world.db.loadoutCheckEnabled = false
+      LoadoutCheck.ApplyEnabledSetting()
+      world.db.loadoutCheckEnabled = true
+      LoadoutCheck.ApplyEnabledSetting()
+      world.FlushTimers()
+      Assert.Equal(#world.shows, 0, "the evaluation scheduled before switching off must stay dead")
+
+      Enter(LoadoutCheck, world)
+      Assert.Equal(#world.shows, 1, "the next valid evaluation must show the card again")
+
+      world.db.loadoutCheckEnabled = false
+      LoadoutCheck.ApplyEnabledSetting()
+      Assert.False(world.cardShown, "switching off must hide an open card at once")
+      world.db.loadoutCheckEnabled = true
+      LoadoutCheck.ApplyEnabledSetting()
+      Assert.False(world.cardShown, "switching on must not reopen the card by itself")
+      Enter(LoadoutCheck, world)
+      Assert.Equal(#world.shows, 2, "after switching on the same instance is evaluated again")
+    end)
+  end)
+
+  test("LoadoutCheck finishes a running talent switch after being switched off", function()
+    WithGlobals({}, function()
+      local LoadoutCheck = LoadModule()
+      local world = BuildWorld()
+      local marked = {}
+      world.deps.loadLoadout = function()
+        return "pending"
+      end
+      world.deps.markLoadoutSelected = function(_, configID)
+        marked[#marked + 1] = configID
+      end
+      LoadoutCheck.SetDependencies(world.deps)
+      Enter(LoadoutCheck, world)
+      local controller = LoadoutCheck.GetController()
+
+      Assert.True(controller.SelectLoadout(102), "the switch must start while enabled")
+      world.db.loadoutCheckEnabled = false
+      LoadoutCheck.ApplyEnabledSetting()
+      LoadoutCheck.HandleEvent("TRAIT_CONFIG_UPDATED")
+      Assert.Equal(marked[1], 102, "the real commit must still mark the loadout selected")
+      Assert.False(world.cardShown, "the finished switch must not bring the card back")
+
+      world.db.loadoutCheckEnabled = true
+      Enter(LoadoutCheck, world)
+      Assert.True(controller.SelectLoadout(101), "the second switch must start")
+      world.db.loadoutCheckEnabled = false
+      LoadoutCheck.ApplyEnabledSetting()
+      local printedBefore = #world.printed
+      LoadoutCheck.HandleEvent("CONFIG_COMMIT_FAILED")
+      Assert.Equal(#world.printed, printedBefore + 1, "a failed commit must still be reported")
+      Assert.Equal(#marked, 1, "a failed commit must not count as selected")
+    end)
+  end)
 end
 
 return function(test, ctx)

@@ -54,7 +54,6 @@ local function CreateKeySyncController(ctx)
     sendRefreshResponse = controller.SendRefreshResponse,
     applyKnownKeyToRosterEntry = controller.ApplyKnownKeyToRosterEntry,
     applyKnownKickToRosterEntry = controller.ApplyKnownKickToRosterEntry,
-    registerVerifiedSyncAliasForRoster = controller.RegisterVerifiedSyncAliasForRoster,
   }
 end
 

@@ -55,8 +55,9 @@ return function(test, ctx)
       sendIsiLiveHello = function(_force, _source)
         state.hellos = state.hellos + 1
       end,
-      sendOwnKeySnapshot = function(_force, _source)
+      sendOwnKeySnapshot = function(_force, _source, allowHidden)
         state.keySnapshots = state.keySnapshots + 1
+        state.lastKeySnapshotAllowHidden = allowHidden
       end,
       sendOwnBackgroundSnapshot = function(_source)
         state.backgroundSnapshots = (state.backgroundSnapshots or 0) + 1
@@ -220,6 +221,17 @@ return function(test, ctx)
     Assert.False(changed, "key did not change")
     Assert.Equal(state.keySnapshots, 1, "must send forced snapshot when post-challenge flag is set")
     Assert.Equal(state.backgroundSnapshots, 0, "must not send background snapshot when post-challenge flag is set")
+  end)
+
+  test("Refresh publishes the changed own key while the window is hidden", function()
+    local controller, state = BuildRefreshController({
+      keyChanged = true,
+    })
+
+    controller.HandleOwnedKeyRefresh()
+
+    Assert.Equal(state.keySnapshots, 1, "a changed key must be published")
+    Assert.True(state.lastKeySnapshotAllowHidden, "the snapshot must pass the hidden gate of rule 52")
   end)
 
   test("Refresh RunFullRefresh skips when paused", function()

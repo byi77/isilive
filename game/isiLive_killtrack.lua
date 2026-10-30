@@ -418,21 +418,43 @@ local function ApplyEnemyForces(cInfo, mapID)
   return true
 end
 
-local function ReadLiveData()
-  local mapID = nil
+local function ClearForcesState()
+  state.active = false
+  state.percent = 0
+  state.rawCount = 0
+  state.total = 0
+  state.mapID = nil
+end
+
+-- Returns the active map ID and whether the read was conclusive. Only a clean
+-- nil or non-positive answer confirms that no key is running; a missing API,
+-- an exception, a secret or an unexpected type says nothing about the run.
+local function ReadActiveChallengeMapID()
   local challengeMode = rawget(_G, "C_ChallengeMode")
-  if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
-    local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and not IsSecretValue(id) and type(id) == "number" and id > 0 then
-      mapID = id
-    end
+  if type(challengeMode) ~= "table" or type(challengeMode.GetActiveChallengeMapID) ~= "function" then
+    return nil, false
+  end
+  local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
+  if not ok or IsSecretValue(id) then
+    return nil, false
+  end
+  if id == nil then
+    return nil, true
+  end
+  if type(id) ~= "number" then
+    return nil, false
+  end
+  return id > 0 and id or nil, true
+end
+
+local function ReadLiveData()
+  local mapID, mapResolved = ReadActiveChallengeMapID()
+  if not mapResolved then
+    -- The verified snapshot stays; the ticker and the next event retry the read.
+    return
   end
   if not mapID then
-    state.active = false
-    state.percent = 0
-    state.rawCount = 0
-    state.total = 0
-    state.mapID = nil
+    ClearForcesState()
     return
   end
 
@@ -509,8 +531,8 @@ local function StartRefreshTicker()
     return
   end
   refreshTicker = timer.NewTicker(0.5, function()
-    -- ReadLiveData() below can clear state.active itself (map ID gone). Cancel
-    -- from inside instead of only early-returning, otherwise the ticker keeps
+    -- ReadLiveData() below can clear state.active itself (no key confirmed).
+    -- Cancel from inside instead of only early-returning, otherwise the ticker keeps
     -- firing as a no-op until the next HandleEvent -- or forever, if none
     -- arrives.
     if not state.active then
@@ -627,11 +649,7 @@ function KillTrack._DispatchEvent(event)
     end
     lockedForcesCriteriaID = nil
     ClearForcesDBCache()
-    state.active = false
-    state.percent = 0
-    state.rawCount = 0
-    state.total = 0
-    state.mapID = nil
+    ClearForcesState()
     pull.inCombat = false
     pull.pullPercent = 0
     pull.displayUntil = 0
@@ -640,6 +658,9 @@ function KillTrack._DispatchEvent(event)
   elseif event == "CHALLENGE_MODE_START" then
     lockedForcesCriteriaID = nil
     ClearForcesDBCache()
+    -- A snapshot from before this start cannot belong to the new run; an
+    -- unreadable map must not keep it alive.
+    ClearForcesState()
     CallPace("BeginRun")
     ReadLiveData()
     if state.active then

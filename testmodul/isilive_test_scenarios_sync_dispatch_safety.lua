@@ -132,4 +132,71 @@ return function(test, ctx)
       Assert.True(addon.Sync.IsUserKnown("Valid", "Realm"), "valid recognized payload must establish peer trust")
     end)
   end)
+
+  local function WithCtlMock(sendFn, fn)
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function()
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function() end,
+      },
+      ChatThrottleLib = {
+        SendAddonMessage = sendFn,
+      },
+    }, function()
+      fn(LoadAddonModules({ "isiLive_sync.lua" }))
+    end)
+  end
+
+  test("Sync treats an unavailable ChatThrottleLib channel as not sent", function()
+    local available = false
+    local sentMessages = {}
+    WithCtlMock(function(_, _, _, message, _, _, _, callbackFn, callbackArg)
+      if available then
+        table.insert(sentMessages, message)
+      end
+      if callbackFn then
+        callbackFn(callbackArg, available)
+      end
+    end, function(addon)
+      local payload = { isVisible = true, mapID = 2649, level = 12, onlyIfChanged = true }
+      addon.Sync.SendKey(payload)
+      available = true
+      addon.Sync.SendKey(payload)
+      Assert.Equal(#sentMessages, 1, "the dropped payload must not count as already sent")
+    end)
+  end)
+
+  test("Sync re-arms the payload when ChatThrottleLib drops it from the queue", function()
+    local queued = {}
+    local sentMessages = {}
+    WithCtlMock(function(_, _, _, message, _, _, _, callbackFn, callbackArg)
+      table.insert(sentMessages, message)
+      table.insert(queued, function(didSend)
+        if callbackFn then
+          callbackFn(callbackArg, didSend)
+        end
+      end)
+    end, function(addon)
+      local key = { isVisible = true, mapID = 2649, level = 12, onlyIfChanged = true }
+      local stats = { isVisible = true, specID = 72, ilvl = 615, rio = 3210, onlyIfChanged = true }
+      addon.Sync.SendKey(key)
+      addon.Sync.SendKey(key)
+      Assert.Equal(#sentMessages, 1, "a queued payload stays deduplicated")
+      addon.Sync.SendStats(stats)
+      queued[1](false)
+      queued[2](true)
+      addon.Sync.SendKey(key)
+      Assert.Equal(#sentMessages, 3, "a dropped queued key must be sent again")
+      addon.Sync.SendStats(stats)
+      Assert.Equal(#sentMessages, 3, "a delivered payload stays deduplicated")
+    end)
+  end)
 end

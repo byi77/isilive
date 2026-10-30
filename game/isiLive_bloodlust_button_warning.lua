@@ -61,24 +61,63 @@ local function DefaultCreateOverlay(button)
   return nil
 end
 
-local function DefaultHasBloodlustExhaustionDebuff()
-  local C_UnitAuras_ref = rawget(_G, "C_UnitAuras")
-  local getAuraDataByIndex = type(C_UnitAuras_ref) == "table" and rawget(C_UnitAuras_ref, "GetAuraDataByIndex") or nil
-  if type(getAuraDataByIndex) ~= "function" then
+-- Same read order as the CD tracker: the spell ID lookup still answers while the
+-- aura list is blocked during a key. Returns true or false when the debuff state
+-- is known, nil when it cannot be read.
+local function ReadExhaustionBySpellID(getPlayerAura)
+  local complete = true
+  for _, record in ipairs(SpellManifest.lustSated) do
+    local ok, aura = pcall(getPlayerAura, record.id)
+    if not ok or IsSecretValue(aura) then
+      complete = false
+    elseif aura ~= nil then
+      return true
+    end
+  end
+  if complete then
     return false
   end
+  return nil
+end
+
+local function DefaultHasBloodlustExhaustionDebuff()
+  local C_UnitAuras_ref = rawget(_G, "C_UnitAuras")
+  if type(C_UnitAuras_ref) ~= "table" then
+    return false
+  end
+  local getPlayerAura = rawget(C_UnitAuras_ref, "GetPlayerAuraBySpellID")
+  if type(getPlayerAura) == "function" then
+    local known = ReadExhaustionBySpellID(getPlayerAura)
+    if known ~= nil then
+      return known
+    end
+  end
+  local getAuraDataByIndex = rawget(C_UnitAuras_ref, "GetAuraDataByIndex")
+  if type(getAuraDataByIndex) ~= "function" then
+    if type(getPlayerAura) == "function" then
+      return nil
+    end
+    return false
+  end
+  local complete = true
   for index = 1, 40 do
     local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
-    if ok and type(aura) == "table" then
+    if not ok or IsSecretValue(aura) then
+      complete = false
+    elseif type(aura) == "table" then
       -- ReadPlainNumber rejects a masked spellId before it reaches the lookup;
       -- a Secret Value used as a table key raises "table index is secret".
       local spellID = ReadPlainNumber(aura, "spellId")
       if spellID and LUST_SATED_IDS[spellID] == true then
         return true
       end
+      complete = complete and spellID ~= nil
     end
   end
-  return false
+  if complete then
+    return false
+  end
+  return nil
 end
 
 function BloodlustButtonWarning.CreateController(opts)
@@ -113,12 +152,18 @@ function BloodlustButtonWarning.CreateController(opts)
     return db.vipBloodlustDebuffButtonWarningEnabled == true and isLocalBloodlustClass() == true
   end
 
-  local function ShouldShow()
-    return IsEnabled() and hasBloodlustExhaustionDebuff() == true
-  end
-
   function controller.Refresh()
-    if not ShouldShow() then
+    if not IsEnabled() then
+      HideAll()
+      return
+    end
+    -- nil means unreadable, which says nothing about the debuff: the current
+    -- crosses stay until a readable answer arrives.
+    local debuffed = hasBloodlustExhaustionDebuff()
+    if debuffed == nil then
+      return
+    end
+    if debuffed ~= true then
       HideAll()
       return
     end
