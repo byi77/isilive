@@ -4,7 +4,7 @@
 
 - Forces pace (rule 145): the start values are now medians of timed +12 to +18 keys from public Warcraft Logs reports and cover all eight Midnight S2 dungeons. Learned routes keep their priority.
 - Time pace (rule 191): without an own reference the delta comes from the dungeon's time curve (`data/isiLive_time_seed.lua`), built from barely timed keys and scaled to the key's time limit. The plain projection remains the fallback.
-- `tools/sync_wcl_forces.py` and the weekly workflow `sync-wcl-seeds.yml` regenerate both files and push to main after the tests. The script refuses to publish a missing dungeon, implausible values or a target that moved more than 10 points.
+- Both files are generated data and refresh about once a week.
 - Release: `release.yml` stops while pull requests are open.
 - Not confirmed in game.
 

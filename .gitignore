@@ -68,6 +68,3 @@ CLAUDE.md
 
 # wowsim output (tools/wowsim/wowsim.lua)
 tools/wowsim/out/
-
-# Warcraft Logs run cache (tools/sync_wcl_forces.py)
-.wcl-cache/
