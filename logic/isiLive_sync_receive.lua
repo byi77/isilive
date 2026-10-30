@@ -2,6 +2,27 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Player names inside BRLUST / PI payloads are written by the sender, whose
+-- GetUnitName(unit, true) omits the realm for players on the sender's own
+-- realm (always for the sender itself). A bare name therefore belongs to the
+-- sender's realm; normalizing it with the receiver's realm dropped every
+-- announce from a cross-realm peer.
+local function NormalizePayloadNameKey(Sync, name, sender)
+  if string.find(name, "-", 1, true) then
+    return Sync.NormalizePlayerKey(name)
+  end
+  local dash = string.find(sender, "-", 1, true)
+  local senderRealm = dash and string.sub(sender, dash + 1) or nil
+  return Sync.NormalizePlayerKey(name, senderRealm)
+end
+
+local function IsIsiLiveReceiveChannelAllowed(message, channel)
+  if channel == nil or channel == "PARTY" or channel == "INSTANCE_CHAT" then
+    return true
+  end
+  return channel == "WHISPER" and type(message) == "string" and message:find("^ACK:") ~= nil
+end
+
 addonTable.SyncReceiveFactory = function(deps)
   local Sync = deps.Sync
   local ISILIVE_SYNC_PREFIX = deps.ISILIVE_SYNC_PREFIX
@@ -26,27 +47,6 @@ addonTable.SyncReceiveFactory = function(deps)
   local ParseKickPayload = deps.ParseKickPayload
   local IsSyncEnabled = deps.IsSyncEnabled
   local MAX_ADDON_MESSAGE_LENGTH = 255
-
-  -- Player names inside BRLUST / PI payloads are written by the sender, whose
-  -- GetUnitName(unit, true) omits the realm for players on the sender's own
-  -- realm (always for the sender itself). A bare name therefore belongs to the
-  -- sender's realm; normalizing it with the receiver's realm dropped every
-  -- announce from a cross-realm peer.
-  local function NormalizePayloadNameKey(name, sender)
-    if string.find(name, "-", 1, true) then
-      return Sync.NormalizePlayerKey(name)
-    end
-    local dash = string.find(sender, "-", 1, true)
-    local senderRealm = dash and string.sub(sender, dash + 1) or nil
-    return Sync.NormalizePlayerKey(name, senderRealm)
-  end
-
-  local function IsIsiLiveReceiveChannelAllowed(message, channel)
-    if channel == nil or channel == "PARTY" or channel == "INSTANCE_CHAT" then
-      return true
-    end
-    return channel == "WHISPER" and type(message) == "string" and message:find("^ACK:") ~= nil
-  end
 
   local function ProcessLibKeystoneMessage(message, sender, localName, localRealm, channel)
     if type(sender) ~= "string" or sender == "" then
@@ -298,7 +298,7 @@ addonTable.SyncReceiveFactory = function(deps)
       -- locally before sending. CHAT_MSG_ADDON on PARTY/INSTANCE_CHAT echoes
       -- back to the sender, so without this guard the print + sound fire twice
       -- for the caster.
-      if senderKey ~= selfKey and NormalizePayloadNameKey(parts[3], sender) == senderKey then
+      if senderKey ~= selfKey and NormalizePayloadNameKey(Sync, parts[3], sender) == senderKey then
         local kind = parts[2]
         if kind == "BR" or kind == "LUST" then
           local spellID = ToFiniteNumber(parts[4])
@@ -318,7 +318,7 @@ addonTable.SyncReceiveFactory = function(deps)
     elseif bucket == "PI" and parts[2] and parts[3] then
       -- Skip self-echo: BroadcastPowerInfusionAnnounce already rendered the
       -- announce locally before sending.
-      if senderKey ~= selfKey and NormalizePayloadNameKey(parts[2], sender) == senderKey then
+      if senderKey ~= selfKey and NormalizePayloadNameKey(Sync, parts[2], sender) == senderKey then
         local caster = parts[2]
         local recipient = parts[3]
         local spellID = ToFiniteNumber(parts[4]) or 0
@@ -328,7 +328,7 @@ addonTable.SyncReceiveFactory = function(deps)
             caster = caster,
             recipient = recipient,
             spellID = spellID,
-            isLocalRecipient = NormalizePayloadNameKey(recipient, sender) == selfKey,
+            isLocalRecipient = NormalizePayloadNameKey(Sync, recipient, sender) == selfKey,
           }
         end
       end

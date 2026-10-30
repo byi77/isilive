@@ -616,6 +616,9 @@ Settings-Abschnittsmodul fuehrt es seine kleinen Beschreibungs-Helfer lokal.
 (Regel 185) und dem Event-Takt (Regel 186) ueber der Warnschwelle auf der
 Watchlist; ein Split trennt spaeter die Live-API-Leser (Primaerstat,
 Ratings, Prozentformeln) von Frame, Layout und Event-Lifecycle.
+`game/isiLive_loadout_check.lua` steht seit dem Audit 2026-10-30 ueber der
+Warnschwelle auf der Watchlist; ein Split trennt spaeter die Live-API-Leser und
+das reine Modell vom Controller-Lebenszyklus.
 Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits

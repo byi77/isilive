@@ -670,6 +670,102 @@ local function FindLatestTarget(bySpec, excludeMapID, readTarget)
   return bestTarget, bestMapID
 end
 
+local function BuildTextHelpers(getL)
+  local function Text(key, fallback)
+    local L = getL() or {}
+    local value = L[key]
+    if type(value) == "string" and value ~= "" then
+      return value
+    end
+    return fallback
+  end
+
+  local function LootName(isSpecDefault, name)
+    if isSpecDefault then
+      return string.format(Text("LOADOUT_CHECK_LOOT_CURRENT_SPEC", "Current spec (%s)"), name or "?")
+    end
+    return name or "?"
+  end
+
+  return Text, LootName
+end
+
+local function BuildTargetReaders(api, getDB, rememberTargets)
+  local function GetStore(createMissing)
+    return GetCharacterStore(getDB(), api.getCharacterKey(), createMissing)
+  end
+
+  local function ReadTarget(specID, mapID)
+    return rememberTargets and ReadStoredTarget(GetStore(false), specID, mapID) or nil
+  end
+
+  local function FindLatestOtherTarget(specID, excludeMapID)
+    local store = GetStore(false)
+    return FindLatestTarget(store and store[specID] or nil, excludeMapID, function(mapID)
+      return ReadTarget(specID, mapID)
+    end)
+  end
+
+  return GetStore, ReadTarget, FindLatestOtherTarget
+end
+
+local function WriteConfirmedTarget(store, live, mapID, confirmedAt)
+  local selected = live.selectedLoadoutID and FindByID(live.loadouts, live.selectedLoadoutID) or nil
+  store[live.specID] = type(store[live.specID]) == "table" and store[live.specID] or {}
+  store[live.specID][mapID] = {
+    configID = selected and selected.id or nil,
+    configName = selected and selected.name or nil,
+    lootSpecID = live.lootSpecID,
+    confirmedAt = confirmedAt,
+  }
+end
+
+local function AttachSummaryReaders(controller, deps)
+  local api, Text = deps.api, deps.Text
+
+  -- Summary of the dungeon with `mapID` as status parts (see
+  -- LoadoutCheck.BuildSummaryParts); nil without a current spec.
+  local function BuildSummary(mapID)
+    if not deps.IsEnabled() or type(mapID) ~= "number" then
+      return nil
+    end
+    local live = deps.ReadLive()
+    if not live then
+      return nil
+    end
+    local target = deps.ReadTarget(live.specID, mapID)
+    local sourceMapID = nil
+    if not target then
+      target, sourceMapID = deps.FindLatestOtherTarget(live.specID, mapID)
+    end
+    local summary = LoadoutCheck.BuildSummaryParts(LoadoutCheck.BuildModel(live, target), Text, target ~= nil)
+    if summary and sourceMapID then
+      summary.suffix = string.format(
+        Text("LOADOUT_CHECK_SUMMARY_FROM", "(as %s)"),
+        api.getDungeonName(sourceMapID) or Text("LOADOUT_CHECK_SUMMARY_OTHER_DUNGEON", "another dungeon")
+      )
+    end
+    return summary
+  end
+
+  --- One-line summary for another card (accepted invite) about the dungeon
+  -- with `mapID`; nil without a confirmed target for it and the current spec.
+  function controller.GetSummary(mapID)
+    local summary = BuildSummary(mapID)
+    if not summary then
+      return nil
+    end
+    return LoadoutCheck.FormatSummaryText(summary), summary.allOk
+  end
+
+  --- The same summary as the accepted-invite card's sub-rows (see
+  -- LoadoutCheck.FormatSummaryFields).
+  function controller.GetSummaryFields(mapID)
+    local summary = BuildSummary(mapID)
+    return summary and LoadoutCheck.FormatSummaryFields(summary, Text) or nil
+  end
+end
+
 function LoadoutCheck.CreateController(opts)
   opts = opts or {}
   local api = {}
@@ -700,21 +796,8 @@ function LoadoutCheck.CreateController(opts)
   -- The loadout counts as selected only after the commit succeeded.
   local pendingLoad = nil
 
-  local function Text(key, fallback)
-    local L = getL() or {}
-    local value = L[key]
-    if type(value) == "string" and value ~= "" then
-      return value
-    end
-    return fallback
-  end
-
-  local function LootName(isSpecDefault, name)
-    if isSpecDefault then
-      return string.format(Text("LOADOUT_CHECK_LOOT_CURRENT_SPEC", "Current spec (%s)"), name or "?")
-    end
-    return name or "?"
-  end
+  local Text, LootName = BuildTextHelpers(getL)
+  local GetStore, ReadTarget, FindLatestOtherTarget = BuildTargetReaders(api, getDB, rememberTargets)
 
   local function IsEnabled()
     local db = getDB() or {}
@@ -733,21 +816,6 @@ function LoadoutCheck.CreateController(opts)
     if card and type(card.Hide) == "function" then
       card:Hide()
     end
-  end
-
-  local function GetStore(createMissing)
-    return GetCharacterStore(getDB(), api.getCharacterKey(), createMissing)
-  end
-
-  local function ReadTarget(specID, mapID)
-    return rememberTargets and ReadStoredTarget(GetStore(false), specID, mapID) or nil
-  end
-
-  local function FindLatestOtherTarget(specID, excludeMapID)
-    local store = GetStore(false)
-    return FindLatestTarget(store and store[specID] or nil, excludeMapID, function(mapID)
-      return ReadTarget(specID, mapID)
-    end)
   end
 
   local function ReadLive()
@@ -875,47 +943,14 @@ function LoadoutCheck.CreateController(opts)
     return active ~= nil
   end
 
-  -- Summary of the dungeon with `mapID` as status parts (see
-  -- LoadoutCheck.BuildSummaryParts); nil without a current spec.
-  local function BuildSummary(mapID)
-    if not IsEnabled() or type(mapID) ~= "number" then
-      return nil
-    end
-    local live = ReadLive()
-    if not live then
-      return nil
-    end
-    local target = ReadTarget(live.specID, mapID)
-    local sourceMapID = nil
-    if not target then
-      target, sourceMapID = FindLatestOtherTarget(live.specID, mapID)
-    end
-    local summary = LoadoutCheck.BuildSummaryParts(LoadoutCheck.BuildModel(live, target), Text, target ~= nil)
-    if summary and sourceMapID then
-      summary.suffix = string.format(
-        Text("LOADOUT_CHECK_SUMMARY_FROM", "(as %s)"),
-        api.getDungeonName(sourceMapID) or Text("LOADOUT_CHECK_SUMMARY_OTHER_DUNGEON", "another dungeon")
-      )
-    end
-    return summary
-  end
-
-  --- One-line summary for another card (accepted invite) about the dungeon
-  -- with `mapID`; nil without a confirmed target for it and the current spec.
-  function controller.GetSummary(mapID)
-    local summary = BuildSummary(mapID)
-    if not summary then
-      return nil
-    end
-    return LoadoutCheck.FormatSummaryText(summary), summary.allOk
-  end
-
-  --- The same summary as the accepted-invite card's sub-rows (see
-  -- LoadoutCheck.FormatSummaryFields).
-  function controller.GetSummaryFields(mapID)
-    local summary = BuildSummary(mapID)
-    return summary and LoadoutCheck.FormatSummaryFields(summary, Text) or nil
-  end
+  AttachSummaryReaders(controller, {
+    api = api,
+    IsEnabled = IsEnabled,
+    ReadLive = ReadLive,
+    ReadTarget = ReadTarget,
+    FindLatestOtherTarget = FindLatestOtherTarget,
+    Text = Text,
+  })
 
   function controller.ScheduleEvaluate()
     evaluateToken = evaluateToken + 1
@@ -1082,14 +1117,7 @@ function LoadoutCheck.CreateController(opts)
     end
     local store = GetStore(true)
     if store then
-      local selected = live.selectedLoadoutID and FindByID(live.loadouts, live.selectedLoadoutID) or nil
-      store[live.specID] = type(store[live.specID]) == "table" and store[live.specID] or {}
-      store[live.specID][active.mapID] = {
-        configID = selected and selected.id or nil,
-        configName = selected and selected.name or nil,
-        lootSpecID = live.lootSpecID,
-        confirmedAt = api.now(),
-      }
+      WriteConfirmedTarget(store, live, active.mapID, api.now())
     end
     HideCard()
     return store ~= nil

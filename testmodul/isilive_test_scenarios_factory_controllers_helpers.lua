@@ -401,12 +401,10 @@ return function(test, ctx)
     }, function()
       InitializeHelpers(c, addon)
       Assert.Equal(c.GetActiveChallengeMapID(), 2649, "the run is verified")
-
       read = "error"
       Assert.Equal(c.GetActiveChallengeMapID(), 2649, "an API error does not end the run")
       read = secretMapID
       Assert.Equal(c.GetActiveChallengeMapID(), 2649, "a secret does not end the run")
-
       read = nil
       Assert.Nil(c.GetActiveChallengeMapID(), "a readable empty answer ends the run")
       read = "error"
