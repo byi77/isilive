@@ -3,11 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.471`.
+Current version: `0.9.472`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.472: forces targets now cover all eight season dungeons, based on
+timed +12 to +18 keys, and the time pace compares your key with barely timed
+runs scaled to its time limit, until you have a timed run of your own.
 
 Version 0.9.471: the killtracker shows how much enemy forces are still needed
 before the next boss ("Needs x% more in this section", next to the TTK), also
@@ -128,7 +132,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.471 -->
+<!-- highlights-reviewed-for: 0.9.472 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

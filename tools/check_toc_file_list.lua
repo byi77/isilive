@@ -33,6 +33,7 @@ local EXTRA_TOC_PATHS = {
   ["libs/ChatThrottleLib/ChatThrottleLib.lua"] = true,
   ["data/isiLive_mplus_forces.lua"] = true,
   ["data/isiLive_forces_seed.lua"] = true,
+  ["data/isiLive_time_seed.lua"] = true,
   ["isiLive.lua"] = true,
 }
 
