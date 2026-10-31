@@ -112,7 +112,8 @@ local function UpdateTeleportButtonShortCodeLabel(button, deps)
   end
 
   local layoutIsM2 = IsM2LayoutMode(deps.layoutMode)
-  local shortCode = button.shortCode or ResolveTeleportButtonShortCode(deps, button.mapID)
+  -- Resolved per update: a language switch relabels the buttons in place.
+  local shortCode = ResolveTeleportButtonShortCode(deps, button.mapID)
   button.shortCode = shortCode
 
   local cooldownRemaining = tonumber(button.cooldownRemainingSeconds) or 0
@@ -379,11 +380,13 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
     if type(tooltip) ~= "table" then
       return
     end
-    local hasMapName = type(self.mapName) == "string" and self.mapName ~= ""
+    -- The entry's name has the language of the last button build.
+    local mapName = type(deps.getDungeonName) == "function" and deps.getDungeonName(self.mapID) or self.mapName
+    local hasMapName = type(mapName) == "string" and mapName ~= ""
     if hasMapName then
-      tooltip:SetText(self.mapName, 1, 1, 1)
+      tooltip:SetText(mapName, 1, 1, 1)
       local englishMapName = type(deps.getDungeonName) == "function" and deps.getDungeonName(self.mapID, "enUS") or nil
-      if type(englishMapName) == "string" and englishMapName ~= "" and englishMapName ~= self.mapName then
+      if type(englishMapName) == "string" and englishMapName ~= "" and englishMapName ~= mapName then
         tooltip:AddLine(englishMapName, 1, 1, 1, true)
       end
     end

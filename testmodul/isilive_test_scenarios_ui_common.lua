@@ -197,6 +197,7 @@ return function(test, ctx)
       GetLocale = function()
         return "deDE"
       end,
+      IsiLiveDB = {},
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
       addon.Texts = {
@@ -208,6 +209,27 @@ return function(test, ctx)
         end,
       }
       Assert.Equal(addon.UICommon.GetLocalizedText("TEST_KEY", "fb"), "Test DE", "deDE locale must win over enUS")
+    end)
+  end)
+
+  test("UICommon.GetLocalizedText follows the addon language, not the client locale", function()
+    WithGlobals({
+      GetLocale = function()
+        return "deDE"
+      end,
+      IsiLiveDB = { locale = "frFR" },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      addon.Texts = {
+        GetLocaleTables = function()
+          return {
+            enUS = { TEST_KEY = "Test EN" },
+            deDE = { TEST_KEY = "Test DE" },
+            frFR = { TEST_KEY = "Test FR" },
+          }
+        end,
+      }
+      Assert.Equal(addon.UICommon.GetLocalizedText("TEST_KEY", "fb"), "Test FR", "the stored language must win")
     end)
   end)
 

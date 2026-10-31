@@ -8,6 +8,21 @@ addonTable.Teleport = Teleport
 local SeasonData = addonTable.SeasonData or {}
 local SpellUtils = addonTable.SpellUtils
 
+-- A nil tag means the addon language, never the client language. UICommon loads
+-- later in the TOC, so it is read per call; offline tools without it get the
+-- client locale.
+local function ResolveDisplayLocale(localeTag)
+  if type(localeTag) == "string" and localeTag ~= "" then
+    return localeTag
+  end
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ResolveActiveLocale) == "function" then
+    return uiCommon.ResolveActiveLocale()
+  end
+  local languages = addonTable.Languages
+  return type(languages) == "table" and languages.ReadClientLocale() or nil
+end
+
 local function GetMapToTeleport()
   if type(SeasonData.GetMapToTeleport) == "function" then
     return SeasonData.GetMapToTeleport()
@@ -225,7 +240,7 @@ function Teleport.GetDungeonShortCode(mapID, localeTag)
 
   local shortCode = nil
   if type(SeasonData.GetDungeonShortCode) == "function" then
-    shortCode = SeasonData.GetDungeonShortCode(numericMapID, localeTag)
+    shortCode = SeasonData.GetDungeonShortCode(numericMapID, ResolveDisplayLocale(localeTag))
   elseif type(SeasonData.MAP_SHORT_CODES) == "table" then
     shortCode = SeasonData.MAP_SHORT_CODES[numericMapID]
   end
@@ -246,16 +261,7 @@ function Teleport.GetDungeonName(mapID, localeTag)
     return nil
   end
 
-  local currentLocale = nil
-  local getLocale = rawget(_G, "GetLocale")
-  if type(getLocale) == "function" then
-    local ok, locale = pcall(getLocale)
-    if ok and type(locale) == "string" and locale ~= "" then
-      currentLocale = locale
-    end
-  end
-
-  local resolvedLocale = (localeTag ~= nil and localeTag ~= "") and localeTag or currentLocale
+  local resolvedLocale = ResolveDisplayLocale(localeTag)
 
   local dungeonName = nil
   if type(SeasonData.GetDungeonName) == "function" then
@@ -265,7 +271,10 @@ function Teleport.GetDungeonName(mapID, localeTag)
     return dungeonName
   end
 
-  if resolvedLocale == nil or resolvedLocale == "" or resolvedLocale == currentLocale then
+  -- A map outside the season manifest has only Blizzard's client name, which
+  -- is valid only while the addon language equals the client language.
+  local languages = addonTable.Languages
+  if type(languages) == "table" and languages.IsClientLocale(resolvedLocale) then
     local challengeMode = rawget(_G, "C_ChallengeMode")
     if type(challengeMode) == "table" and type(challengeMode.GetMapUIInfo) == "function" then
       local okName, localizedName = pcall(challengeMode.GetMapUIInfo, numericMapID)

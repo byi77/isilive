@@ -1171,21 +1171,38 @@ local function RegisterLocalizedNameTests(test, Assert, LoadAddonModules, WithGl
       calls
   end
 
-  test(
-    "SeasonData.GetDungeonName uses the client-localized Blizzard name for locales without manifest names",
-    function()
-      local globals, calls = BuildClientGlobals("frFR", { [249] = "Repos des rois" })
-      WithGlobals(globals, function()
-        local addon = LoadSeasonData(LoadAddonModules)
+  test("SeasonData.GetDungeonName returns English for every addon language except German", function()
+    local globals, calls = BuildClientGlobals("frFR", { [249] = "Repos des rois" })
+    WithGlobals(globals, function()
+      local addon = LoadSeasonData(LoadAddonModules)
+      for _, tag in ipairs({ "enUS", "frFR", "ruRU", "trTR" }) do
         Assert.Equal(
-          addon.SeasonData.GetDungeonName(249, "frFR", "midnight_s2"),
-          "Repos des rois",
-          "a frFR client must see Blizzard's French name instead of the English manifest name"
+          addon.SeasonData.GetDungeonName(249, tag, "midnight_s2"),
+          "King's Rest",
+          tag .. " must read the English manifest name, also on a matching client"
         )
-        Assert.Equal(calls.count, 1, "the Blizzard name must be read once")
-      end)
-    end
-  )
+      end
+      Assert.Equal(calls.count, 0, "a manifest hit must not call the Blizzard API")
+    end)
+  end)
+
+  test("SeasonData.GetDungeonName reads the client name only for a map missing from the manifest", function()
+    local globals, calls = BuildClientGlobals("frFR", { [249] = "Repos des rois" })
+    WithGlobals(globals, function()
+      local addon = LoadSeasonData(LoadAddonModules)
+      addon.SeasonData.GetSeasonConfig("midnight_s2").namesByLocale.enUS[249] = nil
+      Assert.Equal(
+        addon.SeasonData.GetDungeonName(249, "frFR", "midnight_s2"),
+        "Repos des rois",
+        "addon language equals client language: the client name may fill the gap"
+      )
+      Assert.Equal(calls.count, 1, "the Blizzard name must be read once")
+      Assert.Nil(
+        addon.SeasonData.GetDungeonName(249, "enUS", "midnight_s2"),
+        "another addon language must never show the client name"
+      )
+    end)
+  end)
 
   test("SeasonData.GetDungeonName keeps manifest names ahead of the Blizzard name", function()
     local globals, calls = BuildClientGlobals("deDE", { [249] = "API-Name" })
@@ -1223,14 +1240,14 @@ local function RegisterLocalizedNameTests(test, Assert, LoadAddonModules, WithGl
     end)
   end)
 
-  test("SeasonData.GetDungeonName serves unsupported client locales from Blizzard and falls back to English", function()
+  test("SeasonData.GetDungeonName answers unsupported client locales in English", function()
     local globals = BuildClientGlobals("koKR", { [249] = "왕들의 안식처" })
     WithGlobals(globals, function()
       local addon = LoadSeasonData(LoadAddonModules)
       Assert.Equal(
         addon.SeasonData.GetDungeonName(249, "koKR", "midnight_s2"),
-        "왕들의 안식처",
-        "an unsupported client locale must reach the Blizzard name"
+        "King's Rest",
+        "an unsupported locale must read the English manifest name"
       )
     end)
 

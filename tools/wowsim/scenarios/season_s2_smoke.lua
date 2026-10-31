@@ -26,8 +26,9 @@ local DUNGEONS = {
 local NAVIGATOR = {
   zone = { enUS = "Millennia's Threshold", deDE = "Die Jahrhundertschwelle" },
   title = {
-    enUS = "isiLive %- Midnight Season Two M%+ Navigator",
-    deDE = "isiLive %- Midnight Saison Zwei M%+ Navigator",
+    -- The card header shows the title without the "isiLive - " prefix.
+    enUS = "Midnight Season Two M%+ Navigator",
+    deDE = "Midnight Saison Zwei M%+ Navigator",
   },
   filled = { 249, 399, 250 }, -- half_left, center, half_right
   emptySlots = 2, -- left = false, right = false

@@ -471,6 +471,9 @@ local function BuildControllerContext(state, addon, initial)
     SetPortalNavigatorVisible = function(visible)
       state.portalNavigatorVisible = visible
     end,
+    GetActiveLocaleTag = function()
+      return "enUS"
+    end,
     ShowPortalNavigatorNotice = function(layout)
       state.portalNavigatorLayout = layout
       state.portalNavigatorVisible = true

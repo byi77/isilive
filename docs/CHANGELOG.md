@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-31 - Version 0.9.474 (patch)
+
+- Texts read through `UICommon.GetLocalizedText` (section text, TTK, time pace pause, loadout card, stats box, lock tooltip) follow the addon language instead of the client locale. A language switch refreshes the kill row, also during the demo.
+- Dungeon names and abbreviations follow the addon language, never the client: `deDE` shows German, every other addon language English. This covers status target, killtracker, portal buttons, roster keys, portal navigator, invite and instance cards, the talent & loot check and the plain keystone chat line. Zone and portal room names on the invite card follow it too. A language switch relabels everything visible at once, open cards and the demo included.
+
 ## 2026-10-31 - Version 0.9.473 (patch)
 
 - Time pace (rule 208): without an own reference the forecast is now the median of three finish-time estimates: whole run, tempo of the last 240 seconds and the dungeon's time curve. An own reference keeps its priority.

@@ -119,9 +119,13 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
     end
   end
 
+  -- Chat text in the sender's addon language; Teleport loads after this file.
   local dungeonName = nil
+  local teleport = addonTable.Teleport
   local challengeModeApi = rawget(_G, "C_ChallengeMode")
-  if type(challengeModeApi) == "table" and type(challengeModeApi.GetMapUIInfo) == "function" then
+  if type(teleport) == "table" and type(teleport.GetDungeonName) == "function" then
+    dungeonName = teleport.GetDungeonName(numericMapID)
+  elseif type(challengeModeApi) == "table" and type(challengeModeApi.GetMapUIInfo) == "function" then
     local okName, localizedName = pcall(challengeModeApi.GetMapUIInfo, numericMapID)
     if okName and type(localizedName) == "string" and localizedName ~= "" then
       dungeonName = localizedName

@@ -233,6 +233,15 @@ end
 -- Challenge-map ID and display name of the season dungeon the player stands
 -- in, or nil. Only the instance ID links the location to a challenge map
 -- (see Validators.ResolveChallengeMapInstanceID).
+-- Dungeon name in the addon language, never Blizzard's client text.
+local function DefaultGetDungeonName(mapID)
+  local teleport = addonTable.Teleport
+  if type(teleport) ~= "table" or type(teleport.GetDungeonName) ~= "function" then
+    return nil
+  end
+  return teleport.GetDungeonName(mapID)
+end
+
 local function DefaultResolveSeasonDungeon()
   local validators = addonTable.Validators
   local ok, instanceInfo = validators.GetInstanceInfoSafe()
@@ -246,7 +255,10 @@ local function DefaultResolveSeasonDungeon()
   end
   for _, mapID in ipairs(seasonData.GetOrderedMapIDs()) do
     if validators.ResolveChallengeMapInstanceID(mapID) == currentInstanceID then
-      local name = type(instanceInfo.instanceName) == "string" and instanceInfo.instanceName or nil
+      local name = DefaultGetDungeonName(mapID)
+      if not name and type(instanceInfo.instanceName) == "string" then
+        name = instanceInfo.instanceName
+      end
       return mapID, name, currentInstanceID
     end
   end
@@ -256,16 +268,6 @@ end
 local function DefaultNow()
   local ok, now = SafeCall(rawget(_G, "time"))
   return ok and type(now) == "number" and now or nil
-end
-
--- Localized dungeon name of a challenge map, as the client reports it.
-local function DefaultGetDungeonName(mapID)
-  local ok, name = SafeCall(GetNamespaceFunction("C_ChallengeMode", "GetMapUIInfo"), mapID)
-  name = ok and Plain(name) or nil
-  if type(name) ~= "string" or name == "" then
-    return nil
-  end
-  return name
 end
 
 local function DefaultAfter(delaySeconds, callback)
@@ -846,7 +848,8 @@ function LoadoutCheck.CreateController(opts)
     end
     local model = LoadoutCheck.BuildModel(live, ReadTarget(live.specID, active.mapID))
     model.mapID = active.mapID
-    model.dungeonName = active.dungeonName
+    -- Per read: the card follows a language switch while it is open.
+    model.dungeonName = api.getDungeonName(active.mapID) or active.dungeonName
     model.inCombat = api.isInCombat()
     model.remembers = rememberTargets
     return model

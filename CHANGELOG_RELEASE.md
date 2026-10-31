@@ -3,11 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.473`.
+Current version: `0.9.474`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.474: isiLive texts, dungeon names and abbreviations follow the
+isiLive language instead of the game client: German in German, English in every
+other language. Open cards switch at once, also in the demo.
 
 Version 0.9.473: the time forecast now combines the whole run, the last four
 minutes and the dungeon's time curve, so one big pull no longer swings it. If
@@ -136,7 +140,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.473 -->
+<!-- highlights-reviewed-for: 0.9.474 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

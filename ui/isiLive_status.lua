@@ -312,6 +312,12 @@ local function BuildTargetDungeonText(deps)
   return string.format(template, targetText)
 end
 
+-- Lock-in key of a target: the map, not its name, so a language switch does not
+-- count as a new target. Sources without a map fall back to the name.
+local function GetTargetIdentity(info)
+  return info.mapID or info.name
+end
+
 local function ResolveConcreteTargetDungeonInfo(deps)
   local info = deps.getTargetDungeonInfo and deps.getTargetDungeonInfo() or nil
   if type(info) ~= "table" then
@@ -332,6 +338,7 @@ local function ResolveConcreteTargetDungeonInfo(deps)
   end
 
   return {
+    mapID = tonumber(info.mapID),
     name = name,
     level = level,
     levelText = (not level and type(info.levelText) == "string" and info.levelText ~= "") and info.levelText or nil,
@@ -387,16 +394,17 @@ local function EmitTargetDungeonAnnouncement(state, deps, info)
   if type(announcementText) ~= "string" or announcementText == "" then
     return false
   end
-  local signature = table.concat({ info.name, tostring(info.level) }, "|")
+  local identity = GetTargetIdentity(info)
+  local signature = table.concat({ tostring(identity), tostring(info.level) }, "|")
   if state.lastTargetDungeonChatSignature == signature then
     return false
   end
-  state.lastObservedTargetDungeonName = info.name
+  state.lastObservedTargetDungeonName = identity
   state.lastTargetDungeonChatSignature = signature
   -- Single lock-in for BOTH level-with and level-less branches: once we
   -- announce a name, no further announces for the same name until
   -- ResetTargetDungeonChatState (group-leave / no-target) clears it.
-  state.levelAnnouncedTargetDungeonName = info.name
+  state.levelAnnouncedTargetDungeonName = identity
   state.pendingTargetDungeonAnnouncementName = nil
   state.pendingTargetDungeonAnnouncementAt = nil
   local sink = deps.printHighlighted or deps.printFn
@@ -460,7 +468,8 @@ local function MaybeAnnounceTargetDungeonChat(state, deps)
     return
   end
 
-  if state.levelAnnouncedTargetDungeonName == info.name then
+  local identity = GetTargetIdentity(info)
+  if state.levelAnnouncedTargetDungeonName == identity then
     return
   end
 
@@ -494,8 +503,8 @@ local function MaybeAnnounceTargetDungeonChat(state, deps)
   local pendingName = state.pendingTargetDungeonAnnouncementName
   local pendingAt = tonumber(state.pendingTargetDungeonAnnouncementAt)
 
-  if pendingName ~= info.name then
-    state.pendingTargetDungeonAnnouncementName = info.name
+  if pendingName ~= identity then
+    state.pendingTargetDungeonAnnouncementName = identity
     state.pendingTargetDungeonAnnouncementAt = now
     if type(deps.timerAfter) == "function" then
       deps.timerAfter(TARGET_DUNGEON_LEVEL_WAIT_SECONDS, function()
@@ -568,6 +577,23 @@ end
 -- (every difficulty) or a non-Mythic party dungeon. Returns the message
 -- template (formatted with the difficulty text) and the rich card options.
 -- Shared by the live entry notice and the simulation tablet.
+-- Blizzard's instance name is client text. A season dungeon gets its name in the
+-- addon language; any other instance has no second source and keeps it.
+local function ResolveInstanceDisplayName(instanceName)
+  local validators = addonTable.Validators
+  local seasonData = addonTable.SeasonData
+  local teleport = addonTable.Teleport
+  if type(validators) ~= "table" or type(seasonData) ~= "table" or type(teleport) ~= "table" then
+    return instanceName
+  end
+  local ok, instanceInfo = GetInstanceInfoSafe()
+  local instanceID = ok and validators.GetPartyInstanceIDFromInfo(ok, instanceInfo) or nil
+  local mapID = instanceID and seasonData.GetMapIDByInstanceID(instanceID) or nil
+  return mapID and teleport.GetDungeonName(mapID) or instanceName
+end
+
+Status.ResolveInstanceDisplayName = ResolveInstanceDisplayName
+
 local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanceName)
   local template
   local showOpts
@@ -674,8 +700,16 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
         return
       end
       state.lastAnnouncedNonMythicSignature = confirmedSignature
-      local template, showOpts = BuildInstanceEntryNotice(L, cInstanceType, cText, cInstanceName)
-      deps.showCenterNotice(string.format(template, cText), 120, nil, nil, showOpts)
+      local function BuildNotice()
+        local labels = deps.getL()
+        local text = select(1, GetDungeonDifficultyLabel(deps.getL))
+        local displayName = ResolveInstanceDisplayName(cInstanceName)
+        local template, showOpts = BuildInstanceEntryNotice(labels, cInstanceType, text, displayName)
+        showOpts.rebuild = BuildNotice
+        return { message = string.format(template, text), durationSeconds = 120, showOptions = showOpts }
+      end
+      local notice = BuildNotice()
+      deps.showCenterNotice(notice.message, notice.durationSeconds, nil, nil, notice.showOptions)
       -- Mark ownership so the leave-dungeon path knows it may hide this
       -- specific notice. Cleared on dungeon-leave / token-bumped pending
       -- show.
@@ -997,10 +1031,11 @@ function Status.CreateController(opts)
     if not level and not levelText then
       return
     end
-    if state.levelAnnouncedTargetDungeonName == name then
+    local info = { mapID = tonumber(payload.mapID), name = name, level = level, levelText = levelText }
+    if state.levelAnnouncedTargetDungeonName == GetTargetIdentity(info) then
       return
     end
-    EmitTargetDungeonAnnouncement(state, deps, { name = name, level = level, levelText = levelText })
+    EmitTargetDungeonAnnouncement(state, deps, info)
   end
 
   return controller

@@ -342,6 +342,34 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Teleport names and short codes without a tag follow the addon language, not the client", function()
+    local db = { locale = "enUS" }
+    WithGlobals({
+      CreateFrame = BuildCreateFrameStub(),
+      IsiLiveDB = db,
+      GetLocale = function()
+        return "deDE"
+      end,
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          return "Client-Name"
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_ui_common.lua", "isiLive_teleport.lua" })
+      Assert.Equal(addon.Teleport.GetDungeonName(250), "Temple of Sethraliss")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(250), "TOS")
+      Assert.Equal(addon.Teleport.GetTeleportInfoByMapID(250).mapName, "Temple of Sethraliss")
+      Assert.Nil(addon.Teleport.GetDungeonName(99999), "a foreign addon language must not show the client name")
+
+      db.locale = "deDE"
+      Assert.Equal(addon.Teleport.GetDungeonName(250), "Tempel von Sethraliss")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(250), "TVS")
+      Assert.Equal(addon.Teleport.GetTeleportInfoByMapID(250).mapName, "Tempel von Sethraliss")
+      Assert.Equal(addon.Teleport.GetDungeonName(99999), "Client-Name")
+    end)
+  end)
+
   test("Teleport resolves challenge-map IDs by static alias list before short-code rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 

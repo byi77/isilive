@@ -154,28 +154,6 @@ UICommon.Theme = {
   },
 }
 
-function UICommon.GetLocalizedText(key, fallback)
-  if type(key) ~= "string" or key == "" then
-    return fallback or ""
-  end
-
-  local textTables = addonTable.Texts
-      and type(addonTable.Texts.GetLocaleTables) == "function"
-      and addonTable.Texts.GetLocaleTables()
-    or nil
-  local getLocale = rawget(_G, "GetLocale")
-  local localeKey = type(getLocale) == "function" and getLocale() or "enUS"
-  local labels = type(textTables) == "table" and (textTables[localeKey] or textTables.enUS) or nil
-  if type(labels) == "table" then
-    local value = labels[key]
-    if type(value) == "string" and value ~= "" then
-      return value
-    end
-  end
-
-  return fallback or ""
-end
-
 local function ResolveActiveLocale(localeTag)
   if type(localeTag) == "string" and localeTag ~= "" then
     return localeTag
@@ -202,6 +180,26 @@ end
 -- one chain instead of re-implementing it; internal callers keep the local
 -- upvalue.
 UICommon.ResolveActiveLocale = ResolveActiveLocale
+
+function UICommon.GetLocalizedText(key, fallback)
+  if type(key) ~= "string" or key == "" then
+    return fallback or ""
+  end
+
+  local textTables = addonTable.Texts
+      and type(addonTable.Texts.GetLocaleTables) == "function"
+      and addonTable.Texts.GetLocaleTables()
+    or nil
+  local labels = type(textTables) == "table" and (textTables[ResolveActiveLocale()] or textTables.enUS) or nil
+  if type(labels) == "table" then
+    local value = labels[key]
+    if type(value) == "string" and value ~= "" then
+      return value
+    end
+  end
+
+  return fallback or ""
+end
 
 -- Supported languages that write decimals with a comma. Follows the addon
 -- language like every other visible string, not the client locale.

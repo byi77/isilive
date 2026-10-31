@@ -116,9 +116,39 @@ return function(test, ctx)
     end)
   end)
 
+  test("Dungeon location zone and portal room follow the addon language, not the client", function()
+    local db = { locale = "enUS" }
+    WithMaps({
+      hub = { mapID = 2266, name = "Die Jahrhundertschwelle", mapType = 3 },
+      coiledIsle = { mapID = 2509, name = "Die Gewundene Insel", mapType = 3 },
+      globals = {
+        IsiLiveDB = db,
+        GetLocale = function()
+          return "deDE"
+        end,
+      },
+    }, function(location, _, _, addon)
+      addon.UICommon = {
+        ResolveActiveLocale = function()
+          return db.locale
+        end,
+      }
+      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle")
+      Assert.Equal(location.GetPortalRoomName(399), "Millennia's Threshold")
+      db.locale = "deDE"
+      Assert.Equal(location.GetNavigationText(588), "Die Gewundene Insel", "the name must not be cached per language")
+      Assert.Equal(location.GetPortalRoomName(399), "Die Jahrhundertschwelle")
+    end)
+  end)
+
   test("Dungeon location uses the curated season entrance with the client zone name", function()
     WithMaps({
       coiledIsle = { mapID = 2509, name = "Die Gewundene Insel", mapType = 3 },
+      globals = {
+        GetLocale = function()
+          return "deDE"
+        end,
+      },
     }, function(location, calls)
       Assert.Equal(location.GetNavigationText(588), "Die Gewundene Insel")
       Assert.Equal(calls.scans, 0)
@@ -157,13 +187,18 @@ return function(test, ctx)
   test("Dungeon location mentions the season portal room only for dungeons with a portal there", function()
     WithMaps({
       hub = { mapID = 2266, name = "Jahrhundertschwelle", mapType = 3 },
+      globals = {
+        GetLocale = function()
+          return "deDE"
+        end,
+      },
     }, function(location, _, _, addon)
       -- Ruby Life Pools has a portal-room slot in Season 2.
       Assert.Equal(location.GetPortalRoomName(399), "Jahrhundertschwelle")
       Assert.Equal(location.GetNavigationText(399, "Portal %s"), "The Waking Shores\nPortal Jahrhundertschwelle")
       -- Altar of Fangs has no portal there.
       Assert.Nil(location.GetPortalRoomName(588))
-      Assert.Equal(location.GetNavigationText(588), "The Coiled Isle")
+      Assert.Equal(location.GetNavigationText(588), "Die gewundene Insel")
       Assert.Nil(location.GetPortalRoomName(nil))
       addon.SeasonData.GetPortalNavigatorConfig = function()
         error("unavailable")
@@ -172,6 +207,11 @@ return function(test, ctx)
     end)
     WithMaps({
       hub = { mapID = 2266, name = "Die Jahrhundertschwelle", mapType = 3 },
+      globals = {
+        GetLocale = function()
+          return "deDE"
+        end,
+      },
     }, function(location)
       -- The map name's article is dropped from the short portal label.
       Assert.Equal(location.GetNavigationText(399, "Portal %s"), "The Waking Shores\nPortal Jahrhundertschwelle")

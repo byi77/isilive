@@ -312,7 +312,7 @@ local function ShowDemoPortalNavigator(ctx, L)
       return L
     end,
     getLocaleTag = function()
-      return ctx.locale
+      return ctx.GetActiveLocaleTag()
     end,
     getTeleportInfoByMapID = type(teleport) == "table" and teleport.GetTeleportInfoByMapID or nil,
   })

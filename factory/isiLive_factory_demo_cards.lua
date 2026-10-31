@@ -42,15 +42,9 @@ local function GetSeasonData(ctx)
   return (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
 end
 
+-- Addon language, resolved per call: the cards are rebuilt on a language switch.
 local function ResolveSeasonDungeonName(ctx, mapID)
-  local seasonData = GetSeasonData(ctx)
-  local name = nil
-  if type(seasonData) == "table" and type(seasonData.GetDungeonName) == "function" then
-    name = seasonData.GetDungeonName(mapID, ctx.locale)
-  end
-  if (type(name) ~= "string" or name == "") and type(ctx.GetDungeonName) == "function" then
-    name = ctx.GetDungeonName(mapID)
-  end
+  local name = type(ctx.GetDungeonName) == "function" and ctx.GetDungeonName(mapID) or nil
   return type(name) == "string" and name ~= "" and name or nil
 end
 
@@ -132,6 +126,11 @@ function FactoryDemoCards.BuildAcceptedInviteNotice(ctx, ownListing)
     return nil
   end
   local args = build(ctx, ctx.modules or {}, BuildInvitePayload(ctx, ownListing))
+  -- The simulated group title carries the dungeon name, so the whole payload
+  -- is rebuilt on a language switch.
+  args.options.rebuild = function()
+    return FactoryDemoCards.BuildAcceptedInviteNotice(ctx, ownListing)
+  end
   return {
     message = nil,
     durationSeconds = nil,
@@ -168,9 +167,9 @@ function FactoryDemoCards.ShowAcceptedRaidInvite(ctx)
   if type(render) ~= "function" then
     return
   end
-  local L = GetL(ctx)
   render(ctx, ctx.modules or {}, {
-    mapName = L.SIM_RAID_NAME or "Raid (simulated)",
+    mapNameKey = "SIM_RAID_NAME",
+    mapName = "Raid (simulated)",
     groupName = DEMO_RAID_GROUP_NAME,
   }, false)
 end
@@ -203,7 +202,7 @@ function FactoryDemoCards.BuildInstanceEntryNotice(ctx, instanceType)
   local current = ReadCurrentInstance()
   local name, difficultyText
   if current and current.instanceType == instanceType then
-    name = current.name
+    name = status.ResolveInstanceDisplayName(current.name)
     local raidKey = instanceType == "raid" and RAID_DIFFICULTY_KEYS[current.difficultyID] or nil
     difficultyText = raidKey and L[raidKey] or nil
   end
@@ -215,6 +214,9 @@ function FactoryDemoCards.BuildInstanceEntryNotice(ctx, instanceType)
     difficultyText = difficultyText or L.DUNGEON_DIFF_NORMAL or "Normal"
   end
   local template, showOptions = status.BuildInstanceEntryNotice(L, instanceType, difficultyText, name)
+  showOptions.rebuild = function()
+    return FactoryDemoCards.BuildInstanceEntryNotice(ctx, instanceType)
+  end
   return {
     message = string.format(template, difficultyText),
     durationSeconds = 120,
@@ -230,18 +232,16 @@ end
 
 -- Same call as the live leader watch.
 function FactoryDemoCards.ShowLeadTransferred(ctx)
-  if type(ctx.ShowCenterNotice) == "function" then
-    ctx.ShowCenterNotice(GetL(ctx).LEAD_TRANSFERRED_CENTER, 20)
+  local function Build()
+    return { message = GetL(ctx).LEAD_TRANSFERRED_CENTER, durationSeconds = 20, showOptions = { rebuild = Build } }
   end
+  ShowNotice(ctx, Build())
 end
 
 -- Has no live counterpart: the tablet's own group-full card.
-function FactoryDemoCards.ShowGroupFull(ctx)
-  if type(ctx.ShowCenterNotice) ~= "function" then
-    return
-  end
+local function BuildGroupFullOptions(ctx)
   local L = GetL(ctx)
-  ctx.ShowCenterNotice(nil, 120, nil, nil, {
+  return {
     eyebrow = L.SIM_GROUP_FULL_EYEBROW or "LFG simulation",
     title = L.SIM_GROUP_FULL_TITLE or "isiLive - Group is full",
     fields = {
@@ -258,7 +258,16 @@ function FactoryDemoCards.ShowGroupFull(ctx)
     },
     frameWidth = 680,
     persistent = true,
-  })
+    rebuild = function()
+      return { durationSeconds = 120, showOptions = BuildGroupFullOptions(ctx) }
+    end,
+  }
+end
+
+function FactoryDemoCards.ShowGroupFull(ctx)
+  if type(ctx.ShowCenterNotice) == "function" then
+    ctx.ShowCenterNotice(nil, 120, nil, nil, BuildGroupFullOptions(ctx))
+  end
 end
 
 --- The real talent & loot check for the preview target: the player's own

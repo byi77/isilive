@@ -72,8 +72,15 @@ function LeaderWatch.CreateController(opts)
 
   local function HandleLeaderGain(visible)
     if visible then
-      local L = getL()
-      showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+      local function BuildNotice()
+        return {
+          message = getL().LEAD_TRANSFERRED_CENTER,
+          durationSeconds = 20,
+          showOptions = { rebuild = BuildNotice },
+        }
+      end
+      local notice = BuildNotice()
+      showCenterNotice(notice.message, notice.durationSeconds, nil, nil, notice.showOptions)
     end
     PlayLeadTransferSound()
   end

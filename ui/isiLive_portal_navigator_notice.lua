@@ -334,6 +334,11 @@ local function BuildController(state)
     return true
   end
 
+  -- New texts for the open card, without an entrance or transition.
+  local function Relabel(layout)
+    return ApplyLayout(state, layout)
+  end
+
   return {
     frame = state.frame,
     eyebrowText = state.eyebrowText,
@@ -347,6 +352,7 @@ local function BuildController(state)
     closeButton = state.closeButton,
     SetVisible = SetVisible,
     Show = Show,
+    Relabel = Relabel,
   }
 end
 

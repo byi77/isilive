@@ -1004,6 +1004,34 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("Status target chat lock-in survives a language switch of the same map", function()
+    local prints = {}
+    local targetName = "Tempel von Sethraliss"
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        isInGroup = function()
+          return true
+        end,
+        hasLocalTargetSource = function()
+          return true
+        end,
+        getTargetDungeonInfo = function()
+          return { mapID = 250, name = targetName, level = 12 }
+        end,
+        printFn = function(message)
+          table.insert(prints, tostring(message))
+        end,
+      })
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 1, "the first sighting announces")
+      targetName = "Temple of Sethraliss"
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 1, "the same map in another language is not a new target")
+    end)
+  end)
+
   test("Status AnnounceTargetDungeonFromPayload bails out without emitting or locking when level is nil", function()
     -- Vorfall 2026-05-15: modern WoW (12.0+) encodes the listing title
     -- as opaque pipe markup "|Kk<id>|k". ParseTitleKeyLevel returns nil

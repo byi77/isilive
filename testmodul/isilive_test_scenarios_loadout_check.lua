@@ -138,6 +138,24 @@ local function BuildWorld(opts)
 end
 
 local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("LoadoutCheck open card reads the dungeon name per render", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_loadout_check.lua" })
+      local name = "Tempel von Sethraliss"
+      local world = BuildWorld()
+      world.deps.getDungeonName = function()
+        return name
+      end
+      addon.LoadoutCheck.SetDependencies(world.deps)
+      local controller = addon.LoadoutCheck.GetController()
+      controller.ShowPreview(250, "Stale")
+      Assert.Equal(world.LastModel().dungeonName, "Tempel von Sethraliss")
+      name = "Temple of Sethraliss"
+      controller.Refresh()
+      Assert.Equal(world.LastModel().dungeonName, "Temple of Sethraliss")
+    end)
+  end)
+
   local function LoadModule()
     return LoadAddonModules({ "isiLive_loadout_check.lua" }).LoadoutCheck
   end

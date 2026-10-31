@@ -110,7 +110,10 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, 
 
   fields[#fields + 1] = {
     label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
-    value = payload.sourceText or L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
+    value = L[payload.sourceTextKey]
+      or payload.sourceText
+      or L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED
+      or "LFG accepted invite",
   }
 
   if type(navigationText) == "string" and navigationText ~= "" then
@@ -189,6 +192,10 @@ end
 -- { dungeonName, activityID, options }. Shared by the live notice and the
 -- simulation tablet, which feeds it a simulated invite.
 local function BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
+  local function Rebuild()
+    local args = BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
+    return { dungeonName = args.dungeonName, activityID = args.activityID, showOptions = args.options }
+  end
   local L = ctx.GetL and ctx.GetL() or {}
 
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
@@ -214,13 +221,14 @@ local function BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
     activityID = activityID,
     options = {
       eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
-      title = payload.title or L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
+      title = L[payload.titleKey] or payload.title or L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
       fields = fields,
       teleportMapID = mapID,
       -- Fixed kind: a loadout mismatch marks its own row, not the whole card.
       noticeKind = hasTeleportContext and "action" or "info",
       frameWidth = 680,
       persistent = true,
+      rebuild = Rebuild,
     },
   }
 end
@@ -269,8 +277,9 @@ local function ShowJoinedTargetNotice(ctx, modules)
   local lfgDetect = addonTable.LFGDetect
   local leaderName = nil
   local groupName = nil
-  local sourceText = nil
-  local title = nil
+  -- Keys, not texts: the open card is rebuilt on a language switch.
+  local sourceTextKey = nil
+  local titleKey = nil
   local usedQueueListingIdentity = false
   if type(lfgDetect) == "table" then
     if type(lfgDetect.GetActiveInviteLeader) == "function" then
@@ -289,9 +298,8 @@ local function ShowJoinedTargetNotice(ctx, modules)
     end
   end
   if usedQueueListingIdentity then
-    local L = ctx.GetL and ctx.GetL() or {}
-    sourceText = L.INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING or "Own LFG key search"
-    title = L.INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING or "isiLive - LFG key search"
+    sourceTextKey = "INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING"
+    titleKey = "INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING"
   end
 
   RenderAcceptedInviteNotice(ctx, modules, {
@@ -300,8 +308,8 @@ local function ShowJoinedTargetNotice(ctx, modules)
     level = targetInfo.level,
     leaderName = leaderName,
     groupName = groupName,
-    sourceText = sourceText,
-    title = title,
+    sourceTextKey = sourceTextKey,
+    titleKey = titleKey,
   }, false)
 end
 
@@ -327,6 +335,23 @@ local function BuildAcceptedRaidInviteFields(ctx, mapName, payload)
   return fields
 end
 
+local function BuildAcceptedRaidInviteOptions(ctx, modules, payload)
+  local L = ctx.GetL and ctx.GetL() or {}
+  local storedMapName = L[payload.mapNameKey] or payload.mapName
+  local mapName = type(storedMapName) == "string" and storedMapName ~= "" and storedMapName
+    or ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
+  return {
+    eyebrow = L.INVITE_ACCEPTED_RAID_NOTICE_EYEBROW or "Raid Target",
+    title = L.INVITE_ACCEPTED_RAID_NOTICE_TITLE or "isiLive - Raid invite accepted",
+    fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload),
+    frameWidth = 540,
+    persistent = true,
+    rebuild = function()
+      return { showOptions = BuildAcceptedRaidInviteOptions(ctx, modules, payload) }
+    end,
+  }
+end
+
 local function RenderAcceptedRaidInviteNotice(ctx, modules, payload, useAcceptedNoticeGate)
   if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
     return
@@ -334,17 +359,7 @@ local function RenderAcceptedRaidInviteNotice(ctx, modules, payload, useAccepted
   if useAcceptedNoticeGate ~= false and not IsAcceptedInviteNoticeEnabled() then
     return
   end
-  local L = ctx.GetL and ctx.GetL() or {}
-  local mapName = type(payload.mapName) == "string" and payload.mapName ~= "" and payload.mapName
-    or ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
-  local fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload)
-  ctx.ShowCenterNotice(nil, nil, nil, nil, {
-    eyebrow = L.INVITE_ACCEPTED_RAID_NOTICE_EYEBROW or "Raid Target",
-    title = L.INVITE_ACCEPTED_RAID_NOTICE_TITLE or "isiLive - Raid invite accepted",
-    fields = fields,
-    frameWidth = 540,
-    persistent = true,
-  })
+  ctx.ShowCenterNotice(nil, nil, nil, nil, BuildAcceptedRaidInviteOptions(ctx, modules, payload))
 end
 
 local function WireAcceptedInviteNoticeCallbacks(ctx, modules, lfgDetect)
@@ -389,6 +404,7 @@ local function HandleTargetDungeonChatPayload(ctx, modules, statusController, pa
     )
   end
   statusController.AnnounceTargetDungeonFromPayload({
+    mapID = mapID,
     name = resolvedName,
     level = payload.level,
     levelText = payload.levelText,

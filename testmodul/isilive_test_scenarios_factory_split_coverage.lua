@@ -29,10 +29,142 @@ local function NewButton()
   return button
 end
 
+local function RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("factory split coverage: a language switch relabels the open navigator and center cards", function()
+    local addon = LoadAddonModules({
+      "isiLive_texts.lua",
+      "isiLive_season_data.lua",
+      "isiLive_teleport.lua",
+      "isiLive_status.lua",
+      "isiLive_factory_localization.lua",
+    })
+    local locale = "enUS"
+    local relabeled = nil
+    local refreshes = 0
+    local uiUpdates = 0
+    local centerNotice = {
+      RefreshLocalized = function()
+        refreshes = refreshes + 1
+      end,
+    }
+    local factoryCtx = {
+      GetL = function()
+        return addon.Texts.GetLocaleTables()[locale]
+      end,
+      GetActiveLocaleTag = function()
+        return locale
+      end,
+      portalNavigatorNotice = {
+        frame = {
+          IsShown = function()
+            return true
+          end,
+        },
+        Relabel = function(layout)
+          relabeled = layout
+        end,
+      },
+      centerNotice = centerNotice,
+      demoCenterNotices = { centerNotice },
+      rosterPanelController = { ApplyLocalization = function() end },
+      UpdateCountdownCancelButton = function() end,
+      UpdateMPlusTeleportButton = function() end,
+      UpdateStatusLine = function() end,
+      UpdateUI = function()
+        uiUpdates = uiUpdates + 1
+      end,
+    }
+    addon._FactoryInternal.InitializeFactoryLocalizationControllers(factoryCtx, {
+      status = addon.Status,
+      teleport = addon.Teleport,
+    })
+    WithGlobals({
+      GetLocale = function()
+        return "deDE"
+      end,
+    }, function()
+      factoryCtx.ApplyLocalizationToUI()
+      local entries = relabeled.entries
+      local destinations = {}
+      for _, entry in ipairs(entries) do
+        destinations[entry.slot] = entry.destination
+      end
+      Assert.Equal(destinations.half_left, "King's Rest", "enUS addon on a deDE client reads English")
+      locale = "deDE"
+      factoryCtx.ApplyLocalizationToUI()
+      for _, entry in ipairs(relabeled.entries) do
+        destinations[entry.slot] = entry.destination
+      end
+      Assert.Equal(destinations.half_right, "Tempel von Sethraliss", "the open card follows the switch")
+    end)
+    Assert.Equal(refreshes, 4, "main and demo center cards refresh on each switch")
+    Assert.Equal(uiUpdates, 2, "the roster key column renders again")
+  end)
+
+  test("factory split coverage: open invite and raid cards rebuild every addon text in the new language", function()
+    local addon = LoadAddonModules({ "isiLive_factory_notices.lua" })
+    local fi = addon._FactoryInternal
+    local labels = {
+      INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon-DE:",
+      INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
+      INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING = "Eigene Suche",
+      INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING = "Titel-DE",
+      SIM_RAID_NAME = "Schlachtzug",
+    }
+    local mapName = "Tempel von Sethraliss"
+    local c = {
+      GetL = function()
+        return labels
+      end,
+    }
+    local modules = {
+      teleport = {
+        GetTeleportInfoByMapID = function()
+          return { mapName = mapName }
+        end,
+      },
+    }
+    local args = fi.BuildAcceptedInviteNoticeArgs(c, modules, {
+      mapID = 250,
+      level = 12,
+      sourceTextKey = "INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING",
+      titleKey = "INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING",
+    })
+    Assert.Equal(args.options.title, "Titel-DE")
+    Assert.Equal(args.dungeonName, "Tempel von Sethraliss")
+
+    labels = {
+      INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
+      INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
+      INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING = "Own search",
+      INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING = "Title-EN",
+      SIM_RAID_NAME = "Raid",
+    }
+    mapName = "Temple of Sethraliss"
+    local rebuilt = args.options.rebuild()
+    Assert.Equal(rebuilt.showOptions.title, "Title-EN")
+    Assert.Equal(rebuilt.dungeonName, "Temple of Sethraliss")
+    Assert.Equal(rebuilt.showOptions.fields[1].label, "Dungeon:")
+    Assert.Equal(rebuilt.showOptions.fields[1].value, "Temple of Sethraliss +12")
+    Assert.Equal(rebuilt.showOptions.fields[2].value, "Own search")
+
+    local raidOptions = nil
+    c.ShowCenterNotice = function(_, _, _, _, options)
+      raidOptions = options
+    end
+    fi.RenderAcceptedRaidInviteNotice(c, modules, { mapNameKey = "SIM_RAID_NAME", mapName = "Raid (sim)" }, false)
+    Assert.Equal(raidOptions.fields[1].value, "Raid")
+    labels.SIM_RAID_NAME = "Raid-Neu"
+    Assert.Equal(raidOptions.rebuild().showOptions.fields[1].value, "Raid-Neu")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
   local WithGlobals = ctx.with_globals
+
+  RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonModules)
 
   test("factory split coverage: combat announce callbacks render, sound, and broadcast", function()
     local prints = {}

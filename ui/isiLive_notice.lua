@@ -689,6 +689,9 @@ end
 local function ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   showOptions = showOptions or {}
   local wasShown = state.frame:IsShown()
+  -- Optional: returns the card's show arguments again; a card without it keeps
+  -- its texts on a language switch.
+  state.rebuild = type(showOptions.rebuild) == "function" and showOptions.rebuild or nil
   state.isPersistent = showOptions.persistent == true
   state.isBlinking = showOptions.blink == true
   state.blinkTime = 0
@@ -990,6 +993,16 @@ local function BuildCenterNoticeController(state)
     ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   end
 
+  local function RefreshLocalized()
+    if not state.frame:IsShown() or not state.rebuild then
+      return
+    end
+    local notice = state.rebuild()
+    if type(notice) == "table" then
+      Show(notice.message, notice.durationSeconds, notice.dungeonName, notice.activityID, notice.showOptions)
+    end
+  end
+
   local function ConfigureTeleportButton(dungeonName, activityID, mapID)
     return ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, mapID)
   end
@@ -1012,6 +1025,7 @@ local function BuildCenterNoticeController(state)
     titleSeparator = state.titleSeparator,
     teleportHeader = state.teleportHeader,
     fieldRows = state.fieldRows,
+    RefreshLocalized = RefreshLocalized,
     headerBand = state.headerBand,
     kindChip = state.kindChip,
     brandText = state.brandText,

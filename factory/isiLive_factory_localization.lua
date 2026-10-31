@@ -4,6 +4,49 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
+-- The open navigator holds finished texts, also the demo one; both come from
+-- the same builder.
+local function RefreshPortalNavigator(ctx, modules)
+  local notice = ctx.portalNavigatorNotice
+  local frame = type(notice) == "table" and notice.frame or nil
+  if type(frame) ~= "table" or not frame:IsShown() or type(notice.Relabel) ~= "function" then
+    return
+  end
+  local teleport = modules.teleport
+  local layout = modules.status.BuildPortalNavigatorLayout({
+    getL = ctx.GetL,
+    getLocaleTag = ctx.GetActiveLocaleTag,
+    getTeleportInfoByMapID = type(teleport) == "table" and teleport.GetTeleportInfoByMapID or nil,
+  })
+  if type(layout) == "table" then
+    notice.Relabel(layout)
+  end
+end
+
+-- Open center cards hold finished texts too, the demo stack included.
+local function RefreshCenterNotices(ctx)
+  local notices = { ctx.centerNotice }
+  for _, notice in ipairs(ctx.demoCenterNotices or {}) do
+    notices[#notices + 1] = notice
+  end
+  for _, notice in ipairs(notices) do
+    if type(notice.RefreshLocalized) == "function" then
+      notice.RefreshLocalized()
+    end
+  end
+end
+
+local function RefreshLoadoutCard()
+  local loadoutCheck = addonTable.LoadoutCheck
+  local controller = type(loadoutCheck) == "table"
+      and type(loadoutCheck.GetController) == "function"
+      and loadoutCheck.GetController()
+    or nil
+  if type(controller) == "table" and type(controller.Refresh) == "function" then
+    controller.Refresh()
+  end
+end
+
 local function InitializeFactoryLocalizationControllers(ctx, modules)
   ctx.ApplyLocalizationToUI = function()
     if modules.ui and type(modules.ui.EnsurePanelUI) == "function" then
@@ -59,6 +102,10 @@ local function InitializeFactoryLocalizationControllers(ctx, modules)
       })
     end
     ctx.rosterPanelController.ApplyLocalization()
+    -- The kill row writes its texts only on refresh, also while the demo runs.
+    if type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
+      ctx.rosterPanelController.RefreshKillTrackRow()
+    end
     ctx.UpdateCountdownCancelButton()
     if ctx.centerNoticeTeleportButton and ctx.centerNoticeTeleportButton:IsShown() then
       local spellID = ctx.centerNoticeTeleportButton.spellID
@@ -67,6 +114,17 @@ local function InitializeFactoryLocalizationControllers(ctx, modules)
     end
     ctx.UpdateMPlusTeleportButton()
     ctx.UpdateStatusLine()
+    -- Roster key column and tooltips: abbreviations follow the language.
+    if type(ctx.UpdateUI) == "function" then
+      -- The demo roster's own row has no stored key, so a plain render blanks it.
+      if ctx.keySyncController and type(ctx.RefreshLocalPlayerKey) == "function" then
+        ctx.RefreshLocalPlayerKey()
+      end
+      ctx.UpdateUI()
+    end
+    RefreshPortalNavigator(ctx, modules)
+    RefreshCenterNotices(ctx)
+    RefreshLoadoutCard()
     if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
       ctx.settingsPanel.Refresh()
     end

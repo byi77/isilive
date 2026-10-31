@@ -448,6 +448,10 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.ResolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID
   ctx.ResolveMapIDBySpellID = modules.teleport.ResolveMapIDBySpellID
   ctx.ResolveTeleportSpellID = modules.teleport.ResolveTeleportSpellID
+  -- `ctx.locale` is the client language; everything shown goes through this.
+  ctx.GetActiveLocaleTag = function()
+    return addonTable.UICommon.ResolveActiveLocale()
+  end
   ctx.GetDungeonName = function(mapID, localeTag)
     local db = rawget(_G, "IsiLiveDB")
     local activeLocale = (db and db.locale) or ctx.locale

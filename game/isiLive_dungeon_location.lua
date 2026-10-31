@@ -180,17 +180,30 @@ local function ScanZonesForEntrance(journalInstanceID)
   return nil
 end
 
--- Manifest fallback name in the client language, else English.
+-- Addon language; offline tools without UICommon read the client locale.
+local function ResolveDisplayLocale()
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ResolveActiveLocale) == "function" then
+    return uiCommon.ResolveActiveLocale()
+  end
+  return addonTable.Languages.ReadClientLocale()
+end
+
+-- Blizzard's map names speak the client language, so they are valid only while
+-- the addon language equals it.
+local function ReadDisplayMapName(uiMapID)
+  if not addonTable.Languages.IsClientLocale(ResolveDisplayLocale()) then
+    return nil
+  end
+  return ReadMapName(GetMapInfo(uiMapID))
+end
+
+-- Manifest name in the addon language, else English.
 local function ReadFallbackZoneName(zoneNames)
   if type(zoneNames) ~= "table" then
     return nil
   end
-  local getLocale = rawget(_G, "GetLocale")
-  local ok, localeTag = false, nil
-  if type(getLocale) == "function" then
-    ok, localeTag = pcall(getLocale)
-  end
-  local name = ok and type(localeTag) == "string" and zoneNames[localeTag] or nil
+  local name = zoneNames[ResolveDisplayLocale()]
   if type(name) ~= "string" or name == "" then
     name = zoneNames.enUS
   end
@@ -198,8 +211,8 @@ local function ReadFallbackZoneName(zoneNames)
 end
 
 -- Season manifest entrance (data/isiLive_seasons.lua). The zone name comes
--- from the client so it follows the client language; the manifest's
--- zoneNames only cover a missing or masked map info.
+-- from the client while addon and client language match; the manifest's
+-- zoneNames cover every other language and a missing or masked map info.
 local function ReadCuratedEntrance(challengeMapID)
   local seasonData = addonTable.SeasonData
   if type(seasonData) ~= "table" or type(seasonData.GetDungeonEntrance) ~= "function" then
@@ -209,7 +222,7 @@ local function ReadCuratedEntrance(challengeMapID)
   if not ok or type(entrance) ~= "table" then
     return nil
   end
-  local zoneName = ReadMapName(GetMapInfo(entrance.uiMapID)) or ReadFallbackZoneName(entrance.zoneNames)
+  local zoneName = ReadDisplayMapName(entrance.uiMapID) or ReadFallbackZoneName(entrance.zoneNames)
   if type(zoneName) ~= "string" or zoneName == "" then
     return nil
   end
@@ -224,15 +237,15 @@ function DungeonLocation.Resolve(challengeMapID)
   if not challengeMapID then
     return nil
   end
+  -- Not cached: its zone name follows the addon language.
+  local curated = ReadCuratedEntrance(challengeMapID)
+  if curated then
+    return curated
+  end
+
   local cached = locationByChallengeMapID[challengeMapID]
   if cached then
     return cached
-  end
-
-  local curated = ReadCuratedEntrance(challengeMapID)
-  if curated then
-    locationByChallengeMapID[challengeMapID] = curated
-    return curated
   end
 
   local journalInstanceID = ResolveJournalInstanceID(challengeMapID)
@@ -264,7 +277,8 @@ end
 
 --- Name of the season portal room when it holds a portal to this dungeon
 --- (the dungeon fills a portalNavigator slot), else nil. The client's map name
---- comes first; the manifest's first zone name covers a missing map info.
+--- comes first while addon and client language match; the manifest's first zone
+--- name (English) covers every other language and a missing map info.
 --- @param challengeMapID any
 --- @return string|nil
 function DungeonLocation.GetPortalRoomName(challengeMapID)
@@ -289,7 +303,7 @@ function DungeonLocation.GetPortalRoomName(challengeMapID)
     return nil
   end
   local hubMapID = type(zone.mapIDs) == "table" and zone.mapIDs[1] or nil
-  local name = hubMapID and ReadMapName(GetMapInfo(hubMapID)) or nil
+  local name = hubMapID and ReadDisplayMapName(hubMapID) or nil
   if not name and type(zone.names) == "table" and type(zone.names[1]) == "string" and zone.names[1] ~= "" then
     name = zone.names[1]
   end

@@ -30,16 +30,13 @@ local function IsSecretValue(value)
     and validators.IsSecretValue(value) == true
 end
 
--- Manifest name table for a requested locale: nil/supported English tags read
--- `enUS`, other supported tags their own table, unsupported tags none at all.
+-- Manifest name table for a requested language: German reads `deDE`, every
+-- other language (also a nil or unsupported tag) the English table.
 local function ResolveManifestNameLocale(localeTag)
-  if localeTag == nil then
-    return "enUS"
+  if localeTag ~= nil and addonTable.Languages.ResolveTag(localeTag) == "deDE" then
+    return "deDE"
   end
-  if not addonTable.Languages.IsSupported(localeTag) then
-    return nil
-  end
-  return addonTable.Languages.ResolveTag(localeTag)
+  return "enUS"
 end
 
 local function ReadManifestName(byLocale, localeKey, mapID)
@@ -1014,16 +1011,15 @@ function SeasonData.GetDungeonName(mapID, localeTag, seasonID)
   end
 
   local byLocale = season.namesByLocale or {}
-  -- 1. Manifest name in the requested locale. An unsupported tag (e.g. koKR)
-  --    has no manifest table of its own, so it skips straight to step 2.
-  local manifestLocale = ResolveManifestNameLocale(localeTag)
-  local localizedName = manifestLocale and ReadManifestName(byLocale, manifestLocale, numericMapID) or nil
+  -- 1. Manifest name: German for deDE, English for every other language.
+  local localizedName = ReadManifestName(byLocale, ResolveManifestNameLocale(localeTag), numericMapID)
   if localizedName then
     return localizedName
   end
 
-  -- 2. Blizzard's client-localized name. The API answers in the client
-  --    language only, so it is used only when that is the language asked for.
+  -- 2. Map missing from that table: Blizzard's client-localized name. The API
+  --    answers in the client language only, so it is used only when that is
+  --    the language asked for.
   if IsClientLocaleRequest(localeTag) then
     local clientName = ReadChallengeMapUIName(numericMapID)
     if clientName then

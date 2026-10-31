@@ -216,6 +216,9 @@ end
 -- is still in its instance (marked `finished`), the challenge map during the
 -- countdown, the status target, then the target remembered on dungeon entry
 -- while the player is still inside that instance.
+-- Only IDs and levels are kept here, names resolve per read: a language switch
+-- must reach the bar. The entered target keeps its name only as the fallback for
+-- a dungeon outside the season manifest.
 local function InitializeKillTrackTargetHelpers(ctx, modules)
   local finishedRun = nil
 
@@ -274,7 +277,7 @@ local function InitializeKillTrackTargetHelpers(ctx, modules)
         if not level and type(finishedRun) == "table" and finishedRun.mapID == activeMapID then
           level = finishedRun.level
         end
-        finishedRun = { mapID = activeMapID, name = name, level = level }
+        finishedRun = { mapID = activeMapID, level = level }
         return { name = name, level = level }
       end
       finishedRun = nil
@@ -282,7 +285,8 @@ local function InitializeKillTrackTargetHelpers(ctx, modules)
     end
     if type(finishedRun) == "table" then
       if addonTable.Validators.IsPlayerInChallengeMapInstance(finishedRun.mapID) then
-        return { name = finishedRun.name, level = finishedRun.level, finished = true }
+        local name = ResolveMapName(finishedRun.mapID)
+        return name and { name = name, level = finishedRun.level, finished = true } or nil
       end
       finishedRun = nil
     end
@@ -304,7 +308,7 @@ local function InitializeKillTrackTargetHelpers(ctx, modules)
       ctx.enteredTargetDungeon = nil
       return nil
     end
-    return { name = entered.name, level = entered.level }
+    return { name = ResolveMapName(entered.mapID) or entered.name, level = entered.level }
   end
 end
 
@@ -501,15 +505,18 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
       latestQueueMatchesTarget = resolvedActivityMapID and resolvedActivityMapID == numericTargetMapID or false
     end
 
+    -- The mapID comes first: it follows the addon language on every read. The
+    -- stored queue name has the language of the moment it was stored and can be
+    -- Blizzard's client text, so it only serves dungeons outside the season.
     local targetName = nil
-    if latestQueueMatchesTarget then
-      targetName = ctx.NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
-    end
-    if not targetName and targetMapID and modules.teleport and modules.teleport.GetTeleportInfoByMapID then
+    if targetMapID and modules.teleport and modules.teleport.GetTeleportInfoByMapID then
       local info = modules.teleport.GetTeleportInfoByMapID(targetMapID)
       if type(info) == "table" then
         targetName = ctx.NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
       end
+    end
+    if not targetName and latestQueueMatchesTarget then
+      targetName = ctx.NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
     end
     if
       not targetName
@@ -584,6 +591,7 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
     end
 
     return {
+      mapID = numericTargetMapID,
       name = targetName,
       level = targetLevel,
       levelText = targetLevelText,
