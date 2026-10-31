@@ -7,7 +7,7 @@ addonTable = addonTable or {}
 -- learned route that fits the run (game/isiLive_forces_pace.lua).
 --
 -- Median enemy-forces percentage at each boss kill of timed +12 to
--- +18 keys from public Warcraft Logs reports, as of 2026-10-30. Do not fill
+-- +18 keys from public Warcraft Logs reports, as of 2026-10-31. Do not fill
 -- this table from another addon: external route tables are not ours to
 -- redistribute.
 --
@@ -37,8 +37,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 30.5, 75.7, 100 },
-          leanScore = 206.2,
+          checkpoints = { 30.2, 75.7, 100 },
+          leanScore = 205.9,
         },
       },
     },
@@ -46,8 +46,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 42, 53.8, 68.1, 100 },
-          leanScore = 263.9,
+          checkpoints = { 41.8, 53.6, 67.8, 100 },
+          leanScore = 263.2,
         },
       },
     },
@@ -64,8 +64,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 21.8, 74.3, 100 },
-          leanScore = 196.1,
+          checkpoints = { 21.9, 74.1, 100 },
+          leanScore = 196,
         },
       },
     },
@@ -73,8 +73,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 36.3, 40.3, 75.6, 100 },
-          leanScore = 252.2,
+          checkpoints = { 36.3, 40.3, 75.1, 100 },
+          leanScore = 251.7,
         },
       },
     },
@@ -82,8 +82,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 44.4, 64.8, 100 },
-          leanScore = 209.2,
+          checkpoints = { 44.1, 64.5, 100 },
+          leanScore = 208.6,
         },
       },
     },
