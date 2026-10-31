@@ -28,8 +28,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 22.9, 64.9, 81.5, 100 },
-          leanScore = 269.3,
+          checkpoints = { 22.9, 65.2, 81.5, 100 },
+          leanScore = 269.6,
         },
       },
     },
@@ -37,8 +37,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 30.2, 75.7, 100 },
-          leanScore = 205.9,
+          checkpoints = { 30.1, 75.7, 100 },
+          leanScore = 205.8,
         },
       },
     },
@@ -46,8 +46,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 41.8, 53.6, 67.8, 100 },
-          leanScore = 263.2,
+          checkpoints = { 41.4, 53.2, 68.1, 100 },
+          leanScore = 262.7,
         },
       },
     },
@@ -55,8 +55,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 35.5, 61.4, 100 },
-          leanScore = 196.9,
+          checkpoints = { 35.5, 60.6, 100 },
+          leanScore = 196.1,
         },
       },
     },
@@ -64,8 +64,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 21.9, 74.1, 100 },
-          leanScore = 196,
+          checkpoints = { 21.8, 74.1, 100 },
+          leanScore = 195.9,
         },
       },
     },
@@ -73,8 +73,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 36.3, 40.3, 75.1, 100 },
-          leanScore = 251.7,
+          checkpoints = { 36.3, 40.3, 74.6, 100 },
+          leanScore = 251.2,
         },
       },
     },
@@ -82,7 +82,7 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 44.1, 64.5, 100 },
+          checkpoints = { 43.8, 64.8, 100 },
           leanScore = 208.6,
         },
       },
