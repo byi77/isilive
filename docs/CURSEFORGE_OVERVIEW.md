@@ -30,6 +30,7 @@ Nach sichtbaren Aenderungen an Feature-Positionierung, Screenshots oder Versions
 
 Empfohlene Medienpositionen im CurseForge-Editor:
 
+- beim Platzhalter im Kopfbereich: `isiLive_MPlus_annotated.png`
 - nach `GREEN PLUS SIGNS`: `isiLive_LFGBuffRating.png`
 - nach `ONE WINDOW`: `isiLive_MPlus_ui.png`
 - nach `PORTAL GRID`: `isiLive_PortalNavigator.png`
@@ -42,12 +43,16 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.1.5 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.464
+🟪 Version 0.9.474
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-New in 0.9.464: entering a season dungeon in a group shows your talent loadout and loot spec next to what you confirmed for that dungeon and spec, with one-click switches; a full match is a short green chat line instead.
-New in 0.9.461: during a fight the time pace pauses and reads "Pause +m:ss" in grey, then updates once the pull's kills are counted, instead of drifting late mid-pull.
-New in 0.9.459: an accepted LFG invite keeps its dungeon in the window and the chat line, also with several open applications or when accepted in combat.
+
+[SCREENSHOT: isiLive_MPlus_annotated.png]
+
+New in 0.9.474: isiLive texts, dungeon names and abbreviations follow the isiLive language instead of the game client: German in German, English in every other language. Open cards switch at once, also in the demo.
+New in 0.9.473: a steadier time forecast that combines the whole run, the last four minutes and the dungeon's time curve, so one big pull no longer swings it.
+New in 0.9.472: forces targets for all eight season dungeons from your first key on.
+New in 0.9.471: the killtracker shows how much enemy forces are still needed before the next boss ("Needs x% more in this section"), also during a pull, and ticks on the bar mark all coming sections.
 A shared modern UI hierarchy runs across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -62,7 +67,8 @@ See spec, role, language, key, item level, Raider.IO, last-run DPS, interrupt st
 
 🟨 LIVE FORCES: pull planning while the key is running
 Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database.
-Forces pace learns from your own completed keys how much forces you need before each boss and shows live whether you are ahead or short.
+Section targets show how much forces you still need before the next boss: the text under the bar reads "Needs x% more in this section", also during a pull, and turns off once the section is reached. The pull counter turns green when the running pull has reached the target.
+Start values work for all eight season dungeons from your first key. Your own completed keys replace them, your tanked runs first if you tank, and the last section always targets 100%. The display survives a reload.
 MDT-dependent mob details are shown only when the bundled database exactly matches the active season; Blizzard's overall dungeon progress remains available independently.
 
 ⏱️ TIME TO KILL: how long your target still lives
@@ -75,8 +81,8 @@ Switch it on or off in the Display settings; /isilive ttktest previews it on a t
 ⏳ TIME PACE: is the key on time?
 The killtracker bar shows the spent time as a strip in the timer's colour. The gap between forces and time is tinted green while your forces lead the clock and red while the clock leads, so you see the pace without reading numbers.
 A +/- time delta on the right end of the killtracker bar compares your run with your own slowest timed run on the same dungeon and key level, the slowest pace that still made the timer. Green means you are ahead of it, red means behind.
-Without such a run yet, it shows a finish forecast from enemy forces and killed bosses against the time limit. Reference runs are learned automatically from your completed keys.
-During a fight the delta pauses: it holds the value from the pull, greyed out with "Pause" in front, and updates once the pull's kills are counted. Without the pause it would drift late mid-pull and snap back when the mobs die.
+Without such a run yet, it shows a finish forecast against the time limit, combined from the whole run, the last four minutes and the dungeon's time curve, so one big pull does not swing it. Reference runs are learned automatically from your completed keys.
+During a fight the delta pauses: it holds the value from the pull with "Pause" in front, in the colour it had at the pull, and updates once the pull's kills are counted. Without the pause it would drift late mid-pull and snap back when the mobs die.
 
 🧩 TALENT AND LOOT CHECK: ready before the key
 Entering a dungeon of the active Mythic+ season in a group, before the key starts, shows a card with your active talent loadout and loot specialization. Confirm it once with "OK - remember" per character, spec and dungeon; on later visits any difference is flagged in red.
@@ -98,9 +104,9 @@ WHAT isiLive GIVES YOU
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A talent and loot check before the key, remembered per dungeon and spec, with one-click loadout and loot spec switches.
 ✅ A current-season portal grid with cooldowns and verified target highlighting.
-✅ Live enemy-forces tracking through a bottom bar, pull prediction, learned per-boss forces pace, nameplates, and mob tooltips.
+✅ Live enemy-forces tracking through a bottom bar, pull prediction, section targets before each boss, nameplates, and mob tooltips.
 ✅ Time to kill in your target's nameplate and in the killtracker line, so you know how long a mob or boss still lives.
-✅ Time pace on the killtracker bar: on time or behind, measured against your own slowest timed run or a finish forecast, paused during fights.
+✅ Time pace on the killtracker bar: on time or behind, measured against your own slowest timed run or a combined finish forecast, paused during fights.
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ Voice alert the moment your pet gets stuck and reports no path to follow you.
 ✅ Voice alert on incoming group invites, repeated every 5 seconds until you answer.
