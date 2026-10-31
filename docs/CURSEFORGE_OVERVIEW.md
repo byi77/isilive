@@ -43,16 +43,17 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.1.5 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.475
+🟪 Version 0.9.476
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 [SCREENSHOT: isiLive_MPlus_annotated.png]
 
+New in 0.9.476: the killtracker bar shows the real forces during a pull and no longer falls back, and the time pace turns red only past the time limit.
 New in 0.9.475: a banner over the killtracker shows how your key ended: timed, over time, abandoned or group left. The dungeon and key level before a key use the same banner style, in gold.
 New in 0.9.474: isiLive texts, dungeon names and abbreviations follow the isiLive language instead of the game client: German in German, English in every other language. Open cards switch at once, also in the demo.
-New in 0.9.473: a steadier time forecast that combines the whole run, the last four minutes and the dungeon's time curve, so one big pull no longer swings it.
-New in 0.9.472: forces targets for all eight season dungeons from your first key on.
+New in 0.9.473: a steadier time forecast that combines the whole run and the last four minutes, so one big pull no longer swings it.
+New in 0.9.472: forces targets for seven of the eight season dungeons from your first key on.
 New in 0.9.471: the killtracker shows how much enemy forces are still needed before the next boss ("Needs x% more in this section"), also during a pull, and ticks on the bar mark all coming sections.
 A shared modern UI hierarchy runs across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
 
@@ -69,7 +70,7 @@ See spec, role, language, key, item level, Raider.IO, last-run DPS, interrupt st
 🟨 LIVE FORCES: pull planning while the key is running
 Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database.
 Section targets show how much forces you still need before the next boss: the text under the bar reads "Needs x% more in this section", also during a pull, and turns off once the section is reached. The pull counter turns green when the running pull has reached the target.
-Start values work for all eight season dungeons from your first key. Your own completed keys replace them, your tanked runs first if you tank, and the last section always targets 100%. The display survives a reload.
+Start values work for seven of the eight season dungeons from your first key. Your own completed keys replace them, your tanked runs first if you tank, and the last section always targets 100%. The display survives a reload.
 MDT-dependent mob details are shown only when the bundled database exactly matches the active season; Blizzard's overall dungeon progress remains available independently.
 
 ⏱️ TIME TO KILL: how long your target still lives
@@ -82,7 +83,7 @@ Switch it on or off in the Display settings; /isilive ttktest previews it on a t
 ⏳ TIME PACE: is the key on time?
 The killtracker bar shows the spent time as a strip in the timer's colour. The gap between forces and time is tinted green while your forces lead the clock and red while the clock leads, so you see the pace without reading numbers.
 A +/- time delta on the right end of the killtracker bar shows your forecast finish against the time limit, based on your own slowest timed run on the same dungeon and key level. Green means inside the limit, red means past it.
-Without such a run yet, it shows a finish forecast against the time limit, combined from the whole run, the last four minutes and the dungeon's time curve, so one big pull does not swing it. Reference runs are learned automatically from your completed keys.
+Without such a run yet, it shows a finish forecast against the time limit, combined from the whole run and the last four minutes, so one big pull does not swing it. Reference runs are learned automatically from your completed keys.
 During a fight the delta pauses: it holds the value from the pull with "Pause" in front, in the colour it had at the pull, and updates once the pull's kills are counted. Without the pause it would drift late mid-pull and snap back when the mobs die.
 
 🧩 TALENT AND LOOT CHECK: ready before the key

@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.1.5 Midnight Retail](https://img.shields.io/badge/WoW-12.1.5%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.475](https://img.shields.io/badge/isiLive-0.9.475-1E90FF?style=for-the-badge)
+![isiLive 0.9.476](https://img.shields.io/badge/isiLive-0.9.476-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -48,13 +48,15 @@ CD polling also resumes for visible active keys after raid return or reopening
 the main window, and stops immediately when hidden. Deep sync byte dumps are
 formatted only when their log output is consumed.
 
-Version `0.9.475` is about how a key ended: a banner over the whole killtracker row says timed, over time, abandoned or group left, for up to 60 seconds, and ends earlier on a new key or a new group. The dungeon and key level before a key use the same banner style, in gold.
+Version `0.9.476` is about a truthful killtracker: the bar shows the real forces during a pull and no longer falls back afterwards, and the time pace turns red only when the forecast finish is past the time limit. Banner text is white and the row label reads `M+Tracker`.
+
+Version `0.9.475` covers how a key ended: a banner over the whole killtracker row says timed, over time, abandoned or group left, for up to 60 seconds, and ends earlier on a new key or a new group. The dungeon and key level before a key use the same banner style, in gold.
 
 Version `0.9.474` is about language: texts, dungeon names and abbreviations now follow the isiLive language instead of the game client, German in German and English in every other language. Open cards switch at once, also in the demo. Names only the game knows, such as specs, stay in the client language.
 
-Version `0.9.473` covers steadier forecasts: the time pace combines the whole run, the last four minutes and the dungeon's time curve, so one big pull no longer swings it, and if you tank, your own tanked runs set the forces targets.
+Version `0.9.473` covers steadier forecasts: the time pace combines the whole run and the last four minutes, so one big pull no longer swings it, and if you tank, your own tanked runs set the forces targets.
 
-Version `0.9.472` covers better starting data: forces targets now cover all eight season dungeons, based on timed +12 to +18 keys, and the time pace compares your key with barely timed runs scaled to its time limit until you have a timed run of your own. Your own runs always take priority.
+Version `0.9.472` covers better starting data: forces targets start with measured values on seven of the eight season dungeons. Your own runs always take priority.
 
 Version `0.9.471` covers reaching the forces before the next boss. Under the killtracker bar, next to the time to kill, isiLive shows how much is still needed ("Needs x% more in this section"), also during a pull. Start values work before you have runs of your own, your learned runs replace them, the last section always targets 100%, ticks on the bar mark all coming sections, and the display survives a reload.
 

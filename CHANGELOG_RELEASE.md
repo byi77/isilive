@@ -3,16 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.475`.
+Current version: `0.9.476`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
 
-Unreleased (2026-10-31): the killtracker bar no longer runs ahead during a pull
-and falls back afterwards; the pull is now coloured inside the real forces. The
-time pace turns red only when the forecast finish is past the time limit.
-Banner text is white, and the row label reads `M+Tracker`.
+Version 0.9.476: the killtracker bar no longer runs ahead during a pull and falls
+back afterwards; the pull is now coloured inside the real forces. The time pace
+turns red only when the forecast finish is past the time limit. Banner text is
+white, and the row label reads `M+Tracker`.
 
 Version 0.9.475: the M+ killtracker shows how a key ended as a banner over the
 whole row: timed, over time, abandoned or group left, for up to 60 seconds. The
@@ -23,13 +23,12 @@ Version 0.9.474: isiLive texts, dungeon names and abbreviations follow the
 isiLive language instead of the game client: German in German, English in every
 other language. Open cards switch at once, also in the demo.
 
-Version 0.9.473: the time forecast now combines the whole run, the last four
-minutes and the dungeon's time curve, so one big pull no longer swings it. If
-you tank, your own tanked runs set the forces targets.
+Version 0.9.473: the time forecast now combines the whole run and the last four
+minutes, so one big pull no longer swings it. If you tank, your own tanked runs
+set the forces targets.
 
-Version 0.9.472: forces targets now cover all eight season dungeons, based on
-timed +12 to +18 keys, and the time pace compares your key with barely timed
-runs scaled to its time limit, until you have a timed run of your own.
+Version 0.9.472: forces targets start with measured values on seven of the eight
+season dungeons, until you have runs of your own.
 
 Version 0.9.471: the killtracker shows how much enemy forces are still needed
 before the next boss ("Needs x% more in this section", next to the TTK), also
@@ -150,7 +149,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.475 -->
+<!-- highlights-reviewed-for: 0.9.476 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:
@@ -170,10 +169,9 @@ Highlights:
   call. The accepted-invite card lists Talents and Loot under Loadout, the
   loadout name in gold, and a switch counts only once it has really gone
   through.
-- **Cleaner killtracker.** Before the key the empty bar glows gold with a
-  slow light sweep and the target dungeon and key level pulse on it, so you
-  see at a glance which key the group is about to run; during the key the
-  dungeon stays on the progress bar. Complete forces read `100%`.
+- **Key end banner.** A banner over the killtracker row shows how a key ended:
+  timed, over time, abandoned or group left. The bar now shows the real forces
+  during a pull, and the time pace turns red only past the time limit.
 - **Time to kill (TTK).** During a Mythic+ fight your target shows roughly
   how many seconds it has left, inside its health bar and under the
   killtracker bar, for bosses, minibosses and casters. Good for deciding whether a
