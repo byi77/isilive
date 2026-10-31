@@ -197,8 +197,8 @@ end
 
 -- Time pace of the run (see game/isiLive_time_pace.lua) as a signed delta
 -- plus "ontime" or "late", or nil when
--- nothing is shown: against the reference run at the same progress, otherwise
--- the forecast end time against the time limit. Without the TimePace module
+-- nothing is shown: the forecast end time against the time limit, from the
+-- reference run or the projection. Without the TimePace module
 -- the setting cannot be read: fail closed.
 local function BuildTimePaceText(data)
   local status = type(data) == "table" and data.timePace or nil

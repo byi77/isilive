@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Killtracker bar (rule 232): the running pull was counted twice, once in the fill and once in a segment attached to it, so the bar overshot during a pull and fell back when the pull display ended. The pull now colours its share inside the fill; the bar always shows the real forces.
+- Time pace (rule 208): with a stored reference the delta compared against that run, so a key behind an older, faster run stayed red although it was well inside the limit. It now shows the forecast finish against the time limit, and red means past the limit. Before 5 % progress and 60 seconds there is no answer, also with a reference; the clock alone used to read as late and stayed frozen through the first pull.
 - Key end and pre-key banners use white text. The row label now reads `M+Tracker`.
 
 ## 2026-10-31 - Version 0.9.475 (patch)

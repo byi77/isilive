@@ -244,7 +244,8 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
       AdvanceTrash()
       local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the replay compares the reference")
       Assert.Equal(status.mode, "reference", "a learned reference is used")
-      Assert.True(math.abs(status.delta) < 0.5, "identical progress at the same time has no false delay")
+      -- The replay forecasts the reference's own 1500 s against the 1800 s limit.
+      Assert.True(math.abs(status.delta + 300) < 0.5, "identical progress at the same time has no false delay")
     end)
   end)
 
@@ -356,13 +357,48 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
       local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a reference answer must exist")
       Assert.Equal(status.mode, "reference", "a stored reference wins over the projection")
       Assert.Equal(status.keyLevel, KEY_LEVEL, "the answer names the compared key level")
-      Assert.True(math.abs(status.delta + 100) < 0.5, "100 s earlier than the reference at the same progress")
+      -- 100 s ahead of a 1600 s run forecasts 1500 s, 300 s inside the limit.
+      Assert.True(math.abs(status.delta + 300) < 0.5, "100 s earlier than the reference at the same progress")
 
       -- Between samples the reference time is interpolated: progress 0.4917
       -- lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 902.9 s.
       Advance(addon, env, 1000, 195, 1)
       status = addon.KillTrack.GetData().timePace
-      Assert.True(math.abs(status.delta - (1000 - 902.9)) < 0.5, "the reference time is interpolated")
+      Assert.True(math.abs(status.delta - (1000 - 902.9 - 200)) < 0.5, "the reference time is interpolated")
+    end)
+  end)
+
+  -- Found in a recorded +16: 28:25 on a 30:00 limit, red the whole way because
+  -- the run was behind an older, faster reference.
+  test("TimePace stays on time behind a faster reference that leaves room to the limit", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      StartRun(addon, env)
+      -- The reference was here at 800 s: 53 s behind it forecasts 1653 s.
+      Advance(addon, env, 853, 150, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a reference answer must exist")
+      Assert.True(math.abs(status.delta + 147) < 0.5, "the forecast is compared against the time limit")
+    end)
+  end)
+
+  test("TimePace gives no reference answer before the first kills count", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      PlayRun(addon, env, 1600)
+      StartRun(addon, env)
+      Advance(addon, env, 40, 60, 0)
+      Assert.Nil(addon.KillTrack.GetData().timePace, "the first minute has no answer")
+      Advance(addon, env, 127, 27, 0)
+      Assert.Nil(addon.KillTrack.GetData().timePace, "below 5 % progress the clock alone would read as late")
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      Assert.Nil(addon.KillTrack.GetData().timePace, "the first pull freezes no early answer")
+      Advance(addon, env, 130, 60, 0)
+      Dispatch(addon, "PLAYER_REGEN_ENABLED")
+      RunTimers(env)
+      Assert.NotNil(addon.KillTrack.GetData().timePace, "from 5 % progress the answer appears")
     end)
   end)
 
@@ -536,14 +572,14 @@ local function RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModu
       Dispatch(addon, "PLAYER_REGEN_DISABLED")
       local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the pull freezes the current answer")
       Assert.True(status.paused, "the frozen answer is marked as paused")
-      Assert.True(math.abs(status.delta + 100) < 0.5, "the frozen answer is the one at the pull")
+      Assert.True(math.abs(status.delta + 300) < 0.5, "the frozen answer is the one at the pull")
 
       -- The clock runs, kills land mid-pull: the shown answer stays put.
       env.elapsed = 760
       Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
       Advance(addon, env, 790, 180, 1)
       status = addon.KillTrack.GetData().timePace
-      Assert.True(status.paused and math.abs(status.delta + 100) < 0.5, "the answer does not drift during the fight")
+      Assert.True(status.paused and math.abs(status.delta + 300) < 0.5, "the answer does not drift during the fight")
 
       Dispatch(addon, "PLAYER_REGEN_ENABLED")
       Assert.True(addon.KillTrack.GetData().timePace.paused, "the grace window waits for the late criteria update")
@@ -551,7 +587,7 @@ local function RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModu
       status = addon.KillTrack.GetData().timePace
       Assert.Nil(status.paused, "the grace window end releases the answer")
       -- progress 0.4667 lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 868.6 s.
-      Assert.True(math.abs(status.delta - (790 - 868.6)) < 1, "the released answer counts the pull's kills")
+      Assert.True(math.abs(status.delta - (790 - 868.6 - 200)) < 1, "the released answer counts the pull's kills")
 
       -- Learning used the real timer during the fight: the slower run becomes
       -- the reference and keeps the sample taken mid-pull.
@@ -668,16 +704,21 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       local row = NewRow()
       addon._RosterInternal.UpdateKillTrackRow(row)
       local line = row.killTrackTimePaceText
-      Assert.Equal(line._text, "-1:12", "ahead of the reference shows a minus delta")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "ahead is green")
+      Assert.Equal(line._text, "-4:32", "a forecast inside the limit shows a minus delta")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "inside the limit is green")
 
-      Advance(addon, env, 875, 150, 1)
+      Advance(addon, env, 853, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "+1:15", "behind the reference shows a plus delta")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "behind is red")
+      Assert.Equal(line._text, "-2:27", "behind the reference the row shows the room to the limit")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "behind it but inside the limit is green")
+
+      Advance(addon, env, 1075, 150, 1)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "+1:15", "a forecast past the limit shows a plus delta")
+      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "past the limit is red")
 
       Dispatch(addon, "PLAYER_REGEN_DISABLED")
-      Advance(addon, env, 950, 150, 1)
+      Advance(addon, env, 1150, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "Pause +1:15", "a fight keeps the pull's delta behind the pause word")
       Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "the paused delta keeps the pull's red")

@@ -10,7 +10,8 @@ timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
 
 Unreleased (2026-10-31): the killtracker bar no longer runs ahead during a pull
-and falls back afterwards; the pull is now coloured inside the real forces.
+and falls back afterwards; the pull is now coloured inside the real forces. The
+time pace turns red only when the forecast finish is past the time limit.
 Banner text is white, and the row label reads `M+Tracker`.
 
 Version 0.9.475: the M+ killtracker shows how a key ended as a banner over the

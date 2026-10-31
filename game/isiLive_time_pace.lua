@@ -10,10 +10,11 @@ addonTable = addonTable or {}
 --
 -- Two answers, in order of preference:
 --   reference  -- the player's own slowest timed run on the same dungeon and
---                 key level (per season). It is the slowest pace that still
---                 made the timer, so being ahead of it means on time. The
---                 answer is elapsed time minus the reference's time at the
---                 same progress (negative = ahead).
+--                 key level (per season). The gap to it at the same progress
+--                 carries over to its finish time, which gives the forecast;
+--                 the answer is that forecast against the key's time limit
+--                 (negative = on time). Being behind a reference that beat the
+--                 limit by minutes is not late.
 --   projection -- without a reference: the median of up to three finish-time
 --                 estimates (of an even count, the mean of the middle two),
 --                 compared against the key's time limit:
@@ -51,10 +52,10 @@ local MAX_SAMPLES = 600
 -- Upper bound for persisted key levels per dungeon; the level seen least
 -- recently is dropped first.
 local MAX_LEVELS_PER_MAP = 30
--- The projection divides by progress, so it is meaningless at the very
--- start of a key.
-local PROJECTION_MIN_PROGRESS = 0.05
-local PROJECTION_MIN_ELAPSED = 60
+-- Before the first kills the clock runs at progress zero, and the projection
+-- divides by progress: no answer says anything at the very start of a key.
+local PACE_MIN_PROGRESS = 0.05
+local PACE_MIN_ELAPSED = 60
 -- Rolling tempo: the window it looks back over and the history it needs.
 local ROLLING_WINDOW = 240
 local ROLLING_MIN_COVERAGE = 120
@@ -516,21 +517,22 @@ local function ComputeStatus(mapID)
   end
   local elapsed = timer.timer
   local keyLevel = IsPositiveInteger(timer.keyLevel) and timer.keyLevel or run.keyLevel
-
-  if run.seasonID ~= nil and IsPositiveInteger(keyLevel) then
-    local levels = GetMapLevels(run.seasonID, mapID, false)
-    local entry = levels and levels[keyLevel]
-    if IsValidReference(entry) then
-      return { mode = "reference", delta = elapsed - ReferenceTimeAt(entry, progress), keyLevel = keyLevel }
-    end
-  end
-
-  if progress < PROJECTION_MIN_PROGRESS or elapsed < PROJECTION_MIN_ELAPSED then
+  if progress < PACE_MIN_PROGRESS or elapsed < PACE_MIN_ELAPSED then
     return nil
   end
   if not IsFiniteNumber(timer.timeLimit) or timer.timeLimit <= 0 then
     return nil
   end
+
+  if run.seasonID ~= nil and IsPositiveInteger(keyLevel) then
+    local levels = GetMapLevels(run.seasonID, mapID, false)
+    local entry = levels and levels[keyLevel]
+    if IsValidReference(entry) then
+      local forecast = entry.duration + elapsed - ReferenceTimeAt(entry, progress)
+      return { mode = "reference", delta = forecast - timer.timeLimit, keyLevel = keyLevel }
+    end
+  end
+
   return { mode = "projection", projected = EstimateFinish(mapID, elapsed, progress), timeLimit = timer.timeLimit }
 end
 

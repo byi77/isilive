@@ -629,8 +629,8 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemes
 1. Trigger: dieselben `KillTrack`-Ereignisse wie UC-29; `KillTrack` reicht jeden Snapshot an `TimePace` weiter, verstrichene Zeit, Zeitlimit und Keystufe kommen aus `MplusTimer`.
 2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf; zusaetzlich haelt es fuer jeden Run, auch nach Reload, einen Verlauf der letzten 240 Sekunden. Die Prognose ohne Referenz ist der Median aus gesamtem Run (Zeit / Fortschritt), Tempo der letzten 240 Sekunden (ab 120 Sekunden Verlauf) und Zeitkurve des Dungeons, soweit vorhanden.
 3. Regel: Gespeichert wird bei `CHALLENGE_MODE_COMPLETED` nur ein ab Start verfolgter, getimter Run (`GetChallengeCompletionInfo().onTime`) ohne vorab tote Bosse mit passender Map und Keystufe; je Season, Dungeon und Keystufe bleibt der langsamste. `CHALLENGE_MODE_RESET` verwirft den Run.
-4. Output: Rechts auf dem Killtracker-Balken steht `-1:12` (gruen, vor der Referenz) beziehungsweise `+0:40` (rot), ohne Referenz der Abstand der Prognose zum Zeitlimit, z. B. `-1:20` fuer Prognose 31:40 bei 33:00 (gruen bis zum Zeitlimit, sonst rot).
-5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys ohne Referenz (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Anzeige leer.
+4. Output: Rechts auf dem Killtracker-Balken steht der Abstand der prognostizierten Endzeit zum Zeitlimit: `-1:12` (gruen, im Limit) beziehungsweise `+0:40` (rot, darueber). Mit Referenz ist die Prognose deren Laufzeit plus der Abstand beim selben Fortschritt, ohne Referenz der Median der Schaetzungen.
+5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Anzeige leer.
 
 ## UC-31 Time to Kill des Ziels
 
