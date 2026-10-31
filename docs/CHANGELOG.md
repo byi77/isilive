@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Killtracker bar (rule 232): the running pull was counted twice, once in the fill and once in a segment attached to it, so the bar overshot during a pull and fell back when the pull display ended. The pull now colours its share inside the fill; the bar always shows the real forces.
+- Key end and pre-key banners use white text. The row label now reads `M+Tracker`.
 
 ## 2026-10-31 - Version 0.9.475 (patch)
 

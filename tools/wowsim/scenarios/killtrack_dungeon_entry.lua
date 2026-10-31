@@ -68,7 +68,7 @@ end
 
 local function FindKillTrackBox(frame)
   for _, child in ipairs(frame._children or {}) do
-    if not child._isFrame and type(child.GetText) == "function" and child:GetText() == "M+Killtracker" then
+    if not child._isFrame and type(child.GetText) == "function" and child:GetText() == "M+Tracker" then
       return frame
     end
     if child._isFrame then

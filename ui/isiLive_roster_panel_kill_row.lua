@@ -589,7 +589,7 @@ local function CreateKillTrackRow(mainFrame)
   label:SetPoint("LEFT", box, "LEFT", 6, 0)
   label:SetWidth(84)
   label:SetJustifyH("LEFT")
-  label:SetText("M+Killtracker") -- i18n-ok: brand name, kept across all locales
+  label:SetText("M+Tracker") -- i18n-ok: brand name, kept across all locales
   local labelColor = UICommon.Colors and UICommon.Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
   if type(label.SetTextColor) == "function" then
     label:SetTextColor(labelColor[1], labelColor[2], labelColor[3], labelColor[4] or 1)
@@ -1126,6 +1126,15 @@ local function UpdateKillTrackRow(row, deps)
     SetTargetPulse(row, preKey)
     SetPreKeyReady(row, preKey)
     PlaceBarTarget(row, preKey)
+    if preKey then
+      -- White on the gold banner, like the key end banners.
+      local white = (UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1, 1, 1 }
+      for _, text in ipairs({ row.killTrackTargetText, row.killTrackTargetLevelText }) do
+        if text and type(text.SetTextColor) == "function" then
+          text:SetTextColor(white[1], white[2], white[3])
+        end
+      end
+    end
     if pctText then
       pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then

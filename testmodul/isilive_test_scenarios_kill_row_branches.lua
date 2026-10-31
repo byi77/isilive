@@ -507,7 +507,7 @@ return function(test, ctx)
       })
       local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
       local label = Assert.NotNil(row.killTrackLabel, "run label must be exposed")
-      Assert.Equal(label._text, "M+Killtracker", "run label must remain the same brand text")
+      Assert.Equal(label._text, "M+Tracker", "run label must remain the same brand text")
       Assert.Equal(
         label._textColor[1],
         addon.UICommon.Colors.TEXT_SECTION[1],
@@ -994,6 +994,21 @@ return function(test, ctx)
       Assert.Equal(points[1][1], "TOPRIGHT", "the pull grows from the fill's end to the left")
       Assert.Equal(points[1][2], row.killTrackBarFill, "the pull follows the easing fill")
       Assert.Equal(points[1][3], "TOPRIGHT", "the pull ends where the fill ends")
+    end)
+  end)
+
+  test("Key end banner and pre-key target use white text", function()
+    local recorder = NewCreateFrameRecorder()
+    WithGlobals({ CreateFrame = recorder.createFrame }, function()
+      local addon = LoadKillRow({ active = false, percent = 0 })
+      local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
+      Assert.Equal(row.killTrackRunEndText._textColor[3], 1, "the banner text is white")
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return { name = "Nexuspunkt Xenas", level = 14 }
+        end,
+      })
+      Assert.Equal(row.killTrackTargetText._textColor[3], 1, "the pre-key name is white on the gold banner")
     end)
   end)
 

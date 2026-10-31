@@ -151,6 +151,9 @@ local function CreateRunEndBanner(row, box, barOverlay)
   label:SetPoint("RIGHT", banner, "RIGHT", 0, 0)
   label:SetJustifyH("CENTER")
   label:SetText("")
+  if type(label.SetTextColor) == "function" then
+    label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1, 1, 1 }))
+  end
   RI.ApplyFontStringSize(label, RUN_END_FONT_SIZE)
 
   banner:Hide()
