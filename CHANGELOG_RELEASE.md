@@ -3,11 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.472`.
+Current version: `0.9.473`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.473: the time forecast now combines the whole run, the last four
+minutes and the dungeon's time curve, so one big pull no longer swings it. If
+you tank, your own tanked runs set the forces targets.
 
 Version 0.9.472: forces targets now cover all eight season dungeons, based on
 timed +12 to +18 keys, and the time pace compares your key with barely timed
@@ -132,7 +136,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.472 -->
+<!-- highlights-reviewed-for: 0.9.473 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

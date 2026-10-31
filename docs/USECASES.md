@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.472`
+Versionsbasis: `0.9.473`
 Zuletzt aktualisiert: `2026-10-31`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -617,17 +617,17 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe fuer den naechsten Boss 
 
 1. Trigger: `CHALLENGE_MODE_START`, `SCENARIO_CRITERIA_UPDATE`, der aktive Killtracker-Refresh-Ticker, Kampfbeginn und -ende sowie `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET`, jeweils ueber `KillTrack`.
 2. Verarbeitung: `KillTrack` liest alle Szenario-Kriterien einmal je Refresh, waehlt Enemy Forces ueber die gesperrte `criteriaID` (sonst das einzige beziehungsweise groesste gewichtete Kriterium) und reicht Map, verifizierten Prozentwert und Bossliste an `ForcesPace` weiter. `ForcesPace` haengt neu tote Bosse in Kriterienindex-Reihenfolge mit dem Prozentwert auf eine Nachkommastelle an.
-3. Regel: Gelernt wird bei `CHALLENGE_MODE_COMPLETED` nur ein Run, der ab `CHALLENGE_MODE_START` verfolgt wurde, ohne vorab tote Bosse und mit allen Bossen erfasst; je Route bleibt der Run mit der kleinsten Summe der Kill-Prozente, `runs` zaehlt jeden gelernten Run. `CHALLENGE_MODE_RESET` verwirft den Run.
+3. Regel: Gelernt wird bei `CHALLENGE_MODE_COMPLETED` nur ein Run, der ab `CHALLENGE_MODE_START` verfolgt wurde, ohne vorab tote Bosse und mit allen Bossen erfasst; je Route bleibt der Run mit der kleinsten Summe der Kill-Prozente, `runs` zaehlt jeden gelernten Run, `tankRuns` die davon als Tank gelaufenen. `CHALLENGE_MODE_RESET` verwirft den Run.
 4. Regel: Secret- oder unlesbare Boss-Kriterien erzeugen keinen Killeintrag, eine unaufgeloeste Season verhindert Lernen und Anzeige, beschaedigte gespeicherte Routen werden ignoriert.
-5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Abschnitt, bis zu vier gedimmte Striche fuer die spaeteren Abschnitte und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang und wird gruen, sobald das Ziel erreicht ist. Der letzte Abschnitt zielt auf 100 %, auch nach dem letzten Boss, solange die Forces offen sind. Ohne passende gelernte Route antworten mitgelieferte Startwerte aus eigenen Runs; ein Run mit unbekannter Killreihenfolge (Reload, Boss bei Start tot) zeigt ein Ziel, wird aber nie gelernt.
+5. Output: Solange ein Ziel existiert und `forcesPaceEnabled` an ist (Default), zeigt der Killtracker-Balken einen kuehlen Zielstrich beim Minimum der passenden gelernten Werte fuer den naechsten Abschnitt, bis zu vier gedimmte Striche fuer die spaeteren Abschnitte und das Pull-Textfeld zwischen Pulls `+x,x%`, `-x,x%` oder `0,0%`; der laufende Pull-Text hat Vorrang und wird gruen, sobald das Ziel erreicht ist. Der letzte Abschnitt zielt auf 100 %, auch nach dem letzten Boss, solange die Forces offen sind. Ist der Spieler Tank und passt eine als Tank gelaufene Route, zaehlen nur solche Routen. Ohne passende gelernte Route antworten mitgelieferte Startwerte aus eigenen Runs; ein Run mit unbekannter Killreihenfolge (Reload, Boss bei Start tot) zeigt ein Ziel, wird aber nie gelernt.
 6. Erfolgskriterium: Ohne gelernte oder mitgelieferte passende Route, bei vollstaendigen Forces oder bei ausgeschaltetem Setting sieht die Killtracker-Zeile genau wie bisher aus.
 
 ## UC-30 Zeit-Tempo im M+-Killtracker
 
-Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemessen an seinem langsamsten getimten Run im selben Dungeon auf derselben Keystufe oder, ohne solchen Run, an einer Hochrechnung (Regel 208).
+Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemessen an seinem langsamsten getimten Run im selben Dungeon auf derselben Keystufe oder, ohne solchen Run, an einer Prognose der Endzeit (Regel 208).
 
 1. Trigger: dieselben `KillTrack`-Ereignisse wie UC-29; `KillTrack` reicht jeden Snapshot an `TimePace` weiter, verstrichene Zeit, Zeitlimit und Keystufe kommen aus `MplusTimer`.
-2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf.
+2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf; zusaetzlich haelt es fuer jeden Run, auch nach Reload, einen Verlauf der letzten 240 Sekunden. Die Prognose ohne Referenz ist der Median aus gesamtem Run (Zeit / Fortschritt), Tempo der letzten 240 Sekunden (ab 120 Sekunden Verlauf) und Zeitkurve des Dungeons, soweit vorhanden.
 3. Regel: Gespeichert wird bei `CHALLENGE_MODE_COMPLETED` nur ein ab Start verfolgter, getimter Run (`GetChallengeCompletionInfo().onTime`) ohne vorab tote Bosse mit passender Map und Keystufe; je Season, Dungeon und Keystufe bleibt der langsamste. `CHALLENGE_MODE_RESET` verwirft den Run.
 4. Output: Rechts auf dem Killtracker-Balken steht `-1:12` (gruen, vor der Referenz) beziehungsweise `+0:40` (rot), ohne Referenz der Abstand der Prognose zum Zeitlimit, z. B. `-1:20` fuer Prognose 31:40 bei 33:00 (gruen bis zum Zeitlimit, sonst rot).
 5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys ohne Referenz (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Anzeige leer.

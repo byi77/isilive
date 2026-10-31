@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 
--- Time pace for the M+ killtracker (rule 191).
+-- Time pace for the M+ killtracker (rule 208).
 --
 -- End-to-end through the real modules: KillTrack reads the scenario criteria
 -- stubs and hands its snapshots to the real TimePace, which reads elapsed
@@ -366,7 +366,7 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
     end)
   end)
 
-  test("TimePace scales the dungeon's time curve to the time limit until a reference exists", function()
+  test("TimePace counts the dungeon's time curve into the forecast until a reference exists", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = Load(LoadAddonModules)
@@ -382,14 +382,111 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
       )
 
       -- progress = 0.5 * 0.5 + 0.5 / 3 = 0.41667 lies at 2/3 between 0.25 and
-      -- 0.5, so the curve is at 0.4667 of the 1800 s limit: 840 s.
+      -- 0.5, so the curve share is 0.46667 and its estimate 800 / 0.46667 =
+      -- 1714.3 s. The whole run says 800 / 0.41667 = 1920 s, the rolling tempo
+      -- has no history inside its window: the mean of the two.
       Advance(addon, env, 800, 150, 1)
       local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the curve must answer mid-run")
-      Assert.Equal(status.mode, "reference", "the curve answers like a reference")
-      Assert.True(math.abs(status.delta + 40) < 0.5, "40 s ahead of the curve scaled to the limit")
+      Assert.Equal(status.mode, "projection", "the curve no longer answers like a reference")
+      Assert.Nil(status.delta, "a forecast has no reference delta")
+      Assert.Equal(status.timeLimit, TIME_LIMIT, "the forecast is compared against the time limit")
+      Assert.True(math.abs(status.projected - 1817.1) < 0.5, "two estimates meet in the middle")
 
       addon.TimeSeed[seasonID][MAP_ID] = { 0.9, 0.6, 1 }
-      Assert.Equal(addon.KillTrack.GetData().timePace.mode, "projection", "a broken curve falls back to the projection")
+      status = addon.KillTrack.GetData().timePace
+      Assert.Equal(status.mode, "projection", "a broken curve leaves the other estimates")
+      Assert.True(math.abs(status.projected - 1920) < 0.5, "only the whole-run estimate is left")
+    end)
+  end)
+
+  test("TimePace forecasts the median of whole run, rolling tempo and curve", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      addon.TimeSeed = {
+        [addon.SeasonData.GetActiveSeasonID()] = { progress = { 0.25, 0.5, 1 }, [MAP_ID] = { 0.2, 0.6, 1 } },
+      }
+      StartRun(addon, env)
+      Advance(addon, env, 100, 30, 0)
+      Advance(addon, env, 560, 120, 0)
+      -- Progress 0.41667 at 800 s. Whole run: 1920 s. Curve: 1714.3 s. Rolling:
+      -- the 100 s sample left the window, so from 560 s (progress 0.2):
+      -- 800 + 0.58333 * 240 / 0.21667 = 1446.2 s.
+      Advance(addon, env, 800, 150, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "all three estimates must answer")
+      Assert.Equal(status.mode, "projection", "the median is a forecast")
+      Assert.True(math.abs(status.projected - 1714.3) < 0.5, "the middle estimate is the answer")
+    end)
+  end)
+
+  test("TimePace leaves the rolling tempo out until it covers two minutes", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      addon.TimeSeed = {
+        [addon.SeasonData.GetActiveSeasonID()] = { progress = { 0.25, 0.5, 1 }, [MAP_ID] = { 0.2, 0.6, 1 } },
+      }
+      StartRun(addon, env)
+      Advance(addon, env, 40, 30, 0)
+      -- 110 s of history. Progress 0.26667: whole run 562.5 s, curve 661.8 s.
+      Advance(addon, env, 150, 60, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the forecast starts without the rolling tempo")
+      Assert.True(math.abs(status.projected - 612.1) < 0.5, "two estimates average without the rolling tempo")
+
+      -- 125 s of history. Progress 0.29167: rolling 531.4 s, whole run 565.7 s,
+      -- curve 618.8 s.
+      Advance(addon, env, 165, 75, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.projected - 565.7) < 0.5, "from 120 s on the rolling tempo counts")
+
+      -- No progress inside the window: the rolling tempo says nothing.
+      StartRun(addon, env)
+      Advance(addon, env, 40, 30, 0)
+      env.elapsed = 200
+      status = addon.KillTrack.GetData().timePace
+      -- Progress 0.05: whole run 4000 s, curve 200 / 0.04 = 5000 s.
+      Assert.True(math.abs(status.projected - 4500) < 0.5, "a flat window has no rolling tempo")
+    end)
+  end)
+
+  test("TimePace keeps the rolling tempo for a run picked up after a reload", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      env.elapsed = 700
+      env.forces.quantity = 150
+      env.bosses[1].completed = true
+      Dispatch(addon, "PLAYER_ENTERING_WORLD")
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      -- Progress 0.49167: whole run 1830.5 s, rolling from 700 s (0.41667)
+      -- 900 + 0.50833 * 200 / 0.075 = 2255.6 s.
+      Advance(addon, env, 900, 195, 1)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "a reloaded run must get a forecast")
+      Assert.True(math.abs(status.projected - 2043) < 0.5, "the rolling history does not need a learnable run")
+    end)
+  end)
+
+  test("TimePace median keeps one wild estimate out of the forecast", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      local seasonBucket = { progress = { 0.25, 0.5, 1 }, [MAP_ID] = { 0.2, 0.6, 1 } }
+      addon.TimeSeed = { [addon.SeasonData.GetActiveSeasonID()] = seasonBucket }
+
+      -- Rolling goes wild after a stall: 800 + 0.58333 * 240 / 0.005 = 28800 s.
+      StartRun(addon, env)
+      Advance(addon, env, 560, 147, 1)
+      Advance(addon, env, 800, 150, 1)
+      local status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.projected - 1920) < 0.5, "a stalled tempo stops at the whole-run estimate")
+
+      -- The curve goes wild the other way round: a share near zero.
+      seasonBucket[MAP_ID] = { 0.0001, 0.0002, 1 }
+      StartRun(addon, env)
+      Advance(addon, env, 560, 120, 0)
+      Advance(addon, env, 800, 150, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.projected - 1920) < 0.5, "a broken share stops at the whole-run estimate")
     end)
   end)
 

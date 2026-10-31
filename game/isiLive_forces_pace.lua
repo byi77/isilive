@@ -12,14 +12,16 @@ addonTable = addonTable or {}
 --
 -- KillTrack owns every scenario read and hands this module already validated
 -- snapshots ({ mapID, percent, percentResolved, bosses, bossesResolved }).
--- This module never calls a Blizzard scenario API itself.
+-- This module never calls a Blizzard scenario API itself; its only Blizzard
+-- read is the player's assigned role.
 --
 -- Boss identity is the scenario criteria index: it is stable per dungeon
 -- regardless of the order in which the bosses die, so a kill order is the
 -- list of criteria indices in death order ("route"). Storage shape:
 --   IsiLiveDB.forcesPace[seasonID][mapID].routes[routeKey] = {
 --     order = { idx, ... }, checkpoints = { pct, ... },
---     leanScore = n, runs = n, lastSeen = time() }
+--     leanScore = n, runs = n, tankRuns = n, lastSeen = time() }
+-- tankRuns counts the runs the player tanked and is missing on older routes.
 local ForcesPace = {}
 addonTable.ForcesPace = ForcesPace
 
@@ -39,6 +41,7 @@ local FULL_FORCES_PERCENT = 100
 --   learnable: no boss was already dead when tracking began
 --   orderComplete: the kill order covers every dead boss (no seeded kills)
 --   seen: every dead boss by criteria index, with or without a checkpoint
+--   tanked: the player's role was tank (nil until a role was readable)
 local run = nil
 
 -- Bumped whenever the run state that feeds GetPaceTarget changes: a new,
@@ -52,6 +55,7 @@ local function BumpRunRevision()
 end
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function RoundOne(value)
   return tonumber(string.format("%.1f", value))
@@ -92,6 +96,25 @@ local function GetDB()
   local db = rawget(_G, "IsiLiveDB")
   if type(db) == "table" then
     return db
+  end
+  return nil
+end
+
+-- True or false for an assigned role, nil when none is readable.
+local function ReadPlayerIsTank()
+  local rolesAssigned = rawget(_G, "UnitGroupRolesAssigned")
+  if type(rolesAssigned) ~= "function" then
+    return nil
+  end
+  local ok, role = pcall(rolesAssigned, "player")
+  if not ok or IsSecretValue(role) then
+    return nil
+  end
+  if role == "TANK" then
+    return true
+  end
+  if role == "HEALER" or role == "DAMAGER" then
+    return false
   end
   return nil
 end
@@ -251,12 +274,36 @@ local function GetSeedRoutes(seasonID, mapID)
   return type(mapBucket) == "table" and mapBucket.routes or nil
 end
 
+-- A masked role read keeps what this run already knows, so the target does
+-- not jump between route sets.
+local function IsPlayerTank()
+  local tank = ReadPlayerIsTank()
+  if tank == nil then
+    return run.tanked == true
+  end
+  return tank
+end
+
+-- A tank paces by what tanks did: routes learned as tank, when any fits.
+local function PreferTankRoutes(fitting)
+  local tankRoutes = {}
+  for i = 1, #fitting do
+    if IsPositiveInteger(fitting[i].tankRuns) then
+      tankRoutes[#tankRoutes + 1] = fitting[i]
+    end
+  end
+  if #tankRoutes > 0 and IsPlayerTank() then
+    return tankRoutes
+  end
+  return fitting
+end
+
 -- The player's own learned routes win; the shipped start values only answer
 -- while no learned route fits this run.
 local function GetFittingRoutes(mapID, kills)
   local fitting = CollectFittingRoutes(GetMapRoutes(run.seasonID, mapID, false), kills)
   if #fitting > 0 then
-    return fitting
+    return PreferTankRoutes(fitting)
   end
   return CollectFittingRoutes(GetSeedRoutes(run.seasonID, mapID), kills)
 end
@@ -314,6 +361,10 @@ function ForcesPace.Observe(snapshot)
   if run.mapID == nil then
     run.mapID = snapshot.mapID
     BumpRunRevision()
+  end
+  -- Read while the run is tracked: the role may be gone at completion.
+  if run.tanked == nil and run.learnable then
+    run.tanked = ReadPlayerIsTank()
   end
   if snapshot.bossesResolved ~= true or type(snapshot.bosses) ~= "table" then
     return
@@ -374,7 +425,8 @@ end
 -- Learns the finished run (CHALLENGE_MODE_COMPLETED). Only a run tracked
 -- from its start with every boss captured in order is stored. Per route the
 -- leanest run (lowest sum of checkpoints) wins; every committed run bumps the
--- route's run counter. Returns true when the run was committed.
+-- route's run counter, a tanked run also its tank counter. Returns true when
+-- the run was committed.
 function ForcesPace.CommitRun()
   local finished = run
   run = nil
@@ -408,6 +460,10 @@ function ForcesPace.CommitRun()
   local existing = routes[routeKey]
   local existingValid = IsValidRoute(routeKey, existing)
   local previousRuns = existingValid and IsPositiveInteger(existing.runs) and existing.runs or 0
+  local tankRuns = existingValid and IsPositiveInteger(existing.tankRuns) and existing.tankRuns or 0
+  if finished.tanked == true then
+    tankRuns = tankRuns + 1
+  end
   local now = Now()
   if not existingValid or score < existing.leanScore then
     routes[routeKey] = {
@@ -415,10 +471,12 @@ function ForcesPace.CommitRun()
       checkpoints = checkpoints,
       leanScore = score,
       runs = previousRuns + 1,
+      tankRuns = tankRuns,
       lastSeen = now,
     }
   else
     existing.runs = previousRuns + 1
+    existing.tankRuns = tankRuns
     existing.lastSeen = now
   end
   EnforceRouteCap(routes, routeKey)

@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.1.5 Midnight Retail](https://img.shields.io/badge/WoW-12.1.5%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.472](https://img.shields.io/badge/isiLive-0.9.472-1E90FF?style=for-the-badge)
+![isiLive 0.9.473](https://img.shields.io/badge/isiLive-0.9.473-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -48,7 +48,9 @@ CD polling also resumes for visible active keys after raid return or reopening
 the main window, and stops immediately when hidden. Deep sync byte dumps are
 formatted only when their log output is consumed.
 
-Version `0.9.472` is about better starting data: forces targets now cover all eight season dungeons, based on timed +12 to +18 keys, and the time pace compares your key with barely timed runs scaled to its time limit until you have a timed run of your own. Your own runs always take priority.
+Version `0.9.473` is about steadier forecasts: the time pace combines the whole run, the last four minutes and the dungeon's time curve, so one big pull no longer swings it, and if you tank, your own tanked runs set the forces targets.
+
+Version `0.9.472` covers better starting data: forces targets now cover all eight season dungeons, based on timed +12 to +18 keys, and the time pace compares your key with barely timed runs scaled to its time limit until you have a timed run of your own. Your own runs always take priority.
 
 Version `0.9.471` covers reaching the forces before the next boss. Under the killtracker bar, next to the time to kill, isiLive shows how much is still needed ("Needs x% more in this section"), also during a pull. Start values work before you have runs of your own, your learned runs replace them, the last section always targets 100%, ticks on the bar mark all coming sections, and the display survives a reload.
 

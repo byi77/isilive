@@ -91,8 +91,11 @@ end
 local function BuildEnv(opts)
   opts = opts or {}
   local scenario = BuildScenario(opts)
-  local env = { scenario = scenario, db = opts.db or {}, clock = 5000 }
+  local env = { scenario = scenario, db = opts.db or {}, clock = 5000, role = opts.role }
   env.globals = {
+    UnitGroupRolesAssigned = function(unit)
+      return unit == "player" and env.role or nil
+    end,
     C_ChallengeMode = scenario.C_ChallengeMode,
     C_ScenarioInfo = scenario.C_ScenarioInfo,
     C_Timer = {
@@ -349,6 +352,78 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
+  test("ForcesPace counts tanked runs per route, also when the role is gone at completion", function()
+    local env = BuildEnv({ role = "TANK" })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      local kills = { { boss = 1, forces = 90 }, { boss = 2, forces = 180 }, { boss = 3, forces = 270 } }
+      PlayRun(addon, env.scenario, kills)
+      Assert.Equal(GetRoutes(addon, env.db)["1-2-3"].tankRuns, 1, "a tanked run counts")
+
+      env.role = "DAMAGER"
+      PlayRun(addon, env.scenario, kills)
+      local route = GetRoutes(addon, env.db)["1-2-3"]
+      Assert.Equal(route.runs, 2, "every run counts as a run")
+      Assert.Equal(route.tankRuns, 1, "a damage run does not count as tanked")
+
+      -- The role is read during the run and drops to nothing before the end.
+      env.role = "TANK"
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      env.role = "NONE"
+      for _, kill in ipairs({ { boss = 1, forces = 60 }, { boss = 2, forces = 150 }, { boss = 3, forces = 240 } }) do
+        env.scenario.SetForces(kill.forces)
+        env.scenario.Kill(kill.boss)
+        addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      end
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_COMPLETED")
+      route = GetRoutes(addon, env.db)["1-2-3"]
+      Assert.Equal(route.leanScore, 150, "the leaner run replaces the stored route")
+      Assert.Equal(route.tankRuns, 2, "the counter carries over a replacement")
+    end)
+  end)
+
+  test("ForcesPace reads the tank role until it is readable and never counts a secret role", function()
+    local env = BuildEnv({ role = SECRET })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      local kills = { { boss = 1, forces = 90 }, { boss = 2, forces = 180 }, { boss = 3, forces = 270 } }
+      PlayRun(addon, env.scenario, kills)
+      local route = GetRoutes(addon, env.db)["1-2-3"]
+      Assert.Equal(route.runs, 1, "a secret role does not stop the learning")
+      Assert.Equal(route.tankRuns, 0, "a secret role never counts as tanked")
+
+      -- Masked at the start, readable on a later read of the same run.
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      env.role = "TANK"
+      for _, kill in ipairs(kills) do
+        env.scenario.SetForces(kill.forces)
+        env.scenario.Kill(kill.boss)
+        addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      end
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_COMPLETED")
+      Assert.Equal(GetRoutes(addon, env.db)["1-2-3"].tankRuns, 1, "a later readable role is taken over")
+    end)
+  end)
+
+  test("ForcesPace keeps old routes learnable without a tank counter", function()
+    local env = BuildEnv({ role = "TANK" })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      SeedRoutes(addon, env.db, { ["1-2-3"] = Route({ 1, 2, 3 }, { 10, 20, 30 }) })
+      PlayRun(
+        addon,
+        env.scenario,
+        { { boss = 1, forces = 90 }, { boss = 2, forces = 180 }, { boss = 3, forces = 270 } }
+      )
+      local route = GetRoutes(addon, env.db)["1-2-3"]
+      Assert.Equal(route.checkpoints[1], 10, "a route without a counter stays valid")
+      Assert.Equal(route.runs, 2, "its run counter continues")
+      Assert.Equal(route.tankRuns, 1, "its tank counter starts")
+    end)
+  end)
+
   test("ForcesPace discards the run on CHALLENGE_MODE_RESET", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
@@ -582,6 +657,48 @@ local function RegisterLookupTests(test, Assert, WithGlobals, LoadAddonModules)
       env.scenario.Kill(2)
       addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
       Assert.Nil(addon.KillTrack.GetData().paceLaterTargets, "only the last section is left after the next one")
+    end)
+  end)
+
+  test("ForcesPace uses only fitting tank routes while the player is a tank", function()
+    local env = BuildEnv({ role = "TANK" })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      SeedRoutes(addon, env.db, {
+        ["1-2-3"] = Route({ 1, 2, 3 }, { 30, 60, 90 }, { tankRuns = 2 }),
+        ["1-3-2"] = Route({ 1, 3, 2 }, { 10, 40, 70 }),
+        ["2-1-3"] = Route({ 2, 1, 3 }, { 5, 50, 80 }, { tankRuns = "many" }),
+      })
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 30, "a tank paces by the route learned as tank")
+      Assert.Equal(addon.KillTrack.GetData().paceLaterTargets[1], 60, "later targets stay on the tank routes")
+
+      env.role = SECRET
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 30, "a masked role keeps the role of the run")
+
+      env.role = "DAMAGER"
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 5, "any other role uses every fitting route")
+
+      env.role = "TANK"
+      env.scenario.Kill(2)
+      addon.KillTrack.HandleEvent("SCENARIO_CRITERIA_UPDATE")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 50, "without a fitting tank route all fitting routes answer")
+    end)
+  end)
+
+  test("ForcesPace tank preference leaves the start values alone", function()
+    local env = BuildEnv({ role = "TANK" })
+    WithGlobals(env.globals, function()
+      local addon = LoadPaceModules(LoadAddonModules)
+      addon.ForcesSeed = {
+        [addon.SeasonData.GetActiveSeasonID()] = {
+          [MAP_ID] = { routes = { ["1-2-3"] = Route({ 1, 2, 3 }, { 28, 55, 85 }) } },
+        },
+      }
+      env.scenario.ResetBosses()
+      addon.KillTrack.HandleEvent("CHALLENGE_MODE_START")
+      Assert.Equal(addon.KillTrack.GetData().paceTarget, 28, "start values answer a tank without any tank data")
     end)
   end)
 

@@ -14,12 +14,16 @@ addonTable = addonTable or {}
 --                 made the timer, so being ahead of it means on time. The
 --                 answer is elapsed time minus the reference's time at the
 --                 same progress (negative = ahead).
---   curve      -- without a reference: the dungeon's time curve from
---                 data/isiLive_time_seed.lua, scaled to the key's time limit.
---                 It answers like a reference; a key on the curve finishes
---                 exactly on the limit.
---   projection -- without a curve: elapsed time divided by progress, compared
---                 against the key's time limit.
+--   projection -- without a reference: the median of up to three finish-time
+--                 estimates (of an even count, the mean of the middle two),
+--                 compared against the key's time limit:
+--                   whole run: elapsed / progress.
+--                   rolling tempo: the rest of the key at the tempo of the
+--                     last 240 s. Needs 120 s of covered history and progress
+--                     inside it; kept for every run, also after a reload.
+--                   curve: elapsed / curve share at this progress, from the
+--                     dungeon's time curve in data/isiLive_time_seed.lua.
+--                 The median keeps one estimate going wild out of the answer.
 --
 -- During a pull the clock runs while progress only moves on kills, so the
 -- answer drifts towards late and snaps back when mobs die. KillTrack
@@ -51,6 +55,9 @@ local MAX_LEVELS_PER_MAP = 30
 -- start of a key.
 local PROJECTION_MIN_PROGRESS = 0.05
 local PROJECTION_MIN_ELAPSED = 60
+-- Rolling tempo: the window it looks back over and the history it needs.
+local ROLLING_WINDOW = 240
+local ROLLING_MIN_COVERAGE = 120
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 local IsSecretValue = addonTable.Validators.IsSecretValue
@@ -139,6 +146,10 @@ local function NewRun(trackedFromStart)
     kills = 0,
     times = {},
     samples = {},
+    -- Rolling history of the last ROLLING_WINDOW seconds, kept for every run.
+    recentMark = 0,
+    recentTimes = {},
+    recentSamples = {},
   }
 end
 
@@ -183,6 +194,44 @@ local function AppendSample(elapsed, progress)
   run.times[count + 1] = t
   run.samples[count + 1] = p
   run.sampleProgress = progress
+end
+
+-- Unlike AppendSample this also runs for a run that never learns.
+local function AppendRecent(elapsed, progress)
+  local times, samples = run.recentTimes, run.recentSamples
+  local count = #times
+  if count > 0 and elapsed < times[count] then
+    return
+  end
+  times[count + 1] = elapsed
+  samples[count + 1] = progress
+  run.recentMark = progress
+  local oldest = elapsed - ROLLING_WINDOW
+  while #times > MAX_SAMPLES or times[1] < oldest do
+    table.remove(times, 1)
+    table.remove(samples, 1)
+  end
+end
+
+local function RecordProgress(progress, kills)
+  local bossDied = kills > run.kills
+  local grew = run.learnable and (progress - run.sampleProgress >= SAMPLE_MIN_STEP or bossDied)
+  local grewRecent = progress - run.recentMark >= SAMPLE_MIN_STEP or bossDied
+  run.progress = progress
+  run.kills = kills
+  if not grew and not grewRecent then
+    return
+  end
+  local timer = ReadTimer()
+  if not timer then
+    return
+  end
+  if grew then
+    AppendSample(timer.timer, progress)
+  end
+  if grewRecent then
+    AppendRecent(timer.timer, progress)
+  end
 end
 
 function TimePace.BeginRun()
@@ -230,15 +279,7 @@ function TimePace.Observe(snapshot)
   if progress == nil then
     return
   end
-  local grew = progress - run.sampleProgress >= SAMPLE_MIN_STEP or kills > run.kills
-  run.progress = progress
-  run.kills = kills
-  if grew and run.learnable then
-    local timer = ReadTimer()
-    if timer then
-      AppendSample(timer.timer, progress)
-    end
-  end
+  RecordProgress(progress, kills)
 end
 
 local function ReadCompletionInfo()
@@ -417,6 +458,53 @@ local function GetSeedCurve(seasonID, mapID)
   return IsValidReference(entry) and entry or nil
 end
 
+-- Finish time at the tempo of the last ROLLING_WINDOW seconds, or nil.
+local function EstimateRollingFinish(elapsed, progress)
+  local times, samples = run.recentTimes, run.recentSamples
+  local oldest = elapsed - ROLLING_WINDOW
+  for i = 1, #times do
+    if times[i] >= oldest then
+      local dt = elapsed - times[i]
+      local dp = progress - samples[i]
+      if dt < ROLLING_MIN_COVERAGE or dp <= 0 then
+        return nil
+      end
+      return elapsed + (1 - progress) * dt / dp
+    end
+  end
+  return nil
+end
+
+-- Finish time from the dungeon's time curve, or nil.
+local function EstimateCurveFinish(mapID, elapsed, progress)
+  local curve = run.seasonID ~= nil and GetSeedCurve(run.seasonID, mapID) or nil
+  if not curve then
+    return nil
+  end
+  local share = ReferenceTimeAt(curve, progress)
+  if share <= 0 then
+    return nil
+  end
+  return elapsed / share
+end
+
+local function Median(values)
+  table.sort(values)
+  local count = #values
+  local middle = math.floor((count + 1) / 2)
+  if count % 2 == 1 then
+    return values[middle]
+  end
+  return (values[middle] + values[middle + 1]) / 2
+end
+
+local function EstimateFinish(mapID, elapsed, progress)
+  local estimates = { elapsed / progress }
+  estimates[#estimates + 1] = EstimateRollingFinish(elapsed, progress)
+  estimates[#estimates + 1] = EstimateCurveFinish(mapID, elapsed, progress)
+  return Median(estimates)
+end
+
 local function ComputeStatus(mapID)
   local progress = run.progress
   if not IsFiniteNumber(progress) or progress <= 0 or progress >= 1 then
@@ -443,12 +531,7 @@ local function ComputeStatus(mapID)
   if not IsFiniteNumber(timer.timeLimit) or timer.timeLimit <= 0 then
     return nil
   end
-  local curve = run.seasonID ~= nil and GetSeedCurve(run.seasonID, mapID) or nil
-  if curve then
-    local onCurve = ReferenceTimeAt(curve, progress) * timer.timeLimit
-    return { mode = "reference", delta = elapsed - onCurve, keyLevel = keyLevel }
-  end
-  return { mode = "projection", projected = elapsed / progress, timeLimit = timer.timeLimit }
+  return { mode = "projection", projected = EstimateFinish(mapID, elapsed, progress), timeLimit = timer.timeLimit }
 end
 
 -- Pace answer for the current run on `mapID`, or nil:

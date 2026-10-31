@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-31 - Version 0.9.473 (patch)
+
+- Time pace (rule 208): without an own reference the forecast is now the median of three finish-time estimates: whole run, tempo of the last 240 seconds and the dungeon's time curve. An own reference keeps its priority.
+- The time curve no longer answers as a reference; it is one estimate of the forecast against the time limit.
+- The rolling tempo needs 120 seconds of history and also works for runs picked up after a reload.
+- Forces pace (rule 145): routes count the runs the player tanked (`tankRuns`). A tank uses only fitting tank routes when there are any; start values are unaffected.
+- Not confirmed in game.
+
 ## 2026-10-31 - Version 0.9.472 (patch)
 
 - Forces pace (rule 145): the start values are now medians of timed +12 to +18 keys from public Warcraft Logs reports and cover all eight Midnight S2 dungeons. Learned routes keep their priority.
