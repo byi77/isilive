@@ -893,6 +893,16 @@ local function SetBarTarget(row, name, level)
   end
 end
 
+-- Rendered text width, 0 while the client masks it.
+local function ReadStringWidth(fontString)
+  local ok, width = pcall(fontString.GetStringWidth, fontString)
+  local validators = addonTable.Validators
+  if not ok or (validators and validators.IsSecretValue(width)) or type(width) ~= "number" then
+    return 0
+  end
+  return width
+end
+
 -- Puts name and level in the middle of the pre-key banner, or back on the bar.
 -- The two strings are centred as one line, so only a changed width re-anchors.
 local function PlaceBarTarget(row, centered)
@@ -908,8 +918,8 @@ local function PlaceBarTarget(row, centered)
   end
   local offset = nil
   if centered then
-    local levelWidth = levelText:GetText() ~= "" and (levelText:GetStringWidth() + PREKEY_LEVEL_GAP) or 0
-    offset = -math.floor((targetText:GetStringWidth() + levelWidth) / 2 + 0.5)
+    local levelWidth = levelText:GetText() ~= "" and (ReadStringWidth(levelText) + PREKEY_LEVEL_GAP) or 0
+    offset = -math.floor((ReadStringWidth(targetText) + levelWidth) / 2 + 0.5)
   end
   if row._targetCenterOffset == offset then
     return
