@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Killtracker bar (rule 232): the running pull was counted twice, once in the fill and once in a segment attached to it, so the bar overshot during a pull and fell back when the pull display ended. The pull now colours its share inside the fill; the bar always shows the real forces.
+
 ## 2026-10-31 - Version 0.9.475 (patch)
 
 - Key end banner (rule 231): the killtracker row shows a looping banner when a key ends: timed (green, light sweep), over time (red pulse), abandoned or group left (grey, the colour drains). Verdicts come only from readable completion data, `CHALLENGE_MODE_RESET` of a running key, or a group that is gone; leaving the instance while the group stays shows nothing. It ends after 60 seconds at the latest, earlier on a key start, a joined group, a reload or a new login. A closed window pauses the animation, not the 60 seconds. Reduced motion keeps it readable without movement.

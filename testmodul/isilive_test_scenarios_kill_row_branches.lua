@@ -962,6 +962,41 @@ return function(test, ctx)
     end)
   end)
 
+  test("UpdateKillTrackRow draws the pull inside the fill so the bar never overshoots", function()
+    WithGlobals({}, function()
+      local killTrackData = { active = true, percent = 43, inCombat = true, pullPercent = 34 }
+      local addon = LoadKillRow(killTrackData)
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarFill._width, 86, "the fill alone shows the real forces")
+      Assert.Equal(row.killTrackBarPull._width, 68, "the pull colours its share of the fill")
+
+      killTrackData.inCombat = false
+      killTrackData.pullPercent = 0
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarFill._width, 86, "the end of the pull display does not move the bar")
+      Assert.True(row.killTrackBarPull._shown == false, "only the colour goes away")
+
+      killTrackData.percent = 10
+      killTrackData.inCombat = true
+      killTrackData.pullPercent = 50
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(row.killTrackBarPull._width, 20, "a larger pull value stays inside the fill")
+    end)
+  end)
+
+  test("CreateKillTrackRow anchors the pull to the right end of the fill", function()
+    local recorder = NewCreateFrameRecorder()
+    WithGlobals({ CreateFrame = recorder.createFrame }, function()
+      local addon = LoadKillRow({ active = false, percent = 0 })
+      local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
+      local points = row.killTrackBarPull._points
+      Assert.Equal(points[1][1], "TOPRIGHT", "the pull grows from the fill's end to the left")
+      Assert.Equal(points[1][2], row.killTrackBarFill, "the pull follows the easing fill")
+      Assert.Equal(points[1][3], "TOPRIGHT", "the pull ends where the fill ends")
+    end)
+  end)
+
   test("UpdateKillTrackRow eases a changed fill width over the shared motion duration", function()
     WithGlobals({}, function()
       local killTrackData = { active = true, percent = 40 }
@@ -979,7 +1014,7 @@ return function(test, ctx)
       killTrackData.pullPercent = 50
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(fill._width, 80, "a changed width must not jump to the target")
-      Assert.Equal(row.killTrackBarPull._width, 80, "pull clamp must use the target fill width (200 - 120)")
+      Assert.Equal(row.killTrackBarPull._width, 100, "the pull sits inside the target fill (120 wide)")
       local onUpdate = Assert.NotNil(container._scripts.OnUpdate, "a changed width must animate")
 
       onUpdate(container, 0.1)
@@ -1081,14 +1116,14 @@ return function(test, ctx)
     end)
   end)
 
-  test("UpdateKillTrackRow clamps pull width when fill + pull would exceed bar width", function()
+  test("UpdateKillTrackRow keeps a large pull inside the fill width", function()
     WithGlobals({}, function()
-      -- 200 wide, fill = 80% (160), pull = 30% (60). 160 + 60 = 220 > 200,
-      -- so pull width must be clamped to (200 - 160) = 40.
+      -- 200 wide, fill = 80% (160), pull = 30% (60): the pull lies inside the
+      -- fill, so the end of the bar does not limit it.
       local addon = LoadKillRow({ active = true, percent = 80, inCombat = true, pullPercent = 30 })
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(row.killTrackBarPull._width, 40, "pull width must be clamped to remaining space")
+      Assert.Equal(row.killTrackBarPull._width, 60, "the pull keeps its share inside the fill")
     end)
   end)
 

@@ -2344,7 +2344,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UpdateKillTrackRow eases a changed fill width over the shared motion duration
   - UpdateKillTrackRow applies fill width directly when reduced motion is enabled
   - UpdateKillTrackRow flashes the fill once when forces reach 100 percent
-  - UpdateKillTrackRow clamps pull width when fill + pull would exceed bar width
+  - UpdateKillTrackRow keeps a large pull inside the fill width
   - UICommon decimal format follows the addon language and fails closed
 
 ### RULE-NOTICE-EINBLENDUNG
@@ -3476,3 +3476,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Key end banner ignores an unknown outcome
   - Key end banner with reduced motion stays readable without fade or sweep
   - Key end banner settles at once when reduced motion is switched on
+
+### RULE-KILLTRACK-PULL-IM-BALKEN
+- Regelnummer: 232
+- Status: aktiv
+- Zusammenfassung: Die Fuellung des Killtracker-Balkens zeigt immer die echten Forces und enthaelt die Kills des laufenden Pulls bereits. Der Pull-Anteil wird deshalb innerhalb der Fuellung an ihrem rechten Ende eingefaerbt und nie rechts angehaengt; er ist hoechstens so breit wie die Zielbreite der Fuellung. Der Balken laeuft damit nie ueber die Forces hinaus und springt am Ende der Pull-Anzeige nicht zurueck.
+- Erforderliche Tests:
+  - UpdateKillTrackRow draws the pull inside the fill so the bar never overshoots
+  - CreateKillTrackRow anchors the pull to the right end of the fill

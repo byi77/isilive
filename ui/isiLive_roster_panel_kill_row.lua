@@ -632,10 +632,13 @@ local function CreateKillTrackRow(mainFrame)
   end
   barFill:Hide()
 
-  local barPull = barContainer:CreateTexture(nil, "ARTWORK")
+  -- The fill already holds the pull's kills: the pull colours the fill's right
+  -- end instead of extending it, so the bar never overshoots the real forces
+  -- and never falls back when the pull display ends.
+  local barPull = barContainer:CreateTexture(nil, "ARTWORK", nil, 1)
   if type(barPull.SetPoint) == "function" then
-    barPull:SetPoint("TOPLEFT", barFill, "TOPRIGHT", 0, 0)
-    barPull:SetPoint("BOTTOMLEFT", barFill, "BOTTOMRIGHT", 0, 0)
+    barPull:SetPoint("TOPRIGHT", barFill, "TOPRIGHT", 0, 0)
+    barPull:SetPoint("BOTTOMRIGHT", barFill, "BOTTOMRIGHT", 0, 0)
   end
   if type(barPull.SetWidth) == "function" then
     barPull:SetWidth(1)
@@ -1052,13 +1055,9 @@ local function UpdateKillTrackRow(row, deps)
     end
     local pullPct = (data.inCombat and type(data.pullPercent) == "number") and data.pullPercent or 0
     if barPull then
-      if data.inCombat and pullPct > 0 and w > 0 then
-        local pw = math.floor(w * pullPct / 100 + 0.5)
-        -- Clamp against the target fill width, not the width currently on
-        -- screen, so an easing fill cannot let the pull overlay overshoot.
-        if fillTargetWidth + pw > w then
-          pw = math.max(1, w - fillTargetWidth)
-        end
+      if data.inCombat and pullPct > 0 and fillTargetWidth > 0 then
+        -- Part of the fill, so it can never be wider than the target fill.
+        local pw = math.min(math.floor(w * pullPct / 100 + 0.5), fillTargetWidth)
         barPull:SetWidth(math.max(1, pw))
         barPull:Show()
       else

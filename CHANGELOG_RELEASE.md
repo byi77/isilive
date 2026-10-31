@@ -9,6 +9,9 @@ Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
 
+Unreleased (2026-10-31): the killtracker bar no longer runs ahead during a pull
+and falls back afterwards; the pull is now coloured inside the real forces.
+
 Version 0.9.475: the M+ killtracker shows how a key ended as a banner over the
 whole row: timed, over time, abandoned or group left, for up to 60 seconds. The
 pre-key dungeon and key level use the same banner style, in gold. The demo has
