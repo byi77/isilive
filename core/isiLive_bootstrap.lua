@@ -99,6 +99,7 @@ function Bootstrap.RegisterSlashCommands(opts)
     openSettings = openSettings,
     toggleNameplateTestMode = toggleNameplateTestMode,
     dumpNameplateState = dumpNameplateState,
+    previewKeyEndOutcome = opts.previewKeyEndOutcome,
     printSeasonDebug = printSeasonDebug,
     printHearthstoneDebug = printHearthstoneDebug,
     printStatsDebug = printStatsDebug,

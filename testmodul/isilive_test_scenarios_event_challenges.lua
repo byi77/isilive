@@ -495,6 +495,185 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
   end)
 end
 
+-- Key end banner (rule 231) through the real dispatcher. `opts.completion` is
+-- what GetChallengeCompletionInfo answers; `opts.inGroup` the starting group
+-- state. The outcomes reaching the UI land in driver.outcomes.
+local function RegisterKeyEndBannerTests(test, Assert, LoadAddonModules, Fixtures)
+  local function NewDriver(opts)
+    local driver = {
+      outcomes = {},
+      clears = 0,
+      inChallenge = true,
+      inGroup = opts.inGroup ~= false,
+      completion = opts.completion,
+    }
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInChallengeMode = function()
+        return driver.inChallenge
+      end,
+      isInGroup = function()
+        return driver.inGroup
+      end,
+      recordRun = function()
+        return true
+      end,
+      showKeyEndOutcome = function(outcome)
+        table.insert(driver.outcomes, outcome)
+      end,
+      clearKeyEndOutcome = function()
+        driver.clears = driver.clears + 1
+      end,
+    })
+    function driver.Dispatch(event)
+      local previous = _G.C_ChallengeMode
+      _G.C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 2649
+        end,
+        GetActiveKeystoneInfo = function()
+          return 13, {}, true
+        end,
+        GetChallengeCompletionInfo = function()
+          return driver.completion
+        end,
+      }
+      local ok, err = pcall(controller.Dispatch, controller, event)
+      _G.C_ChallengeMode = previous
+      if not ok then
+        error(err, 0)
+      end
+    end
+    driver.Dispatch("CHALLENGE_MODE_START")
+    driver.clears = 0
+    return driver
+  end
+
+  local function Completion(onTime)
+    return { mapChallengeModeID = 2649, level = 13, time = 1800000, onTime = onTime }
+  end
+
+  test("Key end banner names a timed key from verified completion info", function()
+    local driver = NewDriver({ completion = Completion(true) })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.Equal(#driver.outcomes, 1, "a completed key shows one banner")
+    Assert.Equal(driver.outcomes[1], "timed", "onTime true is a timed key")
+  end)
+
+  test("Key end banner names a key over time from verified completion info", function()
+    local driver = NewDriver({ completion = Completion(false) })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.Equal(#driver.outcomes, 1, "a completed key shows one banner")
+    Assert.Equal(driver.outcomes[1], "late", "onTime false is a key over time")
+  end)
+
+  test("Key end banner stays away when onTime is unreadable", function()
+    local driver = NewDriver({ completion = Completion(nil) })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 0, "an unreadable verdict shows no banner")
+  end)
+
+  test("Key end banner does not call a completed key without data abandoned", function()
+    local driver = NewDriver({ completion = nil })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 0, "COMPLETED without data then RESET is no abandoned key")
+  end)
+
+  test("Key end banner uses completion data that arrives with the reset", function()
+    local driver = NewDriver({ completion = nil })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.completion = Completion(true)
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 1, "the delayed verdict shows one banner")
+    Assert.Equal(driver.outcomes[1], "timed", "the delayed verdict names the key")
+  end)
+
+  test("Key end banner shows once when a reset follows a completed key", function()
+    local driver = NewDriver({ completion = Completion(true) })
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 1, "the reset after a completed key adds nothing")
+    Assert.Equal(driver.outcomes[1], "timed", "the verdict stays")
+  end)
+
+  test("Key end banner names an abandoned key on reset", function()
+    local driver = NewDriver({})
+    driver.inChallenge = false
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 1, "an abandoned key shows one banner")
+    Assert.Equal(driver.outcomes[1], "abandoned", "a reset without completion is an abandoned key")
+  end)
+
+  test("Key end banner stays away when the player walks out while the group stays", function()
+    local driver = NewDriver({})
+    driver.inChallenge = false
+    driver.Dispatch("PLAYER_ENTERING_WORLD")
+    Assert.Equal(#driver.outcomes, 0, "the key goes on for the group")
+  end)
+
+  test("Key end banner shows the left group once at the roster update", function()
+    local driver = NewDriver({})
+    driver.inGroup = false
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(#driver.outcomes, 1, "leaving the group shows the banner while the map is still active")
+    Assert.Equal(driver.outcomes[1], "left", "the outcome names the departure")
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    driver.inChallenge = false
+    driver.Dispatch("PLAYER_ENTERING_WORLD")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    Assert.Equal(#driver.outcomes, 1, "later roster, world and reset events add nothing")
+  end)
+
+  test("Key end banner does not report a left group for a key started solo", function()
+    local driver = NewDriver({ inGroup = false })
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    driver.inChallenge = false
+    driver.Dispatch("PLAYER_ENTERING_WORLD")
+    Assert.Equal(#driver.outcomes, 0, "a solo key has no group to leave")
+  end)
+
+  test("Key end banner stands through zoning and ends with the next key", function()
+    local driver = NewDriver({ completion = Completion(true) })
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("CHALLENGE_MODE_RESET")
+    driver.inChallenge = false
+    driver.Dispatch("PLAYER_ENTERING_WORLD")
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(driver.clears, 0, "a change that is no status change keeps the banner")
+    driver.Dispatch("CHALLENGE_MODE_START")
+    Assert.Equal(driver.clears, 1, "a new key ends the banner")
+  end)
+
+  test("Key end banner ends at once when a new group is joined", function()
+    local driver = NewDriver({ completion = Completion(true) })
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.inGroup = false
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(driver.clears, 0, "leaving the group alone does not end the banner")
+    driver.inGroup = true
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(driver.clears, 1, "joining a group ends the banner")
+  end)
+
+  test("Key end banner of a solo key ends when a group is joined", function()
+    local driver = NewDriver({ inGroup = false, completion = Completion(true) })
+    driver.Dispatch("CHALLENGE_MODE_COMPLETED")
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(driver.clears, 0, "a solo key has no group to leave")
+    driver.inGroup = true
+    driver.Dispatch("GROUP_ROSTER_UPDATE")
+    Assert.Equal(driver.clears, 1, "the first group ends the banner")
+  end)
+end
+
 -- Split out of RegisterChallengeRetryTests to keep that function under the
 -- 420-line metrics limit.
 local function RegisterAbandonedRunIdentityTests(test, Assert, LoadAddonModules, Fixtures)
@@ -1332,4 +1511,5 @@ return function(test, ctx)
   RegisterPostRunRefreshChainTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterRunEndRefreshCostTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterKeyEndBannerTests(test, Assert, LoadAddonModules, Fixtures)
 end

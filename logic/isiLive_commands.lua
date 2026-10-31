@@ -92,6 +92,9 @@ local function BuildDeps(opts)
       end
       return ttk.SetTestMode(not ttk.IsTestMode())
     end,
+    -- Replays the key end banner of the M+ killtracker on the real row.
+    previewKeyEndOutcome = type(opts.previewKeyEndOutcome) == "function" and opts.previewKeyEndOutcome
+      or function() end,
     openSettings = type(opts.openSettings) == "function" and opts.openSettings or function()
       return false
     end,
@@ -115,6 +118,8 @@ local function BuildDeps(opts)
 end
 
 -- Ordered list mirrors the command handlers in TryHandle*Commands below.
+local KEY_END_OUTCOMES = { timed = true, late = true, abandoned = true, left = true, off = true }
+
 -- Keep in sync when adding a new slash command.
 local HELP_KEYS = {
   "HELP_HEADER",
@@ -124,6 +129,7 @@ local HELP_KEYS = {
   "HELP_RESETUI",
   "HELP_SETTINGS",
   "HELP_TTKTEST",
+  "HELP_KEYEND",
   "HELP_ADMIN",
 }
 
@@ -590,6 +596,17 @@ local function TryHandleUtilityCommands(ctx, cmd)
     local L = type(ctx.getL) == "function" and ctx.getL() or {}
     local active = ctx.toggleTtkTestMode()
     ctx.printFn(active and (L.TTK_TEST_ON or "TTK test mode ON") or (L.TTK_TEST_OFF or "TTK test mode OFF"))
+    return true
+  end
+
+  if cmd == "keyend" or cmd:find("^keyend%s+") == 1 then
+    local outcome = TrimWhitespace(cmd:sub(#"keyend" + 1))
+    if KEY_END_OUTCOMES[outcome] then
+      ctx.previewKeyEndOutcome(outcome)
+    else
+      local L = type(ctx.getL) == "function" and ctx.getL() or {}
+      ctx.printFn(L.HELP_KEYEND or "  /isilive keyend timed|late|abandoned|left|off - Preview the key end banner")
+    end
     return true
   end
 

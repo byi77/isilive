@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.1.5 Midnight Retail](https://img.shields.io/badge/WoW-12.1.5%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.474](https://img.shields.io/badge/isiLive-0.9.474-1E90FF?style=for-the-badge)
+![isiLive 0.9.475](https://img.shields.io/badge/isiLive-0.9.475-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -47,6 +47,8 @@ The forces tracker cancels polling on raid entry and resumes on party return.
 CD polling also resumes for visible active keys after raid return or reopening
 the main window, and stops immediately when hidden. Deep sync byte dumps are
 formatted only when their log output is consumed.
+
+Version `0.9.475` is about how a key ended: a banner over the whole killtracker row says timed, over time, abandoned or group left, for up to 60 seconds, and ends earlier on a new key or a new group. The dungeon and key level before a key use the same banner style, in gold.
 
 Version `0.9.474` is about language: texts, dungeon names and abbreviations now follow the isiLive language instead of the game client, German in German and English in every other language. Open cards switch at once, also in the demo. Names only the game knows, such as specs, stay in the client language.
 
@@ -267,7 +269,8 @@ The compactly stacked M+ layout keeps the full five-player roster clear of the l
 A bottom bar that shows your kill-count percentage:
 
 - Calm **blue** while forces are open, **green** once 100% is reached; changes glide smoothly to the new value
-- After a verified LFG invite target announce, the empty bar glows a soft gold with a slow light sweep and shows the target dungeon and key level on its left, gently pulsing until the key starts; during the key they stay on the progress bar with the started key level
+- After a verified LFG invite target announce, a soft gold banner with a slow light sweep covers the row and shows the target dungeon and key level in the middle until the key starts; during the key they stay on the progress bar with the started key level
+- **Key end banner:** when a key ends, a banner over the row says **timed** (green), **over time** (red), **abandoned** or **left the group** (grey). It ends after 60 seconds at the latest, earlier on a new key or a new group. `/isilive keyend timed|late|abandoned|left|off` previews it, and the demo tablet has a button for each banner
 - During a pull, a light-blue segment on the right shows **how much the current pull will add** (`+X.XX%`) — so you can see mid-pull whether it's enough
 - When combat ends, the tracker refreshes Blizzard's live scenario progress immediately, so the last pull is counted before the next pull or boss engagement
 - **Forces pace:** isiLive learns from your own completed keys how much enemy forces you had when each boss died (per season, dungeon, and boss kill order; the leanest run per route is kept). During the next key a thin tick on the bar marks the target for the next boss, and between pulls the pull text shows how far ahead (`+1.5%`) or short (`-3.2%`) you are. Can be turned off in **Display** settings

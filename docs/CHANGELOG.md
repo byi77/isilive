@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-31 - Version 0.9.475 (patch)
+
+- Key end banner (rule 231): the killtracker row shows a looping banner when a key ends: timed (green, light sweep), over time (red pulse), abandoned or group left (grey, the colour drains). Verdicts come only from readable completion data, `CHALLENGE_MODE_RESET` of a running key, or a group that is gone; leaving the instance while the group stays shows nothing. It ends after 60 seconds at the latest, earlier on a key start, a joined group, a reload or a new login. A closed window pauses the animation, not the 60 seconds. Reduced motion keeps it readable without movement.
+- The pre-key target now uses the same banner style: gold over the whole row with the light sweep, dungeon and key level centred.
+- New `/isilive keyend timed|late|abandoned|left|off` previews and ends the banner; the demo tablet has a button per outcome on its M+ tab and one to end the banner.
+- Not confirmed in game.
+
 ## 2026-10-31 - Version 0.9.474 (patch)
 
 - Texts read through `UICommon.GetLocalizedText` (section text, TTK, time pace pause, loadout card, stats box, lock tooltip) follow the addon language instead of the client locale. A language switch refreshes the kill row, also during the demo.

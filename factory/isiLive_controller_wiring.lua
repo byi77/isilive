@@ -340,6 +340,8 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       or function()
         return true
       end,
+    showKeyEndOutcome = deps.showKeyEndOutcome,
+    clearKeyEndOutcome = deps.clearKeyEndOutcome,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
@@ -747,6 +749,8 @@ local function BuildEventHandlersDepsFromContext(ctx)
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
     armMainFrameRestoreAfterRaid = ctx.armMainFrameRestoreAfterRaid,
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
+    showKeyEndOutcome = ctx.showKeyEndOutcome,
+    clearKeyEndOutcome = ctx.clearKeyEndOutcome,
     shouldAutoCloseOnKeyStart = ctx.shouldAutoCloseOnKeyStart,
     sendRefreshResponse = ctx.sendRefreshResponse,
     sendRefreshRequest = ctx.sendRefreshRequest,

@@ -43,12 +43,13 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.1.5 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.474
+🟪 Version 0.9.475
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 [SCREENSHOT: isiLive_MPlus_annotated.png]
 
+New in 0.9.475: a banner over the killtracker shows how your key ended: timed, over time, abandoned or group left. The dungeon and key level before a key use the same banner style, in gold.
 New in 0.9.474: isiLive texts, dungeon names and abbreviations follow the isiLive language instead of the game client: German in German, English in every other language. Open cards switch at once, also in the demo.
 New in 0.9.473: a steadier time forecast that combines the whole run, the last four minutes and the dungeon's time curve, so one big pull no longer swings it.
 New in 0.9.472: forces targets for all eight season dungeons from your first key on.

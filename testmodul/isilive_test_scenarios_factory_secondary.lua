@@ -793,6 +793,40 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Simulation tablet key end buttons show every banner and end it", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = { powerInfusionTextEnabled = false },
+    })
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      state.ctx.EnterFullDummyPreview()
+      state.ctx.ToggleSimulationTablet()
+      local played, clears = {}, 0
+      local panel = state.ctx.rosterPanelController
+      panel.PlayKillTrackRunEnd = function(outcome)
+        table.insert(played, outcome)
+      end
+      panel.ClearKillTrackRunEnd = function()
+        clears = clears + 1
+      end
+      local byId = {}
+      for _, action in ipairs(state.simulationTabletOpts.getActions()) do
+        byId[action.id] = action
+      end
+      for _, id in ipairs({ "C7", "C8", "C9", "C10", "C11" }) do
+        Assert.Equal(Assert.NotNil(byId[id], id .. " must exist").category, "mplus", id .. " sits on the M+ tab")
+        byId[id].run()
+      end
+      Assert.Equal(table.concat(played, ","), "timed,late,abandoned,left", "one button per outcome")
+      Assert.Equal(clears, 1, "the fifth button ends the banner")
+      byId.C5.run()
+      Assert.Equal(clears, 2, "the pre-key preview ends the banner")
+      state.testModeOpts.clearDemoTimerData()
+      Assert.Equal(clears, 3, "leaving the preview ends the banner")
+    end)
+  end)
+
   test("Simulation tablet loadout check opens the real card for the preview target", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,
@@ -1138,7 +1172,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 28, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 33, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do

@@ -833,6 +833,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     then
       ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
     end
+    if type(ChallengeLifecycle) == "table" and type(ChallengeLifecycle.ShowKeyLeftIfGroupGone) == "function" then
+      ChallengeLifecycle.ShowKeyLeftIfGroupGone(ctx)
+      ChallengeLifecycle.UpdateKeyEndBannerForGroup(ctx)
+    end
     CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
   end
 

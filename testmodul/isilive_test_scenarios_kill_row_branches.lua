@@ -311,6 +311,136 @@ return function(test, ctx)
     return addon
   end
 
+  -- Row-shaped stub for the key end banner; `row.visible` answers IsVisible.
+  local function NewRunEndRow()
+    local banner = NewBarStub(function()
+      return 200
+    end)
+    banner._scripts = {}
+    function banner.SetScript(self, name, fn)
+      self._scripts[name] = fn
+    end
+    local sweep = NewBarStub()
+    function sweep.ClearAllPoints() end
+    local row = {
+      visible = true,
+      killTrackRunEnd = banner,
+      killTrackRunEndWash = NewBarStub(),
+      killTrackRunEndSweep = sweep,
+      killTrackRunEndText = NewFontStringStub(),
+    }
+    function banner.IsVisible()
+      return row.visible
+    end
+    return row
+  end
+
+  local function Tick(row, seconds)
+    row.killTrackRunEnd._scripts.OnUpdate(row.killTrackRunEnd, seconds)
+  end
+
+  test("Key end banner loops until it is cleared and then removes its OnUpdate", function()
+    WithGlobals({ IsiLiveDB = {} }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      Assert.True(addon._RosterInternal.PlayKillTrackRunEnd(row, "timed"), "a visible row plays")
+      Assert.True(row.killTrackRunEnd._shown, "the banner is shown")
+      Assert.Equal(row.killTrackRunEnd._alpha, 0, "the banner starts transparent")
+      Tick(row, 0.7)
+      Assert.Equal(row.killTrackRunEnd._alpha, 1, "the banner has faded in")
+      Assert.True(row.killTrackRunEndSweep._shown, "the timed banner sweeps")
+      Tick(row, 1.0)
+      Assert.True(row.killTrackRunEndSweep._shown == false, "the sweep pauses between two passes")
+      for _ = 1, 100 do
+        Tick(row, 2.4)
+      end
+      Assert.True(row.killTrackRunEnd._shown, "the banner has no duration of its own")
+      Assert.Equal(row.killTrackRunEnd._alpha, 1, "the loop keeps the banner opaque")
+      Assert.True(addon._RosterInternal.ClearKillTrackRunEnd(row), "a standing banner can be cleared")
+      Tick(row, 0.2)
+      Assert.True(row.killTrackRunEnd._alpha < 1, "the cleared banner fades out")
+      Tick(row, 0.2)
+      Assert.True(row.killTrackRunEnd._shown == false, "the banner hides after its fade")
+      Assert.Nil(row.killTrackRunEnd._scripts.OnUpdate, "no OnUpdate is left behind")
+    end)
+  end)
+
+  test("Key end banner ends on its own 60 seconds after it appeared", function()
+    local timers = {}
+    local clock = {
+      After = function(seconds, fn)
+        table.insert(timers, { seconds = seconds, fn = fn })
+      end,
+    }
+    WithGlobals({ IsiLiveDB = {}, C_Timer = clock }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      row.visible = false
+      addon._RosterInternal.PlayKillTrackRunEnd(row, "timed")
+      addon._RosterInternal.PlayKillTrackRunEnd(row, "late")
+      Assert.Equal(#timers, 2, "every banner gets its own limit")
+      Assert.Equal(timers[1].seconds, 60, "the limit is 60 seconds")
+      timers[1].fn()
+      Assert.True(row.killTrackRunEnd._shown, "the replaced banner's limit leaves the newer one alone")
+      timers[2].fn()
+      Assert.True(row.killTrackRunEnd._shown == false, "the limit ends the banner, also in a hidden row")
+    end)
+  end)
+
+  test("Key end banner waits in a hidden row and is cleared without a fade", function()
+    WithGlobals({ IsiLiveDB = {} }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      row.visible = false
+      Assert.True(addon._RosterInternal.PlayKillTrackRunEnd(row, "late"), "a hidden row keeps the outcome")
+      Assert.True(row.killTrackRunEnd._shown, "the banner stands ready for the opening window")
+      addon._RosterInternal.ClearKillTrackRunEnd(row)
+      Assert.True(row.killTrackRunEnd._shown == false, "nobody sees it, so it ends at once")
+      Assert.False(addon._RosterInternal.ClearKillTrackRunEnd(row), "nothing is left to clear")
+    end)
+  end)
+
+  test("Key end banner ignores an unknown outcome", function()
+    WithGlobals({ IsiLiveDB = {} }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      Assert.False(addon._RosterInternal.PlayKillTrackRunEnd(row, "guess"), "unknown outcomes do nothing")
+      Assert.True(row.killTrackRunEnd._shown == false, "the banner stays hidden")
+    end)
+  end)
+
+  test("Key end banner with reduced motion stays readable without fade or sweep", function()
+    WithGlobals({ IsiLiveDB = { reduceMotion = true } }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      addon._RosterInternal.PlayKillTrackRunEnd(row, "timed")
+      Assert.Equal(row.killTrackRunEnd._alpha, 1, "the banner appears fully opaque")
+      Tick(row, 0.5)
+      Assert.True(row.killTrackRunEndSweep._shown == false, "reduced motion has no sweep")
+      Assert.Equal(row.killTrackRunEndWash._width, 200, "the colour stays complete")
+      Tick(row, 60)
+      Assert.Equal(row.killTrackRunEnd._alpha, 1, "reduced motion stays opaque")
+      Assert.True(row.killTrackRunEnd._shown, "the outcome stays readable until it is cleared")
+      addon._RosterInternal.ClearKillTrackRunEnd(row)
+      Assert.True(row.killTrackRunEnd._shown == false, "reduced motion has no fade-out")
+    end)
+  end)
+
+  test("Key end banner settles at once when reduced motion is switched on", function()
+    local db = {}
+    WithGlobals({ IsiLiveDB = db }, function()
+      local addon = LoadKillRow(nil)
+      local row = NewRunEndRow()
+      addon._RosterInternal.PlayKillTrackRunEnd(row, "abandoned")
+      Tick(row, 2)
+      Assert.True(row.killTrackRunEndWash._width < 200, "the colour is draining")
+      db.reduceMotion = true
+      Tick(row, 0.05)
+      Assert.Equal(row.killTrackRunEnd._alpha, 1, "the banner is opaque on the next tick")
+      Assert.Equal(row.killTrackRunEndWash._width, 200, "the colour is complete again on the next tick")
+    end)
+  end)
+
   test("CreateKillTrackRow puts the time pace text on an overlay above the bar", function()
     local recorder = NewCreateFrameRecorder()
     WithGlobals({
@@ -690,11 +820,14 @@ return function(test, ctx)
       local killTrackData = { active = false, percent = 0 }
       local addon = LoadKillRow(killTrackData)
       local row = addon._RosterInternal.CreateKillTrackRow(recorder.createFrame("Frame", nil, nil))
-      row.killTrackBarContainer._width = 200
+      local surface = Assert.NotNil(row.killTrackPreKeySurface, "the pre-key banner must be created")
+      surface._width = 200
       local fill = Assert.NotNil(row.killTrackReadyFill, "the gold ready fill must be created")
       local shimmer = Assert.NotNil(row.killTrackShimmer, "the light sweep must be created")
       local sweep = Assert.NotNil(row.killTrackShimmerGroup, "the light sweep must be animated")
-      Assert.Equal(shimmer._parent, row.killTrackBarContainer, "the sweep is clipped by the bar container")
+      Assert.Equal(shimmer._parent, surface, "the sweep is clipped by the banner over the whole row")
+      Assert.Equal(surface._parent, row.runSurface, "the banner covers the whole row")
+      Assert.True(surface._shown == false, "the banner starts hidden")
       Assert.True(fill._shown == false, "the gold fill starts hidden")
       Assert.True(shimmer._shown == false, "the sweep starts hidden")
 
@@ -710,15 +843,17 @@ return function(test, ctx)
       Assert.True(fill._shown == false, "without a target the bar stays plain")
 
       addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.True(surface._shown == true, "a known target shows the banner")
       Assert.True(fill._shown == true, "a known target glows the empty bar gold")
       Assert.True(shimmer._shown == true, "a known target shows the light sweep")
       Assert.True(sweep._playing, "the light sweep runs before the key")
       Assert.Equal(sweep._looping, "REPEAT", "the sweep repeats in one direction")
-      Assert.Equal(sweep._anim._offset[1], 236, "the sweep crosses the whole bar plus its own width")
+      Assert.Equal(sweep._anim._offset[1], 272, "the sweep crosses the whole row plus its own width")
 
       killTrackData.active = true
       killTrackData.percent = 12
       addon._RosterInternal.UpdateKillTrackRow(row, deps)
+      Assert.True(surface._shown == false, "a running key drops the banner")
       Assert.True(fill._shown == false, "a running key drops the gold fill")
       Assert.True(shimmer._shown == false, "a running key hides the sweep")
       Assert.False(sweep._playing, "a running key stops the sweep")

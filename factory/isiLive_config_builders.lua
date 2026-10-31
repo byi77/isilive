@@ -298,6 +298,16 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       end
       return mobNameplate.SetTestMode(nil, percent)
     end,
+    previewKeyEndOutcome = function(outcome)
+      local panel = type(ctx.getRosterPanelController) == "function" and ctx.getRosterPanelController() or nil
+      if outcome == "off" then
+        if panel and type(panel.ClearKillTrackRunEnd) == "function" then
+          panel.ClearKillTrackRunEnd()
+        end
+      elseif panel and type(panel.PlayKillTrackRunEnd) == "function" then
+        panel.PlayKillTrackRunEnd(outcome)
+      end
+    end,
     dumpNameplateState = function(unit)
       local mobNameplate = addonTable.MobNameplate
       if type(mobNameplate) ~= "table" or type(mobNameplate.DumpState) ~= "function" then

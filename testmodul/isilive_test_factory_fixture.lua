@@ -827,6 +827,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_roster_panel_helpers.lua",
     "isiLive_roster_panel_chrome.lua",
     "isiLive_roster_panel_cd_row.lua",
+    "isiLive_roster_panel_kill_row_run_end.lua",
     "isiLive_roster_panel_kill_row.lua",
     "isiLive_roster_panel_render.lua",
     "isiLive_roster_panel.lua",

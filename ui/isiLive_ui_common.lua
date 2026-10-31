@@ -109,7 +109,7 @@ UICommon.Colors = {
   MPLUS_FORCES_PROGRESS_FILL = { 0.26, 0.56, 0.9 },
   -- Before the key starts the empty bar glows in a muted target gold with a
   -- slow light sweep, so the waiting key reads as ready, not as progress.
-  MPLUS_PREKEY_READY_FILL = { 1.0, 0.84, 0.35, 0.22 },
+  MPLUS_PREKEY_READY_FILL = { 1.0, 0.84, 0.35, 0.55 },
   MPLUS_PREKEY_SHIMMER = { 1.0, 0.95, 0.75, 0.55 },
   -- Time overlay on the forces bar: the gap between forces and spent time,
   -- green while forces lead, red while the clock leads.

@@ -684,6 +684,9 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
     traceChatFrameController = ctx.traceChatFrameController,
     runtimeLogController = ctx.runtimeLogController,
     resetDB = ctx.resetDB,
+    getRosterPanelController = function()
+      return ctx.rosterPanelController
+    end,
     logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
   }
@@ -986,6 +989,16 @@ local function FinalizeFactoryRuntime(ctx)
     shouldAutoOpenMainFrameOnKeyEnd = function()
       local dbRef = rawget(_G, "IsiLiveDB")
       return ResolveAutoOpenMainFrameOnKeyEndEnabled(dbRef)
+    end,
+    showKeyEndOutcome = function(outcome)
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.PlayKillTrackRunEnd) == "function" then
+        ctx.rosterPanelController.PlayKillTrackRunEnd(outcome)
+      end
+    end,
+    clearKeyEndOutcome = function()
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.ClearKillTrackRunEnd) == "function" then
+        ctx.rosterPanelController.ClearKillTrackRunEnd()
+      end
     end,
     getRaidTransitionBehavior = function()
       local dbRef = rawget(_G, "IsiLiveDB")

@@ -94,6 +94,8 @@ local function BuildContext(opts)
   ctx.shouldAutoOpenMainFrameOnKeyEnd = OptionalFunction(opts.shouldAutoOpenMainFrameOnKeyEnd, function()
     return true
   end)
+  ctx.showKeyEndOutcome = OptionalFunction(opts.showKeyEndOutcome, function() end)
+  ctx.clearKeyEndOutcome = OptionalFunction(opts.clearKeyEndOutcome, function() end)
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")

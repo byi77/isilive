@@ -114,6 +114,8 @@ local UpdateCdTrackerRow = RI.UpdateCdTrackerRow
 local CreateKillTrackRow = RI.CreateKillTrackRow
 local UpdateKillTrackRow = RI.UpdateKillTrackRow
 local UpdateKillTrackTimeOverlay = RI.UpdateKillTrackTimeOverlay
+local PlayKillTrackRunEnd = RI.PlayKillTrackRunEnd
+local ClearKillTrackRunEnd = RI.ClearKillTrackRunEnd
 local CreateFlatButton = RI.CreateFlatButton
 local CreatePanelHeaders = RI.CreatePanelHeaders
 local CreateM2ColumnGuides = RI.CreateM2ColumnGuides
@@ -1167,6 +1169,13 @@ function RosterPanel.CreateController(opts)
       getTargetDungeonInfo = getTargetDungeonInfo,
       isInChallengeMode = isInChallengeMode,
     })
+  end
+
+  function controller.PlayKillTrackRunEnd(outcome)
+    return PlayKillTrackRunEnd(ui.killTrackRow, outcome)
+  end
+  function controller.ClearKillTrackRunEnd()
+    return ClearKillTrackRunEnd(ui.killTrackRow)
   end
 
   function controller.MarkCdTrackerDirty()

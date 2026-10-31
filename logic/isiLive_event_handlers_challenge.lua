@@ -346,12 +346,69 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
   return false
 end
 
+-- Banner verdict of a completed key. An unreadable onTime has no verdict.
+local function ResolveCompletionOutcome(runInfo)
+  if type(runInfo) ~= "table" or type(runInfo.onTime) ~= "boolean" then
+    return nil
+  end
+  return runInfo.onTime and "timed" or "late"
+end
+
+-- The banner ends on its own after a fixed time, and with the session on a
+-- reload or a new login. A key start and a newly joined group end it earlier
+-- (rule 231).
+local function ClearKeyEndBanner(ctx)
+  ctx.keyEndBannerActive = false
+  ctx.clearKeyEndOutcome()
+end
+
+local function ShowKeyEndBanner(ctx, outcome)
+  ctx.keyEndBannerActive = true
+  ctx.keyEndBannerInGroup = ctx.isInGroup() == true
+  ctx.showKeyEndOutcome(outcome)
+end
+
+-- Follows the group state while a banner may stand.
+function ChallengeLifecycle.UpdateKeyEndBannerForGroup(ctx)
+  if ctx.keyEndBannerActive ~= true then
+    return
+  end
+  local inGroup = ctx.isInGroup() == true
+  local wasInGroup = ctx.keyEndBannerInGroup
+  ctx.keyEndBannerInGroup = inGroup
+  if inGroup and not wasInGroup then
+    ClearKeyEndBanner(ctx)
+  end
+end
+
+-- Leaving the group ends the player's run at once, while the instance and the
+-- active challenge map stay for a grace period, so this runs from the roster
+-- update as well. A key started solo has no group to leave, and a finished key
+-- whose completion data is still on its way is not a departure.
+function ChallengeLifecycle.ShowKeyLeftIfGroupGone(ctx)
+  local identity = ctx.activeChallengeRunIdentity
+  if
+    type(identity) ~= "table"
+    or identity.startedInGroup ~= true
+    or identity.leftShown == true
+    or ctx.awaitingCompletionInfo == true
+    or ctx.isInGroup()
+  then
+    return false
+  end
+  identity.leftShown = true
+  ShowKeyEndBanner(ctx, "left")
+  return true
+end
+
 -- Records the run of a key that ended without completion info: abandoned,
 -- depleted-and-left, or left mid-run. The identity comes from the stash taken
 -- at CHALLENGE_MODE_START, the damage still from the live meter, which keeps
 -- the session well past the point where the group breaks up. Recording a
 -- completed run clears the stash, so a finished key never reaches this path.
-function ChallengeLifecycle.TryRecordAbandonedRun(ctx)
+-- `outcome` is the banner for a run the player did not leave; walking out of
+-- the instance passes none, because the key goes on for the group.
+function ChallengeLifecycle.TryRecordAbandonedRun(ctx, outcome)
   local identity = ctx.activeChallengeRunIdentity
   if type(identity) ~= "table" then
     return false
@@ -360,6 +417,10 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx)
     return false
   end
 
+  ChallengeLifecycle.ShowKeyLeftIfGroupGone(ctx)
+  if outcome and identity.leftShown ~= true then
+    ShowKeyEndBanner(ctx, outcome)
+  end
   ctx.activeChallengeRunIdentity = nil
   if type(ctx.logRuntimeTracef) == "function" then
     ctx.logRuntimeTracef(
@@ -703,6 +764,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     or function(_event, ...) end
 
   local function HandleChallengeModeStart(_self)
+    ClearKeyEndBanner(ctx)
     if IsRaidModeActive(ctx) then
       return
     end
@@ -727,6 +789,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.pendingRecordedRunRetrySignature = nil
     ctx.awaitingCompletionInfo = false
     ctx.activeChallengeRunIdentity = ResolveActiveChallengeRunIdentity()
+    if ctx.activeChallengeRunIdentity then
+      ctx.activeChallengeRunIdentity.startedInGroup = ctx.isInGroup() == true
+    end
     ctx.setReadyCheckActive(false)
     -- Clear stale ready/declined marks: if a READY_CHECK landed just before
     -- the M+ start and READY_CHECK_FINISHED never fired between them, the
@@ -816,6 +881,11 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     if not autoOpenedWithRefresh then
       RefreshRosterAfterRunStateChange(ctx, frame)
     end
+    -- After the auto-open above, so the banner finds its row on screen.
+    local outcome = ResolveCompletionOutcome(runInfo)
+    if outcome then
+      ShowKeyEndBanner(ctx, outcome)
+    end
     ctx.updateStatusLine()
     ctx.notifyPostChallengeSync()
     StartPostRunRefreshChain(ctx, frame, event)
@@ -827,8 +897,11 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_COMPLETED")
     end,
     CHALLENGE_MODE_RESET = function(frame)
+      -- COMPLETED already fired for this run: its reset is no abandoned key,
+      -- even when the completion data never arrives.
+      local completed = ctx.awaitingCompletionInfo == true
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_RESET")
-      ChallengeLifecycle.TryRecordAbandonedRun(ctx)
+      ChallengeLifecycle.TryRecordAbandonedRun(ctx, not completed and "abandoned" or nil)
     end,
     READY_CHECK = function(_self, initiatorName)
       if IsRaidModeActive(ctx) then

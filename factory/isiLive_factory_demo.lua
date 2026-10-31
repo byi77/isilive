@@ -470,7 +470,15 @@ local function ResolveDemoTimeLimit(mapID)
   return DEMO_TIMER_DEFAULT_LIMIT_SECONDS
 end
 
+local function ClearDemoKeyEndBanner(ctx)
+  local panel = ctx.rosterPanelController
+  if panel and type(panel.ClearKillTrackRunEnd) == "function" then
+    panel.ClearKillTrackRunEnd()
+  end
+end
+
 local function SetDemoTimerData(ctx, runtimeState)
+  ClearDemoKeyEndBanner(ctx)
   local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.SetDemoData) == "function" then
@@ -537,6 +545,7 @@ end
 -- and forces go idle, so the row shows the gold empty bar with the light
 -- sweep and the pulsing target. C1 brings the running key back.
 local function SetDemoPreKeyData(ctx, runtimeState)
+  ClearDemoKeyEndBanner(ctx)
   local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
   if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
     runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
@@ -559,6 +568,7 @@ local function SetDemoPreKeyData(ctx, runtimeState)
 end
 
 local function ClearDemoTimerData(ctx)
+  ClearDemoKeyEndBanner(ctx)
   ctx._demoTargetKey = nil
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
@@ -574,6 +584,53 @@ local function ClearDemoTimerData(ctx)
   if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
     ctx.rosterPanelController.RefreshCdTracker()
   end
+end
+
+-- One button per key end outcome on the M+ tab (rule 231). The banner loops, so
+-- a fifth button ends it; the running-key and pre-key actions end it as well.
+local DEMO_KEY_END_ACTIONS = {
+  { id = "C7", outcome = "timed", titleKey = "KEY_END_TIMED", title = "Key timed" },
+  { id = "C8", outcome = "late", titleKey = "KEY_END_LATE", title = "Key over time" },
+  { id = "C9", outcome = "abandoned", titleKey = "KEY_END_ABANDONED", title = "Key abandoned" },
+  { id = "C10", outcome = "left", titleKey = "KEY_END_LEFT_GROUP", title = "Left the group" },
+}
+
+local function AppendDemoKeyEndActions(ctx, actions)
+  local function L()
+    return ctx.GetL and ctx.GetL() or {}
+  end
+  for _, entry in ipairs(DEMO_KEY_END_ACTIONS) do
+    table.insert(actions, {
+      id = entry.id,
+      category = "mplus",
+      status = "green",
+      titleKey = entry.titleKey,
+      descKey = "SIM_ACTION_KEY_END_DESC",
+      title = entry.title,
+      description = "Shows the looping key end banner on the killtracker row (M+ layout).",
+      run = function()
+        local panel = ctx.rosterPanelController
+        if panel and type(panel.PlayKillTrackRunEnd) == "function" then
+          panel.PlayKillTrackRunEnd(entry.outcome)
+        end
+        return L().SIM_ACTION_KEY_END_DONE or "Banner shown."
+      end,
+    })
+  end
+  table.insert(actions, {
+    id = "C11",
+    category = "mplus",
+    status = "green",
+    titleKey = "SIM_ACTION_KEY_END_CLEAR_TITLE",
+    descKey = "SIM_ACTION_KEY_END_CLEAR_DESC",
+    title = "End key banner",
+    description = "Ends the key end banner.",
+    run = function()
+      ClearDemoKeyEndBanner(ctx)
+      return L().SIM_ACTION_DONE or "Simulation applied."
+    end,
+  })
+  return actions
 end
 
 local function BuildSimulationTabletActions(ctx)
@@ -987,7 +1044,7 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
         getL = ctx.GetL,
         getActions = function()
           if type(ctx._simulationTabletActions) ~= "table" then
-            ctx._simulationTabletActions = BuildSimulationTabletActions(ctx)
+            ctx._simulationTabletActions = AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx))
           end
           return ctx._simulationTabletActions
         end,

@@ -3,11 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.474`.
+Current version: `0.9.475`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.475: the M+ killtracker shows how a key ended as a banner over the
+whole row: timed, over time, abandoned or group left, for up to 60 seconds. The
+pre-key dungeon and key level use the same banner style, in gold. The demo has
+a button for every banner.
 
 Version 0.9.474: isiLive texts, dungeon names and abbreviations follow the
 isiLive language instead of the game client: German in German, English in every
@@ -140,7 +145,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.474 -->
+<!-- highlights-reviewed-for: 0.9.475 -->
 
 Highlights:
 - **Redesigned center notice cards.** Every card now opens with a header band:

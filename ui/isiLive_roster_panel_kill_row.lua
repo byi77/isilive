@@ -35,9 +35,9 @@ local BAR_OVERLAY_RIGHT_OFFSET = 122
 -- so the target never disappears.
 local PREKEY_PULSE_MIN_ALPHA = 0.35
 local PREKEY_PULSE_SECONDS = 0.8
--- Light sweep across the pre-key bar: a soft band of this width crosses
--- the bar once per period.
-local PREKEY_SHIMMER_WIDTH = 36
+-- Light sweep across the pre-key banner: a soft band of this width crosses
+-- the row once per period.
+local PREKEY_SHIMMER_WIDTH = 72
 local PREKEY_SHIMMER_SECONDS = 2.4
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 local FormatMplusTime = RI.FormatMplusTime
@@ -457,29 +457,52 @@ local function PaintGradient(texture, color, fromAlpha, toAlpha)
   end
 end
 
--- Pre-key backdrop of the bar: a muted gold fill over the full width and a
--- light band that sweeps across it. The sweep runs on a child frame of the
--- clipping bar container, so it never draws outside the bar.
-local function CreatePreKeyReadyLayer(row, barContainer)
+-- Pre-key banner in the style of the key end banner: an opaque surface over the
+-- whole row with a muted gold fill and a light band that sweeps across it. It
+-- sits below the bar overlay, so the target text stays on top, and clips the
+-- sweep to the row.
+local function CreatePreKeyReadyLayer(row, box, barContainer)
   local colors = UICommon.Colors or {}
-  local readyFill = barContainer:CreateTexture(nil, "ARTWORK", nil, 1)
+  local surface = CreateFrame("Frame", nil, box)
+  surface:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
+  surface:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, 0)
+  if type(surface.SetFrameLevel) == "function" then
+    local baseLevel = type(barContainer.GetFrameLevel) == "function" and tonumber(barContainer:GetFrameLevel()) or nil
+    surface:SetFrameLevel((baseLevel or 1) + 3)
+  end
+  if type(surface.SetClipsChildren) == "function" then
+    surface:SetClipsChildren(true)
+  end
+  local backing = surface:CreateTexture(nil, "BACKGROUND")
+  if type(backing.SetAllPoints) == "function" then
+    backing:SetAllPoints(surface)
+  end
+  if type(backing.SetTexture) == "function" then
+    backing:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(backing.SetVertexColor) == "function" then
+    backing:SetVertexColor(unpack(colors.DARK_GRAY_BAR_BG or { 0.12, 0.12, 0.12 }))
+  end
+  surface:Hide()
+
+  local readyFill = surface:CreateTexture(nil, "ARTWORK", nil, 1)
   if type(readyFill.SetAllPoints) == "function" then
-    readyFill:SetAllPoints(barContainer)
+    readyFill:SetAllPoints(surface)
   end
   if type(readyFill.SetTexture) == "function" then
     readyFill:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(readyFill.SetVertexColor) == "function" then
-    readyFill:SetVertexColor(unpack(colors.MPLUS_PREKEY_READY_FILL or { 1.0, 0.84, 0.35, 0.22 }))
+    readyFill:SetVertexColor(unpack(colors.MPLUS_PREKEY_READY_FILL or { 1.0, 0.84, 0.35, 0.55 }))
   end
   readyFill:Hide()
 
   if type(barContainer.SetClipsChildren) == "function" then
     barContainer:SetClipsChildren(true)
   end
-  local shimmer = CreateFrame("Frame", nil, barContainer)
-  shimmer:SetPoint("TOPRIGHT", barContainer, "TOPLEFT", 0, 0)
-  shimmer:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMLEFT", 0, 0)
+  local shimmer = CreateFrame("Frame", nil, surface)
+  shimmer:SetPoint("TOPRIGHT", surface, "TOPLEFT", 0, 0)
+  shimmer:SetPoint("BOTTOMRIGHT", surface, "BOTTOMLEFT", 0, 0)
   if type(shimmer.SetWidth) == "function" then
     shimmer:SetWidth(PREKEY_SHIMMER_WIDTH)
   end
@@ -518,6 +541,7 @@ local function CreatePreKeyReadyLayer(row, barContainer)
   end
   shimmer:Hide()
 
+  row.killTrackPreKeySurface = surface
   row.killTrackReadyFill = readyFill
   row.killTrackShimmer = shimmer
   row.killTrackShimmerGroup = sweepGroup
@@ -624,7 +648,7 @@ local function CreateKillTrackRow(mainFrame)
   end
   barPull:Hide()
 
-  CreatePreKeyReadyLayer(row, barContainer)
+  CreatePreKeyReadyLayer(row, box, barContainer)
 
   -- Forces target of the next section: a thin cool tick above the fill; the
   -- sections after it use the same tick, dimmed.
@@ -758,6 +782,8 @@ local function CreateKillTrackRow(mainFrame)
   end
   row.killTrackSectionText = sectionText
 
+  RI.CreateRunEndBanner(row, box, barOverlay)
+
   row.killTrackBarContainer = barContainer
   row.killTrackBarBg = barBg
   row.killTrackBarFill = barFill
@@ -864,10 +890,52 @@ local function SetBarTarget(row, name, level)
   end
 end
 
--- Shows the gold pre-key backdrop and its light sweep, or hides both. The
--- sweep distance follows the current bar width; reduced motion keeps only the
--- gold fill.
+-- Puts name and level in the middle of the pre-key banner, or back on the bar.
+-- The two strings are centred as one line, so only a changed width re-anchors.
+local function PlaceBarTarget(row, centered)
+  local pulse = row.killTrackTargetPulse
+  local targetText = row.killTrackTargetText
+  local levelText = row.killTrackTargetLevelText
+  if
+    not (pulse and targetText and levelText and row.runSurface)
+    or type(targetText.ClearAllPoints) ~= "function"
+    or type(targetText.GetStringWidth) ~= "function"
+  then
+    return
+  end
+  local offset = nil
+  if centered then
+    local levelWidth = levelText:GetText() ~= "" and (levelText:GetStringWidth() + PREKEY_LEVEL_GAP) or 0
+    offset = -math.floor((targetText:GetStringWidth() + levelWidth) / 2 + 0.5)
+  end
+  if row._targetCenterOffset == offset then
+    return
+  end
+  row._targetCenterOffset = offset
+  local parent = centered and row.runSurface or row.killTrackBarOverlay
+  pulse:ClearAllPoints()
+  pulse:SetPoint("LEFT", parent, "LEFT", 0, 0)
+  pulse:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+  targetText:ClearAllPoints()
+  if centered then
+    targetText:SetPoint("LEFT", pulse, "CENTER", offset, 0)
+  else
+    targetText:SetPoint("LEFT", pulse, "LEFT", PREKEY_TARGET_LEFT_INSET, 0)
+  end
+end
+
+-- Shows the pre-key banner and its light sweep, or hides both. The sweep
+-- distance follows the current row width; reduced motion keeps only the gold
+-- fill.
 local function SetPreKeyReady(row, ready)
+  local surface = row.killTrackPreKeySurface
+  if surface then
+    if ready then
+      surface:Show()
+    else
+      surface:Hide()
+    end
+  end
   local fill = row.killTrackReadyFill
   if fill then
     if ready then
@@ -881,7 +949,7 @@ local function SetPreKeyReady(row, ready)
   if not shimmer then
     return
   end
-  local container = row.killTrackBarContainer
+  local container = surface or row.killTrackBarContainer
   local width = container and type(container.GetWidth) == "function" and tonumber(container:GetWidth()) or 0
   if not ready or not group or width <= 0 or IsReducedMotionEnabled() then
     if group then
@@ -956,6 +1024,7 @@ local function UpdateKillTrackRow(row, deps)
     SetBarTarget(row, activeName, activeName and ResolveActiveKeyLevel() or nil)
     SetTargetPulse(row, false)
     SetPreKeyReady(row, false)
+    PlaceBarTarget(row, false)
     local pct = math.max(0, math.min(data.percent, 100))
     row._killTrackActive = true
     row._killTrackPercent = pct
@@ -1057,6 +1126,7 @@ local function UpdateKillTrackRow(row, deps)
     local preKey = targetInfo ~= nil and not targetInfo.finished
     SetTargetPulse(row, preKey)
     SetPreKeyReady(row, preKey)
+    PlaceBarTarget(row, preKey)
     if pctText then
       pctText:SetText(BuildPercentPlaceholder())
       if type(pctText.SetTextColor) == "function" then
@@ -1073,3 +1143,8 @@ end
 RI.CreateKillTrackRow = CreateKillTrackRow
 RI.UpdateKillTrackRow = UpdateKillTrackRow
 RI.UpdateKillTrackTimeOverlay = UpdateKillTrackTimeOverlay
+-- Shared with isiLive_roster_panel_kill_row_run_end.lua.
+RI.KillRowIsReducedMotion = IsReducedMotionEnabled
+RI.KillRowLocalizedText = LocalizedText
+RI.KillRowPaintGradient = PaintGradient
+RI.KillRowSetReadableText = SetReadableText

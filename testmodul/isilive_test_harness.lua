@@ -93,6 +93,7 @@ local FILE_PATHS = {
   ["isiLive_roster_panel_helpers.lua"] = "ui/isiLive_roster_panel_helpers.lua",
   ["isiLive_roster_panel_chrome.lua"] = "ui/isiLive_roster_panel_chrome.lua",
   ["isiLive_roster_panel_cd_row.lua"] = "ui/isiLive_roster_panel_cd_row.lua",
+  ["isiLive_roster_panel_kill_row_run_end.lua"] = "ui/isiLive_roster_panel_kill_row_run_end.lua",
   ["isiLive_roster_panel_kill_row.lua"] = "ui/isiLive_roster_panel_kill_row.lua",
   ["isiLive_roster_panel_render.lua"] = "ui/isiLive_roster_panel_render.lua",
   ["isiLive_ui.lua"] = "ui/isiLive_ui.lua",
@@ -239,6 +240,7 @@ local IMPLICIT_DEPENDENCIES = {
   },
   ["isiLive_roster_panel_kill_row.lua"] = {
     "isiLive_roster_panel_helpers.lua",
+    "isiLive_roster_panel_kill_row_run_end.lua",
   },
   -- KillTrack hands every scenario snapshot to ForcesPace and TimePace (TOC order).
   ["isiLive_killtrack.lua"] = {
