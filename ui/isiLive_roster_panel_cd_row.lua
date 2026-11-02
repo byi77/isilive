@@ -284,8 +284,22 @@ local function CreateCdTrackerRow(mainFrame, opts)
   row.lustText:SetText("")
   ApplyFontStringSize(row.lustText, CD_TRACKER_FONT_SIZE)
 
+  -- Design text role (rule 233); classic keeps the font object's color.
+  if type(UICommon.RegisterDesignText) == "function" then
+    UICommon.RegisterDesignText(row.bresText, "RUN_VALUE")
+    UICommon.RegisterDesignText(row.lustText, "RUN_VALUE")
+  end
+
   row.bresCooldown = CreateIconCooldown(cdBox, row.bresIcon)
   row.lustCooldown = CreateIconCooldown(cdBox, row.lustIcon)
+  -- Design decorations for the two run icons (rule 233); classic adds nothing.
+  cdBox._isiLiveRunIcons = {
+    { icon = row.bresIcon, cooldown = row.bresCooldown },
+    { icon = row.lustIcon, cooldown = row.lustCooldown },
+  }
+  if type(UICommon.RegisterDesignSurface) == "function" then
+    UICommon.RegisterDesignSurface(cdBox, "RUN_ICONS")
+  end
 
   -- Cache spell icons once at creation time to avoid repeated API calls on every refresh.
   local C_Spell_ref = rawget(_G, "C_Spell")

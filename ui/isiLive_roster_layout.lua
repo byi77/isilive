@@ -467,10 +467,11 @@ local function GetFlatButtonLabelWidth(btn)
     return nil
   end
   local width = tonumber(btn:GetWidth())
-  if not width or width <= FLAT_BUTTON_LABEL_HORIZONTAL_PADDING then
+  local inset = type(UICommon.GetActionButtonLabelInset) == "function" and UICommon.GetActionButtonLabelInset(btn) or 0
+  if not width or width <= FLAT_BUTTON_LABEL_HORIZONTAL_PADDING + inset then
     return nil
   end
-  return width - FLAT_BUTTON_LABEL_HORIZONTAL_PADDING
+  return width - FLAT_BUTTON_LABEL_HORIZONTAL_PADDING - inset
 end
 
 local function CaptureFlatButtonBaseFont(label)
@@ -545,9 +546,12 @@ local function SetFlatButtonText(btn, text)
     label:SetText(tostring(text or ""))
     -- Clamp the label to the button width so long translations never overflow.
     if type(btn.GetWidth) == "function" and type(label.SetWidth) == "function" then
+      -- A shown availability icon keeps its own slot on the left.
+      local inset = type(UICommon.GetActionButtonLabelInset) == "function" and UICommon.GetActionButtonLabelInset(btn)
+        or 0
       local w = btn:GetWidth()
-      if w and w > 4 then
-        label:SetWidth(w - 4)
+      if w and w > 4 + inset then
+        label:SetWidth(w - 4 - inset)
       end
     end
     if type(label.SetWordWrap) == "function" then

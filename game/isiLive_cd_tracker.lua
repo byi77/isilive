@@ -254,6 +254,11 @@ function CdTracker.CreateController(opts)
     demoOverride = nil
   end
 
+  -- True while the demo preview feeds BR/BL values.
+  function controller.HasDemoData()
+    return demoOverride ~= nil
+  end
+
   function controller.ClearRuntimeData()
     bresCharges = nil
     bresMaxCharges = nil

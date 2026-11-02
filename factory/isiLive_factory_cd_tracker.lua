@@ -639,13 +639,19 @@ local function InitializeFactorySecondaryCdTracker(
   ctx.UpdateCdTracker = function(opts)
     contextMemo.Run(UpdateCdTrackerPass, opts)
   end
+  -- Demo values are shown wherever the demo preview runs (solo, outside a
+  -- key); only live values need the grouped Mythic+ utility context.
+  local function IsDemoCdDataActive()
+    local tracker = ctx.cdTrackerController
+    return type(tracker) == "table" and type(tracker.HasDemoData) == "function" and tracker.HasDemoData() == true
+  end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
     local uiCdController = {
       Scan = function()
         ctx.UpdateCdTracker({ fromVisibleRender = true })
       end,
       GetBResInfo = function()
-        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx) then
+        if not IsDemoCdDataActive() and (not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx)) then
           return nil
         end
         return ctx.cdTrackerController
@@ -654,7 +660,7 @@ local function InitializeFactorySecondaryCdTracker(
           or nil
       end,
       GetLustInfo = function()
-        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx) then
+        if not IsDemoCdDataActive() and (not IsCombatUtilityContextActive() or not IsGroupedUtilityContext(ctx)) then
           return nil
         end
         local info = ctx.cdTrackerController

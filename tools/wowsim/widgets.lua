@@ -455,8 +455,25 @@ local function DefineTexture(engine, M)
   function Texture:GetRotation()
     return self._rotation or 0
   end
-  function Texture:AddMaskTexture() end
-  function Texture:RemoveMaskTexture() end
+  -- Masks are recorded so the viewer can approximate them (a circle mask
+  -- renders as a round clip); other masks stay visual no-ops.
+  function Texture:AddMaskTexture(mask)
+    self._masks = self._masks or {}
+    for _, existing in ipairs(self._masks) do
+      if existing == mask then
+        return
+      end
+    end
+    self._masks[#self._masks + 1] = mask
+  end
+  function Texture:RemoveMaskTexture(mask)
+    for index, existing in ipairs(self._masks or {}) do
+      if existing == mask then
+        table.remove(self._masks, index)
+        return
+      end
+    end
+  end
   function Texture:SetMask() end
   function Texture:SetHorizTile() end
   function Texture:SetVertTile() end
@@ -1994,6 +2011,7 @@ local function DefineLayoutAndSnapshot(engine, M)
                   atlas = obj._atlas,
                   desaturated = obj._desaturated or nil,
                   gradient = obj._gradient,
+                  mask = obj._masks and obj._masks[1] and obj._masks[1]._tex or nil,
                 }
               end
             elseif obj._type == "FontString" then

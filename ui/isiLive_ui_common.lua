@@ -171,10 +171,15 @@ UICommon.ThemeOverrides = {
 UICommon.DesignBackdropPresets = {}
 UICommon.DesignDecorators = {}
 UICommon.DesignAvailabilityBorders = {}
+-- Action-button roles a design draws with another role's style ({ primary = "secondary" }).
+UICommon.DesignButtonRoles = {}
 -- Design-owned component variants ({ [componentName] = { Update, Release } }).
 -- A module asks GetDesignComponent for its variant on every update and falls
 -- back to its own classic rendering when the active design has none.
 UICommon.DesignComponents = {}
+-- Text roles a design may recolor ({ [role] = token }). Classic has none:
+-- a registered text keeps whatever color its font object or module gave it.
+UICommon.DesignTextRoles = {}
 
 -- Classic values of every token, captured once at file load. Many modules
 -- cache `UICommon.Colors` or one of its inner arrays at their own file load,
@@ -688,6 +693,7 @@ local designSurfaces = setmetatable({}, { __mode = "k" })
 local tokenPaints = setmetatable({}, { __mode = "k" })
 local actionButtons = setmetatable({}, { __mode = "k" })
 local plainSurfaces = setmetatable({}, { __mode = "k" })
+local roleTexts = setmetatable({}, { __mode = "k" })
 
 -- The classic preset with the active design's field patch on top.
 local function ResolveBackdropPreset(presetName)
@@ -716,6 +722,41 @@ local function DecorateSurface(frame, presetName)
       decorate(frame, design == activeDesign)
     end
   end
+end
+
+-- Paints a registered text with the active design's token for its role, or
+-- restores the color it had before a design recolored it.
+local function PaintRoleText(fontString, entry)
+  local roles = UICommon.DesignTextRoles[activeDesign]
+  local token = type(roles) == "table" and roles[entry.role] or nil
+  local color = token and UICommon.Colors[token] or nil
+  if type(color) == "table" then
+    if not entry.original and type(fontString.GetTextColor) == "function" then
+      entry.original = { fontString:GetTextColor() }
+    end
+    fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+    return true
+  end
+  if entry.original then
+    local original = entry.original
+    fontString:SetTextColor(original[1], original[2], original[3], original[4])
+    entry.original = nil
+    return true
+  end
+  return false
+end
+
+-- Registers a font string under a text role (e.g. "RUN_VALUE"), so a design
+-- can recolor it now and on every later design switch.
+function UICommon.RegisterDesignText(fontString, role)
+  if type(fontString) ~= "table" or type(fontString.SetTextColor) ~= "function" or type(role) ~= "string" then
+    return false
+  end
+  local entry = roleTexts[fontString] or {}
+  entry.role = role
+  roleTexts[fontString] = entry
+  PaintRoleText(fontString, entry)
+  return true
 end
 
 -- Registers a frame without a backdrop preset (e.g. a portal tile) under a
@@ -791,6 +832,11 @@ function UICommon.RepaintDesign()
   for frame, surfaceName in pairs(plainSurfaces) do
     DecorateSurface(frame, surfaceName)
     count = count + 1
+  end
+  for fontString, entry in pairs(roleTexts) do
+    if PaintRoleText(fontString, entry) then
+      count = count + 1
+    end
   end
   for region, paint in pairs(tokenPaints) do
     if PaintTokenRegion(region, paint) then
@@ -896,6 +942,10 @@ end
 
 -- `false` marks a valid state without an icon: leader-only buttons are just
 -- dimmed and not clickable, a lock in front of the label adds nothing.
+local ACTION_ICON_SIZE = 12
+local ACTION_ICON_LEFT = 5
+local ACTION_ICON_GAP = 2
+
 local AVAILABILITY_ICON_KEYS = {
   cooldown = "cooldown",
   combat = "warning",
@@ -915,7 +965,11 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
     return false
   end
   local resolvedRole = ACTION_BUTTON_STYLE_BY_ROLE[role] and role or "secondary"
-  local style = ACTION_BUTTON_STYLE_BY_ROLE[resolvedRole]
+  -- A design may draw one role like another (rule 233); the semantic role on
+  -- the button stays, so switching back restores the role's own look.
+  local designRoles = UICommon.DesignButtonRoles[activeDesign]
+  local styleRole = type(designRoles) == "table" and designRoles[resolvedRole] or resolvedRole
+  local style = ACTION_BUTTON_STYLE_BY_ROLE[styleRole] or ACTION_BUTTON_STYLE_BY_ROLE[resolvedRole]
   local resolvedState = state == "hover" and "hover" or (state == "pressed" and "pressed" or "default")
   local background = resolvedState == "hover" and style.hoverBg
     or (resolvedState == "pressed" and style.pressedBg or style.defaultBg)
@@ -939,6 +993,16 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
   button._isiLiveVisualState = resolvedState
   actionButtons[button] = true
   return true
+end
+
+-- Horizontal space a shown availability icon takes from the label (icon plus
+-- its left margin and a gap); 0 while no icon is shown.
+function UICommon.GetActionButtonLabelInset(button)
+  local icon = type(button) == "table" and button._availabilityIcon or nil
+  if type(icon) == "table" and icon._isiLiveStateIcon ~= nil then
+    return ACTION_ICON_LEFT + ACTION_ICON_SIZE + ACTION_ICON_GAP
+  end
+  return 0
 end
 
 function UICommon.CreateActionButton(parent, opts)
@@ -967,8 +1031,8 @@ function UICommon.CreateActionButton(parent, opts)
   end
   if type(button.CreateTexture) == "function" then
     local icon = button:CreateTexture(nil, "OVERLAY")
-    CallMethod(icon, "SetSize", 12, 12)
-    CallMethod(icon, "SetPoint", "LEFT", button, "LEFT", 5, 0)
+    CallMethod(icon, "SetSize", ACTION_ICON_SIZE, ACTION_ICON_SIZE)
+    CallMethod(icon, "SetPoint", "LEFT", button, "LEFT", ACTION_ICON_LEFT, 0)
     CallMethod(icon, "Hide")
     button._availabilityIcon = icon
   end
@@ -977,6 +1041,14 @@ function UICommon.CreateActionButton(parent, opts)
   function button:SetAvailabilityState(nextState)
     self._isiLiveAvailability = AVAILABILITY_ICON_KEYS[nextState] ~= nil and nextState or "available"
     UICommon.ApplyStateIcon(self._availabilityIcon, AVAILABILITY_ICON_KEYS[self._isiLiveAvailability])
+    -- A shown state icon owns the left edge: the label moves right by half the
+    -- reserved space, so a long label such as "Keys teilen (14s)" no longer
+    -- runs over the hourglass.
+    local label = self._flatLabel
+    if type(label) == "table" and type(label.ClearAllPoints) == "function" then
+      label:ClearAllPoints()
+      label:SetPoint("CENTER", self, "CENTER", UICommon.GetActionButtonLabelInset(self) / 2, 0)
+    end
     if type(self.SetAlpha) == "function" then
       self:SetAlpha(self._isiLiveAvailability == "available" and 1 or 0.72)
     end

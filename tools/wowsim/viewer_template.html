@@ -362,8 +362,12 @@ function gradientCss(tex) {
 }
 function isPlainWhite(path) { return typeof path === "string" && /white8x8$/i.test(path); }
 function applyTex(el, tex, w, h) {
+  // A circle mask (Blizzard's portrait alpha mask) clips the region round.
+  if (typeof tex.mask === "string" && /portraitalphamask|circle/i.test(tex.mask)) { el.style.borderRadius = "50%"; el.style.overflow = "hidden"; }
   if (Array.isArray(tex.gradient) && (tex.color || isPlainWhite(tex.path))) { el.style.background = gradientCss(tex); return; }
   if (tex.color) { el.style.background = rgba(tex.color, tex.vertex); return; }
+  // The plain white texture tinted by SetVertexColor is a solid color fill.
+  if (isPlainWhite(tex.path)) { el.style.background = rgba([1, 1, 1, 1], tex.vertex); return; }
   if (tex.atlas) { placeholder(el, String(tex.atlas), w, h, "atlas " + tex.atlas); return; }
   const hit = findAsset(tex.path);
   if (!hit) {

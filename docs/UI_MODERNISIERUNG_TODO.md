@@ -57,3 +57,68 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 - [x] Statsbox-Zahlen und Zeilenabstaende optisch verfeinern, bei unveraenderten Stat-Farben. Zahlen- und Prozentwerte sind 1 px groesser als Labels; der Zeilenabstand hat 18 px Grundmass und skaliert mit der Schriftoption. Die gepflegten Statfarben bleiben unveraendert.
 - [ ] Nameplates und LFG-Marker mit echten Client-Screenshots auf kleine UI-Skalen pruefen.
 - [x] Tooltip-Breiten, Abstaende und Zahlenformatierung angleichen. Private Tooltip-Karten starten wie Roster-Tooltips bei 220 px Breite mit 10 px Seitenrand und 3 px Zeilenabstand; kompakte Rosterzahlen nutzen Blizzards `AbbreviateNumbers`, soweit verfuegbar.
+
+## P4 — Modern-Design (Branch `feature/mplus-ui-redesign`, Regel 233)
+
+Stand: 2026-11-02, Version 0.9.478 (Commit `5d56c6e`, gepusht, kein Tag). Ruecksprungpunkt: Tag `isiLive_release_0.9.477`. Merge nach `main` erst nach User-Freigabe. Alles Modern liegt hinter dem Schalter `IsiLiveDB.uiDesign` (Einstellungen > Allgemein > Design, `/isilive design classic|modern`, wirkt nach `/reload`); Classic bleibt unveraendert und Standard.
+
+Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgehakt = umgesetzt und deterministisch geprueft; Simulator-Vorschau mit `--savedvars`-Datei `IsiLiveDB = { uiDesign = "modern" }`.
+
+### Grundlage
+
+- [x] Design-Schalter Classic/Modern: Settings-Selektor unter "Standard-Layout beim Oeffnen", Slash-Befehl, Schema-Sanitizer, Locale in fuenf Sprachen.
+- [x] Repaint-Grundlage (die frueher offene Luecke "Farben bleiben nach /reload Classic"): `ApplyBackdrop` merkt sich Flaechen, `PaintToken` beim Bau gefaerbte Regionen, `RegisterDesignSurface` Flaechen ohne Backdrop, `RepaintDesign` malt nach ADDON_LOADED neu; dazu `DesignBackdropPresets`, `DesignDecorators`, `DesignAvailabilityBorders`, `DesignComponents`.
+- [x] wowsim rendert `SetGradient`-Verlaeufe.
+- [x] wowsim: `WHITE8X8` mit Vertex-Farbe als Vollflaeche (Forces-Fuellung, Pull-Segment sichtbar) und Kreismaske als runder Ausschnitt (BR/BL-Icons).
+- [ ] wowsim: andere Masken, `CreateLine`-Linien und Textur-Slicing (9-Slice) darstellen.
+- Hinweis: wowsim zeigte den Readycheck-Verlauf korrekt, der Client deckend weiss — Verlaeufe auf Render-Pfaden immer ingame pruefen.
+- [~] Mockups vor dem Code: uebersprungen, stattdessen direkt Code mit Simulator-Vorschau und Ingame-Screenshots je Schritt (User-Entscheidung "lass sehen was du kannst").
+
+### Stufe 1 — Skin
+
+- [x] Palette: Grafit-Flaechen, neue Modern-Werte nur fuer bestehende Tokens.
+- [x] Rahmen: Haarlinien statt Kaesten, dezenter Schatten, Akzentlinie oben, Titel-Schimmer, Glanz auf Fenster und Buttons. Echte 9-Slice-/Rundungs-Rahmen noch nicht (siehe offen).
+- [x] Kopfzeile und Spaltenkoepfe gedaempft, Version gedaempft.
+- [x] Einheitliche Buttons ohne Rahmen; alle Aktionsbuttons gleich ruhig, keine blaue Hauptaktion mehr (User-Entscheidung 2026-11-02, `DesignButtonRoles`); gesperrte Buttons nur abgedunkelt.
+- [x] Run-Karten (BR/BL, Timer, Tracker) als Flaechen mit Akzentstreifen links.
+- [x] Zebra-Zeilen (bestehendes `ROW_ALT`, in Modern leicht angepasst).
+- [x] Ruhigere Zeilen: Readycheck als heller Statusstreifen links plus halb so kraeftige Toenung statt Vollton-Zeile (Verlauf war ingame deckend weiss, ersetzt) (Komponente `READY_CHECK_ROW`).
+- [x] Typografie, erster Schritt: Text-Rollen (`RegisterDesignText`); BR/BL-Werte kuehl-weiss statt Blizzard-Gold.
+- [ ] Typografie, weiter: Groessenstufen fuer Labels und Werte (Schriftart bleibt User-Wahl); Kandidaten erst ingame bewerten.
+- [ ] Abgerundete Ecken / 9-Slice fuer Hauptfenster und Karten pruefen (eigene TGA oder `SetTextureSliceMargins`).
+
+### Stufe 2 — Komponenten
+
+- [x] Timer (`MPLUS_TIMER`): verstrichene Zeit gross vor dem Limit, Zeitleiste mit +3/+2-Markern, nur erreichbare Stufe mit Restzeit, Ueberzeit rot.
+- [x] Killtracker-Leiste: 12 px, Haarlinie, Glas-Glanz, leere Spur halbtransparent. Boss-Abschnitte und Pull-Segment gab es schon in Classic und bleiben.
+- [x] Teleport-Kacheln: Bild fast randlos, Haarlinie, Verlauf unter dem Kuerzel, Hover.
+- [x] Runde Cooldown-Sweeps fuer BR/BL: runde Icons (Portraet-Kreismaske), feiner Ring, runder Swipe (`RUN_ICONS`).
+- [ ] Ingame pruefen: runde BR/BL-Icons, Ring und Swipe nach einem BR bzw. Bloodlust (wowsim zeigt keine Masken).
+- [x] Demo zeigt BR/BL-Werte jetzt auch solo und ausserhalb eines Keys (vorher `BR: --` / `BL: --`, Kontext-Sperre der Anzeige).
+- [~] Kick: hat kein Icon (Textspalte im Roster); ein runder Swipe braeuchte neue Bauteile — vorerst nicht.
+
+### Stufe 3 — Relayout (nur wenn noetig, nur nach User-OK)
+
+- [ ] Hinweis "Benoetigt noch ..." und TTK in die Tracker-Karte holen (Box hoeher, verschiebt das Fensterlayout).
+- [x] H- und V-Layout im Modern-Design im Simulator geprueft: gleiche Anordnung wie Classic, Palette, rahmenlose Buttons, Fenster-Dekoration; kein Nachziehen noetig.
+- [ ] H- und V-Layout ingame ansehen (Titel-Schimmer ohne Titeltext, schmale Fenster).
+
+### Uebrige Flaechen
+
+- [x] Einstellungsfenster und Center-Notices im Modern-Design im Simulator geprueft (0 Fehler, Layout unveraendert).
+- [ ] ESC-Panel und Statsbox im Modern-Design ingame ansehen (ESC-Panel-Buttons sind jetzt rahmenlos).
+
+### Ingame-Pruefung (User)
+
+- [ ] Grundlook, Buttons, Portal-Kacheln (Kuerzel lesbar, Cooldown-Swipe, Zielmarkierung).
+- [ ] Timer im echten Key: Stufenwechsel +3 → +2 → +1, Ueberzeit, Key-Ende; Demo-Vorschau `/il testall` vorab.
+- [ ] Forces-Leiste waehrend eines Pulls (Pull-Segment, Abschnitts-Ticks, Zeitstreifen, Run-End-Banner).
+
+### Spaeter / optional
+
+- [ ] Technik: Object Pools, MenuUtil, AddonCompartment, LuaLS-Annotationen.
+- [ ] LibEditMode (Vor-/Nachteile besprochen 2026-11-02, neue Abhaengigkeit) — erst nach dem Redesign entscheiden.
+- [ ] ruRU-Text "Модерн" von jemandem mit Russischkenntnissen pruefen lassen.
+- [ ] Abschluss: User erklaert das Redesign fuer fertig → PR/Merge nach `main`, Release-Tag nur auf ausdrueckliche Freigabe.
+
+Verworfen (User-Entscheidung 2026-11-02): Roster entschlacken (Version nur im Tooltip, DPS/Kick erst ab Key-Start, Flagge nur bei Fremdsprache).

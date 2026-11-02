@@ -41,6 +41,17 @@ return function(test, ctx)
     })
   end
 
+  test("CdTracker reports demo data while the demo preview feeds BR/BL values", function()
+    local ctrl = MakeController()
+    Assert.False(ctrl.HasDemoData(), "a fresh tracker has no demo data")
+    local demo = { bres = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 } }
+    ctrl.SetDemoData(demo)
+    Assert.True(ctrl.HasDemoData(), "SetDemoData must mark the demo as active")
+    Assert.True(ctrl.GetBResInfo() == demo.bres, "the demo BRes values must be served")
+    ctrl.ClearDemoData()
+    Assert.False(ctrl.HasDemoData(), "ClearDemoData must end the demo")
+  end)
+
   test("CdTracker Lust scan stops at the first plain empty slot and keeps unresolved slots distinct", function()
     local reads, mode = 0, "empty"
     local secret = {}

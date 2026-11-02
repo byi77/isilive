@@ -42,6 +42,12 @@ UICommon.ThemeOverrides.modern = {
   DARK_GRAY_BAR_BG = { 0.20, 0.23, 0.29, 0.55 },
 }
 
+-- Text roles: run-card values read as cool white values instead of the gold
+-- of the Blizzard default font object.
+UICommon.DesignTextRoles.modern = {
+  RUN_VALUE = "TEXT_HEADING",
+}
+
 -- Backdrop patches: the run-zone cards (BR/BL, M+ timer, killtracker) get a
 -- real surface instead of the classic faint tint behind a framed border.
 -- Buttons are borderless surfaces: fill and sheen carry them, the role shows
@@ -57,6 +63,12 @@ UICommon.DesignBackdropPresets.modern = {
   TITLE_BUTTON = { backdrop = BACKDROP_BORDERLESS },
 }
 
+-- All action buttons share the calm secondary surface (user decision
+-- 2026-11-02): no accent fill for Readycheck / Countdown.
+UICommon.DesignButtonRoles.modern = {
+  primary = "secondary",
+}
+
 -- Locked buttons (leader-only for a non-leader, unavailable) keep the quiet
 -- secondary hairline, so they read as dimmed instead of outlined. Cooldown
 -- and combat locks keep their informative classic state colors.
@@ -69,6 +81,11 @@ UICommon.DesignAvailabilityBorders.modern = {
 local SHADOW_SIZE = 7
 local SHADOW_ALPHA = 0.2
 local PORTAL_ICON_INSET = 1
+-- The short code sits in the middle of the tile, so the scrim has to carry
+-- about half darkness there: bright artwork (e.g. TVS, DBT) stayed borderline
+-- readable with a 0.5 -> 0 scrim in the client (2026-11-02).
+local PORTAL_SCRIM_BOTTOM_ALPHA = 0.8
+local PORTAL_SCRIM_TOP_ALPHA = 0.25
 -- Matches the 27 px title bar of CreatePanelChrome.
 local HEADER_GLOW_HEIGHT = 28
 local WHITE = "Interface\\Buttons\\WHITE8X8"
@@ -213,7 +230,7 @@ local function BuildPortalTileDecor(frame)
   local scrim = frame:CreateTexture(nil, "ARTWORK", nil, 7)
   scrim:SetPoint("TOPLEFT", frame, "TOPLEFT", PORTAL_ICON_INSET, -PORTAL_ICON_INSET)
   scrim:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PORTAL_ICON_INSET, PORTAL_ICON_INSET)
-  PaintGradient(scrim, "VERTICAL", BLACK, 0.5, 0)
+  PaintGradient(scrim, "VERTICAL", BLACK, PORTAL_SCRIM_BOTTOM_ALPHA, PORTAL_SCRIM_TOP_ALPHA)
   regions[#regions + 1] = scrim
 
   local edges = {
@@ -296,6 +313,77 @@ local function BuildForcesBarDecor(frame)
   return regions
 end
 
+-- BR/BL icons in the run card (ui/isiLive_roster_panel_cd_row.lua): round
+-- icons with a thin light ring and a circular cooldown swipe. The circle is
+-- Blizzard's portrait alpha mask, which the client ships and many maintained
+-- addons use for round icons and swipes. The card lists its icons in
+-- `frame._isiLiveRunIcons` ({ icon, cooldown } pairs).
+local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local RUN_ICON_RING_WIDTH = 1
+local RUN_ICON_SQUARE_SWIPE = WHITE
+
+local function NewCircleMask(frame, anchor, outset)
+  local mask = frame:CreateMaskTexture()
+  mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+  mask:SetPoint("TOPLEFT", anchor, "TOPLEFT", -outset, outset)
+  mask:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", outset, -outset)
+  return mask
+end
+
+local function DecorateRunIcon(frame, entry, active)
+  local icon, cooldown = entry.icon, entry.cooldown
+  if type(icon) ~= "table" then
+    return
+  end
+  if active and not entry.mask then
+    if type(frame.CreateMaskTexture) ~= "function" or type(icon.AddMaskTexture) ~= "function" then
+      return
+    end
+    entry.mask = NewCircleMask(frame, icon, 0)
+    -- The ring is a light disc one pixel wider than the icon, drawn behind it.
+    entry.ring = frame:CreateTexture(nil, "ARTWORK", nil, 7)
+    entry.ring:SetPoint("TOPLEFT", icon, "TOPLEFT", -RUN_ICON_RING_WIDTH, RUN_ICON_RING_WIDTH)
+    entry.ring:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", RUN_ICON_RING_WIDTH, -RUN_ICON_RING_WIDTH)
+    local ringColor = UICommon.Colors.BORDER_TITLE_BAR
+    entry.ring:SetColorTexture(ringColor[1], ringColor[2], ringColor[3], ringColor[4] or 1)
+    entry.ringMask = NewCircleMask(frame, icon, RUN_ICON_RING_WIDTH)
+    entry.ring:AddMaskTexture(entry.ringMask)
+  end
+  if not entry.mask then
+    return
+  end
+  if active and not entry.masked then
+    icon:AddMaskTexture(entry.mask)
+    entry.masked = true
+  elseif not active and entry.masked then
+    icon:RemoveMaskTexture(entry.mask)
+    entry.masked = false
+  end
+  if active then
+    entry.ring:Show()
+  else
+    entry.ring:Hide()
+  end
+  if type(cooldown) == "table" then
+    if type(cooldown.SetSwipeTexture) == "function" then
+      cooldown:SetSwipeTexture(active and CIRCLE_MASK or RUN_ICON_SQUARE_SWIPE)
+    end
+    if type(cooldown.SetUseCircularEdge) == "function" then
+      cooldown:SetUseCircularEdge(active)
+    end
+  end
+end
+
+local function DecorateRunIcons(frame, active)
+  local entries = frame._isiLiveRunIcons
+  if type(entries) ~= "table" then
+    return
+  end
+  for _, entry in ipairs(entries) do
+    DecorateRunIcon(frame, entry, active)
+  end
+end
+
 local function Decorator(key, build)
   return function(frame, active)
     Decoration(frame, key, active, build)
@@ -313,6 +401,7 @@ UICommon.DesignDecorators.modern = {
   MPLUS_BOX = runCard,
   FLAT_BUTTON = button,
   TITLE_BUTTON = button,
+  RUN_ICONS = DecorateRunIcons,
   FORCES_BAR = function(frame, active)
     if active and frame._isiLiveClassicHeight == nil and type(frame.GetHeight) == "function" then
       frame._isiLiveClassicHeight = frame:GetHeight()
@@ -489,7 +578,86 @@ local function RenderRunningTimer(parts, data, activeGrade)
   SetTokenColor(parts.gradeTime, "SetTextColor", grade == 0 and "TEXT_ALERT_DANGER" or "TEXT_HEADING")
 end
 
+-- Ready-check status on a roster row (ui/isiLive_roster_panel_render.lua):
+-- a bright status stripe next to the class stripe and a lighter wash over
+-- the row instead of the classic full-strength tint. The wash is a plain
+-- SetColorTexture fill on the classic tint's own anchors: a gradient on this
+-- per-render path drew as an opaque white block in the client (2026-11-02).
+-- The hold bar along the bottom edge is unchanged.
+local READY_CHECK_STRIPE_WIDTH = 3
+local READY_CHECK_STRIPE_OFFSET = 2
+local READY_CHECK_STRIPE_LIFT = 1.7
+local READY_CHECK_WASH_ALPHA_FACTOR = 0.5
+
+local function BuildReadyCheckParts(row)
+  local anchor = row.hoverFrame or row
+  local parts = {}
+  parts.wash = anchor:CreateTexture(nil, "BACKGROUND", nil, 1)
+  if row.readyCheckBackground then
+    parts.wash:SetAllPoints(row.readyCheckBackground)
+  else
+    parts.wash:SetAllPoints(anchor)
+  end
+  parts.stripe = anchor:CreateTexture(nil, "ARTWORK", nil, 1)
+  parts.stripe:SetPoint("TOPLEFT", anchor, "TOPLEFT", READY_CHECK_STRIPE_OFFSET, 0)
+  parts.stripe:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", READY_CHECK_STRIPE_OFFSET, 0)
+  parts.stripe:SetWidth(READY_CHECK_STRIPE_WIDTH)
+  parts.regions = { parts.wash, parts.stripe }
+  return parts
+end
+
+local function ApplyReadyCheckRow(row, color)
+  if type(row) ~= "table" then
+    return
+  end
+  local parts = row._modernReadyCheck
+  if type(color) ~= "table" or #color < 4 then
+    if parts then
+      SetShown(parts.regions, false)
+      parts.statusKey = nil
+    end
+    return
+  end
+  if not parts then
+    if type((row.hoverFrame or row).CreateTexture) ~= "function" then
+      return
+    end
+    parts = BuildReadyCheckParts(row)
+    row._modernReadyCheck = parts
+  end
+  if row.readyCheckBackground and type(row.readyCheckBackground.Hide) == "function" then
+    row.readyCheckBackground:Hide()
+  end
+  local lifted = {
+    math.min(1, color[1] * READY_CHECK_STRIPE_LIFT),
+    math.min(1, color[2] * READY_CHECK_STRIPE_LIFT),
+    math.min(1, color[3] * READY_CHECK_STRIPE_LIFT),
+  }
+  parts.stripe:SetColorTexture(lifted[1], lifted[2], lifted[3], 1)
+  parts.wash:SetColorTexture(color[1], color[2], color[3], color[4] * READY_CHECK_WASH_ALPHA_FACTOR)
+  SetShown(parts.regions, true)
+  local statusKey = table.concat(color, ",")
+  if parts.statusKey ~= statusKey and type(UICommon.PlayAlphaTransition) == "function" then
+    UICommon.PlayAlphaTransition(parts.wash, "readyCheckTint", { fromAlpha = 0, toAlpha = 1, duration = "normal" })
+  end
+  parts.statusKey = statusKey
+end
+
 UICommon.DesignComponents.modern = {
+  READY_CHECK_ROW = {
+    -- `color` is the classic status tint ({ r, g, b, a }) or nil without a status.
+    Apply = ApplyReadyCheckRow,
+    Release = function(row)
+      local parts = type(row) == "table" and row._modernReadyCheck or nil
+      if parts then
+        SetShown(parts.regions, false)
+        parts.statusKey = nil
+      end
+      if type(row) == "table" and row._readyCheckStatusKey and row.readyCheckBackground then
+        row.readyCheckBackground:Show()
+      end
+    end,
+  },
   MPLUS_TIMER = {
     -- `data` is the MplusTimer snapshot of a running or completed key, nil
     -- without one; `activeGrade` is 3/2/1, or 0 in overtime.

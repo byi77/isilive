@@ -287,6 +287,9 @@ local function BuildControllerContext(state, addon, initial)
               state.cdTrackerDemoData = nil
               state.cdTrackerDemoCleared = (state.cdTrackerDemoCleared or 0) + 1
             end,
+            HasDemoData = function()
+              return state.cdTrackerDemoData ~= nil
+            end,
             ClearRuntimeData = function()
               state.cdTrackerRuntimeCleared = (state.cdTrackerRuntimeCleared or 0) + 1
               state.bresInfo = nil
@@ -1826,6 +1829,23 @@ return function(test, ctx)
     state.inGroup = false
     state.ctx.UpdateCdTracker()
     Assert.Nil(state.cdController.GetLustInfo(), "ungrouped context must fall back to BL: --")
+  end)
+
+  test("Factory CD display serves demo BR/BL values solo and outside a key", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mplusTimerData = {
+        running = false,
+      },
+    })
+    state.inGroup = false
+    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 }
+    state.lustInfo = { remain = 23, duration = 600 }
+    Assert.Nil(state.cdController.GetBResInfo(), "live values must stay hidden solo outside a key")
+    Assert.Nil(state.cdController.GetLustInfo(), "live Bloodlust must stay hidden solo outside a key")
+
+    state.cdTrackerDemoData = { bres = state.bresInfo, lust = state.lustInfo }
+    Assert.NotNil(state.cdController.GetBResInfo(), "the demo preview must show its BRes values")
+    Assert.NotNil(state.cdController.GetLustInfo(), "the demo preview must show its Bloodlust values")
   end)
 
   test("Factory CD refresh resets visible Battle Res and Bloodlust timers when key ends", function()

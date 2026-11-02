@@ -63,6 +63,10 @@ The first party entry is the player (the client whose UI is recorded).
 
 - Game textures and icons are not available; they render as labelled
   placeholders. Only isiLive's own `media/` files are drawn.
+- Drawn approximately: `SetGradient` as a CSS gradient, `WHITE8X8` tinted by
+  `SetVertexColor` as a solid fill, and a circle mask (`TempPortraitAlphaMask`)
+  as a round clip. Other masks, `CreateLine` lines and texture slicing are not
+  drawn. A gradient that looks right here can still differ in the client.
 - Text width is estimated (0.55 em per glyph), so truncation is approximate.
 - Combat itself (damage, auras, nameplates, the damage meter) is not
   simulated; secret values are never produced.

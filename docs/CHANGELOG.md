@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - Modern design follow-ups (stage 1 and 2)
+
+- Modern ready check: a bright status stripe next to the class stripe and a tint at half the classic strength instead of the full-strength row tint; the fade-in and the hold bar stay (`READY_CHECK_ROW` component).
+- Modern BR/BL icons: round icons with a thin light ring and a circular cooldown swipe (`RUN_ICONS`); classic keeps the square icons and swipe.
+- Fix: the demo preview shows its BR/BL values (battle res on cooldown, Bloodlust active) also solo and outside a key; before, the live-context gate of the CD display dropped them and the row read `BR: --` / `BL: --`. Live values still need a grouped Mythic+ context.
+- Modern draws every action button with the calm secondary surface; Readycheck and Countdown no longer get the accent fill (`UICommon.DesignButtonRoles`). Classic keeps its primary buttons.
+- Modern portal tiles: stronger scrim behind the short code (about half darkness in the middle) for bright artwork.
+- Fix (both designs): a shown availability icon (e.g. the hourglass of `Keys teilen (14s)` during its cooldown) now keeps its own slot on the left of the button; the label moves right and fits into the remaining width instead of running over the icon.
+- Design text roles (`UICommon.RegisterDesignText`): a design may recolor registered texts and restores their previous color on a switch. Modern paints the BR/BL values cool white instead of the gold of the default font. Classic is unchanged.
+- wowsim: `WHITE8X8` tinted by `SetVertexColor` renders as a solid fill (forces fill and pull segment are visible) and a circle mask renders as a round clip; the README lists what the viewer only approximates.
+
 ## 2026-11-02 - Version 0.9.478 (patch)
 
 - New setting `uiDesign` (rule 233): a "Design" selector in the General section (Classic / Modern) and `/isilive design classic|modern` (`/isilive design` prints the stored design). The choice is stored in `IsiLiveDB.uiDesign` (default `classic`, unknown values fall back to classic) and takes effect after `/reload`; a chat line asks for the reload.

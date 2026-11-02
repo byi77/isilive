@@ -144,6 +144,14 @@ return function(test, ctx)
     end
     function region:SetPoint() end
     function region:SetAllPoints() end
+    function region:AddMaskTexture(mask)
+      self.mask = mask
+    end
+    function region:RemoveMaskTexture(mask)
+      if self.mask == mask then
+        self.mask = nil
+      end
+    end
     function region:SetBlendMode() end
     function region:SetWidth() end
     function region:SetHeight() end
@@ -266,6 +274,15 @@ return function(test, ctx)
       UICommon.ApplyBackdrop(flatButton, "FLAT_BUTTON")
       Assert.Nil(flatButton.backdrop.edgeFile, "modern buttons must be borderless")
 
+      local primaryButton = NewBackdropFrame()
+      UICommon.ApplyActionButtonVisual(primaryButton, "primary", "default")
+      AssertSameArray(
+        primaryButton.backdropColor,
+        UICommon.Colors.SURFACE_ACTION_SECONDARY,
+        "modern must draw primary buttons with the calm secondary surface"
+      )
+      Assert.Equal(primaryButton._isiLiveSemanticRole, "primary", "the semantic role must stay primary")
+
       local lockedButton = NewBackdropFrame()
       lockedButton._isiLiveAvailability = "leader"
       UICommon.ApplyActionButtonVisual(lockedButton, "primary", "default")
@@ -277,6 +294,11 @@ return function(test, ctx)
 
       UICommon.ApplyDesign("classic")
       Assert.NotNil(flatButton.backdrop.edgeFile, "classic must restore the button border")
+      AssertSameArray(
+        primaryButton.backdropColor,
+        UICommon.Colors.SURFACE_ACTION_PRIMARY,
+        "classic must give primary buttons their primary surface back"
+      )
       AssertSameArray(tile.icon.points.TOPLEFT, { 2, -2 }, "classic must restore the 2 px tile inset")
       Assert.Equal(forcesBar.height, 10, "classic must restore the forces bar height")
       for _, region in ipairs(tileDecor.portalTile) do
@@ -480,5 +502,130 @@ return function(test, ctx)
     timer.Release(row)
     Assert.True(row.mp3Text:IsShown(), "release must bring the classic grade texts back")
     Assert.False(parts.elapsed:IsShown(), "release must hide the modern timer parts")
+  end)
+  test("UI design modern ready-check row uses a status stripe and a light wash instead of a full tint", function()
+    WithGlobals({
+      CreateColor = function(r, g, b, a)
+        return { r = r, g = g, b = b, a = a }
+      end,
+    }, function()
+      local UICommon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui_design.lua" }).UICommon
+      Assert.Nil(UICommon.GetDesignComponent("READY_CHECK_ROW"), "classic must keep the full-row tint")
+      UICommon.ApplyDesign("modern")
+      local variant = Assert.NotNil(UICommon.GetDesignComponent("READY_CHECK_ROW"), "modern must restyle the status")
+      local row = { hoverFrame = NewBackdropFrame(), readyCheckBackground = NewRegion() }
+
+      variant.Apply(row, { 0.08, 0.5, 0.16, 0.42 })
+      local parts = Assert.NotNil(row._modernReadyCheck, "the variant must build its stripe and wash")
+      Assert.True(parts.stripe:IsShown(), "a status must show the stripe")
+      Assert.True(parts.wash:IsShown(), "a status must show the wash")
+      Assert.Nil(parts.wash.gradient, "the per-render wash must not use a gradient (opaque white in the client)")
+      Assert.Equal(parts.wash.colorTexture[4], 0.21, "the wash must be a lighter tint than the classic one")
+      Assert.False(row.readyCheckBackground:IsShown(), "modern must hide the full-row tint")
+
+      variant.Apply(row, nil)
+      Assert.False(parts.stripe:IsShown(), "no status must hide the stripe")
+
+      variant.Apply(row, { 0.48, 0.12, 0.12, 0.34 })
+      row._readyCheckStatusKey = "notready"
+      variant.Release(row)
+      Assert.False(parts.wash:IsShown(), "release must hide the modern status")
+      Assert.True(row.readyCheckBackground:IsShown(), "release must bring the classic tint back for a live status")
+    end)
+  end)
+  test("UI design text roles recolor registered texts in modern and restore their own color in classic", function()
+    local UICommon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui_design.lua" }).UICommon
+    local text = NewRegion()
+    text.textColor = { 1, 0.82, 0, 1 }
+    function text:GetTextColor()
+      return self.textColor[1], self.textColor[2], self.textColor[3], self.textColor[4]
+    end
+    UICommon.RegisterDesignText(text, "RUN_VALUE")
+    AssertSameArray(text.textColor, { 1, 0.82, 0, 1 }, "classic must leave a role text untouched")
+
+    UICommon.ApplyDesign("modern")
+    local token = UICommon.Colors[UICommon.DesignTextRoles.modern.RUN_VALUE]
+    AssertSameArray(
+      { text.textColor[1], text.textColor[2], text.textColor[3] },
+      { token[1], token[2], token[3] },
+      "modern must paint the role token"
+    )
+
+    UICommon.ApplyDesign("classic")
+    AssertSameArray(text.textColor, { 1, 0.82, 0, 1 }, "classic must restore the font object's own color")
+  end)
+  test("UI design modern run icons get a round mask, a ring and a circular swipe that classic removes", function()
+    local UICommon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui_design.lua" }).UICommon
+    local card = NewBackdropFrame()
+    function card:CreateMaskTexture()
+      local mask = NewRegion()
+      function mask:SetTexture(path)
+        self.texture = path
+      end
+      return mask
+    end
+    local icon = NewRegion()
+    local cooldown = {}
+    function cooldown:SetSwipeTexture(path)
+      self.swipe = path
+    end
+    function cooldown:SetUseCircularEdge(value)
+      self.circular = value
+    end
+    card._isiLiveRunIcons = { { icon = icon, cooldown = cooldown } }
+    UICommon.RegisterDesignSurface(card, "RUN_ICONS")
+    Assert.Nil(icon.mask, "classic must keep the square icon")
+    Assert.Nil(cooldown.swipe, "classic must keep the default swipe")
+
+    UICommon.ApplyDesign("modern")
+    local mask = Assert.NotNil(icon.mask, "modern must mask the icon round")
+    Assert.True(
+      string.find(mask.texture, "TempPortraitAlphaMask", 1, true) ~= nil,
+      "the mask must be the portrait circle"
+    )
+    Assert.Equal(cooldown.swipe, mask.texture, "the swipe must use the same circle")
+    Assert.True(cooldown.circular, "the swipe must use a circular edge")
+
+    UICommon.ApplyDesign("classic")
+    Assert.Nil(icon.mask, "classic must remove the round mask")
+    Assert.False(cooldown.circular, "classic must turn the circular edge off")
+    Assert.True(string.find(cooldown.swipe, "WHITE8X8", 1, true) ~= nil, "classic must get the square swipe back")
+  end)
+  test("Action button label makes room for a shown availability icon", function()
+    WithGlobals({
+      CreateFrame = function()
+        local button = NewBackdropFrame()
+        function button:SetSize() end
+        function button:EnableMouse() end
+        function button:RegisterForClicks() end
+        function button:HookScript() end
+        function button:SetAlpha() end
+        function button:CreateFontString()
+          local label = NewRegion()
+          label.points = {}
+          function label:ClearAllPoints()
+            self.points = {}
+          end
+          function label:SetPoint(point, _relative, _relativePoint, x)
+            self.points[point] = x
+          end
+          return label
+        end
+        return button
+      end,
+    }, function()
+      local UICommon = LoadAddonModules({ "isiLive_ui_common.lua" }).UICommon
+      local button = UICommon.CreateActionButton(nil, { width = 120, height = 24 })
+      Assert.Equal(UICommon.GetActionButtonLabelInset(button), 0, "no icon must reserve no space")
+
+      button:SetAvailabilityState("cooldown")
+      local inset = UICommon.GetActionButtonLabelInset(button)
+      Assert.True(inset >= 17, "a shown cooldown icon must reserve its slot on the left")
+      Assert.Equal(button._flatLabel.points.CENTER, inset / 2, "the label must move right by half the reserved space")
+
+      button:SetAvailabilityState("available")
+      Assert.Equal(UICommon.GetActionButtonLabelInset(button), 0, "an available button must free the slot again")
+      Assert.Equal(button._flatLabel.points.CENTER, 0, "the label must return to the center")
+    end)
   end)
 end

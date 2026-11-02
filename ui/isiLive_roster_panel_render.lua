@@ -610,6 +610,16 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
     background:Hide()
     row._readyCheckStatusKey = nil
   end
+  -- A design may restyle the status (rule 233); classic keeps the tint above.
+  local variant = type(UICommon.GetDesignComponent) == "function" and UICommon.GetDesignComponent("READY_CHECK_ROW")
+    or nil
+  if variant then
+    variant.Apply(row, color)
+    row._designReadyCheck = variant
+  elseif row._designReadyCheck then
+    row._designReadyCheck.Release(row)
+    row._designReadyCheck = nil
+  end
   ApplyRowReadyCheckHoldBar(row, displayData)
 end
 
