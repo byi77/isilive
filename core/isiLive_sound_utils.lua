@@ -38,13 +38,21 @@ function SoundUtils.GetConfiguredOutputChannel(fallback)
   return NormalizeOutputChannel(nil, fallback)
 end
 
-local function GetClientLocale()
-  local getLocale = rawget(_G, "GetLocale")
-  if type(getLocale) ~= "function" then
-    return nil
+-- Voice announcements follow the addon language (IsiLiveDB.locale) and fall
+-- back to the client locale before the language was ever chosen. Read on every
+-- playback, so a language switch takes effect without a reload.
+local function GetSoundLocale()
+  local db = rawget(_G, "IsiLiveDB")
+  local locale = type(db) == "table" and db.locale or nil
+  if type(locale) ~= "string" or locale == "" then
+    local getLocale = rawget(_G, "GetLocale")
+    if type(getLocale) ~= "function" then
+      return nil
+    end
+    local ok, clientLocale = pcall(getLocale)
+    locale = ok and clientLocale or nil
   end
-  local ok, locale = pcall(getLocale)
-  if ok and type(locale) == "string" and LOCALIZED_SOUND_LOCALES[locale] then
+  if type(locale) == "string" and LOCALIZED_SOUND_LOCALES[locale] then
     return locale
   end
   return nil
@@ -54,7 +62,7 @@ function SoundUtils.ResolveSoundFile(entry)
   if type(entry) ~= "table" then
     return nil
   end
-  local locale = GetClientLocale()
+  local locale = GetSoundLocale()
   local localizedFiles = type(entry.localizedFiles) == "table" and entry.localizedFiles or nil
   local localizedFile = locale and localizedFiles and localizedFiles[locale] or nil
   if type(localizedFile) == "string" and localizedFile ~= "" then

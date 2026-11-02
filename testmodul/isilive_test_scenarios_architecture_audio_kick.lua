@@ -778,6 +778,38 @@ return function(test, ctx)
     end)
   end)
 
+  test("SoundUtils voice announcements follow the addon language over the client locale", function()
+    local db = { locale = "enUS" }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetLocale = function()
+        return "deDE"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      local entry = addon.SoundUtils.GetEntry("tank_died")
+      Assert.Equal(
+        addon.SoundUtils.ResolveSoundFile(entry),
+        "Interface\\AddOns\\isiLive\\sounds\\TankDied.ogg",
+        "an English addon language must play the English announcement on a German client"
+      )
+
+      db.locale = "deDE"
+      Assert.Equal(
+        addon.SoundUtils.ResolveSoundFile(entry),
+        "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.ogg",
+        "switching the addon language to German must take effect without a reload"
+      )
+
+      db.locale = nil
+      Assert.Equal(
+        addon.SoundUtils.ResolveSoundFile(entry),
+        "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.ogg",
+        "without a stored addon language the client locale decides"
+      )
+    end)
+  end)
+
   test("SoundUtils Bloodlust-ready setting disables WAV playback", function()
     local playCalls = 0
     local db = {
