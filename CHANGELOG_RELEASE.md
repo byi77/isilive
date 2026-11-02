@@ -3,11 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.476`.
+Current version: `0.9.477`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.477: voice announcements follow the isiLive language instead of the
+game client, and switching the language takes effect at once without a reload.
+The download is much smaller: documentation screenshots are no longer packed
+and the English announcements ship as compact Ogg files.
 
 Version 0.9.476: the killtracker bar no longer runs ahead during a pull and falls
 back afterwards; the pull is now coloured inside the real forces. The time pace
@@ -149,14 +154,13 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.476 -->
+<!-- highlights-reviewed-for: 0.9.477 -->
 
 Highlights:
-- **Redesigned center notice cards.** Every card now opens with a header band:
-  a category chip in the card's colour, the isiLive mark on the right and the
-  headline below. Field rows are separated by hairlines, warnings sit on a red
-  strip that pulses calmly (steady with reduced motion), and the portal button
-  is a framed tile. The portal navigator shares the same header.
+- **Voice announcements in your isiLive language.** Spoken alerts now follow
+  the isiLive language instead of the game client, and a language switch takes
+  effect at once. The download is several megabytes smaller: screenshots stay
+  out of the package and the English announcements are compact Ogg files.
 - **Coloured item level and rating.** The roster and its tooltip colour each
   item level by this season's Mythic+ reward tiers (epic, rare, uncommon,
   poor) and each Mythic+ rating with Blizzard's own score colour, so

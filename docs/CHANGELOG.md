@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-02 - Version 0.9.477 (patch)
+
+- Voice announcements (rule 84) follow the addon language (`IsiLiveDB.locale`) instead of the client locale; without a stored choice the client locale decides. The language is read on every playback, so a switch takes effect without a reload. Before, a German client always heard the German announcements, even with English selected.
+- The nine English voice announcements ship as Ogg Vorbis (44.1 kHz mono) instead of 16-bit PCM WAV: 1.38 MB down to 0.13 MB, same length and peak level. The asset tests read the Ogg header instead of the WAV header.
+- Packaging: `.pkgmeta` and the WowUp release workflow exclude every root screenshot by pattern (`isiLive_*.png`, `*.gif`, `*.mp4`). The annotated feature guides and two notice screenshots added in 0.9.474 (about 5.9 MB) had been shipped with the addon.
+- Not confirmed in game.
+
 ## 2026-10-31 - Version 0.9.476 (patch)
 
 - Start values: the package ships only forces start values measured in our own runs (seven of eight season dungeons) and no time curves. Time pace forecasts use whole run and rolling tempo.

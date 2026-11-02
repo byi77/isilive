@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.1.5 Midnight Retail](https://img.shields.io/badge/WoW-12.1.5%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.476](https://img.shields.io/badge/isiLive-0.9.476-1E90FF?style=for-the-badge)
+![isiLive 0.9.477](https://img.shields.io/badge/isiLive-0.9.477-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -47,6 +47,8 @@ The forces tracker cancels polling on raid entry and resumes on party return.
 CD polling also resumes for visible active keys after raid return or reopening
 the main window, and stops immediately when hidden. Deep sync byte dumps are
 formatted only when their log output is consumed.
+
+Version `0.9.477` is about voice announcements in your isiLive language: spoken alerts follow the isiLive language instead of the game client and switch at once without a reload, and the download is several megabytes smaller.
 
 Version `0.9.476` is about a truthful killtracker: the bar shows the real forces during a pull and no longer falls back afterwards, and the time pace turns red only when the forecast finish is past the time limit. Banner text is white and the row label reads `M+Tracker`.
 
