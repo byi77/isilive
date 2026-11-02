@@ -67,8 +67,10 @@ local MANAGEMENT_COLUMN_X = -145
 -- Title-bar button slots, right to left from the first slot left of the
 -- settings button (-46): V, H, M+. The Re-Sync button takes the first slot,
 -- and the mode buttons shift one slot left while it shows.
-local TITLE_BUTTON_FIRST_SLOT_X = -68
+local TITLE_BUTTON_FIRST_SLOT_X = -74
 local TITLE_BUTTON_SLOT_WIDTH = 22
+-- Title text and title buttons keep the same 8 px inset from the frame edge.
+local TITLE_TEXT_LEFT = 8
 local TITLE_RESYNC_X = TITLE_BUTTON_FIRST_SLOT_X
 local TITLE_RESYNC_SHIFT = -TITLE_BUTTON_SLOT_WIDTH
 local MANAGEMENT_COLUMN_X_MINI = -70
@@ -95,9 +97,12 @@ local MINI_VERTICAL_HELPER_ROWS = 4
 local MINI_VERTICAL_HELPER_GAP = 2
 local DEFAULT_MIN_FRAME_HEIGHT = 236
 local MINI_MAIN_HORIZONTAL_MIN_HEIGHT = DEFAULT_MIN_FRAME_HEIGHT + MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
-local M2_ROW_LEFT_MARGIN = 10
-local M2_MANAGEMENT_ROW_Y = 105
-local M2_TELEPORT_ROW_Y = 67
+-- M+ grid (2026-11-02): 8 px content margin on both sides of the 500 px
+-- frame (toolbar, portal row and run rows are 484 px wide) and a uniform
+-- 4 px gap between roster, toolbar, portal row, run row and killtracker.
+local M2_ROW_LEFT_MARGIN = 8
+local M2_MANAGEMENT_ROW_Y = 104
+local M2_TELEPORT_ROW_Y = 68
 local M2_HELPER_ROW_Y = 14
 local M2_TOOLBAR_BUTTON_WIDTH = 92
 local M2_TOOLBAR_BUTTON_HEIGHT = 22
@@ -106,7 +111,7 @@ local M2_TOOLBAR_BUTTON_GAP = 6
 local M2_TELEPORT_BUTTON_WIDTH = 57
 local M2_TELEPORT_BUTTON_HEIGHT = 32
 local M2_TELEPORT_BUTTON_GAP = 4
-local M2_RUN_ROW_RIGHT_MARGIN = 6
+local M2_RUN_ROW_RIGHT_MARGIN = 8
 local M2_HELPER_BUTTON_SIZE = 22
 local M2_HELPER_BUTTON_GAP = 6
 
@@ -171,6 +176,7 @@ RI.CD_TRACKER_ROW_HEIGHT = CD_TRACKER_ROW_HEIGHT
 RI.CD_TRACKER_ROW_BOTTOM_OFFSET = CD_TRACKER_ROW_BOTTOM_OFFSET
 RI.TITLE_BUTTON_FIRST_SLOT_X = TITLE_BUTTON_FIRST_SLOT_X
 RI.TITLE_BUTTON_SLOT_WIDTH = TITLE_BUTTON_SLOT_WIDTH
+RI.TITLE_TEXT_LEFT = TITLE_TEXT_LEFT
 
 -- Descriptor per layout mode: width and label for the mode button
 local LAYOUT_MODE_CONFIG = {
@@ -847,7 +853,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     ReanchorTitleButton(btn)
   end
   if ui.title then
-    ReanchorFrame(ui.title, "TOPLEFT", 10, isMainHorizontal and -8 or -7)
+    ReanchorFrame(ui.title, "TOPLEFT", TITLE_TEXT_LEFT, isMainHorizontal and -8 or -7)
   end
 
   -- Mode buttons share the title-bar language; the active layout receives the

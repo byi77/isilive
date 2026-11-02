@@ -41,7 +41,8 @@ local PREKEY_PULSE_SECONDS = 0.8
 -- the row once per period.
 local PREKEY_SHIMMER_WIDTH = 72
 local PREKEY_SHIMMER_SECONDS = 2.4
-local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
+local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 8
+local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 8
 local FormatMplusTime = RI.FormatMplusTime
   or function(seconds)
     local abs = math.abs(seconds)
@@ -574,7 +575,7 @@ end
 local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
-  row:SetPoint("BOTTOMLEFT", 10, KILLTRACK_ROW_BOTTOM_OFFSET)
+  row:SetPoint("BOTTOMLEFT", M2_ROW_LEFT_MARGIN, KILLTRACK_ROW_BOTTOM_OFFSET)
   row:SetPoint("BOTTOMRIGHT", -M2_RUN_ROW_RIGHT_MARGIN, KILLTRACK_ROW_BOTTOM_OFFSET)
 
   local box = CreateFrame("Frame", nil, row, "BackdropTemplate")

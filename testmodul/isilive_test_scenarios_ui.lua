@@ -574,8 +574,8 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.NotNil(mainUI.settingsButton.icon, "settings button should render a gear icon")
       local _, _, _, lockX = mainUI.lockButton:GetPoint()
       local _, _, _, settingsX = mainUI.settingsButton:GetPoint()
-      Assert.Equal(settingsX, -46, "settings button should sit directly left of the lock button")
-      Assert.Equal(lockX, -24, "lock button should stay directly left of the close button")
+      Assert.Equal(settingsX, -52, "settings button should sit directly left of the lock button")
+      Assert.Equal(lockX, -30, "lock button should stay directly left of the close button")
       local onClick = mainUI.settingsButton._scripts and mainUI.settingsButton._scripts.OnClick or nil
       onClick = Assert.NotNil(onClick, "settings button should define OnClick")
       onClick(mainUI.settingsButton, "LeftButton")

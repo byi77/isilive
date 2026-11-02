@@ -1167,8 +1167,8 @@ function UICommon.CreatePanelChrome(parent, opts)
   )
 
   local separator = parent:CreateTexture(nil, "ARTWORK")
-  separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))
-  separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))
+  separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -(height + 1))
+  separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -(height + 1))
   separator:SetHeight(1)
   UICommon.PaintToken(separator, "SetColorTexture", "BORDER_TITLE_BAR")
 

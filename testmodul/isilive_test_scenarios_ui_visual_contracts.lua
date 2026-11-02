@@ -46,26 +46,38 @@ return function(test, ctx)
     AssertContains(
       Assert,
       uiCommonContent,
-      'separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))',
-      "title separator must start at the shared 8 px inset"
+      'separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -(height + 1))',
+      "title separator must start at the frame edge like the title bar"
     )
     AssertContains(
       Assert,
       uiCommonContent,
-      'separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))',
-      "title separator must end at the shared 8 px inset"
+      'separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -(height + 1))',
+      "title separator must end at the frame edge like the title bar"
     )
     AssertContains(
       Assert,
       chromeContent,
-      'headerSepLeft:SetPoint("TOPLEFT", 8, -48)',
-      "table separator must start at the same 8 px inset"
+      'headerSepLeft:SetPoint("TOPLEFT", 1, -48)',
+      "table separator must start at the frame edge"
     )
     AssertContains(
       Assert,
       chromeContent,
-      'headerSepRight:SetPoint("TOPRIGHT", -8, -48)',
-      "table separator must end at the same 8 px inset"
+      'headerSepRight:SetPoint("TOPRIGHT", -1, -48)',
+      "table separator must end at the frame edge"
+    )
+    AssertContains(
+      Assert,
+      chromeContent,
+      'headerBand:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 1, -29)',
+      "the column header band must start at the frame edge"
+    )
+    AssertContains(
+      Assert,
+      chromeContent,
+      'headerBand:SetPoint("BOTTOMRIGHT", mainFrame, "TOPRIGHT", -1, -48)',
+      "the column header band must end at the frame edge"
     )
   end)
 

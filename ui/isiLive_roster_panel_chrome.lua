@@ -275,8 +275,8 @@ end
 
 local function CreatePanelHeaders(mainFrame)
   local headerBand = mainFrame:CreateTexture(nil, "BACKGROUND")
-  headerBand:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 8, -29)
-  headerBand:SetPoint("BOTTOMRIGHT", mainFrame, "TOPRIGHT", -8, -48)
+  headerBand:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 1, -29)
+  headerBand:SetPoint("BOTTOMRIGHT", mainFrame, "TOPRIGHT", -1, -48)
   PaintToken(headerBand, "SetColorTexture", "SURFACE_TITLE_BAR", 0.46)
 
   local specHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -365,7 +365,7 @@ local function CreatePanelHeaders(mainFrame)
 
   local headerSepLeft = mainFrame:CreateTexture(nil, "ARTWORK")
   headerSepLeft:SetHeight(1)
-  headerSepLeft:SetPoint("TOPLEFT", 8, -48)
+  headerSepLeft:SetPoint("TOPLEFT", 1, -48)
   headerSepLeft:SetPoint("TOPRIGHT", mainFrame, "TOP", 0, -48)
   if type(headerSepLeft.SetTexture) == "function" then
     headerSepLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -383,7 +383,7 @@ local function CreatePanelHeaders(mainFrame)
   local headerSepRight = mainFrame:CreateTexture(nil, "ARTWORK")
   headerSepRight:SetHeight(1)
   headerSepRight:SetPoint("TOPLEFT", mainFrame, "TOP", 0, -48)
-  headerSepRight:SetPoint("TOPRIGHT", -8, -48)
+  headerSepRight:SetPoint("TOPRIGHT", -1, -48)
   if type(headerSepRight.SetTexture) == "function" then
     headerSepRight:SetTexture("Interface\\Buttons\\WHITE8X8")
   end

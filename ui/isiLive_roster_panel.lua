@@ -524,7 +524,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local TITLE_Y = -7
 
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetPoint("TOPLEFT", 10, TITLE_Y)
+  title:SetPoint("TOPLEFT", RI.TITLE_TEXT_LEFT or 8, TITLE_Y)
   title:SetJustifyH("LEFT")
   PaintToken(title, "SetTextColor", "TEXT_HEADING")
   title:SetShadowOffset(1, -1)

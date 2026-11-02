@@ -27,8 +27,11 @@ local UICommon = addonTable.UICommon or {}
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
-local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 10
-local M2_TELEPORT_ROW_Y_DEFAULT = 70
+-- This file loads before isiLive_roster_layout.lua, so the RI values are not
+-- there yet at file load; the defaults must match the layout grid (8 px
+-- margin, portal row 68 px above the bottom edge).
+local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 8
+local M2_TELEPORT_ROW_Y_DEFAULT = 68
 local function GetM2TeleportRowY()
   return RI.M2_TELEPORT_ROW_Y or M2_TELEPORT_ROW_Y_DEFAULT
 end

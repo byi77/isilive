@@ -2,7 +2,8 @@
 
 ## Unreleased - Modern design follow-ups (stage 1 and 2)
 
-- Modern ready check: a bright status stripe next to the class stripe and a tint at half the classic strength instead of the full-strength row tint; the fade-in and the hold bar stay (`READY_CHECK_ROW` component).
+- Symmetric M+ grid (both designs): content keeps an 8 px margin on both sides of the 500 px frame (was 10 left / 6 right); title text and title buttons sit 8 px from the edge (title buttons were 2 px); the column header band and both header separators run to the frame edge like the title bar; roster, toolbar, portal row, BR/BL and timer row and killtracker are 4 px apart (was 3/3/6/4). The portal row now reads the shared grid defaults: it loads before the layout module, so it had fallen back to its own 10 px / 70 px values.
+- Modern ready check: a tint at half the classic strength instead of the full-strength row tint, without an extra status stripe next to the class stripe; the fade-in and the hold bar stay (`READY_CHECK_ROW` component).
 - Modern BR/BL icons: round icons with a thin light ring and a circular cooldown swipe (`RUN_ICONS`); classic keeps the square icons and swipe.
 - Fix: the demo preview shows its BR/BL values (battle res on cooldown, Bloodlust active) also solo and outside a key; before, the live-context gate of the CD display dropped them and the row read `BR: --` / `BL: --`. Live values still need a grouped Mythic+ context.
 - Modern draws every action button with the calm secondary surface; Readycheck and Countdown no longer get the accent fill (`UICommon.DesignButtonRoles`). Classic keeps its primary buttons.

@@ -166,7 +166,7 @@ end
 local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLocked)
   local button = CreateFrame("Button", nil, frame, "BackdropTemplate")
   button:SetSize(20, 20)
-  button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -2)
+  button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -30, -2)
   button:SetFrameStrata(frame:GetFrameStrata())
   button:SetFrameLevel(dragHandle:GetFrameLevel() + 3)
   button:EnableMouse(true)
@@ -247,7 +247,7 @@ local function CreateSettingsButton(frame, dragHandle, onOpenSettings)
   return CreateTitleBarIconButton(
     frame,
     dragHandle,
-    -46,
+    -52,
     "settings",
     "TOOLTIP_OPEN_ISILIVE_SETTINGS",
     "TOOLTIP_OPEN_ISILIVE_SETTINGS_HINT",
@@ -489,7 +489,7 @@ function UI.CreateMainFrame(opts)
   end
 
   local closeButton = createCloseButton(frame, {
-    point = { "TOPRIGHT", frame, "TOPRIGHT", -2, -2 },
+    point = { "TOPRIGHT", frame, "TOPRIGHT", -8, -2 },
     frameLevel = dragHandle:GetFrameLevel() + 2,
     tooltipTitleKey = "TOOLTIP_HIDE_ISILIVE",
     tooltipBodyKey = "TOOLTIP_HIDE_ISILIVE_HINT",

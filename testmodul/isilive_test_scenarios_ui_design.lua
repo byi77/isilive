@@ -503,7 +503,7 @@ return function(test, ctx)
     Assert.True(row.mp3Text:IsShown(), "release must bring the classic grade texts back")
     Assert.False(parts.elapsed:IsShown(), "release must hide the modern timer parts")
   end)
-  test("UI design modern ready-check row uses a status stripe and a light wash instead of a full tint", function()
+  test("UI design modern ready-check row uses a light wash instead of a full tint and no status stripe", function()
     WithGlobals({
       CreateColor = function(r, g, b, a)
         return { r = r, g = g, b = b, a = a }
@@ -516,15 +516,15 @@ return function(test, ctx)
       local row = { hoverFrame = NewBackdropFrame(), readyCheckBackground = NewRegion() }
 
       variant.Apply(row, { 0.08, 0.5, 0.16, 0.42 })
-      local parts = Assert.NotNil(row._modernReadyCheck, "the variant must build its stripe and wash")
-      Assert.True(parts.stripe:IsShown(), "a status must show the stripe")
+      local parts = Assert.NotNil(row._modernReadyCheck, "the variant must build its wash")
+      Assert.Nil(parts.stripe, "modern must not add a status stripe next to the class stripe")
       Assert.True(parts.wash:IsShown(), "a status must show the wash")
       Assert.Nil(parts.wash.gradient, "the per-render wash must not use a gradient (opaque white in the client)")
       Assert.Equal(parts.wash.colorTexture[4], 0.21, "the wash must be a lighter tint than the classic one")
       Assert.False(row.readyCheckBackground:IsShown(), "modern must hide the full-row tint")
 
       variant.Apply(row, nil)
-      Assert.False(parts.stripe:IsShown(), "no status must hide the stripe")
+      Assert.False(parts.wash:IsShown(), "no status must hide the wash")
 
       variant.Apply(row, { 0.48, 0.12, 0.12, 0.34 })
       row._readyCheckStatusKey = "notready"

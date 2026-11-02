@@ -374,7 +374,7 @@ return function(test, ctx)
     Assert.Equal(row.mp2Text._width, 48, "+2 timer must fit five-character M+ times")
     Assert.Equal(row.mp1Text._width, 48, "+1 timer must fit five-character M+ times")
     Assert.Equal(row._point[2][1], "BOTTOMRIGHT", "timer row must expose an explicit right anchor")
-    Assert.Equal(row._point[2][2], -6, "BR/BL and M+ timer row must end at the shared M+ right edge")
+    Assert.Equal(row._point[2][2], -8, "BR/BL and M+ timer row must end at the shared M+ right edge")
   end)
 
   test("UpdateCdTrackerRow renders BR charges + remaining cooldown when remain > 0", function()

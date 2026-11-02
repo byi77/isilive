@@ -466,7 +466,7 @@ return function(test, ctx)
       Assert.Equal(paceText._drawLayer[1], "OVERLAY", "time pace text must render above bar textures")
       Assert.Equal(paceText._drawLayer[2], 7, "time pace text uses a high overlay sublayer")
       Assert.Equal(row._points[2][1], "BOTTOMRIGHT", "kill tracker row must expose an explicit right anchor")
-      Assert.Equal(row._points[2][2], -6, "kill tracker row must end at the shared M+ right edge")
+      Assert.Equal(row._points[2][2], -8, "kill tracker row must end at the shared M+ right edge")
     end)
   end)
 

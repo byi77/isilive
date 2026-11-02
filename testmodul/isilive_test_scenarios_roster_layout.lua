@@ -237,16 +237,25 @@ return function(test, ctx)
     Assert.Equal(height, 272, "M2 height must clamp to MINI_MAIN_HORIZONTAL_MIN_HEIGHT (244) + 28 = 272")
   end)
 
-  test("RosterLayout M+ stack separates roster and toolbar while keeping portal-to-timer gap compact", function()
-    local RI = loadRI()
-    local fullRosterHeight = RI.DEFAULT_MIN_FRAME_HEIGHT + RI.CD_TRACKER_ROW_HEIGHT
-    local fifthRosterRowBottom = 130
-    local managementRowTop = fullRosterHeight - (RI.M2_MANAGEMENT_ROW_Y + RI.M2_TOOLBAR_BUTTON_HEIGHT)
-    local portalTimerGap = RI.M2_TELEPORT_ROW_Y - (RI.CD_TRACKER_ROW_BOTTOM_OFFSET + RI.CD_TRACKER_ROW_HEIGHT)
+  test(
+    "RosterLayout M+ stack keeps one uniform 4 px gap between roster, toolbar, portals, timer and killtracker",
+    function()
+      local RI = loadRI()
+      local fullRosterHeight = RI.DEFAULT_MIN_FRAME_HEIGHT + RI.CD_TRACKER_ROW_HEIGHT
+      local fifthRosterRowBottom = 130
+      -- Killtracker row bottom offset (ui/isiLive_roster_panel_kill_row.lua).
+      local killTrackTop = 12 + RI.CD_TRACKER_ROW_HEIGHT
+      local managementRowTop = fullRosterHeight - (RI.M2_MANAGEMENT_ROW_Y + RI.M2_TOOLBAR_BUTTON_HEIGHT)
+      local toolbarPortalGap = RI.M2_MANAGEMENT_ROW_Y - (RI.M2_TELEPORT_ROW_Y + RI.M2_TELEPORT_BUTTON_HEIGHT)
+      local portalTimerGap = RI.M2_TELEPORT_ROW_Y - (RI.CD_TRACKER_ROW_BOTTOM_OFFSET + RI.CD_TRACKER_ROW_HEIGHT)
+      local timerKillGap = RI.CD_TRACKER_ROW_BOTTOM_OFFSET - killTrackTop
 
-    Assert.Equal(managementRowTop - fifthRosterRowBottom, 3, "full M+ roster must not touch the leader buttons")
-    Assert.Equal(portalTimerGap, 3, "portal row needs a compact 3 px gap above the timer row")
-  end)
+      Assert.Equal(managementRowTop - fifthRosterRowBottom, 4, "full M+ roster keeps the shared gap above the toolbar")
+      Assert.Equal(toolbarPortalGap, 4, "toolbar and portal row keep the shared gap")
+      Assert.Equal(portalTimerGap, 4, "portal row and timer row keep the shared gap")
+      Assert.Equal(timerKillGap, 4, "timer row and killtracker keep the shared gap")
+    end
+  )
 
   test("RosterLayout M+ action portal timer and kill rows share one right edge", function()
     local RI = loadRI()
@@ -254,7 +263,12 @@ return function(test, ctx)
     local portalRight = RI.M2_ROW_LEFT_MARGIN + (8 * RI.M2_TELEPORT_BUTTON_WIDTH) + (7 * RI.M2_TELEPORT_BUTTON_GAP)
     local runRowRight = RI.MINI_MAIN_HORIZONTAL_FRAME_WIDTH - RI.M2_RUN_ROW_RIGHT_MARGIN
 
-    Assert.Equal(actionRight, 494, "M+ action row must retain its verified right edge")
+    Assert.Equal(actionRight, 492, "M+ action row must end 8 px before the frame edge")
+    Assert.Equal(
+      RI.MINI_MAIN_HORIZONTAL_FRAME_WIDTH - actionRight,
+      RI.M2_ROW_LEFT_MARGIN,
+      "M+ content must keep the same margin on both sides"
+    )
     Assert.Equal(portalRight, actionRight, "portal row must end at the action-row right edge")
     Assert.Equal(runRowRight, actionRight, "timer and kill rows must end at the same right edge")
   end)

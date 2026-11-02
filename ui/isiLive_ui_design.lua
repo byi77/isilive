@@ -579,14 +579,12 @@ local function RenderRunningTimer(parts, data, activeGrade)
 end
 
 -- Ready-check status on a roster row (ui/isiLive_roster_panel_render.lua):
--- a bright status stripe next to the class stripe and a lighter wash over
--- the row instead of the classic full-strength tint. The wash is a plain
--- SetColorTexture fill on the classic tint's own anchors: a gradient on this
--- per-render path drew as an opaque white block in the client (2026-11-02).
--- The hold bar along the bottom edge is unchanged.
-local READY_CHECK_STRIPE_WIDTH = 3
-local READY_CHECK_STRIPE_OFFSET = 2
-local READY_CHECK_STRIPE_LIFT = 1.7
+-- a lighter wash over the row instead of the classic full-strength tint. No
+-- status stripe: the class stripe already sits on the left edge, and a second
+-- colored stripe next to it read as too many colors (user decision
+-- 2026-11-02). The wash is a plain SetColorTexture fill on the classic tint's
+-- own anchors: a gradient on this per-render path drew as an opaque white
+-- block in the client. The hold bar along the bottom edge is unchanged.
 local READY_CHECK_WASH_ALPHA_FACTOR = 0.5
 
 local function BuildReadyCheckParts(row)
@@ -598,11 +596,7 @@ local function BuildReadyCheckParts(row)
   else
     parts.wash:SetAllPoints(anchor)
   end
-  parts.stripe = anchor:CreateTexture(nil, "ARTWORK", nil, 1)
-  parts.stripe:SetPoint("TOPLEFT", anchor, "TOPLEFT", READY_CHECK_STRIPE_OFFSET, 0)
-  parts.stripe:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", READY_CHECK_STRIPE_OFFSET, 0)
-  parts.stripe:SetWidth(READY_CHECK_STRIPE_WIDTH)
-  parts.regions = { parts.wash, parts.stripe }
+  parts.regions = { parts.wash }
   return parts
 end
 
@@ -628,12 +622,6 @@ local function ApplyReadyCheckRow(row, color)
   if row.readyCheckBackground and type(row.readyCheckBackground.Hide) == "function" then
     row.readyCheckBackground:Hide()
   end
-  local lifted = {
-    math.min(1, color[1] * READY_CHECK_STRIPE_LIFT),
-    math.min(1, color[2] * READY_CHECK_STRIPE_LIFT),
-    math.min(1, color[3] * READY_CHECK_STRIPE_LIFT),
-  }
-  parts.stripe:SetColorTexture(lifted[1], lifted[2], lifted[3], 1)
   parts.wash:SetColorTexture(color[1], color[2], color[3], color[4] * READY_CHECK_WASH_ALPHA_FACTOR)
   SetShown(parts.regions, true)
   local statusKey = table.concat(color, ",")

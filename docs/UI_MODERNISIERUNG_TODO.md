@@ -82,7 +82,7 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [x] Einheitliche Buttons ohne Rahmen; alle Aktionsbuttons gleich ruhig, keine blaue Hauptaktion mehr (User-Entscheidung 2026-11-02, `DesignButtonRoles`); gesperrte Buttons nur abgedunkelt.
 - [x] Run-Karten (BR/BL, Timer, Tracker) als Flaechen mit Akzentstreifen links.
 - [x] Zebra-Zeilen (bestehendes `ROW_ALT`, in Modern leicht angepasst).
-- [x] Ruhigere Zeilen: Readycheck als heller Statusstreifen links plus halb so kraeftige Toenung statt Vollton-Zeile (Verlauf war ingame deckend weiss, ersetzt) (Komponente `READY_CHECK_ROW`).
+- [x] Ruhigere Zeilen: Readycheck als halb so kraeftige Toenung statt Vollton-Zeile, ohne zweiten Farbstreifen neben der Klassenfarbe (Verlauf war ingame deckend weiss, ersetzt) (Komponente `READY_CHECK_ROW`).
 - [x] Typografie, erster Schritt: Text-Rollen (`RegisterDesignText`); BR/BL-Werte kuehl-weiss statt Blizzard-Gold.
 - [ ] Typografie, weiter: Groessenstufen fuer Labels und Werte (Schriftart bleibt User-Wahl); Kandidaten erst ingame bewerten.
 - [ ] Abgerundete Ecken / 9-Slice fuer Hauptfenster und Karten pruefen (eigene TGA oder `SetTextureSliceMargins`).
@@ -98,6 +98,9 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [~] Kick: hat kein Icon (Textspalte im Roster); ein runder Swipe braeuchte neue Bauteile — vorerst nicht.
 
 ### Stufe 3 — Relayout (nur wenn noetig, nur nach User-OK)
+
+- [x] Symmetrisches M+-Raster fuer beide Designs (User-Entscheidung 2026-11-02): Inhalt 8 px links und rechts, Titeltext und Titel-Buttons 8 px vom Rand, Kopfband und Kopf-Trennlinien bis zum Fensterrand, einheitlich 4 px zwischen Roster, Buttons, Portalen, BR/BL+Timer und Tracker. Portal-Zeile nutzte vorher eigene Ersatzwerte (10/70), weil sie vor dem Layout-Modul laedt.
+- [ ] Raster ingame pruefen (M+, H, V), auch bei 1 und 5 Gruppenmitgliedern.
 
 - [ ] Hinweis "Benoetigt noch ..." und TTK in die Tracker-Karte holen (Box hoeher, verschiebt das Fensterlayout).
 - [x] H- und V-Layout im Modern-Design im Simulator geprueft: gleiche Anordnung wie Classic, Palette, rahmenlose Buttons, Fenster-Dekoration; kein Nachziehen noetig.
