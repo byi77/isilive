@@ -38,6 +38,21 @@ local function SetFontStringTextColorSafe(fontString, r, g, b)
   end
 end
 
+-- Design-aware token paint (rule 233). Bare UICommon stubs without the
+-- design registry paint the token directly.
+local function PaintToken(region, methodName, token, alpha)
+  local uiCommon = addonTable.UICommon or {}
+  if type(uiCommon.PaintToken) == "function" then
+    return uiCommon.PaintToken(region, methodName, token, alpha)
+  end
+  local color = type(uiCommon.Colors) == "table" and uiCommon.Colors[token] or nil
+  local method = type(region) == "table" and region[methodName] or nil
+  if type(color) == "table" and type(method) == "function" then
+    method(region, color[1], color[2], color[3], alpha or color[4] or 1)
+  end
+end
+
 RI.ApplyFontStringSize = ApplyFontStringSize
+RI.PaintToken = PaintToken
 RI.FormatMplusTime = FormatMplusTime
 RI.SetFontStringTextColorSafe = SetFontStringTextColorSafe

@@ -352,7 +352,17 @@ function fontFamily(font) {
 }
 
 // ---------------------------------------------------------------- frame rendering
+function gradientCss(tex) {
+  // WoW SetGradient: HORIZONTAL runs min (left) -> max (right), VERTICAL min (bottom) -> max (top).
+  // The stops multiply the texture color (a plain white texture shows the stops as they are).
+  const g = tex.gradient, base = tex.color || [1, 1, 1, 1];
+  const mul = (stop) => rgba(base, [num(stop[0], 1), num(stop[1], 1), num(stop[2], 1), num(stop[3], 1)]);
+  const dir = String(g[0]).toUpperCase() === "VERTICAL" ? "to top" : "to right";
+  return "linear-gradient(" + dir + "," + mul(g[1] || []) + "," + mul(g[2] || []) + ")";
+}
+function isPlainWhite(path) { return typeof path === "string" && /white8x8$/i.test(path); }
 function applyTex(el, tex, w, h) {
+  if (Array.isArray(tex.gradient) && (tex.color || isPlainWhite(tex.path))) { el.style.background = gradientCss(tex); return; }
   if (tex.color) { el.style.background = rgba(tex.color, tex.vertex); return; }
   if (tex.atlas) { placeholder(el, String(tex.atlas), w, h, "atlas " + tex.atlas); return; }
   const hit = findAsset(tex.path);

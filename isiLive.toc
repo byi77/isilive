@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.477
+## Version: 0.9.478
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -54,6 +54,7 @@ ui/isiLive_ui_motion.lua
 ui/isiLive_ui_private_tooltip.lua
 ui/isiLive_ui_common.lua
 ui/isiLive_ui_fonts.lua
+ui/isiLive_ui_design.lua
 ui/isiLive_stats_box.lua
 ui/isiLive_simulation_tablet.lua
 game/isiLive_teleport.lua

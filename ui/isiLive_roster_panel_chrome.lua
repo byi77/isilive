@@ -19,6 +19,19 @@ local HELPER_BUTTON_SIZE = RI.HELPER_BUTTON_SIZE or 18
 local HELPER_COLUMN_X = RI.HELPER_COLUMN_X or -111
 
 local UICommon = addonTable.UICommon or {}
+
+-- Design-aware token paint (rule 233). Bare UICommon stubs without the
+-- design registry paint the token directly.
+local function PaintToken(region, methodName, token, alpha)
+  if type(UICommon.PaintToken) == "function" then
+    return UICommon.PaintToken(region, methodName, token, alpha)
+  end
+  local color = type(UICommon.Colors) == "table" and UICommon.Colors[token] or nil
+  local method = type(region) == "table" and region[methodName] or nil
+  if type(color) == "table" and type(method) == "function" then
+    method(region, color[1], color[2], color[3], alpha or color[4] or 1)
+  end
+end
 local Colors = UICommon.Colors or {}
 local MeasureFontStringWidthSafe = UICommon.MeasureFontStringWidthSafe
 local CreateActionButton = UICommon.CreateActionButton
@@ -264,8 +277,7 @@ local function CreatePanelHeaders(mainFrame)
   local headerBand = mainFrame:CreateTexture(nil, "BACKGROUND")
   headerBand:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 8, -29)
   headerBand:SetPoint("BOTTOMRIGHT", mainFrame, "TOPRIGHT", -8, -48)
-  local bandColor = Colors.SURFACE_TITLE_BAR or { 0.025, 0.055, 0.085, 0.82 }
-  headerBand:SetColorTexture(bandColor[1], bandColor[2], bandColor[3], 0.46)
+  PaintToken(headerBand, "SetColorTexture", "SURFACE_TITLE_BAR", 0.46)
 
   local specHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   specHeader:SetPoint("TOPLEFT", SPEC_COL_X, -34)
@@ -334,7 +346,6 @@ local function CreatePanelHeaders(mainFrame)
   mplusManagementHeader:SetJustifyH("CENTER")
   ConfigureSingleLineFontString(mplusManagementHeader)
 
-  local headerColor = Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
   for _, header in ipairs({
     specHeader,
     nameHeader,
@@ -348,7 +359,7 @@ local function CreatePanelHeaders(mainFrame)
     mplusManagementHeader,
   }) do
     if type(header.SetTextColor) == "function" then
-      header:SetTextColor(headerColor[1], headerColor[2], headerColor[3], headerColor[4] or 1)
+      PaintToken(header, "SetTextColor", "TEXT_SECTION")
     end
   end
 
@@ -360,7 +371,7 @@ local function CreatePanelHeaders(mainFrame)
     headerSepLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(headerSepLeft.SetColorTexture) == "function" then
-    headerSepLeft:SetColorTexture(unpack(Colors.BORDER_TITLE_BAR or { 0.26, 0.62, 0.92, 0.38 }))
+    PaintToken(headerSepLeft, "SetColorTexture", "BORDER_TITLE_BAR")
   elseif type(headerSepLeft.SetGradient) == "function" then
     headerSepLeft:SetGradient(
       "HORIZONTAL",
@@ -377,7 +388,7 @@ local function CreatePanelHeaders(mainFrame)
     headerSepRight:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(headerSepRight.SetColorTexture) == "function" then
-    headerSepRight:SetColorTexture(unpack(Colors.BORDER_TITLE_BAR or { 0.26, 0.62, 0.92, 0.38 }))
+    PaintToken(headerSepRight, "SetColorTexture", "BORDER_TITLE_BAR")
   elseif type(headerSepRight.SetGradient) == "function" then
     headerSepRight:SetGradient(
       "HORIZONTAL",

@@ -282,6 +282,8 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       return false
     end,
     resetDB = ctx.resetDB,
+    getUiDesign = ctx.getUiDesign,
+    setUiDesign = ctx.setUiDesign,
     toggleNameplateTestMode = function(arg)
       local mobNameplate = addonTable.MobNameplate
       if type(mobNameplate) ~= "table" or type(mobNameplate.SetTestMode) ~= "function" then

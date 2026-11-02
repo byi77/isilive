@@ -3,11 +3,18 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.477`.
+Current version: `0.9.478`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.478: a new optional Modern design for the isiLive window, chosen
+under Settings > General > Design or with `/isilive design modern` (takes
+effect after `/reload`). It brings calm graphite surfaces, borderless buttons,
+portal tiles with readable short codes, a timer that leads with the elapsed
+time and shows only the chest level still in reach, and a glassy forces bar.
+Classic stays exactly as before and remains the default.
 
 Version 0.9.477: voice announcements follow the isiLive language instead of the
 game client, and switching the language takes effect at once without a reload.
@@ -154,9 +161,14 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.477 -->
+<!-- highlights-reviewed-for: 0.9.478 -->
 
 Highlights:
+- **New Modern design (optional).** Pick Classic or Modern under Settings >
+  General > Design or with `/isilive design modern`, then `/reload`. Modern
+  brings calm graphite surfaces, borderless buttons, readable portal tiles, a
+  timer that leads with the elapsed time and a glassy forces bar. Classic stays
+  the default and looks exactly as before.
 - **Voice announcements in your isiLive language.** Spoken alerts now follow
   the isiLive language instead of the game client, and a language switch takes
   effect at once. The download is several megabytes smaller: screenshots stay
@@ -176,8 +188,3 @@ Highlights:
 - **Key end banner.** A banner over the killtracker row shows how a key ended:
   timed, over time, abandoned or group left. The bar now shows the real forces
   during a pull, and the time pace turns red only past the time limit.
-- **Time to kill (TTK).** During a Mythic+ fight your target shows roughly
-  how many seconds it has left, inside its health bar and under the
-  killtracker bar, for bosses, minibosses and casters. Good for deciding whether a
-  cooldown, stop or target swap is still worth it and when to start your
-  burst. Preview it on a training dummy with `/isilive ttktest`.

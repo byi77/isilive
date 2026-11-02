@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-02 - Version 0.9.478 (patch)
+
+- New setting `uiDesign` (rule 233): a "Design" selector in the General section (Classic / Modern) and `/isilive design classic|modern` (`/isilive design` prints the stored design). The choice is stored in `IsiLiveDB.uiDesign` (default `classic`, unknown values fall back to classic) and takes effect after `/reload`; a chat line asks for the reload.
+- `UICommon.ApplyDesign` writes a design's color overrides into the existing `UICommon.Colors` arrays and restores the classic values exactly; it runs in the ADDON_LOADED pass of `ApplyDBSettings` and repaints through the background-opacity path.
+- Modern design, first skin (`ui/isiLive_ui_design.lua`): graphite surfaces with hairline borders, a soft drop shadow, a cool accent line and title glow on the main window, a top-down sheen on windows and buttons, filled accent primary buttons, run cards (BR/BL, M+ timer, killtracker) as raised surfaces with a left accent stripe, dimmed column headers and version text. Borderless buttons; locked buttons keep a quiet hairline instead of a bright state border. Portal tiles show their artwork almost edge to edge with a hairline, a bottom scrim behind the short code and a soft hover. The M+ timer box leads with the elapsed time and the time limit, adds a short time strip with +3/+2 ticks and lists only the chest grade that is still reachable with its remaining time. The killtracker forces bar is 12 px tall with a hairline edge and a glassy top sheen; ticks, pull segment and time strip stay on top. Frames built before SavedVariables are repainted through a new registry (`UICommon.PaintToken`, `UICommon.RepaintDesign`); Classic stays unchanged.
+
 ## 2026-11-02 - Version 0.9.477 (patch)
 
 - Voice announcements (rule 84) follow the addon language (`IsiLiveDB.locale`) instead of the client locale; without a stored choice the client locale decides. The language is read on every playback, so a switch takes effect without a reload. Before, a German client always heard the German announcements, even with English selected.

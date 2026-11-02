@@ -437,8 +437,14 @@ local function DefineTexture(engine, M)
   function Texture:SetDesaturation(v)
     self._desaturated = (tonumber(v) or 0) > 0
   end
-  function Texture:SetGradient(_orientation, minColor, maxColor)
-    self._gradient = { minColor, maxColor }
+  local function GradientStop(color)
+    if type(color) ~= "table" then
+      return { 1, 1, 1, 1 }
+    end
+    return { tonumber(color.r) or 1, tonumber(color.g) or 1, tonumber(color.b) or 1, tonumber(color.a) or 1 }
+  end
+  function Texture:SetGradient(orientation, minColor, maxColor)
+    self._gradient = { tostring(orientation or "HORIZONTAL"), GradientStop(minColor), GradientStop(maxColor) }
   end
   function Texture:SetBlendMode(mode)
     self._blend = mode
@@ -1987,6 +1993,7 @@ local function DefineLayoutAndSnapshot(engine, M)
                   coords = obj._coords,
                   atlas = obj._atlas,
                   desaturated = obj._desaturated or nil,
+                  gradient = obj._gradient,
                 }
               end
             elseif obj._type == "FontString" then

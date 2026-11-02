@@ -21,6 +21,8 @@ local SetReadableText = addonTable.UICommon
     return false
   end
 local UICommon = addonTable.UICommon or {}
+
+local PaintToken = RI.PaintToken
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
@@ -590,9 +592,8 @@ local function CreateKillTrackRow(mainFrame)
   label:SetWidth(84)
   label:SetJustifyH("LEFT")
   label:SetText("M+Tracker") -- i18n-ok: brand name, kept across all locales
-  local labelColor = UICommon.Colors and UICommon.Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
   if type(label.SetTextColor) == "function" then
-    label:SetTextColor(labelColor[1], labelColor[2], labelColor[3], labelColor[4] or 1)
+    PaintToken(label, "SetTextColor", "TEXT_SECTION")
   end
   row.killTrackLabel = label
   ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
@@ -608,12 +609,16 @@ local function CreateKillTrackRow(mainFrame)
   barContainer:SetPoint("LEFT", box, "LEFT", 94, 0)
   barContainer:SetPoint("RIGHT", box, "RIGHT", -122, 0)
   barContainer:SetHeight(10)
+  -- Design decorations (rule 233); classic adds nothing here.
+  if type(UICommon.RegisterDesignSurface) == "function" then
+    UICommon.RegisterDesignSurface(barContainer, "FORCES_BAR")
+  end
 
   local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
   barBg:SetAllPoints(barContainer)
   barBg:SetTexture("Interface\\Buttons\\WHITE8X8")
   if type(barBg.SetVertexColor) == "function" then
-    barBg:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.DARK_GRAY_BAR_BG) or { 0.12, 0.12, 0.12 }))
+    PaintToken(barBg, "SetVertexColor", "DARK_GRAY_BAR_BG")
   end
 
   local barFill = barContainer:CreateTexture(nil, "ARTWORK")

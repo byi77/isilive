@@ -108,6 +108,7 @@ local function ResolveSettingsOptions(opts)
     -- Both pace toggles only refresh the killtracker row.
     onTimePaceToggle = opts.onTimePaceToggle or opts.onForcesPaceToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
+    onUiDesignChange = opts.onUiDesignChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
     onRosterColumnGuidesToggle = opts.onRosterColumnGuidesToggle,
     onTeleportColumnsChange = opts.onTeleportColumnsChange,

@@ -37,6 +37,8 @@ local RI = addonTable._RosterInternal or {}
 local ContextHelpers = addonTable.ContextHelpers or {}
 local UICommon = addonTable.UICommon or {}
 
+local PaintToken = RI.PaintToken
+
 local function GetDB()
   return rawget(_G, "IsiLiveDB")
 end
@@ -524,7 +526,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   title:SetPoint("TOPLEFT", 10, TITLE_Y)
   title:SetJustifyH("LEFT")
-  title:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.TEXT_HEADING) or { 0.93, 0.96, 1 }))
+  PaintToken(title, "SetTextColor", "TEXT_HEADING")
   title:SetShadowOffset(1, -1)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
@@ -533,7 +535,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleVersion:SetPoint("LEFT", title, "RIGHT", 5, 0)
-  titleVersion:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.BLUE_VERSION_TEXT) or { 0.55, 0.75, 1.0 }))
+  PaintToken(titleVersion, "SetTextColor", "BLUE_VERSION_TEXT")
   if type(titleVersion.SetShadowOffset) == "function" then
     titleVersion:SetShadowOffset(1, -1)
   end

@@ -13,6 +13,10 @@ local InitializeFactoryPrimaryControllers = FI.InitializeFactoryPrimaryControlle
 local InitializeFactoryRefreshAndStatusControllers = FI.InitializeFactoryRefreshAndStatusControllers
 local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryControllers
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
+-- UI design switch helpers (rule 233): factory/isiLive_factory_secondary_runtime.lua.
+local ApplyStoredUiDesign = FI.ApplyStoredUiDesign
+local AnnounceUiDesignChange = FI.AnnounceUiDesignChange
+local SetUiDesign = FI.SetUiDesign
 
 -- Auto-close when the M+ keystone starts. Default OFF: only an explicit
 -- user-enabled boolean true may close the main UI on key start.
@@ -92,6 +96,25 @@ FI.ResolveAutoShowMainFrameOnStartupEnabled = ResolveAutoShowMainFrameOnStartupE
 FI.ResolveAutoOpenMainFrameOnKeyEndEnabled = ResolveAutoOpenMainFrameOnKeyEndEnabled
 FI.ResolveMainFramePositionLockEnabled = ResolveMainFramePositionLockEnabled
 FI.ResolveRaidTransitionBehavior = ResolveRaidTransitionBehavior
+
+-- Pushes the persisted nameplate format and appearance into MobNameplate;
+-- shared by the ADDON_LOADED re-apply and the live settings callback.
+local function ApplyMobNameplateDisplaySettings(mobNameplate, db)
+  if type(mobNameplate.SetFormat) == "function" then
+    mobNameplate.SetFormat({
+      showPercent = db.mobNameplateShowPercent ~= false,
+      showRemaining = db.mobNameplateShowRemaining == true,
+    })
+  end
+  if type(mobNameplate.SetAppearance) == "function" then
+    mobNameplate.SetAppearance({
+      fontSize = tonumber(db.mobNameplateFontSize) or 14,
+      position = type(db.mobNameplatePosition) == "string" and db.mobNameplatePosition or "RIGHT",
+      xOffset = tonumber(db.mobNameplateXOffset) or 0,
+      yOffset = tonumber(db.mobNameplateYOffset) or 0,
+    })
+  end
+end
 
 -- Live-applies display toggles that only change the M+ killtracker row.
 local function BuildKillTrackRowRefresh(ctx)
@@ -309,6 +332,9 @@ local function FinalizeFactorySettings(ctx)
       onDefaultLayoutModeChange = function(_layoutMode)
         ctx.RestoreLayoutState()
       end,
+      onUiDesignChange = function(design)
+        AnnounceUiDesignChange(ctx, design)
+      end,
       onNameMaxCharsChange = function(_maxChars)
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
           ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
@@ -352,20 +378,7 @@ local function FinalizeFactorySettings(ctx)
           return
         end
         local db = rawget(_G, "IsiLiveDB") or {}
-        if type(mobNameplate.SetFormat) == "function" then
-          mobNameplate.SetFormat({
-            showPercent = db.mobNameplateShowPercent ~= false,
-            showRemaining = db.mobNameplateShowRemaining == true,
-          })
-        end
-        if type(mobNameplate.SetAppearance) == "function" then
-          mobNameplate.SetAppearance({
-            fontSize = tonumber(db.mobNameplateFontSize) or 14,
-            position = type(db.mobNameplatePosition) == "string" and db.mobNameplatePosition or "RIGHT",
-            xOffset = tonumber(db.mobNameplateXOffset) or 0,
-            yOffset = tonumber(db.mobNameplateYOffset) or 0,
-          })
-        end
+        ApplyMobNameplateDisplaySettings(mobNameplate, db)
         if type(mobNameplate.SetEnabled) == "function" then
           mobNameplate.SetEnabled(db.mobNameplateEnabled == true)
         end
@@ -481,20 +494,7 @@ local function FinalizeFactorySettings(ctx)
 
       local mobNameplate = ctx.addonTable and ctx.addonTable.MobNameplate
       if type(mobNameplate) == "table" then
-        if type(mobNameplate.SetFormat) == "function" then
-          mobNameplate.SetFormat({
-            showPercent = db.mobNameplateShowPercent ~= false,
-            showRemaining = db.mobNameplateShowRemaining == true,
-          })
-        end
-        if type(mobNameplate.SetAppearance) == "function" then
-          mobNameplate.SetAppearance({
-            fontSize = tonumber(db.mobNameplateFontSize) or 14,
-            position = type(db.mobNameplatePosition) == "string" and db.mobNameplatePosition or "RIGHT",
-            xOffset = tonumber(db.mobNameplateXOffset) or 0,
-            yOffset = tonumber(db.mobNameplateYOffset) or 0,
-          })
-        end
+        ApplyMobNameplateDisplaySettings(mobNameplate, db)
         if type(mobNameplate.Register) == "function" then
           mobNameplate.Register()
         end
@@ -507,6 +507,8 @@ local function FinalizeFactorySettings(ctx)
       if type(statsBox) == "table" and type(statsBox.ApplySettings) == "function" then
         statsBox.ApplySettings()
       end
+
+      ApplyStoredUiDesign(ctx, db)
     end
 
     ctx.ApplyDBSettings()
@@ -684,6 +686,15 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
     traceChatFrameController = ctx.traceChatFrameController,
     runtimeLogController = ctx.runtimeLogController,
     resetDB = ctx.resetDB,
+    getUiDesign = function()
+      local db = rawget(_G, "IsiLiveDB")
+      local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+      local stored = type(db) == "table" and uiCommon and uiCommon.NormalizeDesign(db.uiDesign) or nil
+      return stored or (uiCommon and uiCommon.DEFAULT_DESIGN) or "classic"
+    end,
+    setUiDesign = function(name)
+      return SetUiDesign(ctx, name)
+    end,
     getRosterPanelController = function()
       return ctx.rosterPanelController
     end,

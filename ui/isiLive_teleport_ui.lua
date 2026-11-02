@@ -291,6 +291,11 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_35 or { 0, 0, 0, 0.35 }))
 
+  -- Design decorations (rule 233); classic adds nothing here.
+  if type(UICommon.RegisterDesignSurface) == "function" then
+    UICommon.RegisterDesignSurface(button, "PORTAL_TILE")
+  end
+
   -- Hatched active-target border: a container frame holding dashed segments
   -- along the four edges. The Show/Hide of the container propagates to the
   -- dashes, and a slow alpha pulse animates the whole container so the icon

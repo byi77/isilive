@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.477`
+Versionsbasis: `0.9.478`
 Zuletzt aktualisiert: `2026-11-02`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -801,3 +801,7 @@ Der grosse Teleport-Button der Karte zeigt seit 0.9.452 das Bild des Dungeons au
 ## Audiovereinheitlichung 2026-10-20
 
 Die zehn deutschen Sprachansagen verwenden die bestaetigte maennliche Stimme 6 mit kompakten Ogg-Dateien (24 kHz mono, -19,1 LUFS +/-0,25 LU). Die englischen Sprachansagen liegen als kompakte Ogg-Dateien vor (44,1 kHz mono, Vorbis). Alle sechs bestehenden Effektdateien einschliesslich Battle-Res-Ersatzdatei sind auf dieselbe Lautheit angeglichen; der Ready-Check nutzt jetzt `BttF_Tinkle.ogg`. Zuordnung und Pruefwerte stehen in `docs/AUDIO_ASSETS.json`. Settings, Event-Gates und Wiederholungsintervalle bleiben bestehen.
+
+## UI-Design-Umschalter (Regel 233)
+
+Unter Allgemein steht direkt nach "Standard-Layout beim Oeffnen" der Selektor "Design" mit `Klassisch` und `Modern`; alternativ `/isilive design classic|modern`, `/isilive design` ohne Argument nennt das gespeicherte Design. Die Wahl landet in `IsiLiveDB.uiDesign` (Standard `classic`, unbekannte Werte werden zu `classic`) und wirkt erst nach `/reload`; weicht sie vom aktiven Design ab, weist eine Chatzeile darauf hin. Nach dem Laden wendet `ADDON_LOADED` das gespeicherte Design auf die gemeinsame Farbpalette an und malt die Hintergrundflaechen neu. `Modern` ist noch leer und sieht wie `Klassisch` aus; spaetere Sessions fuellen es mit Farb-Overrides.

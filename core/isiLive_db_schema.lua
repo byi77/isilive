@@ -205,6 +205,9 @@ local SCHEMA = {
     default = "compact_main_horizontal",
     enum = { "last_used", "expanded", "compact_vertical", "compact_horizontal", "compact_main_horizontal" },
   },
+  -- Visual design of the isiLive UI (ui/isiLive_ui_common.lua DESIGNS).
+  -- Applied once after ADDON_LOADED; a change takes effect after /reload.
+  uiDesign = { type = "string", default = "classic", enum = { "classic", "modern" } },
   nameMaxChars = { type = "number", default = 10, min = 5, max = 20 },
   teleportColumns = { type = "number", default = 4, min = 2, max = 6 },
 

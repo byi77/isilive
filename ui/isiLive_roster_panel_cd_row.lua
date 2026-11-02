@@ -437,6 +437,21 @@ local function CreateCdTrackerRow(mainFrame, opts)
   return row
 end
 
+-- Hands the timer box to the active design's MPLUS_TIMER variant (rule 233)
+-- after the classic render; a design without one gets the classic elements
+-- back from the variant that rendered last.
+local function ApplyDesignTimer(row, data, activeGrade)
+  local common = addonTable.UICommon or {}
+  local component = type(common.GetDesignComponent) == "function" and common.GetDesignComponent("MPLUS_TIMER") or nil
+  if component then
+    component.Update(row, data, activeGrade)
+    row._designTimer = component
+  elseif row._designTimer then
+    row._designTimer.Release(row)
+    row._designTimer = nil
+  end
+end
+
 -- Returns the M+ timer snapshot it read and the reachable grade (nil, nil
 -- without a running key), so the killtracker's time overlay reuses this 1 Hz
 -- read instead of sampling the timer a second time.
@@ -570,6 +585,7 @@ local function UpdateCdTrackerRow(row, cdController)
       row.mpDeathText:SetText("--")
       ApplyGradeEmphasis(row, nil)
     end
+    ApplyDesignTimer(row, timerSnapshot, timerGrade)
   end
   return timerSnapshot, timerGrade
 end

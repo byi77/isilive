@@ -90,6 +90,18 @@ local function NormalizeStoredLayoutMode(layoutMode)
   return nil
 end
 
+local UI_DESIGN_DESC_FALLBACK = "Chooses the look of the isiLive windows. Takes effect after /reload."
+
+-- Unknown or missing designs read as the default design (fail closed to classic).
+local function NormalizeStoredDesign(design)
+  local uiCommon = addonTable.UICommon
+  local normalized = type(uiCommon) == "table"
+      and type(uiCommon.NormalizeDesign) == "function"
+      and uiCommon.NormalizeDesign(design)
+    or nil
+  return normalized or "classic"
+end
+
 local function SetLocalizedText(control, labels, key, fallback)
   if control and type(control.SetText) == "function" then
     control:SetText(labels[key] or fallback)
@@ -168,6 +180,46 @@ function SettingsGeneral.BuildGeneralSection(canvas, yOffset, labels, config, co
     SettingDescriptionOptions(
       labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown.",
       { descriptionKey = "SETTINGS_DEFAULT_OPEN_UI_DESC" }
+    )
+  )
+
+  -- UI design (rule 233): stored only; the design is applied after /reload.
+  controls.uiDesign, yOffset = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_UI_DESIGN",
+    labels.SETTINGS_UI_DESIGN or "Design",
+    {
+      {
+        value = "classic",
+        labelKey = "SETTINGS_UI_DESIGN_CLASSIC",
+        fallback = labels.SETTINGS_UI_DESIGN_CLASSIC or "Classic",
+        width = 78,
+      },
+      {
+        value = "modern",
+        labelKey = "SETTINGS_UI_DESIGN_MODERN",
+        fallback = labels.SETTINGS_UI_DESIGN_MODERN or "Modern",
+        width = 78,
+      },
+    },
+    config.getL,
+    function()
+      local db = config.getDB()
+      return NormalizeStoredDesign(db.uiDesign)
+    end,
+    function(design)
+      local db = config.getDB()
+      db.uiDesign = NormalizeStoredDesign(design)
+      if type(config.onUiDesignChange) == "function" then
+        config.onUiDesignChange(db.uiDesign)
+      end
+    end,
+    NormalizeStoredDesign,
+    true,
+    SettingDescriptionOptions(
+      labels.SETTINGS_UI_DESIGN_DESC or UI_DESIGN_DESC_FALLBACK,
+      { descriptionKey = "SETTINGS_UI_DESIGN_DESC" }
     )
   )
 
@@ -263,6 +315,10 @@ function SettingsGeneral.RefreshGeneralControls(controls, labels)
       labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
     )
     controls.defaultLayout.UpdateHighlight()
+  end
+  if controls.uiDesign then
+    SetControlDescription(controls.uiDesign, labels.SETTINGS_UI_DESIGN_DESC or UI_DESIGN_DESC_FALLBACK)
+    controls.uiDesign.UpdateHighlight()
   end
 end
 

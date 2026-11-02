@@ -347,12 +347,20 @@ return function(test, ctx)
         SETTINGS_NAMEPLATE_POSITION = true,
         SETTINGS_STATS_BOX_SHOW_LEECH = true,
         SETTINGS_STATS_BOX_SHOW_SPEED = true,
+        -- "Design" and "Modern" are the German words as well.
+        SETTINGS_UI_DESIGN = true,
+        SETTINGS_UI_DESIGN_MODERN = true,
       },
       frFR = {
         SETTINGS_NAMEPLATE_POSITION = true,
         -- French uses "Raid" for raids, same as English.
         SETTINGS_NAV_RAID = true,
         SETTINGS_SECTION_RAID = true,
+        SETTINGS_UI_DESIGN = true,
+      },
+      trTR = {
+        -- Turkish "Modern" is spelled like the English word.
+        SETTINGS_UI_DESIGN_MODERN = true,
       },
     }
 

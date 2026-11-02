@@ -102,7 +102,56 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   end
 end
 
+-- Applies the stored UI design (rule 233). Most frames are built at file load,
+-- before SavedVariables exist, so the ADDON_LOADED pass of ApplyDBSettings
+-- applies it and repaints through the background-opacity path when a color
+-- actually changed. Unknown or missing values resolve to classic.
+local function ApplyStoredUiDesign(ctx, db)
+  local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+  if type(uiCommon) ~= "table" or type(uiCommon.ApplyDesign) ~= "function" then
+    return
+  end
+  local _, changed = uiCommon.ApplyDesign(db.uiDesign)
+  if changed and type(ctx.RestoreBgAlpha) == "function" then
+    ctx.RestoreBgAlpha(type(db.bgAlpha) == "number" and db.bgAlpha or uiCommon.GetBackgroundAlpha())
+  end
+end
+
+-- A design switch is not live: it is stored and takes effect after /reload.
+-- Prints the reload hint when the stored design differs from the active one.
+local function AnnounceUiDesignChange(ctx, design)
+  local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+  if type(uiCommon) ~= "table" or design == uiCommon.GetActiveDesign() then
+    return false
+  end
+  local L = (type(ctx.GetL) == "function" and ctx.GetL()) or {}
+  local labelKey = design == "modern" and "SETTINGS_UI_DESIGN_MODERN" or "SETTINGS_UI_DESIGN_CLASSIC"
+  local hint = L.UI_DESIGN_RELOAD_HINT or "Design set to %s. Type /reload to apply it."
+  ctx.Print(string.format(hint, L[labelKey] or design))
+  return true
+end
+
+-- Shared write path of the settings selector callback and /isilive design.
+-- Returns the stored design (nil for an unknown name) and whether a reload is
+-- needed to see it.
+local function SetUiDesign(ctx, name)
+  local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+  local design = type(uiCommon) == "table" and uiCommon.NormalizeDesign(name) or nil
+  local db = rawget(_G, "IsiLiveDB")
+  if not design or type(db) ~= "table" then
+    return nil, false
+  end
+  db.uiDesign = design
+  if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
+    ctx.settingsPanel.Refresh()
+  end
+  return design, AnnounceUiDesignChange(ctx, design)
+end
+
 FI.RegisterBlizzardUnitLanguageTooltip = RegisterBlizzardUnitLanguageTooltip
+FI.ApplyStoredUiDesign = ApplyStoredUiDesign
+FI.AnnounceUiDesignChange = AnnounceUiDesignChange
+FI.SetUiDesign = SetUiDesign
 FI.InitializeFactorySecondaryRuntimeMethods = InitializeFactorySecondaryRuntimeMethods
 
 return {

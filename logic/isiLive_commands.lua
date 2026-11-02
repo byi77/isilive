@@ -79,6 +79,14 @@ local function BuildDeps(opts)
     addTraceChatFrameMessage = type(opts.addTraceChatFrameMessage) == "function" and opts.addTraceChatFrameMessage
       or nil,
     resetDB = opts.resetDB or function() end,
+    -- UI design switch (rule 233): the getter returns the stored design, the
+    -- setter stores it and returns the design (nil when unknown).
+    getUiDesign = type(opts.getUiDesign) == "function" and opts.getUiDesign or function()
+      return "classic"
+    end,
+    setUiDesign = type(opts.setUiDesign) == "function" and opts.setUiDesign or function(_name)
+      return nil, false
+    end,
     toggleNameplateTestMode = type(opts.toggleNameplateTestMode) == "function" and opts.toggleNameplateTestMode
       or function()
         return false
@@ -128,6 +136,7 @@ local HELP_KEYS = {
   "HELP_UNLOCK",
   "HELP_RESETUI",
   "HELP_SETTINGS",
+  "HELP_DESIGN",
   "HELP_TTKTEST",
   "HELP_KEYEND",
   "HELP_ADMIN",
@@ -498,7 +507,39 @@ local function TryHandleInfoCommands(_ctx, _L, _cmd)
   return false
 end
 
+local DESIGN_LABEL_KEYS = {
+  classic = "SETTINGS_UI_DESIGN_CLASSIC",
+  modern = "SETTINGS_UI_DESIGN_MODERN",
+}
+
+-- /isilive design [classic|modern]. Without an argument it prints the stored
+-- design and the usage; the setter prints the reload hint itself.
+local function HandleDesignCommand(ctx, cmd)
+  local L = type(ctx.getL) == "function" and ctx.getL() or {}
+  local usage = L.HELP_DESIGN or "  /isilive design classic|modern - Switch the UI design (takes effect after /reload)"
+  local arg = TrimWhitespace(cmd:sub(#"design" + 1))
+  if arg == "" then
+    local current = ctx.getUiDesign()
+    local label = L[DESIGN_LABEL_KEYS[current] or ""] or tostring(current)
+    ctx.printFn(string.format(L.UI_DESIGN_CURRENT or "UI design: %s", label))
+    ctx.printFn(usage)
+    return
+  end
+  local design, needsReload = ctx.setUiDesign(arg)
+  if not design then
+    ctx.printFn(usage)
+  elseif not needsReload then
+    local label = L[DESIGN_LABEL_KEYS[design] or ""] or design
+    ctx.printFn(string.format(L.UI_DESIGN_CURRENT or "UI design: %s", label))
+  end
+end
+
 local function TryHandleUtilityCommands(ctx, cmd)
+  if cmd == "design" or cmd:find("^design%s+") == 1 then
+    HandleDesignCommand(ctx, cmd)
+    return true
+  end
+
   if cmd == "settings" then
     ctx.openSettings()
     return true

@@ -154,6 +154,119 @@ UICommon.Theme = {
   },
 }
 
+-- Selectable UI designs. "classic" is the palette above; every other design
+-- is an overlay on top of it, filled in by ui/isiLive_ui_design.lua:
+--   ThemeOverrides[design]        color-token overrides ({ TOKEN = { r, g, b[, a] } })
+--   DesignBackdropPresets[design] field patches for BACKDROP_PRESETS entries
+--   DesignDecorators[design]      per-preset functions(frame, active) that add or
+--                                 hide design-only regions on a backdrop surface
+--   DesignAvailabilityBorders[design]  action-button border per availability
+--                                 state ({ leader = token, ... }), replacing the
+--                                 classic state colors for the listed states
+UICommon.DEFAULT_DESIGN = "classic"
+UICommon.DESIGNS = { "classic", "modern" }
+UICommon.ThemeOverrides = {
+  modern = {},
+}
+UICommon.DesignBackdropPresets = {}
+UICommon.DesignDecorators = {}
+UICommon.DesignAvailabilityBorders = {}
+-- Design-owned component variants ({ [componentName] = { Update, Release } }).
+-- A module asks GetDesignComponent for its variant on every update and falls
+-- back to its own classic rendering when the active design has none.
+UICommon.DesignComponents = {}
+
+-- Classic values of every token, captured once at file load. Many modules
+-- cache `UICommon.Colors` or one of its inner arrays at their own file load,
+-- so ApplyDesign never replaces a table: it writes values into the existing
+-- arrays and restores them from this snapshot.
+local classicColorSnapshot = {}
+for token, color in pairs(UICommon.Colors) do
+  if type(color) == "table" then
+    local copy = {}
+    for index = 1, #color do
+      copy[index] = color[index]
+    end
+    classicColorSnapshot[token] = copy
+  end
+end
+
+local activeDesign = UICommon.DEFAULT_DESIGN
+-- Tokens the active design has overridden; only these are restored on the next
+-- switch, so runtime-owned values such as the BG_PRIMARY alpha (ApplyBgAlpha)
+-- stay untouched when classic is applied again.
+local overriddenTokens = {}
+
+-- Returns the design name when it is a known design, otherwise nil.
+function UICommon.NormalizeDesign(name)
+  for _, design in ipairs(UICommon.DESIGNS) do
+    if name == design then
+      return design
+    end
+  end
+  return nil
+end
+
+function UICommon.GetActiveDesign()
+  return activeDesign
+end
+
+function UICommon.GetDesignComponent(componentName)
+  local components = UICommon.DesignComponents[activeDesign]
+  local component = type(components) == "table" and components[componentName] or nil
+  return type(component) == "table" and component or nil
+end
+
+local function WriteColorInPlace(target, source)
+  local changed = false
+  for index = 1, #source do
+    if target[index] ~= source[index] then
+      target[index] = source[index]
+      changed = true
+    end
+  end
+  for index = #source + 1, #target do
+    target[index] = nil
+    changed = true
+  end
+  return changed
+end
+
+-- Applies a design to UICommon.Colors in place and repaints every surface
+-- that was painted before (UICommon.RepaintDesign). Unknown names fall back
+-- to classic. Idempotent. Returns the applied design name and whether any
+-- color value or painted surface changed (callers repaint only then).
+function UICommon.ApplyDesign(name)
+  local design = UICommon.NormalizeDesign(name) or UICommon.DEFAULT_DESIGN
+  if design == activeDesign then
+    return design, false
+  end
+  local colors = UICommon.Colors
+  local changed = false
+
+  for token in pairs(overriddenTokens) do
+    local classic = classicColorSnapshot[token]
+    if classic and type(colors[token]) == "table" then
+      changed = WriteColorInPlace(colors[token], classic) or changed
+    end
+  end
+  overriddenTokens = {}
+
+  local overrides = UICommon.ThemeOverrides[design]
+  if type(overrides) == "table" then
+    for token, value in pairs(overrides) do
+      if type(value) == "table" and type(colors[token]) == "table" and classicColorSnapshot[token] then
+        changed = WriteColorInPlace(colors[token], value) or changed
+        overriddenTokens[token] = true
+      end
+    end
+  end
+
+  activeDesign = design
+  local repainted = UICommon.RepaintDesign()
+  return design, changed or repainted > 0
+end
+
 local function ResolveActiveLocale(localeTag)
   if type(localeTag) == "string" and localeTag ~= "" then
     return localeTag
@@ -569,14 +682,62 @@ UICommon.BACKDROP_PRESETS = {
   },
 }
 
+-- Surfaces painted through ApplyBackdrop / PaintToken, kept weakly so a design
+-- switch can repaint frames that were built before SavedVariables existed.
+local designSurfaces = setmetatable({}, { __mode = "k" })
+local tokenPaints = setmetatable({}, { __mode = "k" })
+local actionButtons = setmetatable({}, { __mode = "k" })
+local plainSurfaces = setmetatable({}, { __mode = "k" })
+
+-- The classic preset with the active design's field patch on top.
+local function ResolveBackdropPreset(presetName)
+  local base = UICommon.BACKDROP_PRESETS[presetName]
+  local designPatches = UICommon.DesignBackdropPresets[activeDesign]
+  local patch = type(designPatches) == "table" and designPatches[presetName] or nil
+  if not base or type(patch) ~= "table" then
+    return base
+  end
+  local merged = {}
+  for key, value in pairs(base) do
+    merged[key] = value
+  end
+  for key, value in pairs(patch) do
+    merged[key] = value
+  end
+  return merged
+end
+
+-- Shows the active design's decoration for this preset and hides the
+-- decorations every other design may have added earlier.
+local function DecorateSurface(frame, presetName)
+  for design, decorators in pairs(UICommon.DesignDecorators) do
+    local decorate = type(decorators) == "table" and decorators[presetName] or nil
+    if type(decorate) == "function" then
+      decorate(frame, design == activeDesign)
+    end
+  end
+end
+
+-- Registers a frame without a backdrop preset (e.g. a portal tile) under a
+-- surface name, so designs can decorate it and a switch repaints it.
+function UICommon.RegisterDesignSurface(frame, surfaceName)
+  if type(frame) ~= "table" or type(surfaceName) ~= "string" then
+    return false
+  end
+  plainSurfaces[frame] = surfaceName
+  DecorateSurface(frame, surfaceName)
+  return true
+end
+
 function UICommon.ApplyBackdrop(frame, presetName)
   if type(frame) ~= "table" or type(frame.SetBackdrop) ~= "function" then
     return false
   end
-  local preset = UICommon.BACKDROP_PRESETS[presetName]
+  local preset = ResolveBackdropPreset(presetName)
   if not preset then
     return false
   end
+  designSurfaces[frame] = presetName
   frame:SetBackdrop(preset.backdrop)
   if preset.bgColor and preset.backgroundAlphaFactor then
     UICommon.RegisterBackgroundAlphaSurface(frame, "SetBackdropColor", preset.bgColor, preset.backgroundAlphaFactor)
@@ -592,7 +753,56 @@ function UICommon.ApplyBackdrop(frame, presetName)
     local bc = preset.borderColor
     frame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
   end
+  DecorateSurface(frame, presetName)
   return true
+end
+
+-- Paints a region with a color token and remembers it, so a design switch
+-- repaints regions whose color is set once at build time. `alpha` replaces
+-- the token's alpha (or the implicit 1 of an RGB token) when given.
+local function PaintTokenRegion(region, paint)
+  local method = region[paint.methodName]
+  local color = UICommon.Colors[paint.token]
+  if type(method) ~= "function" or type(color) ~= "table" then
+    return false
+  end
+  method(region, color[1], color[2], color[3], paint.alpha or color[4] or 1)
+  return true
+end
+
+function UICommon.PaintToken(region, methodName, token, alpha)
+  if type(region) ~= "table" or type(methodName) ~= "string" or type(UICommon.Colors[token]) ~= "table" then
+    return false
+  end
+  local paint = { methodName = methodName, token = token, alpha = tonumber(alpha) }
+  tokenPaints[region] = paint
+  return PaintTokenRegion(region, paint)
+end
+
+-- Re-applies backdrops, token paints and action-button visuals with the
+-- active design. Returns how many surfaces were repainted.
+function UICommon.RepaintDesign()
+  local count = 0
+  for frame, presetName in pairs(designSurfaces) do
+    if UICommon.ApplyBackdrop(frame, presetName) then
+      count = count + 1
+    end
+  end
+  for frame, surfaceName in pairs(plainSurfaces) do
+    DecorateSurface(frame, surfaceName)
+    count = count + 1
+  end
+  for region, paint in pairs(tokenPaints) do
+    if PaintTokenRegion(region, paint) then
+      count = count + 1
+    end
+  end
+  for button in pairs(actionButtons) do
+    if UICommon.ApplyActionButtonVisual(button, button._isiLiveSemanticRole, "default") then
+      count = count + 1
+    end
+  end
+  return count
 end
 
 local ACTION_BUTTON_STYLE_BY_ROLE = {
@@ -714,8 +924,12 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
     background = UICommon.Colors.SURFACE_ACTION_SECONDARY_PRESSED
   end
 
+  -- A design may quiet the border of some availability states (a locked
+  -- button must not outshine an available one).
+  local designBorders = UICommon.DesignAvailabilityBorders[activeDesign]
+  local border = type(designBorders) == "table" and designBorders[availability] or nil
   ApplyColorTuple(button, "SetBackdropColor", background)
-  ApplyColorTuple(button, "SetBackdropBorderColor", ACTION_AVAILABILITY_COLORS[availability] or style.border)
+  ApplyColorTuple(button, "SetBackdropBorderColor", border or ACTION_AVAILABILITY_COLORS[availability] or style.border)
   ApplyColorTuple(
     button._flatLabel,
     "SetTextColor",
@@ -723,6 +937,7 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
   )
   button._isiLiveSemanticRole = resolvedRole
   button._isiLiveVisualState = resolvedState
+  actionButtons[button] = true
   return true
 end
 
@@ -883,7 +1098,7 @@ function UICommon.CreatePanelChrome(parent, opts)
   separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))
   separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))
   separator:SetHeight(1)
-  ApplyColorTuple(separator, "SetColorTexture", UICommon.Colors.BORDER_TITLE_BAR)
+  UICommon.PaintToken(separator, "SetColorTexture", "BORDER_TITLE_BAR")
 
   return {
     titleBar = titleBar,

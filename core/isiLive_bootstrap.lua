@@ -100,6 +100,8 @@ function Bootstrap.RegisterSlashCommands(opts)
     toggleNameplateTestMode = toggleNameplateTestMode,
     dumpNameplateState = dumpNameplateState,
     previewKeyEndOutcome = opts.previewKeyEndOutcome,
+    getUiDesign = opts.getUiDesign,
+    setUiDesign = opts.setUiDesign,
     printSeasonDebug = printSeasonDebug,
     printHearthstoneDebug = printHearthstoneDebug,
     printStatsDebug = printStatsDebug,
