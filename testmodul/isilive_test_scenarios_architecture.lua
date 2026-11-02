@@ -847,12 +847,9 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     local content = ReadFile(".pkgmeta")
     local screenshots = {
       "isiLive.png",
-      "isiLive_LFGBuffRating.png",
-      "isiLive_MPlus_ui.png",
-      "isiLive_M_ui.png",
-      "isiLive_PortalNavigator.png",
-      "isiLive_Statsbox.png",
-      "isiLive_screenshot.png",
+      "isiLive_*.png",
+      "isiLive_*.gif",
+      "isiLive_*.mp4",
     }
 
     for _, screenshot in ipairs(screenshots) do
@@ -869,12 +866,9 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     local content = ReadFile(".github/workflows/release.yml")
     local screenshots = {
       "isiLive.png",
-      "isiLive_LFGBuffRating.png",
-      "isiLive_MPlus_ui.png",
-      "isiLive_M_ui.png",
-      "isiLive_PortalNavigator.png",
-      "isiLive_Statsbox.png",
-      "isiLive_screenshot.png",
+      "isiLive_*.png",
+      "isiLive_*.gif",
+      "isiLive_*.mp4",
     }
 
     AssertContains(
