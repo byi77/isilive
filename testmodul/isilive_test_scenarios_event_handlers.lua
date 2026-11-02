@@ -445,7 +445,7 @@ local function RegisterGroupInviteSoundTests(test, Assert, WithGlobals, LoadAddo
 
       dispatch("PARTY_INVITE_REQUEST", "Inviter", false, false, false, true, false, "Player-1-1", false)
       Assert.Equal(#env.plays, 1, "a direct invite must play immediately, even hidden and in combat")
-      Assert.True(env.plays[1].path:find("GroupInvite.wav", 1, true) ~= nil, "enUS must play the English WAV")
+      Assert.True(env.plays[1].path:find("GroupInvite.ogg", 1, true) ~= nil, "enUS must play the English WAV")
       Assert.Equal(env.plays[1].channel, "Master", "the alert must use the configured sound channel")
       Assert.Equal(env.tickerInterval, 5, "the repeat loop must use a 5-second ticker")
 

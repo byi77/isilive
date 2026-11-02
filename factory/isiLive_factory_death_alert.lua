@@ -6,7 +6,7 @@ addonTable._FactoryInternal = FI
 
 local DEATH_ALERT_DUPLICATE_WINDOW_SECONDS = 1
 -- Death announcements play one after another instead of overlapping: the
--- longest bundled death WAV (TankDied.wav / HealerDied.wav) runs 1.1 s, so the
+-- longest bundled death sound (TankDied.ogg / HealerDied.ogg) runs 1.1 s, so the
 -- next one starts 1.25 s after the previous one began.
 local DEATH_SOUND_SPACING_SECONDS = 1.25
 

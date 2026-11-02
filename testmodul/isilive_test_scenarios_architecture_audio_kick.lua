@@ -227,7 +227,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         battleResReadyEntry.file,
-        "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.ogg",
         "battle-res-ready entry should point at the bundled WAV asset"
       )
       Assert.False(
@@ -263,7 +263,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         bloodlustReadyEntry.file,
-        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.ogg",
         "bloodlust-ready entry should point at the bundled WAV asset"
       )
       Assert.True(
@@ -279,7 +279,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         piReceivedEntry.file,
-        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.ogg",
         "PI-received entry should point at the bundled WAV asset"
       )
       Assert.True(
@@ -353,7 +353,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.ogg",
         "PI-received helper should use the bundled WAV asset"
       )
       addon.SoundUtils.StopAllActiveSounds()
@@ -396,7 +396,7 @@ return function(test, ctx)
       )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.ogg",
         "PI-received asset should be the last played sound"
       )
 
@@ -766,15 +766,15 @@ return function(test, ctx)
       addon.SoundUtils.PlayPetStuck()
       addon.SoundUtils.PlayGroupInvite()
       addon.SoundUtils.PlayGroupRemoved()
-      Assert.True(calls[1].path:find("BattleRezReady.wav", 1, true) ~= nil, "frFR must use English BR-ready")
-      Assert.True(calls[2].path:find("BloodlustReady.wav", 1, true) ~= nil, "frFR must use English BL-ready")
-      Assert.True(calls[3].path:find("PowerInfusionReceived.wav", 1, true) ~= nil, "frFR must use English PI")
+      Assert.True(calls[1].path:find("BattleRezReady.ogg", 1, true) ~= nil, "frFR must use English BR-ready")
+      Assert.True(calls[2].path:find("BloodlustReady.ogg", 1, true) ~= nil, "frFR must use English BL-ready")
+      Assert.True(calls[3].path:find("PowerInfusionReceived.ogg", 1, true) ~= nil, "frFR must use English PI")
       Assert.True(calls[4].path:find("Portal.ogg", 1, true) ~= nil, "frFR must use default incoming summon")
-      Assert.True(calls[5].path:find("TankDied.wav", 1, true) ~= nil, "frFR must use English tank death")
-      Assert.True(calls[6].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
-      Assert.True(calls[7].path:find("PetStuck.wav", 1, true) ~= nil, "frFR must use English pet stuck")
-      Assert.True(calls[8].path:find("GroupInvite.wav", 1, true) ~= nil, "frFR must use English group invite")
-      Assert.True(calls[9].path:find("GroupRemoved.wav", 1, true) ~= nil, "frFR must use English group removed")
+      Assert.True(calls[5].path:find("TankDied.ogg", 1, true) ~= nil, "frFR must use English tank death")
+      Assert.True(calls[6].path:find("HealerDied.ogg", 1, true) ~= nil, "frFR must use English healer death")
+      Assert.True(calls[7].path:find("PetStuck.ogg", 1, true) ~= nil, "frFR must use English pet stuck")
+      Assert.True(calls[8].path:find("GroupInvite.ogg", 1, true) ~= nil, "frFR must use English group invite")
+      Assert.True(calls[9].path:find("GroupRemoved.ogg", 1, true) ~= nil, "frFR must use English group removed")
     end)
   end)
 

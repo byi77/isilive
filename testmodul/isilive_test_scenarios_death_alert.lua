@@ -1035,9 +1035,9 @@ local function RegisterFactoryWiringTests(test, ctx)
       "soundHealerDiedEnabled",
       "healer sound must use its own feature toggle"
     )
-    Assert.True(registry.tank_died.file:find("TankDied.wav", 1, true) ~= nil, "tank entry must map the tank wav")
+    Assert.True(registry.tank_died.file:find("TankDied.ogg", 1, true) ~= nil, "tank entry must map the tank wav")
     Assert.True(
-      registry.healer_died.file:find("HealerDied.wav", 1, true) ~= nil,
+      registry.healer_died.file:find("HealerDied.ogg", 1, true) ~= nil,
       "healer entry must map the healer wav"
     )
 
@@ -1074,7 +1074,7 @@ local function RegisterFactoryWiringTests(test, ctx)
       Assert.True(addon.SoundUtils.PlayHealerDied(), "enabled healer death setting must still play healer WAV")
     end)
     Assert.Equal(#playCalls, 1, "only the healer WAV must play")
-    Assert.True(playCalls[1]:find("HealerDied.wav", 1, true) ~= nil, "the played file must be the healer WAV")
+    Assert.True(playCalls[1]:find("HealerDied.ogg", 1, true) ~= nil, "the played file must be the healer WAV")
   end)
 
   test("SoundUtils death WAV failure records path channel and reason", function()
@@ -1094,7 +1094,7 @@ local function RegisterFactoryWiringTests(test, ctx)
       local result = addon.SoundUtils.GetLastPlayResult()
       Assert.Equal(result.reason, "play_rejected", "rejected PlaySoundFile must record the rejection reason")
       Assert.Equal(result.channel, "Master", "death WAV failure must record the resolved channel")
-      Assert.True(result.path:find("TankDied.wav", 1, true) ~= nil, "death WAV failure must record the asset path")
+      Assert.True(result.path:find("TankDied.ogg", 1, true) ~= nil, "death WAV failure must record the asset path")
     end)
   end)
 end
@@ -1103,11 +1103,6 @@ local function RegisterStaticDeathWavTests(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
-
-  local function ReadLe16(bytes, offset)
-    local b1, b2 = bytes:byte(offset, offset + 1)
-    return (b1 or 0) + ((b2 or 0) * 256)
-  end
 
   local function ReadLe32(bytes, offset)
     local b1, b2, b3, b4 = bytes:byte(offset, offset + 3)
@@ -1164,74 +1159,44 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.True(totalBytes < 130000, "the ten German announcements must remain compact together")
   end)
 
-  local function ReadWavInfo(path)
+  local function ReadOggInfo(path)
     local file = assert(io.open(path, "rb"))
     local bytes = file:read("*a")
     file:close()
-    Assert.Equal(bytes:sub(1, 4), "RIFF", path .. " must be a RIFF file")
-    Assert.Equal(bytes:sub(9, 12), "WAVE", path .. " must be a WAVE file")
 
-    local audioFormat = nil
     local channels = nil
     local sampleRate = nil
-    local blockAlign = nil
-    local bitsPerSample = nil
-    local dataBytes = nil
-    local dataOffset = nil
-    local fmtChunkSize = nil
-    local offset = 13
-    while offset + 7 <= #bytes do
-      local chunkId = bytes:sub(offset, offset + 3)
-      local chunkSize = ReadLe32(bytes, offset + 4)
-      local payloadOffset = offset + 8
-      if chunkId == "fmt " then
-        fmtChunkSize = chunkSize
-        audioFormat = ReadLe16(bytes, payloadOffset)
-        channels = ReadLe16(bytes, payloadOffset + 2)
-        sampleRate = ReadLe32(bytes, payloadOffset + 4)
-        blockAlign = ReadLe16(bytes, payloadOffset + 12)
-        bitsPerSample = ReadLe16(bytes, payloadOffset + 14)
-      elseif chunkId == "data" then
-        dataBytes = chunkSize
-        dataOffset = payloadOffset
-        break
+    local lastGranule = nil
+    local offset = 1
+    while offset <= #bytes do
+      Assert.Equal(bytes:sub(offset, offset + 3), "OggS", path .. " must contain complete Ogg pages")
+      local segments = assert(bytes:byte(offset + 26))
+      local payload = offset + 27 + segments
+      local pageBytes = 0
+      for index = 0, segments - 1 do
+        pageBytes = pageBytes + assert(bytes:byte(offset + 27 + index))
       end
-      offset = payloadOffset + chunkSize
-      if chunkSize % 2 == 1 then
-        offset = offset + 1
+      Assert.True(payload + pageBytes - 1 <= #bytes, path .. " must not be truncated")
+      if channels == nil then
+        Assert.Equal(bytes:sub(payload, payload + 6), "vorbis", path .. " must use Vorbis")
+        channels = bytes:byte(payload + 11)
+        sampleRate = ReadLe32(bytes, payload + 12)
       end
+      local high = ReadLe32(bytes, offset + 10)
+      if high ~= 4294967295 then
+        lastGranule = ReadLe32(bytes, offset + 6) + high * 4294967296
+      end
+      offset = payload + pageBytes
     end
 
     Assert.True(type(sampleRate) == "number" and sampleRate > 0, path .. " must declare a sample rate")
-    Assert.True(type(blockAlign) == "number" and blockAlign > 0, path .. " must declare block align")
-    Assert.True(type(dataBytes) == "number" and dataBytes > 0, path .. " must contain PCM data")
-
-    local maxAbs = 0
-    if bitsPerSample == 16 and type(dataOffset) == "number" then
-      local dataEnd = math.min(#bytes, dataOffset + dataBytes - 1)
-      local i = dataOffset
-      while i + 1 <= dataEnd do
-        local sample = ReadLe16(bytes, i)
-        if sample >= 32768 then
-          sample = sample - 65536
-        end
-        local absValue = math.abs(sample)
-        if absValue > maxAbs then
-          maxAbs = absValue
-        end
-        i = i + 2
-      end
-    end
+    Assert.NotNil(lastGranule, path .. " must declare its duration")
 
     return {
-      audioFormat = audioFormat,
       channels = channels,
       sampleRate = sampleRate,
-      blockAlign = blockAlign,
-      bitsPerSample = bitsPerSample,
-      fmtChunkSize = fmtChunkSize,
-      durationSeconds = dataBytes / (sampleRate * blockAlign),
-      peakRatio = maxAbs / 32768,
+      durationSeconds = lastGranule / sampleRate,
+      byteCount = #bytes,
     }
   end
 
@@ -1257,62 +1222,48 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.Equal(speakCalls, 0, "loading sound utils must not call C_VoiceChat.SpeakText")
   end)
 
-  test("SoundUtils death WAV assets stay single-announcement length", function()
-    local tankInfo = ReadWavInfo("sounds/TankDied.wav")
-    local healerInfo = ReadWavInfo("sounds/HealerDied.wav")
+  test("SoundUtils death Ogg assets stay single-announcement length", function()
     for label, info in pairs({
-      TankDied = tankInfo,
-      HealerDied = healerInfo,
+      TankDied = ReadOggInfo("sounds/TankDied.ogg"),
+      HealerDied = ReadOggInfo("sounds/HealerDied.ogg"),
     }) do
-      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
-      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
-      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
-      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
-      Assert.True(info.durationSeconds <= 1.2, label .. ".wav must contain only one short spoken announcement")
-      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+      Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.True(info.durationSeconds <= 1.2, label .. ".ogg must contain only one short spoken announcement")
+      Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
   end)
 
-  test("SoundUtils group removed WAV assets stay short and loud", function()
+  test("SoundUtils group removed Ogg assets stay short", function()
     for label, info in pairs({
-      GroupRemoved = ReadWavInfo("sounds/GroupRemoved.wav"),
+      GroupRemoved = ReadOggInfo("sounds/GroupRemoved.ogg"),
     }) do
-      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
-      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
-      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
-      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
-      Assert.True(info.durationSeconds <= 2, label .. ".wav must contain only one short spoken announcement")
-      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+      Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.True(info.durationSeconds <= 2, label .. ".ogg must contain only one short spoken announcement")
+      Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
   end)
 
-  test("SoundUtils group invite WAV assets stay short and loud", function()
+  test("SoundUtils group invite Ogg assets stay short", function()
     for label, info in pairs({
-      GroupInvite = ReadWavInfo("sounds/GroupInvite.wav"),
+      GroupInvite = ReadOggInfo("sounds/GroupInvite.ogg"),
     }) do
-      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
-      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
-      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
-      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
-      Assert.True(info.durationSeconds <= 1.5, label .. ".wav must fit one announcement into the 5-second loop")
-      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+      Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.True(info.durationSeconds <= 1.5, label .. ".ogg must fit one announcement into the 5-second loop")
+      Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
   end)
 
-  test("SoundUtils pet stuck WAV assets stay short and loud", function()
+  test("SoundUtils pet stuck Ogg assets stay short", function()
     for label, info in pairs({
-      PetStuck = ReadWavInfo("sounds/PetStuck.wav"),
+      PetStuck = ReadOggInfo("sounds/PetStuck.ogg"),
     }) do
-      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
-      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
-      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
-      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
-      Assert.True(info.durationSeconds <= 1.2, label .. ".wav must contain only one short spoken announcement")
-      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+      Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.True(info.durationSeconds <= 1.2, label .. ".ogg must contain only one short spoken announcement")
+      Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
   end)
 
@@ -1390,7 +1341,7 @@ local function RegisterStaticDeathWavTests(test, ctx)
       return {
         reason = "play_rejected",
         channel = "Master",
-        path = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
+        path = "Interface\\AddOns\\isiLive\\sounds\\TankDied.ogg",
       }
     end
 
@@ -1409,7 +1360,7 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.Equal(#printed, 1, "failed death WAV playback must print one diagnostic line")
     Assert.True(printed[1]:find("role=TANK", 1, true) ~= nil, "diagnostic must include the role")
     Assert.True(printed[1]:find("reason=play_rejected", 1, true) ~= nil, "diagnostic must include the failure reason")
-    Assert.True(printed[1]:find("TankDied.wav", 1, true) ~= nil, "diagnostic must include the asset path")
+    Assert.True(printed[1]:find("TankDied.ogg", 1, true) ~= nil, "diagnostic must include the asset path")
   end)
 
   test("Factory death alert keeps the on-screen warning to tank and healer", function()

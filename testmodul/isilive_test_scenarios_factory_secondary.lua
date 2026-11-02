@@ -1941,12 +1941,12 @@ return function(test, ctx)
     Assert.Equal(#playCalls, 2, "the 10-second warning and the ready transition each emit one real sound call")
     Assert.Equal(
       playCalls[1].path,
-      "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.wav",
+      "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.ogg",
       "a remain at or below 10 seconds plays the dedicated warning WAV first"
     )
     Assert.Equal(
       playCalls[2].path,
-      "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+      "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.ogg",
       "Bloodlust-ready transition must use the dedicated WAV asset"
     )
     Assert.Equal(playCalls[2].channel, "Master", "Bloodlust-ready transition must use the configured channel")

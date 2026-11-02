@@ -39,7 +39,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     group_invite = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupInvite_deDE.ogg",
       },
@@ -52,7 +52,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     group_removed = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupRemoved_deDE.ogg",
       },
@@ -73,7 +73,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     battle_res_ready = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady_deDE.ogg",
       },
@@ -93,7 +93,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     bloodlust_soon = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustSoon_deDE.ogg",
       },
@@ -106,7 +106,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     bloodlust_ready = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady_deDE.ogg",
       },
@@ -119,7 +119,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     power_infusion_received = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived_deDE.ogg",
       },
@@ -132,7 +132,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     pet_stuck = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\PetStuck.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\PetStuck.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\PetStuck_deDE.ogg",
       },
@@ -145,7 +145,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     tank_died = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.ogg",
       },
@@ -158,7 +158,7 @@ local SoundRegistry = {
       defaultChannel = "Master",
     },
     healer_died = {
-      file = "Interface\\AddOns\\isiLive\\sounds\\HealerDied.wav",
+      file = "Interface\\AddOns\\isiLive\\sounds\\HealerDied.ogg",
       localizedFiles = {
         deDE = "Interface\\AddOns\\isiLive\\sounds\\HealerDied_deDE.ogg",
       },

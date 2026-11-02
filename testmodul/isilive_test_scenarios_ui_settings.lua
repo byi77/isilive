@@ -2587,7 +2587,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(#previewCalls, 2, "previewing the disabled reminder should still play once")
       Assert.Equal(
         previewCalls[2].path,
-        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.ogg",
         "the reminder preview should play the repeated Bloodlust-ready alert"
       )
 
