@@ -626,9 +626,10 @@ local function ApplyMigrations(db, log)
 end
 
 --- Sanitizes the IsiLiveDB table in-place.
--- @param db table The IsiLiveDB SavedVariables table (must be a table).
--- @param logFn function|nil Optional callback for each correction message.
--- @return number, number corrections applied, migrations applied
+---@param db table The IsiLiveDB SavedVariables table (must be a table).
+---@param logFn? fun(message: string) Optional callback for each correction message.
+---@return integer corrections
+---@return integer migrationsApplied
 function DBSchema.Sanitize(db, logFn)
   if type(db) ~= "table" then
     return 0, 0
@@ -652,13 +653,13 @@ function DBSchema.Sanitize(db, logFn)
 end
 
 --- Returns the latest schema version stamped by Sanitize.
--- @return number
+---@return integer
 function DBSchema.GetSchemaVersion()
   return LATEST_SCHEMA_VERSION
 end
 
 --- Returns the field names known to the current schema (for static gates).
--- @return table<string, true>
+---@return table<string, true>
 function DBSchema.GetKnownFieldNames()
   local names = {}
   for fieldName in pairs(SCHEMA) do

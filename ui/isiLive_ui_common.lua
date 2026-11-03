@@ -167,6 +167,18 @@ UICommon.Theme = {
 -- is built in at file load; DEFAULT_DESIGN is what a fresh install and an
 -- unknown stored value get (user decision 2026-11-03: Modern).
 UICommon.BASE_DESIGN = "classic"
+---@alias IsiLiveDesign "classic"|"modern"
+---@alias IsiLiveColor number[] { r, g, b[, a] } in 0..1
+
+---@class IsiLiveDesignComponent
+---@field Update? fun(row: table, data: table|nil, activeGrade: integer|nil)
+---@field Apply? fun(row: table, color: IsiLiveColor|nil)
+---@field Release fun(row: table)
+
+---@class IsiLiveButtonShape
+---@field Paint fun(button: table, color: IsiLiveColor): boolean
+---@field Release fun(button: table)
+
 UICommon.DEFAULT_DESIGN = "modern"
 UICommon.DESIGNS = { "classic", "modern" }
 UICommon.ThemeOverrides = {
@@ -211,6 +223,8 @@ local activeDesign = UICommon.BASE_DESIGN
 local overriddenTokens = {}
 
 -- Returns the design name when it is a known design, otherwise nil.
+---@param name any
+---@return IsiLiveDesign|nil
 function UICommon.NormalizeDesign(name)
   for _, design in ipairs(UICommon.DESIGNS) do
     if name == design then
@@ -220,10 +234,13 @@ function UICommon.NormalizeDesign(name)
   return nil
 end
 
+---@return IsiLiveDesign
 function UICommon.GetActiveDesign()
   return activeDesign
 end
 
+---@param componentName string e.g. "MPLUS_TIMER", "READY_CHECK_ROW"
+---@return IsiLiveDesignComponent|nil
 function UICommon.GetDesignComponent(componentName)
   local components = UICommon.DesignComponents[activeDesign]
   local component = type(components) == "table" and components[componentName] or nil
@@ -249,6 +266,9 @@ end
 -- that was painted before (UICommon.RepaintDesign). Unknown names fall back
 -- to DEFAULT_DESIGN. Idempotent. Returns the applied design name and whether any
 -- color value or painted surface changed (callers repaint only then).
+---@param name any stored design name; unknown values resolve to DEFAULT_DESIGN
+---@return IsiLiveDesign design
+---@return boolean changed
 function UICommon.ApplyDesign(name)
   local design = UICommon.NormalizeDesign(name) or UICommon.DEFAULT_DESIGN
   if design == activeDesign then
@@ -559,6 +579,11 @@ local function PaintBackgroundAlphaSurface(target, surface, alpha)
   method(target, color[1], color[2], color[3], alpha * surface.alphaFactor)
 end
 
+---@param target table region or frame
+---@param methodName string "SetBackdropColor", "SetColorTexture" or "SetVertexColor"
+---@param color IsiLiveColor
+---@param alphaFactor number multiplied with the background opacity
+---@return boolean registered
 function UICommon.RegisterBackgroundAlphaSurface(target, methodName, color, alphaFactor)
   if
     type(target) ~= "table"
@@ -762,6 +787,9 @@ end
 
 -- Registers a font string under a text role (e.g. "RUN_VALUE"), so a design
 -- can recolor it now and on every later design switch.
+---@param fontString table
+---@param role string e.g. "RUN_VALUE"
+---@return boolean registered
 function UICommon.RegisterDesignText(fontString, role)
   if type(fontString) ~= "table" or type(fontString.SetTextColor) ~= "function" or type(role) ~= "string" then
     return false
@@ -775,6 +803,9 @@ end
 
 -- Registers a frame without a backdrop preset (e.g. a portal tile) under a
 -- surface name, so designs can decorate it and a switch repaints it.
+---@param frame table
+---@param surfaceName string e.g. "PORTAL_TILE", "FORCES_BAR", "RUN_ICONS"
+---@return boolean registered
 function UICommon.RegisterDesignSurface(frame, surfaceName)
   if type(frame) ~= "table" or type(surfaceName) ~= "string" then
     return false
@@ -784,6 +815,9 @@ function UICommon.RegisterDesignSurface(frame, surfaceName)
   return true
 end
 
+---@param frame table BackdropTemplate frame
+---@param presetName string key of UICommon.BACKDROP_PRESETS
+---@return boolean applied
 function UICommon.ApplyBackdrop(frame, presetName)
   if type(frame) ~= "table" or type(frame.SetBackdrop) ~= "function" then
     return false
@@ -825,6 +859,11 @@ local function PaintTokenRegion(region, paint)
   return true
 end
 
+---@param region table
+---@param methodName string e.g. "SetTextColor", "SetColorTexture"
+---@param token string key of UICommon.Colors
+---@param alpha? number replaces the token alpha
+---@return boolean painted
 function UICommon.PaintToken(region, methodName, token, alpha)
   if type(region) ~= "table" or type(methodName) ~= "string" or type(UICommon.Colors[token]) ~= "table" then
     return false
@@ -836,6 +875,7 @@ end
 
 -- Re-applies backdrops, token paints and action-button visuals with the
 -- active design. Returns how many surfaces were repainted.
+---@return integer repainted number of surfaces repainted
 function UICommon.RepaintDesign()
   local count = 0
   for frame, presetName in pairs(designSurfaces) do
@@ -994,6 +1034,10 @@ local ACTION_AVAILABILITY_COLORS = {
   unavailable = UICommon.Colors.TEXT_DIM,
 }
 
+---@param button table
+---@param role? "primary"|"secondary"|"title"
+---@param state? "default"|"hover"|"pressed"
+---@return boolean applied
 function UICommon.ApplyActionButtonVisual(button, role, state)
   if type(button) ~= "table" then
     return false
@@ -1031,6 +1075,8 @@ end
 
 -- Horizontal space a shown availability icon takes from the label (icon plus
 -- its left margin and a gap); 0 while no icon is shown.
+---@param button table
+---@return number inset
 function UICommon.GetActionButtonLabelInset(button)
   local icon = type(button) == "table" and button._availabilityIcon or nil
   if type(icon) == "table" and icon._isiLiveStateIcon ~= nil then
@@ -1328,6 +1374,7 @@ local function ApplyCloseButtonVisual(button, label, state)
   button._isiLiveVisualState = resolvedState
 end
 
+---@return integer repainted
 function UICommon.RepaintCloseButtons()
   local count = 0
   for button, label in pairs(closeButtons) do

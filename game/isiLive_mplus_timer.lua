@@ -152,6 +152,19 @@ end
 
 local demoData = nil
 
+---@class MplusTimerData
+---@field running boolean
+---@field completed boolean
+---@field timer number elapsed seconds
+---@field timeLimit number seconds of the +1 limit
+---@field keyLevel integer
+---@field timeRemaining1 number seconds to the +1 cutoff (negative = missed)
+---@field timeRemaining2 number seconds to the +2 cutoff
+---@field timeRemaining3 number seconds to the +3 cutoff
+---@field deaths integer
+---@field deathTimeLost number
+
+---@param data MplusTimerData
 function MplusTimer.SetDemoData(data)
   demoData = data
 end
@@ -162,6 +175,7 @@ end
 
 -- Public: returns a snapshot of the current M+ timer state.
 -- timeRemaining1/2/3 = seconds until +1/+2/+3 cutoff (negative = already missed)
+---@return MplusTimerData
 function MplusTimer.GetTimerData()
   if demoData then
     return demoData
@@ -186,6 +200,7 @@ end
 -- Public: true while a key timer runs. Cheap counterpart to GetTimerData()
 -- for callers that only need the running flag: no Blizzard API sample and no
 -- snapshot table, so it is safe on per-event paths.
+---@return boolean
 function MplusTimer.IsRunning()
   if demoData then
     return demoData.running == true
@@ -195,6 +210,7 @@ end
 
 -- Public: key level of the current (or demo) run, 0 when none. Same source
 -- as GetTimerData().keyLevel without sampling the timer or building a table.
+---@return integer
 function MplusTimer.GetKeyLevel()
   if demoData then
     return tonumber(demoData.keyLevel) or 0

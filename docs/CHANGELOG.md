@@ -2,6 +2,7 @@
 
 ## Unreleased - Technical follow-ups
 
+- LuaLS annotations for the central public APIs: the design API in `ui/isiLive_ui_common.lua` (`ApplyDesign`, `PaintToken`, `RegisterDesignSurface`, `RegisterDesignText`, `GetDesignComponent`, `RepaintDesign`, `ApplyBackdrop`, `RegisterBackgroundAlphaSurface`, `ApplyActionButtonVisual`) with the aliases `IsiLiveDesign` / `IsiLiveColor` and the classes `IsiLiveDesignComponent` / `IsiLiveButtonShape`, the M+ timer snapshot (`MplusTimerData`) and `DBSchema.Sanitize` / `GetSchemaVersion`. Comments only, no runtime change.
 - AddonCompartment entry: isiLive is listed in the addon menu behind the minimap's addon button (TOC `AddonCompartmentFunc` / `FuncOnEnter` / `FuncOnLeave`). Left click toggles the window, right click opens the settings, hover shows the same tooltip as the minimap button; both launchers share one click and tooltip path in `factory/isiLive_factory_minimap.lua`. The entry is there whether or not the minimap button is shown.
 
 ## 2026-11-03 - Version 0.9.479 (patch)

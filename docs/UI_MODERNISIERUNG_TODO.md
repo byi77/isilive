@@ -128,7 +128,9 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 ### Spaeter / optional
 
 - [x] AddonCompartment-Eintrag (2026-11-03): Linksklick Fenster, Rechtsklick Einstellungen, Tooltip wie am Minimap-Button.
-- [ ] Technik: LuaLS-Annotationen (laeuft), Simulator-Ausbau (laeuft).
+- [x] LuaLS-Annotationen, erster Schritt: Design-API in `UICommon`, `MplusTimerData`, `DBSchema` (2026-11-03).
+- [ ] LuaLS-Annotationen weiter (z. B. `ContextHelpers`, `RosterPanel`-Controller, `KillTrack`) nach Bedarf.
+- [ ] Simulator-Ausbau: weitere Masken, `CreateLine`-Linien, Textur-Slicing (laeuft).
 - [~] Object Pools, MenuUtil, LibEditMode: vorerst nicht (User-Entscheidung 2026-11-03, nur risikoarme Punkte).
 - [ ] LibEditMode (Vor-/Nachteile besprochen 2026-11-02, neue Abhaengigkeit) — erst nach dem Redesign entscheiden.
 - [ ] ruRU-Text "Модерн" von jemandem mit Russischkenntnissen pruefen lassen.
