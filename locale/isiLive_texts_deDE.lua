@@ -30,6 +30,7 @@ addonTable.TextsLocales.deDE = {
   BTN_COUNTDOWN_CANCEL = "Countdown 0",
   BTN_COUNTDOWN_CANCEL_SHORT = "CD0",
   BTN_SHARE_KEYS = "Keys teilen",
+  BTN_SHARE_KEYS_COOLDOWN = "Keys",
   BTN_GAMEMENU_PROFESSIONS = "Berufe",
   BTN_GAMEMENU_TALENTS = "Talente",
   BTN_GAMEMENU_SPELLBOOK = "Zauber",

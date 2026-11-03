@@ -232,7 +232,10 @@ local function CreateShareKeysButton(mainFrame, deps)
 
     if cooldownActive then
       local remaining = math.max(1, math.ceil((cooldownEndAt or 0) - now))
-      local label = button._fullText or ""
+      -- Short label during the cooldown, so "Keys (16s)" next to the hourglass
+      -- keeps the font size of the other buttons.
+      local L = type(deps.getL) == "function" and deps.getL() or {}
+      local label = L.BTN_SHARE_KEYS_COOLDOWN or button._fullText or ""
       SetFlatButtonText(button, string.format("%s (%ds)", label, remaining))
     else
       SetFlatButtonText(button, button._fullText or "")

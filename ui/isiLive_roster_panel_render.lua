@@ -565,7 +565,12 @@ local function ApplyRowReadyCheckHoldBar(row, displayData)
     return
   end
   row._readyCheckHoldUntil = holdUntil
-  CallIfPresent(bar, "SetColorTexture", color[1], color[2], color[3], READY_CHECK_HOLD_BAR_ALPHA)
+  -- A design may draw the countdown quieter (rule 233); classic keeps 2 px.
+  local variant = type(UICommon.GetDesignComponent) == "function" and UICommon.GetDesignComponent("READY_CHECK_ROW")
+    or nil
+  CallIfPresent(bar, "SetHeight", variant and variant.holdBarHeight or READY_CHECK_HOLD_BAR_HEIGHT)
+  local alpha = variant and variant.holdBarAlpha or READY_CHECK_HOLD_BAR_ALPHA
+  CallIfPresent(bar, "SetColorTexture", color[1], color[2], color[3], alpha)
   CallIfPresent(bar, "Show")
   local animation = row.readyCheckHoldAnimation
   if animation then

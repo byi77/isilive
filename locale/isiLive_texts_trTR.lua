@@ -30,6 +30,7 @@ addonTable.TextsLocales.trTR = {
   BTN_COUNTDOWN_CANCEL = "Geri sayim 0",
   BTN_COUNTDOWN_CANCEL_SHORT = "CD0",
   BTN_SHARE_KEYS = "Anahtar paylas",
+  BTN_SHARE_KEYS_COOLDOWN = "Anahtar",
   BTN_GAMEMENU_PROFESSIONS = "Meslekler",
   BTN_GAMEMENU_TALENTS = "Yetenekler",
   BTN_GAMEMENU_SPELLBOOK = "Buyuler",

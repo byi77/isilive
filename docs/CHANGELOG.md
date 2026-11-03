@@ -2,6 +2,8 @@
 
 ## Unreleased - Modern design follow-ups (stage 1 and 2)
 
+- Modern ready check: the hold countdown along the bottom of a row is a quiet 1 px line at 40 % instead of classic's 2 px line at 90 %.
+- Share Keys during its cooldown reads `Keys (16s)` (new text `BTN_SHARE_KEYS_COOLDOWN`, all five languages), so the label keeps the font size of the other buttons next to the hourglass.
 - One-time switch to Modern: schema migration step 5 (`__schemaVersion` 4 -> 5) sets a stored `uiDesign` to `modern` once on the next start, also when Classic was chosen; a Classic choice made afterwards is kept because the step never runs again. Fresh installs count no migration (the schema default already is Modern).
 - Modern is the default design: fresh installs and unknown stored values get Modern; a stored Classic choice is kept (`IsiLiveDB.uiDesign` schema default and `UICommon.DEFAULT_DESIGN`). Frames are still built in the classic base palette at file load (`UICommon.BASE_DESIGN`), and the stored or default design is applied on top.
 - Live design switch: choosing Classic or Modern in the settings or with `/isilive design classic|modern` applies at once outside combat (repaint plus a re-render of roster, CD row and killtracker) and confirms it in chat; during combat lockdown the choice is stored and takes effect after `/reload`, as the chat hint says. New text `UI_DESIGN_APPLIED`; `UI_DESIGN_RELOAD_HINT` and `SETTINGS_UI_DESIGN_DESC` updated in all five languages.

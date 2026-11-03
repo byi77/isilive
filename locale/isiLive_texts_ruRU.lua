@@ -30,6 +30,7 @@ addonTable.TextsLocales.ruRU = {
   BTN_COUNTDOWN_CANCEL = "Отмена отсчета",
   BTN_COUNTDOWN_CANCEL_SHORT = "Отмена ОТ",
   BTN_SHARE_KEYS = "Поделиться ключами",
+  BTN_SHARE_KEYS_COOLDOWN = "Ключи",
   BTN_GAMEMENU_PROFESSIONS = "Профессии",
   BTN_GAMEMENU_TALENTS = "Таланты",
   BTN_GAMEMENU_SPELLBOOK = "Книга закл.",

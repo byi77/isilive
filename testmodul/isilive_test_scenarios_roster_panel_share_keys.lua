@@ -2701,6 +2701,7 @@ RegisterShareKeysRemoteCooldownTests = function()
             BTN_COUNTDOWN_CANCEL = "Countdown 0",
             BTN_REFRESH = "Re-Sync",
             BTN_SHARE_KEYS = "Share Keys",
+            BTN_SHARE_KEYS_COOLDOWN = "Keys",
           }
         end,
         isPlayerLeader = function()
@@ -2777,7 +2778,7 @@ RegisterShareKeysRemoteCooldownTests = function()
       controller.TriggerShareKeysCooldown()
       Assert.Equal(
         shareKeysButton._flatLabel.text,
-        "Share Keys (30s)",
+        "Keys (30s)",
         "started share-keys cooldown must show the remaining time"
       )
 
@@ -2785,14 +2786,14 @@ RegisterShareKeysRemoteCooldownTests = function()
       controller.ApplyLocalization()
       Assert.Equal(
         shareKeysButton._flatLabel.text,
-        "Share Keys (23s)",
+        "Keys (23s)",
         "localization refresh must not replace the cooldown label with the base label"
       )
 
       controller.RefreshLayoutState()
       Assert.Equal(
         shareKeysButton._flatLabel.text,
-        "Share Keys (23s)",
+        "Keys (23s)",
         "layout refresh must not replace the cooldown label with the base label"
       )
     end)

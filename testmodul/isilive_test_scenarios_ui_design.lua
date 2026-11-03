@@ -591,6 +591,8 @@ return function(test, ctx)
       Assert.Nil(UICommon.GetDesignComponent("READY_CHECK_ROW"), "classic must keep the full-row tint")
       UICommon.ApplyDesign("modern")
       local variant = Assert.NotNil(UICommon.GetDesignComponent("READY_CHECK_ROW"), "modern must restyle the status")
+      Assert.Equal(variant.holdBarHeight, 1, "modern draws the hold countdown as a 1 px line")
+      Assert.True(variant.holdBarAlpha < 0.9, "modern draws the hold countdown quieter than classic")
       local row = { hoverFrame = NewBackdropFrame(), readyCheckBackground = NewRegion() }
 
       variant.Apply(row, { 0.08, 0.5, 0.16, 0.42 })

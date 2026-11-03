@@ -883,6 +883,10 @@ UICommon.DesignComponents.modern = {
   READY_CHECK_ROW = {
     -- `color` is the classic status tint ({ r, g, b, a }) or nil without a status.
     Apply = ApplyReadyCheckRow,
+    -- The hold countdown along the row's bottom edge stays (it carries the
+    -- remaining time) but is drawn quieter than classic's 2 px line.
+    holdBarHeight = 1,
+    holdBarAlpha = 0.4,
     Release = function(row)
       local parts = type(row) == "table" and row._modernReadyCheck or nil
       if parts then
