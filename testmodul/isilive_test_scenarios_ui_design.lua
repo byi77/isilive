@@ -18,6 +18,9 @@ return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
   local WithGlobals = ctx.with_globals
+  -- A save that already went through every schema migration, so a stored
+  -- Classic choice is a choice made after the one-time switch to Modern.
+  local CURRENT_SCHEMA_VERSION = LoadAddonModules({ "isiLive_db_schema.lua" }).DBSchema.GetSchemaVersion()
 
   local function AssertSameArray(actual, expected, message)
     Assert.Equal(#actual, #expected, message .. " (length)")
@@ -429,12 +432,16 @@ return function(test, ctx)
     Assert.Equal(unknown.db.uiDesign, "modern", "ADDON_LOADED must sanitize an unknown design to the default")
     Assert.Equal(unknown.addon.UICommon.GetActiveDesign(), "modern", "an unknown design must run the default")
 
-    local classic = BootFactory({ locale = "enUS", uiDesign = "classic" })
+    local classic = BootFactory({ locale = "enUS", uiDesign = "classic", __schemaVersion = CURRENT_SCHEMA_VERSION })
     Assert.Equal(
       classic.addon.UICommon.GetActiveDesign(),
       "classic",
       "a stored classic choice must win over the default"
     )
+
+    local legacy = BootFactory({ locale = "enUS", uiDesign = "classic", __schemaVersion = 4 })
+    Assert.Equal(legacy.db.uiDesign, "modern", "the next start must switch a pre-migration Classic save to Modern")
+    Assert.Equal(legacy.addon.UICommon.GetActiveDesign(), "modern", "the switched save must run Modern at once")
   end)
 
   test("UI design settings selector stores and applies the design at once outside combat", function()
@@ -448,7 +455,7 @@ return function(test, ctx)
       end
     end)
 
-    local env = BootFactory({ locale = "enUS", uiDesign = "classic" })
+    local env = BootFactory({ locale = "enUS", uiDesign = "classic", __schemaVersion = CURRENT_SCHEMA_VERSION })
     local panel = Assert.NotNil(env.runtime.settingsPanel, "the composition root must create the settings panel")
     WithGlobals(env.globals, function()
       panel.EnsureBuilt()
@@ -494,7 +501,7 @@ return function(test, ctx)
   end)
 
   test("UI design slash command reports, stores and validates the design", function()
-    local env = BootFactory({ locale = "enUS", uiDesign = "classic" })
+    local env = BootFactory({ locale = "enUS", uiDesign = "classic", __schemaVersion = CURRENT_SCHEMA_VERSION })
     WithGlobals(env.globals, function()
       local slash = Assert.NotNil(env.globals.SlashCmdList.ISILIVE, "/isilive must be registered")
 

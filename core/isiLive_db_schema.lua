@@ -28,7 +28,7 @@ local DBSchema = {}
 addonTable.DBSchema = DBSchema
 
 -- Bump every time MIGRATIONS gains a new step.
-local LATEST_SCHEMA_VERSION = 4
+local LATEST_SCHEMA_VERSION = 5
 local FRAME_ANCHOR_POINTS = {
   "TOPLEFT",
   "TOP",
@@ -95,6 +95,19 @@ local MIGRATIONS = {
     end
     db.reduceMotion = false
     log("reset reduceMotion: setting no longer offered")
+    return true
+  end,
+  -- Modern became the default design (2026-11-03, rule 233); every user is
+  -- moved to it once, also with a stored Classic choice. A later switch back
+  -- to Classic is kept, because this step never runs again.
+  [5] = function(db, log)
+    -- Nothing stored yet: the schema default (Modern) fills it in.
+    local stored = rawget(db, "uiDesign")
+    if stored == nil or stored == "modern" then
+      return false
+    end
+    db.uiDesign = "modern"
+    log("migrated uiDesign -> modern (one-time switch to the new default design)")
     return true
   end,
 }
@@ -206,7 +219,8 @@ local SCHEMA = {
     enum = { "last_used", "expanded", "compact_vertical", "compact_horizontal", "compact_main_horizontal" },
   },
   -- Visual design of the isiLive UI (ui/isiLive_ui_common.lua DESIGNS).
-  -- Applied once after ADDON_LOADED; a change takes effect after /reload.
+  -- Applied after ADDON_LOADED; a change applies at once outside combat.
+  -- Migration step 5 moves every user to Modern once.
   uiDesign = { type = "string", default = "modern", enum = { "classic", "modern" } },
   nameMaxChars = { type = "number", default = 10, min = 5, max = 20 },
   teleportColumns = { type = "number", default = 4, min = 2, max = 6 },

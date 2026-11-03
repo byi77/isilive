@@ -60,7 +60,7 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 
 ## P4 — Modern-Design (Branch `feature/mplus-ui-redesign`, Regel 233)
 
-Stand: 2026-11-02, Version 0.9.478 (Commit `5d56c6e`, gepusht, kein Tag). Ruecksprungpunkt: Tag `isiLive_release_0.9.477`. Merge nach `main` erst nach User-Freigabe. Alles Modern liegt hinter dem Schalter `IsiLiveDB.uiDesign` (Einstellungen > Allgemein > Design, `/isilive design classic|modern`, wirkt ausserhalb des Kampfs sofort). Seit 2026-11-03 ist Modern der Standard; Classic bleibt waehlbar und unveraendert.
+Stand: 2026-11-03, in `main` (Version 0.9.478, kein Tag). Ruecksprungpunkt: Tag `isiLive_release_0.9.477`. Alles Modern liegt hinter dem Schalter `IsiLiveDB.uiDesign` (Einstellungen > Allgemein > Design, `/isilive design classic|modern`, wirkt ausserhalb des Kampfs sofort). Seit 2026-11-03 ist Modern der Standard; Classic bleibt waehlbar und unveraendert.
 
 Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgehakt = umgesetzt und deterministisch geprueft; Simulator-Vorschau mit `--savedvars`-Datei `IsiLiveDB = { uiDesign = "modern" }`.
 
@@ -130,6 +130,7 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [ ] Technik: Object Pools, MenuUtil, AddonCompartment, LuaLS-Annotationen.
 - [ ] LibEditMode (Vor-/Nachteile besprochen 2026-11-02, neue Abhaengigkeit) — erst nach dem Redesign entscheiden.
 - [ ] ruRU-Text "Модерн" von jemandem mit Russischkenntnissen pruefen lassen.
-- [ ] Abschluss: User erklaert das Redesign fuer fertig → PR/Merge nach `main`, Release-Tag nur auf ausdrueckliche Freigabe.
+- [x] Abschluss: Redesign am 2026-11-03 per Fast-Forward nach `main` gefuehrt (`a538be0`), Modern als Standard, einmalige Migration aller Nutzer auf Modern (Schema-Schritt 5); Feature-Branch geloescht.
+- [ ] Naechster Release: Versions-Bump, README und `CHANGELOG_RELEASE.md` nachziehen (sagen fuer 0.9.478 noch "Classic bleibt Standard"), Tag nur auf ausdrueckliche Freigabe.
 
 Verworfen (User-Entscheidung 2026-11-02): Roster entschlacken (Version nur im Tooltip, DPS/Kick erst ab Key-Start, Flagge nur bei Fremdsprache).

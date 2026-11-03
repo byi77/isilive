@@ -610,11 +610,27 @@ return function(test, ctx)
     local db = { __schemaVersion = 3, reduceMotion = true }
     DBSchema.Sanitize(db)
     Assert.Equal(db.reduceMotion, false, "reduced motion can no longer be switched on, so it must be off")
-    Assert.Equal(db.__schemaVersion, 4, "the migration stamps the new schema version")
+    Assert.Equal(db.__schemaVersion, DBSchema.GetSchemaVersion(), "the migration stamps the new schema version")
 
     local untouched = { __schemaVersion = 3, reduceMotion = false }
     DBSchema.Sanitize(untouched)
     Assert.Equal(untouched.reduceMotion, false, "an already-off preference stays off")
+  end)
+
+  test("DBSchema migration moves every user to the modern design once", function()
+    local DBSchema = LoadSchema()
+    local db = { __schemaVersion = 4, uiDesign = "classic" }
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.uiDesign, "modern", "a stored Classic choice must be switched to Modern once")
+    Assert.Equal(db.__schemaVersion, 5, "the migration stamps schema version 5")
+
+    db.uiDesign = "classic"
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.uiDesign, "classic", "a Classic choice made after the migration must be kept")
+
+    local unversioned = { uiDesign = "classic" }
+    DBSchema.Sanitize(unversioned)
+    Assert.Equal(unversioned.uiDesign, "modern", "an unversioned save must be switched to Modern as well")
   end)
 
   test("DBSchema.GetSchemaVersion returns the current LATEST_SCHEMA_VERSION", function()
