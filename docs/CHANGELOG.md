@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Technical follow-ups
+## 2026-11-03 - Version 0.9.500 (patch)
 
 - LuaLS annotations for the central public APIs: the design API in `ui/isiLive_ui_common.lua` (`ApplyDesign`, `PaintToken`, `RegisterDesignSurface`, `RegisterDesignText`, `GetDesignComponent`, `RepaintDesign`, `ApplyBackdrop`, `RegisterBackgroundAlphaSurface`, `ApplyActionButtonVisual`) with the aliases `IsiLiveDesign` / `IsiLiveColor` and the classes `IsiLiveDesignComponent` / `IsiLiveButtonShape`, the M+ timer snapshot (`MplusTimerData`) and `DBSchema.Sanitize` / `GetSchemaVersion`. Comments only, no runtime change.
 - LuaLS annotations, second step: `ContextHelpers` (version, realm-info getter, group chat channel, keystone announce line, party chat send), `KillTrack` (`KillTrackData` snapshot, `OnUpdate`, demo data, polling) and the `RosterPanelController` surface returned by `RosterPanel.CreateController` (declared in `ui/isiLive_roster_panel_helpers.lua` to keep `ui/isiLive_roster_panel.lua` inside its size budget). Comments only.
