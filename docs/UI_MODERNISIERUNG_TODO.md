@@ -85,7 +85,9 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [x] Ruhigere Zeilen: Readycheck als halb so kraeftige Toenung statt Vollton-Zeile, ohne zweiten Farbstreifen neben der Klassenfarbe (Verlauf war ingame deckend weiss, ersetzt) (Komponente `READY_CHECK_ROW`).
 - [x] Typografie, erster Schritt: Text-Rollen (`RegisterDesignText`); BR/BL-Werte kuehl-weiss statt Blizzard-Gold.
 - [ ] Typografie, weiter: Groessenstufen fuer Labels und Werte (Schriftart bleibt User-Wahl); Kandidaten erst ingame bewerten.
-- [ ] Abgerundete Ecken / 9-Slice fuer Hauptfenster und Karten pruefen (eigene TGA oder `SetTextureSliceMargins`).
+- [x] Abgerundete Ecken fuer Hauptfenster (6 px, Ring, runder Titelbalken) und Run-Karten (4 px), aus Einzelteilen statt Textur-Slicing; neue Texturen `media/corner_disc.tga` / `corner_ring6.tga` (Generator `tools/generate_rounded_corners.py`).
+- [x] Abgerundete Ecken ingame geprueft (2026-11-03, User-Screenshot): Ecken sauber, Ring durchgehend, Schatten folgt der Rundung (`media/corner_shadow.tga`), keine Ecken-Kaestchen.
+- [ ] Optional: Buttons und Portal-Kacheln abrunden (Buttons faerben ihren Hintergrund je Zustand ueber den Backdrop, braucht eigenen Pfad).
 
 ### Stufe 2 — Komponenten
 
@@ -100,7 +102,8 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 ### Stufe 3 — Relayout (nur wenn noetig, nur nach User-OK)
 
 - [x] Symmetrisches M+-Raster fuer beide Designs (User-Entscheidung 2026-11-02): Inhalt 8 px links und rechts, Titeltext und Titel-Buttons 8 px vom Rand, Kopfband und Kopf-Trennlinien bis zum Fensterrand, einheitlich 4 px zwischen Roster, Buttons, Portalen, BR/BL+Timer und Tracker. Portal-Zeile nutzte vorher eigene Ersatzwerte (10/70), weil sie vor dem Layout-Modul laedt.
-- [ ] Raster ingame pruefen (M+, H, V), auch bei 1 und 5 Gruppenmitgliedern.
+- [x] Raster M+ ingame geprueft mit 1 und 5 Gruppenmitgliedern (User-Screenshots 2026-11-02).
+- [ ] Raster H und V ingame pruefen.
 
 - [ ] Hinweis "Benoetigt noch ..." und TTK in die Tracker-Karte holen (Box hoeher, verschiebt das Fensterlayout).
 - [x] H- und V-Layout im Modern-Design im Simulator geprueft: gleiche Anordnung wie Classic, Palette, rahmenlose Buttons, Fenster-Dekoration; kein Nachziehen noetig.

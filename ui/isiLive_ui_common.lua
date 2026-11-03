@@ -586,8 +586,14 @@ function UICommon.ApplyBgAlpha(frames, alpha)
 
   frames = type(frames) == "table" and frames or {}
 
+  -- A design that draws its own rounded fill (rule 233) keeps the backdrop
+  -- transparent; the opacity reaches that fill through the surface registry.
+  local function PaintsBackdrop(frame)
+    return frame and type(frame.SetBackdropColor) == "function" and frame._isiLiveRoundedFill ~= true
+  end
+
   local mainFrame = frames.mainFrame
-  if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
+  if PaintsBackdrop(mainFrame) then
     local surface = UICommon.Colors.SURFACE_MAIN_FRAME
     mainFrame:SetBackdropColor(surface[1], surface[2], surface[3], alpha)
   end
@@ -595,12 +601,12 @@ function UICommon.ApplyBgAlpha(frames, alpha)
   local bg = UICommon.Colors and UICommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, alpha }
 
   local panelFrame = frames.panelFrame
-  if panelFrame and type(panelFrame.SetBackdropColor) == "function" then
+  if PaintsBackdrop(panelFrame) then
     panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
   end
 
   local settingsCanvas = frames.settingsCanvas
-  if settingsCanvas and type(settingsCanvas.SetBackdropColor) == "function" then
+  if PaintsBackdrop(settingsCanvas) then
     settingsCanvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
   end
 
@@ -1172,6 +1178,9 @@ function UICommon.CreatePanelChrome(parent, opts)
   separator:SetHeight(1)
   UICommon.PaintToken(separator, "SetColorTexture", "BORDER_TITLE_BAR")
 
+  -- Designs with a rounded window replace this square band (rule 233).
+  parent._isiLiveTitleBar = titleBar
+  parent._isiLiveTitleBarHeight = height + 1
   return {
     titleBar = titleBar,
     separator = separator,

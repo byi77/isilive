@@ -65,6 +65,7 @@ selbst erstellt wurden. Damit ist dieser Abschnitt vollstaendig geklaert.
 | Pfade | Herkunft | Lizenzstatus |
 | --- | --- | --- |
 | `media/flags/*.tga` | Am `2026-10-22` auf Benutzerwunsch als 32x24-RGBA-Abzeichen (abgerundet, Rahmen, Glanzverlauf) geometrisch neu erzeugt; reproduzierbar mit `python tools/generate_language_flags.py` (Pillow). Ersetzt die bisherigen 16x12-Eigenwerke des Maintainers | Projekteigene geometrische Gestaltung nach den amtlichen Flaggenmotiven, keine Drittvorlage |
+| `media/corner_disc.tga`, `media/corner_ring6.tga`, `media/corner_shadow.tga` | Am `2026-11-03` fuer die abgerundeten Ecken des Modern-Designs geometrisch erzeugt (Viertelkreis, Viertelring und weicher Viertel-Schattenring, 32x32, weiss mit Alpha); reproduzierbar mit `python tools/generate_rounded_corners.py` (Pillow) | Projekteigene geometrische Gestaltung, keine Drittvorlage |
 | `media/heart_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
 | `media/heart_sync.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
 | `media/diamond_bonus_green.tga`, `media/link_sync_blue.tga` | Am `2026-10-20` fuer den bestaetigten Benutzerentwurf geometrisch erzeugt; reproduzierbar mit `python tools/generate_utility_markers.py` (Pillow) | Projekteigene geometrische Gestaltung, keine Drittvorlage |

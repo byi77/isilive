@@ -57,8 +57,12 @@ local BACKDROP_BORDERLESS = {
 }
 
 UICommon.DesignBackdropPresets.modern = {
-  CD_BOX = { backgroundAlphaFactor = 0.85 },
-  MPLUS_BOX = { backgroundAlphaFactor = 0.85 },
+  -- Windows and run cards draw a rounded fill of their own (BuildRoundedFill);
+  -- their square backdrop stays in place but transparent, so no Blizzard
+  -- backdrop call ever meets a frame without backdrop pieces.
+  MAIN_FRAME = { bgColor = UICommon.Colors.TRANSPARENT, borderColor = UICommon.Colors.TRANSPARENT },
+  CD_BOX = { backgroundAlphaFactor = 0, borderColor = UICommon.Colors.TRANSPARENT },
+  MPLUS_BOX = { backgroundAlphaFactor = 0, borderColor = UICommon.Colors.TRANSPARENT },
   FLAT_BUTTON = { backdrop = BACKDROP_BORDERLESS },
   TITLE_BUTTON = { backdrop = BACKDROP_BORDERLESS },
 }
@@ -143,16 +147,126 @@ end
 
 local BLACK = { 0, 0, 0 }
 
--- Soft drop shadow outside the frame edges, a thin accent line along the top
--- that fades out to the right, and a faint top-down sheen on the surface.
+-- Rounded surfaces are built from pieces instead of texture slicing, so the
+-- corner size is exact in UI units and the simulator can draw it: four
+-- corners from a quarter-circle texture (mirrored with SetTexCoord, tinted
+-- with SetVertexColor) and plain color rectangles in between.
+-- tools/generate_rounded_corners.py creates both corner textures.
+local CORNER_DISC = "Interface\\AddOns\\isiLive\\media\\corner_disc.tga"
+local CORNER_RING = "Interface\\AddOns\\isiLive\\media\\corner_ring6.tga"
+-- Soft shadow quarter for a 6-unit corner and a 7-unit shadow (SHADOW_SIZE).
+local CORNER_SHADOW = "Interface\\AddOns\\isiLive\\media\\corner_shadow.tga"
+local CORNER_COORDS = {
+  TOPLEFT = { 0, 1, 0, 1 },
+  TOPRIGHT = { 1, 0, 0, 1 },
+  BOTTOMLEFT = { 0, 1, 1, 0 },
+  BOTTOMRIGHT = { 1, 0, 1, 0 },
+}
+local WINDOW_RADIUS = 6
+local CARD_RADIUS = 4
+
+local function NewCorner(frame, layer, sublevel, path, corner, radius)
+  local texture = frame:CreateTexture(nil, layer, nil, sublevel)
+  texture:SetTexture(path)
+  local coords = CORNER_COORDS[corner]
+  texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+  texture:SetSize(radius, radius)
+  texture:SetPoint(corner, frame, corner, 0, 0)
+  return texture
+end
+
+local function NewRect(frame, layer, sublevel, point1, x1, y1, point2, x2, y2)
+  local texture = frame:CreateTexture(nil, layer, nil, sublevel)
+  texture:SetPoint(point1, frame, point1, x1, y1)
+  texture:SetPoint(point2, frame, point2, x2, y2)
+  return texture
+end
+
+-- A rounded fill as { texture, method } pieces. `opts.topOnly` rounds only
+-- the top corners and stops at `opts.height` (a title band).
+local function BuildRoundedFill(frame, layer, sublevel, radius, opts)
+  opts = opts or {}
+  local pieces = {}
+  local function Add(texture, method)
+    pieces[#pieces + 1] = { texture = texture, method = method }
+  end
+  Add(NewCorner(frame, layer, sublevel, CORNER_DISC, "TOPLEFT", radius), "SetVertexColor")
+  Add(NewCorner(frame, layer, sublevel, CORNER_DISC, "TOPRIGHT", radius), "SetVertexColor")
+  local top = NewRect(frame, layer, sublevel, "TOPLEFT", radius, 0, "TOPRIGHT", -radius, 0)
+  top:SetHeight(radius)
+  Add(top, "SetColorTexture")
+  if opts.topOnly then
+    local body = NewRect(frame, layer, sublevel, "TOPLEFT", 0, -radius, "TOPRIGHT", 0, -radius)
+    body:SetHeight(math.max(1, (tonumber(opts.height) or radius) - radius))
+    Add(body, "SetColorTexture")
+    return pieces
+  end
+  Add(NewCorner(frame, layer, sublevel, CORNER_DISC, "BOTTOMLEFT", radius), "SetVertexColor")
+  Add(NewCorner(frame, layer, sublevel, CORNER_DISC, "BOTTOMRIGHT", radius), "SetVertexColor")
+  local bottom = NewRect(frame, layer, sublevel, "BOTTOMLEFT", radius, 0, "BOTTOMRIGHT", -radius, 0)
+  bottom:SetHeight(radius)
+  Add(bottom, "SetColorTexture")
+  Add(NewRect(frame, layer, sublevel, "TOPLEFT", 0, -radius, "BOTTOMRIGHT", 0, radius), "SetColorTexture")
+  return pieces
+end
+
+-- A one-unit rounded outline along the frame edge (corner_ring6 is drawn for
+-- the 6-unit window radius).
+local function BuildRoundedRing(frame, layer, sublevel, radius)
+  local pieces = {}
+  for corner in pairs(CORNER_COORDS) do
+    pieces[#pieces + 1] = {
+      texture = NewCorner(frame, layer, sublevel, CORNER_RING, corner, radius),
+      method = "SetVertexColor",
+    }
+  end
+  local edges = {
+    { "TOPLEFT", radius, 0, "TOPRIGHT", -radius, 0, nil, 1 },
+    { "BOTTOMLEFT", radius, 0, "BOTTOMRIGHT", -radius, 0, nil, 1 },
+    { "TOPLEFT", 0, -radius, "BOTTOMLEFT", 0, radius, 1, nil },
+    { "TOPRIGHT", 0, -radius, "BOTTOMRIGHT", 0, radius, 1, nil },
+  }
+  for _, edge in ipairs(edges) do
+    local line = NewRect(frame, layer, sublevel, edge[1], edge[2], edge[3], edge[4], edge[5], edge[6])
+    if edge[7] then
+      line:SetWidth(edge[7])
+    else
+      line:SetHeight(edge[8])
+    end
+    pieces[#pieces + 1] = { texture = line, method = "SetColorTexture" }
+  end
+  return pieces
+end
+
+-- Paints pieces with a color token. With `alphaFactor` they join the
+-- background-opacity registry, so the opacity slider reaches them.
+local function PaintPieces(pieces, color, alphaFactor, regions)
+  for _, piece in ipairs(pieces) do
+    if alphaFactor then
+      UICommon.RegisterBackgroundAlphaSurface(piece.texture, piece.method, color, alphaFactor)
+    else
+      piece.texture[piece.method](piece.texture, color[1], color[2], color[3], color[4] or 1)
+    end
+    regions[#regions + 1] = piece.texture
+  end
+end
+
+-- Rounded window: fill, rounded title band, hairline ring, soft drop shadow,
+-- a thin accent line along the top, a cool glow behind the title row and a
+-- faint top-down sheen. Everything along the top edge stays clear of the
+-- corner arcs.
 local function BuildMainFrameDecor(frame)
   local colors = UICommon.Colors
   local regions = {}
+  local radius = WINDOW_RADIUS
 
-  local function Shadow(point1, rel1, point2, rel2, orientation, fromAlpha, toAlpha, width, height)
+  -- Straight edge shadows stop where the corner arcs begin; each corner gets
+  -- a quarter of a soft shadow ring centred on its arc, so the shadow follows
+  -- the rounding instead of ending in a square.
+  local function Shadow(point1, rel1, x1, y1, point2, rel2, x2, y2, orientation, fromAlpha, toAlpha, width, height)
     local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    shadow:SetPoint(point1, frame, rel1)
-    shadow:SetPoint(point2, frame, rel2)
+    shadow:SetPoint(point1, frame, rel1, x1, y1)
+    shadow:SetPoint(point2, frame, rel2, x2, y2)
     if width then
       shadow:SetWidth(width)
     end
@@ -162,28 +276,100 @@ local function BuildMainFrameDecor(frame)
     PaintGradient(shadow, orientation, BLACK, fromAlpha, toAlpha)
     regions[#regions + 1] = shadow
   end
-  Shadow("BOTTOMLEFT", "TOPLEFT", "BOTTOMRIGHT", "TOPRIGHT", "VERTICAL", SHADOW_ALPHA, 0, nil, SHADOW_SIZE)
-  Shadow("TOPLEFT", "BOTTOMLEFT", "TOPRIGHT", "BOTTOMRIGHT", "VERTICAL", 0, SHADOW_ALPHA, nil, SHADOW_SIZE)
-  Shadow("TOPRIGHT", "TOPLEFT", "BOTTOMRIGHT", "BOTTOMLEFT", "HORIZONTAL", 0, SHADOW_ALPHA, SHADOW_SIZE, nil)
-  Shadow("TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "HORIZONTAL", SHADOW_ALPHA, 0, SHADOW_SIZE, nil)
+  local r = radius
+  Shadow("BOTTOMLEFT", "TOPLEFT", r, 0, "BOTTOMRIGHT", "TOPRIGHT", -r, 0, "VERTICAL", SHADOW_ALPHA, 0, nil, SHADOW_SIZE)
+  Shadow("TOPLEFT", "BOTTOMLEFT", r, 0, "TOPRIGHT", "BOTTOMRIGHT", -r, 0, "VERTICAL", 0, SHADOW_ALPHA, nil, SHADOW_SIZE)
+  Shadow(
+    "TOPRIGHT",
+    "TOPLEFT",
+    0,
+    -r,
+    "BOTTOMRIGHT",
+    "BOTTOMLEFT",
+    0,
+    r,
+    "HORIZONTAL",
+    0,
+    SHADOW_ALPHA,
+    SHADOW_SIZE,
+    nil
+  )
+  Shadow(
+    "TOPLEFT",
+    "TOPRIGHT",
+    0,
+    -r,
+    "BOTTOMLEFT",
+    "BOTTOMRIGHT",
+    0,
+    r,
+    "HORIZONTAL",
+    SHADOW_ALPHA,
+    0,
+    SHADOW_SIZE,
+    nil
+  )
+  -- { corner, anchor point of the shadow quarter, x and y towards the arc centre }
+  local shadowCorners = {
+    { "TOPLEFT", "BOTTOMRIGHT", r, -r },
+    { "TOPRIGHT", "BOTTOMLEFT", -r, -r },
+    { "BOTTOMLEFT", "TOPRIGHT", r, r },
+    { "BOTTOMRIGHT", "TOPLEFT", -r, r },
+  }
+  for _, spec in ipairs(shadowCorners) do
+    local corner = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    corner:SetTexture(CORNER_SHADOW)
+    local coords = CORNER_COORDS[spec[1]]
+    corner:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+    corner:SetSize(r + SHADOW_SIZE, r + SHADOW_SIZE)
+    corner:SetPoint(spec[2], frame, spec[1], spec[3], spec[4])
+    corner:SetVertexColor(BLACK[1], BLACK[2], BLACK[3], SHADOW_ALPHA)
+    regions[#regions + 1] = corner
+  end
+
+  PaintPieces(BuildRoundedFill(frame, "BACKGROUND", -7, radius), colors.SURFACE_MAIN_FRAME, 1, regions)
+  if frame._isiLiveTitleBar then
+    PaintPieces(
+      BuildRoundedFill(frame, "BACKGROUND", -6, radius, {
+        topOnly = true,
+        height = frame._isiLiveTitleBarHeight or HEADER_GLOW_HEIGHT,
+      }),
+      colors.SURFACE_TITLE_BAR,
+      UICommon.STRUCTURAL_TINT_ALPHA_FACTOR,
+      regions
+    )
+  end
+  PaintPieces(BuildRoundedRing(frame, "BORDER", 7, radius), colors.BORDER_TITLE_BAR, nil, regions)
 
   local sheen = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
-  sheen:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-  sheen:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+  sheen:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -radius)
+  sheen:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, radius)
   PaintGradient(sheen, "VERTICAL", colors.WHITE_RGB, 0, 0.035)
   regions[#regions + 1] = sheen
 
-  -- Cool accent glow behind the title row, strongest at the brand on the left.
+  -- Cool accent glow behind the title row, strongest at the brand on the
+  -- left: a strip between the corner arcs plus the band below them.
+  local glowTop = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+  glowTop:SetPoint("TOPLEFT", frame, "TOPLEFT", radius, -1)
+  glowTop:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -radius, -1)
+  glowTop:SetHeight(radius - 1)
+  PaintGradient(glowTop, "HORIZONTAL", colors.ACCENT_BLUE, 0.16, 0)
+  regions[#regions + 1] = glowTop
   local glow = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
-  glow:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-  glow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
-  glow:SetHeight(HEADER_GLOW_HEIGHT)
+  glow:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -radius)
+  glow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -radius)
+  glow:SetHeight(HEADER_GLOW_HEIGHT - radius)
   PaintGradient(glow, "HORIZONTAL", colors.ACCENT_BLUE, 0.16, 0)
   regions[#regions + 1] = glow
+  -- The glow is strongest on the left, so its top-left corner square needs a
+  -- rounded piece of its own; on the right it has already faded out.
+  local glowCorner = NewCorner(frame, "BACKGROUND", 2, CORNER_DISC, "TOPLEFT", radius)
+  glowCorner:SetVertexColor(colors.ACCENT_BLUE[1], colors.ACCENT_BLUE[2], colors.ACCENT_BLUE[3], 0.16)
+  regions[#regions + 1] = glowCorner
 
   local accent = frame:CreateTexture(nil, "ARTWORK", nil, 7)
-  accent:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-  accent:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+  accent:SetPoint("TOPLEFT", frame, "TOPLEFT", radius, -1)
+  accent:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -radius, -1)
   accent:SetHeight(2)
   PaintGradient(accent, "HORIZONTAL", colors.ACCENT_BLUE, 0.95, 0.08)
   regions[#regions + 1] = accent
@@ -191,23 +377,30 @@ local function BuildMainFrameDecor(frame)
   return regions
 end
 
--- Run-zone cards: an accent stripe on the left edge and a hairline highlight
--- along the top, so the card reads as a raised surface without a frame.
+-- Rounded run-zone card: fill, an accent stripe on the left edge between the
+-- corner arcs and a hairline highlight along the top, so the card reads as a
+-- raised surface without a frame.
 local function BuildRunCardDecor(frame)
   local colors = UICommon.Colors
+  local regions = {}
+  local radius = CARD_RADIUS
+  PaintPieces(BuildRoundedFill(frame, "BACKGROUND", -7, radius), colors.SURFACE_RUN_ZONE, 0.85, regions)
+
   local stripe = frame:CreateTexture(nil, "ARTWORK", nil, 7)
-  stripe:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-  stripe:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, 1)
+  stripe:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -radius)
+  stripe:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, radius)
   stripe:SetWidth(2)
   PaintGradient(stripe, "VERTICAL", colors.ACCENT_BLUE, 0.55, 0.95)
+  regions[#regions + 1] = stripe
 
   local highlight = frame:CreateTexture(nil, "ARTWORK", nil, 6)
-  highlight:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -1)
-  highlight:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+  highlight:SetPoint("TOPLEFT", frame, "TOPLEFT", radius, -1)
+  highlight:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -radius, -1)
   highlight:SetHeight(1)
   PaintGradient(highlight, "HORIZONTAL", colors.WHITE_RGB, 0.10, 0.02)
+  regions[#regions + 1] = highlight
 
-  return { stripe, highlight }
+  return regions
 end
 
 -- Buttons: a faint top-down sheen behind the label.
@@ -395,8 +588,31 @@ local button = Decorator("button", BuildButtonDecor)
 local portalTile = Decorator("portalTile", BuildPortalTileDecor)
 local forcesBar = Decorator("forcesBar", BuildForcesBarDecor)
 
+local mainFrameDecor = Decorator("mainFrame", BuildMainFrameDecor)
+
+-- Marks a frame whose rounded fill replaces the backdrop fill, so the
+-- opacity path (UICommon.ApplyBgAlpha) leaves the transparent backdrop alone,
+-- and swaps the square classic title band for the rounded one.
+local function SetRoundedFill(frame, active)
+  frame._isiLiveRoundedFill = active == true
+  local titleBar = frame._isiLiveTitleBar
+  if type(titleBar) == "table" and type(titleBar.Show) == "function" then
+    if active then
+      titleBar:Hide()
+    else
+      titleBar:Show()
+    end
+  end
+end
+
 UICommon.DesignDecorators.modern = {
-  MAIN_FRAME = Decorator("mainFrame", BuildMainFrameDecor),
+  MAIN_FRAME = function(frame, active)
+    mainFrameDecor(frame, active)
+    -- Only a frame modern has decorated needs its classic fill back.
+    if active or frame._isiLiveDesignDecor then
+      SetRoundedFill(frame, active)
+    end
+  end,
   CD_BOX = runCard,
   MPLUS_BOX = runCard,
   FLAT_BUTTON = button,

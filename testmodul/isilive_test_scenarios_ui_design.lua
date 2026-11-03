@@ -168,6 +168,12 @@ return function(test, ctx)
       self.colorTexture = { r, g, b, a }
     end
     function region:SetSize() end
+    function region:SetTexCoord(...)
+      self.texCoord = { ... }
+    end
+    function region:SetVertexColor(r, g, b, a)
+      self.vertexColor = { r, g, b, a }
+    end
     function region:ClearAllPoints() end
     function region:SetJustifyH() end
     function region:SetWordWrap() end
@@ -226,7 +232,9 @@ return function(test, ctx)
 
       UICommon.ApplyDesign("modern")
       local modern = UICommon.ThemeOverrides.modern
-      AssertSameArray(mainFrame.borderColor, modern.BORDER_TITLE_BAR, "the built main frame must get the modern border")
+      Assert.Equal(mainFrame.borderColor[4], 0, "the modern square backdrop border must be transparent")
+      Assert.Equal(mainFrame.backdropColor[4], 0, "the modern square backdrop fill must be transparent")
+      Assert.True(mainFrame._isiLiveRoundedFill, "the rounded fill must replace the backdrop fill")
       AssertSameArray(
         { label.textColor[1], label.textColor[2], label.textColor[3] },
         modern.TEXT_SECTION,
@@ -234,12 +242,29 @@ return function(test, ctx)
       )
       local mainDecor = Assert.NotNil(mainFrame._isiLiveDesignDecor, "modern must decorate the main frame")
       Assert.True(#mainDecor.mainFrame > 0, "the main frame decoration must create regions")
+      local corners, ringCorners = 0, 0
       for _, region in ipairs(mainDecor.mainFrame) do
         Assert.True(region:IsShown(), "modern decorations must be shown")
-        Assert.NotNil(region.gradient, "modern decorations are drawn as gradients")
+        Assert.True(
+          region.gradient ~= nil or region.colorTexture ~= nil or region.vertexColor ~= nil,
+          "every modern decoration must be painted"
+        )
+        if type(region.texture) == "string" and string.find(region.texture, "corner_disc", 1, true) then
+          corners = corners + 1
+        elseif type(region.texture) == "string" and string.find(region.texture, "corner_ring6", 1, true) then
+          ringCorners = ringCorners + 1
+        end
       end
+      Assert.Equal(corners, 5, "the window fill rounds all four corners plus the glow corner")
+      Assert.Equal(ringCorners, 4, "the window hairline must round all four corners")
       local cardDecor = Assert.NotNil(runCard._isiLiveDesignDecor, "modern must decorate run cards")
-      Assert.Equal(#cardDecor.runCard, 2, "a run card gets an accent stripe and a top highlight")
+      local cardCorners = 0
+      for _, region in ipairs(cardDecor.runCard) do
+        if type(region.texture) == "string" and string.find(region.texture, "corner_disc", 1, true) then
+          cardCorners = cardCorners + 1
+        end
+      end
+      Assert.Equal(cardCorners, 4, "a run card gets a rounded fill")
 
       local lateCard = NewBackdropFrame()
       UICommon.ApplyBackdrop(lateCard, "MPLUS_BOX")
@@ -310,6 +335,7 @@ return function(test, ctx)
         "classic must keep the leader-lock state border"
       )
       AssertSameArray(mainFrame.borderColor, classicBorder, "classic must restore the border")
+      Assert.False(mainFrame._isiLiveRoundedFill, "classic must hand the fill back to the backdrop")
       AssertSameArray(label.textColor, classicLabel, "classic must restore the token paint")
       for _, region in ipairs(mainDecor.mainFrame) do
         Assert.False(region:IsShown(), "classic must hide the modern decorations")
@@ -376,11 +402,13 @@ return function(test, ctx)
       overrideSurface,
       "the stored design must reach the color token"
     )
-    local r, g, b, a = env.runtime.mainFrame:GetBackdropColor()
-    Assert.Equal(r, 0.2, "main frame must be repainted with the design surface (r)")
-    Assert.Equal(g, 0.25, "main frame must be repainted with the design surface (g)")
-    Assert.Equal(b, 0.3, "main frame must be repainted with the design surface (b)")
-    Assert.Equal(a, 0.4, "the repaint must keep the stored background opacity")
+    -- Modern draws the window as a rounded fill: the square backdrop stays
+    -- transparent and the opacity path leaves it alone.
+    local mainFrame = env.runtime.mainFrame
+    local _, _, _, backdropAlpha = mainFrame:GetBackdropColor()
+    Assert.Equal(backdropAlpha, 0, "the modern main frame backdrop must stay transparent")
+    Assert.True(mainFrame._isiLiveRoundedFill, "the modern main frame must be marked as rounded fill")
+    Assert.NotNil(mainFrame._isiLiveDesignDecor, "the modern main frame must carry its rounded decoration")
 
     local unknown = BootFactory({ locale = "enUS", uiDesign = "neon" })
     Assert.Equal(unknown.db.uiDesign, "classic", "ADDON_LOADED must sanitize an unknown design to classic")
