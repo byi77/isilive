@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.1.5 Midnight Retail](https://img.shields.io/badge/WoW-12.1.5%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.478](https://img.shields.io/badge/isiLive-0.9.478-1E90FF?style=for-the-badge)
+![isiLive 0.9.479](https://img.shields.io/badge/isiLive-0.9.479-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -48,7 +48,7 @@ CD polling also resumes for visible active keys after raid return or reopening
 the main window, and stops immediately when hidden. Deep sync byte dumps are
 formatted only when their log output is consumed.
 
-Version `0.9.478` is about an optional Modern design (Settings > General > Design or `/isilive design modern`, then `/reload`): calm graphite surfaces, borderless buttons, readable portal tiles, a timer that leads with the elapsed time and a glassy forces bar; Classic stays the default. Version `0.9.477` is about voice announcements in your isiLive language: spoken alerts follow the isiLive language instead of the game client and switch at once without a reload, and the download is several megabytes smaller.
+Version `0.9.479` is about Modern as the new default design: rounded windows, cards and buttons with a soft shadow, round Battle Res and Bloodlust icons, a calmer ready check and a symmetric layout; every user is switched to Modern once, Classic stays available under Settings > General > Design and the switch applies at once outside combat. Version `0.9.478` is about the first, optional Modern design: calm graphite surfaces, borderless buttons, readable portal tiles, a timer that leads with the elapsed time and a glassy forces bar. Version `0.9.477` is about voice announcements in your isiLive language: spoken alerts follow the isiLive language instead of the game client and switch at once without a reload, and the download is several megabytes smaller.
 
 Version `0.9.476` is about a truthful killtracker: the bar shows the real forces during a pull and no longer falls back afterwards, and the time pace turns red only when the forecast finish is past the time limit. Banner text is white and the row label reads `M+Tracker`.
 

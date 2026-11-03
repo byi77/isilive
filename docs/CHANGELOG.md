@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Modern design follow-ups (stage 1 and 2)
+## 2026-11-03 - Version 0.9.479 (patch)
 
 - Modern ready check: the hold countdown along the bottom of a row is a quiet 1 px line at 40 % instead of classic's 2 px line at 90 %.
 - Share Keys during its cooldown reads `Keys (16s)` (new text `BTN_SHARE_KEYS_COOLDOWN`, all five languages), so the label keeps the font size of the other buttons next to the hourglass.
