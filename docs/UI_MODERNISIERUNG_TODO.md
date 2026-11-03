@@ -129,7 +129,8 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 
 - [x] AddonCompartment-Eintrag (2026-11-03): Linksklick Fenster, Rechtsklick Einstellungen, Tooltip wie am Minimap-Button.
 - [x] LuaLS-Annotationen, erster Schritt: Design-API in `UICommon`, `MplusTimerData`, `DBSchema` (2026-11-03).
-- [ ] LuaLS-Annotationen weiter (z. B. `ContextHelpers`, `RosterPanel`-Controller, `KillTrack`) nach Bedarf.
+- [x] LuaLS-Annotationen, zweiter Schritt: `ContextHelpers`, `KillTrack` (`KillTrackData`), `RosterPanelController` (2026-11-03).
+- [x] Alte lokale Branches aufgeraeumt (2026-11-03): `backup/pre-trailer-cleanup` (Inhalt in `main`), Dependabot-Checkout (in `main` bereits v7.0.1), `feature/ace-support-log-transfer` (geparkter Spike, als lokales Tag `archive/ace-support-log-transfer` erhalten).
 - [~] Simulator-Ausbau nicht noetig (2026-11-03): isiLive nutzt keine Line-Regionen (`CreateLine` in der Loadout-Karte ist ein eigener Helfer fuer Textzeilen) und kein Textur-Slicing; die einzige Maske (Kreis fuer BR/BL) rendert wowsim bereits. Wieder aufgreifen, sobald eine dieser APIs im Addon auftaucht.
 - [~] Object Pools, MenuUtil, LibEditMode: vorerst nicht (User-Entscheidung 2026-11-03, nur risikoarme Punkte).
 - [ ] LibEditMode (Vor-/Nachteile besprochen 2026-11-02, neue Abhaengigkeit) — erst nach dem Redesign entscheiden.

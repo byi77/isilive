@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local ContextHelpers = addonTable.ContextHelpers or {}
 addonTable.ContextHelpers = ContextHelpers
 
+---@param addonName string
+---@return string version TOC version, "?" when unreadable
 function ContextHelpers.GetAddonVersionRaw(addonName)
   local version = nil
   local cAddOns = rawget(_G, "C_AddOns")
@@ -19,6 +21,7 @@ function ContextHelpers.GetAddonVersionRaw(addonName)
   return tostring(version or "?")
 end
 
+---@return fun(): table|false getter LibRealmInfo when loaded, false otherwise (looked up once)
 function ContextHelpers.CreateRealmInfoGetter()
   local realmInfoLib
   return function()
@@ -35,10 +38,16 @@ function ContextHelpers.CreateRealmInfoGetter()
   end
 end
 
+---@param isiLiveLocale table addonTable.Locale
+---@param getRealmInfoLib fun(): table|false
+---@param unit string
+---@param realm? string
+---@return string|nil languageTag
 function ContextHelpers.GetUnitServerLanguage(isiLiveLocale, getRealmInfoLib, unit, realm)
   return isiLiveLocale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
 end
 
+---@return boolean
 function ContextHelpers.IsMplusTimerRunning()
   local mplusTimer = addonTable.MplusTimer
   if type(mplusTimer) ~= "table" then
@@ -54,6 +63,8 @@ function ContextHelpers.IsMplusTimerRunning()
   return type(data) == "table" and data.running == true
 end
 
+---@param ctx? table factory context with runtimeState
+---@return boolean
 function ContextHelpers.IsTrackedPartyRunActive(ctx)
   local runtimeState = type(ctx) == "table" and ctx.runtimeState or nil
   if type(runtimeState) == "table" and type(runtimeState.IsTrackedPartyRunActive) == "function" then
@@ -65,6 +76,8 @@ function ContextHelpers.IsTrackedPartyRunActive(ctx)
   return false
 end
 
+---@param opts table demoBuildDummyRoster plus the unit getters it forwards
+---@return table[] roster
 function ContextHelpers.BuildDummyRoster(opts)
   return opts.demoBuildDummyRoster({
     previewVariant = opts.previewVariant,
@@ -85,6 +98,9 @@ local function IsUsableKeystoneChatLink(link)
   return link:find("|Hkeystone:", 1, true) ~= nil or link:find("|Hitem:180653", 1, true) ~= nil
 end
 
+---@param mapID integer|string
+---@param level integer|string
+---@return string|nil link
 function ContextHelpers.BuildKeystoneChatLink(mapID, level)
   local numericMapID = math.floor(tonumber(mapID) or 0)
   local numericLevel = math.floor(tonumber(level) or 0)
@@ -167,6 +183,8 @@ local function ResolveOwnedKeystoneSnapshot(opts)
   return nil, nil
 end
 
+---@param opts? table { getL, getRoster?, getOwnedKeystoneSnapshot?, getDungeonShortCode? }
+---@return string|nil line party chat line for the own keystone
 function ContextHelpers.BuildOwnKeystoneAnnounceLine(opts)
   opts = opts or {}
 
@@ -211,6 +229,7 @@ end
 -- Returns the correct chat channel for the current group context.
 -- Instance groups (M+, LFG, dungeon finder) must use INSTANCE_CHAT. PARTY is
 -- only valid for a verified home party; otherwise the helper fails closed.
+---@return "INSTANCE_CHAT"|"PARTY"|nil channel nil outside a group (fails closed)
 function ContextHelpers.ResolveGroupChatChannel()
   local isInGroup = rawget(_G, "IsInGroup")
   if type(isInGroup) ~= "function" then
@@ -241,6 +260,8 @@ function ContextHelpers.ResolveGroupChatChannel()
   return nil
 end
 
+---@param message string
+---@return boolean sent
 function ContextHelpers.SendPartyChatMessage(message)
   if type(message) ~= "string" or message == "" then
     return false

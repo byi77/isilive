@@ -776,6 +776,7 @@ local function ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
   end
 end
 
+---@return RosterPanelController
 function RosterPanel.CreateController(opts)
   opts = opts or {}
 

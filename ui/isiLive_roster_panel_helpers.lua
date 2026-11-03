@@ -52,6 +52,39 @@ local function PaintToken(region, methodName, token, alpha)
   end
 end
 
+-- Public surface of RosterPanel.CreateController (ui/isiLive_roster_panel.lua);
+-- declared here to keep that file inside its size budget.
+---@class RosterPanelController
+---@field GetRefreshButton fun(): table
+---@field GetCountdownCancelButton fun(): table
+---@field GetStatusLine fun(): table
+---@field SetCountdownCancelText fun(text: string)
+---@field TriggerShareKeysCooldown fun(seconds: number)
+---@field GetShareKeysCooldownRemaining fun(): number
+---@field GetShareKeysLocalCooldownRemaining fun(): number
+---@field ClearShareKeysCooldown fun()
+---@field ApplyLocalization fun()
+---@field IsCollapsed fun(): boolean
+---@field GetLayoutMode fun(): string
+---@field RestoreSavedState fun()
+---@field RefreshLayoutState fun()
+---@field SetCollapseChangedHandler fun(handler: fun(isCollapsed: boolean))
+---@field SetLayoutChangedHandler fun(handler: fun(layoutMode: string))
+---@field UpdateLeaderButtons fun()
+---@field ApplyPendingLeaderButtonUpdates fun()
+---@field RenderRoster fun(roster: table)
+---@field FlushHiddenRender fun()
+---@field IsHiddenRenderPending fun(): boolean
+---@field RefreshReadyCheckState fun(roster: table)
+---@field RefreshSystemOptionToggles fun()
+---@field RefreshKickColumn fun()
+---@field SetCdController fun(ctrl: table)
+---@field RefreshCdTracker fun()
+---@field RefreshKillTrackRow fun()
+---@field PlayKillTrackRunEnd fun(outcome: "timed"|"late"|"abandoned"|"left")
+---@field ClearKillTrackRunEnd fun()
+---@field MarkCdTrackerDirty fun()
+
 RI.ApplyFontStringSize = ApplyFontStringSize
 RI.PaintToken = PaintToken
 RI.FormatMplusTime = FormatMplusTime

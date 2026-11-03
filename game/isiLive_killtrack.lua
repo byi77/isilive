@@ -482,6 +482,7 @@ local function ReadLiveData()
   ObservePace(snapshot)
 end
 
+---@param fn? fun(message: string)
 function KillTrack.SetDebugLogger(fn)
   if type(fn) == "function" or fn == nil then
     debugLogger = fn
@@ -555,6 +556,7 @@ function StopRefreshTicker()
 end
 
 -- Raid suppression owns timer lifetime without discarding verified run data.
+---@param suspended boolean
 function KillTrack.SetPollingSuspended(suspended)
   pollingSuspended = suspended == true
   if pollingSuspended then
@@ -609,6 +611,19 @@ local function CallPace(method)
   end
 end
 
+---@class KillTrackData
+---@field active boolean a keystone with enemy forces is tracked
+---@field percent number|nil forces in percent (0..100)
+---@field rawCount number|nil killed forces count
+---@field total number|nil forces needed for 100 %
+---@field mapID integer|nil challenge map ID
+---@field inCombat boolean the pull display is shown
+---@field pullPercent number percent of the running pull, 0 outside a pull
+---@field paceTarget number|nil forces target of the next section (ForcesPace)
+---@field paceLaterTargets number[]|nil targets of the sections after the next one
+---@field timePace table|nil TimePace.GetStatus result
+
+---@return KillTrackData
 function KillTrack.GetData()
   if demoData then
     return demoData
@@ -628,6 +643,7 @@ function KillTrack.GetData()
   }
 end
 
+---@param data KillTrackData
 function KillTrack.SetDemoData(data)
   demoData = data
   NotifyUpdate()
@@ -641,6 +657,7 @@ end
 -- Subscribe a callback fired whenever KillTrack state changes (scenario
 -- criteria, combat transitions, ticker). UI uses this to refresh the kill
 -- bar reliably instead of depending on the roster render loop.
+---@param callback fun() fired on every KillTrack state change; registered once
 function KillTrack.OnUpdate(callback)
   if type(callback) ~= "function" then
     return
@@ -738,6 +755,7 @@ function KillTrack._DispatchEvent(event)
   end
 end
 
+---@param event string
 function KillTrack.HandleEvent(event)
   KillTrack._DispatchEvent(event)
 end
