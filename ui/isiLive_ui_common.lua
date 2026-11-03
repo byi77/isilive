@@ -163,7 +163,11 @@ UICommon.Theme = {
 --   DesignAvailabilityBorders[design]  action-button border per availability
 --                                 state ({ leader = token, ... }), replacing the
 --                                 classic state colors for the listed states
-UICommon.DEFAULT_DESIGN = "classic"
+-- BASE_DESIGN is the palette defined in this file and the state every frame
+-- is built in at file load; DEFAULT_DESIGN is what a fresh install and an
+-- unknown stored value get (user decision 2026-11-03: Modern).
+UICommon.BASE_DESIGN = "classic"
+UICommon.DEFAULT_DESIGN = "modern"
 UICommon.DESIGNS = { "classic", "modern" }
 UICommon.ThemeOverrides = {
   modern = {},
@@ -200,7 +204,7 @@ for token, color in pairs(UICommon.Colors) do
   end
 end
 
-local activeDesign = UICommon.DEFAULT_DESIGN
+local activeDesign = UICommon.BASE_DESIGN
 -- Tokens the active design has overridden; only these are restored on the next
 -- switch, so runtime-owned values such as the BG_PRIMARY alpha (ApplyBgAlpha)
 -- stay untouched when classic is applied again.
@@ -243,7 +247,7 @@ end
 
 -- Applies a design to UICommon.Colors in place and repaints every surface
 -- that was painted before (UICommon.RepaintDesign). Unknown names fall back
--- to classic. Idempotent. Returns the applied design name and whether any
+-- to DEFAULT_DESIGN. Idempotent. Returns the applied design name and whether any
 -- color value or painted surface changed (callers repaint only then).
 function UICommon.ApplyDesign(name)
   local design = UICommon.NormalizeDesign(name) or UICommon.DEFAULT_DESIGN

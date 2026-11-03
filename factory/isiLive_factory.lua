@@ -690,7 +690,7 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
       local db = rawget(_G, "IsiLiveDB")
       local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
       local stored = type(db) == "table" and uiCommon and uiCommon.NormalizeDesign(db.uiDesign) or nil
-      return stored or (uiCommon and uiCommon.DEFAULT_DESIGN) or "classic"
+      return stored or (uiCommon and uiCommon.DEFAULT_DESIGN) or "modern"
     end,
     setUiDesign = function(name)
       return SetUiDesign(ctx, name)

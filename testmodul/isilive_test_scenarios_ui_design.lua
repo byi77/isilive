@@ -79,23 +79,23 @@ return function(test, ctx)
     return env
   end
 
-  test("UI design defaults to classic and unknown values sanitize to classic", function()
+  test("UI design defaults to modern and unknown values sanitize to modern", function()
     local DBSchema = LoadAddonModules({ "isiLive_db_schema.lua" }).DBSchema
     local db = {}
     DBSchema.Sanitize(db)
-    Assert.Equal(db.uiDesign, "classic", "fresh install must default to the classic design")
+    Assert.Equal(db.uiDesign, "modern", "fresh install must default to the modern design")
 
     db.uiDesign = "neon"
     DBSchema.Sanitize(db)
-    Assert.Equal(db.uiDesign, "classic", "an unknown design must fall back to classic")
+    Assert.Equal(db.uiDesign, "modern", "an unknown design must fall back to the default")
 
     db.uiDesign = 7
     DBSchema.Sanitize(db)
-    Assert.Equal(db.uiDesign, "classic", "a non-string design must fall back to classic")
+    Assert.Equal(db.uiDesign, "modern", "a non-string design must fall back to the default")
 
-    db.uiDesign = "modern"
+    db.uiDesign = "classic"
     DBSchema.Sanitize(db)
-    Assert.Equal(db.uiDesign, "modern", "the modern design must be preserved")
+    Assert.Equal(db.uiDesign, "classic", "a stored classic choice must be preserved")
   end)
 
   test("UI design modern ships a palette of known tokens and classic restores every token", function()
@@ -398,15 +398,17 @@ return function(test, ctx)
     AssertSameArray(cachedAccent, classicAccent, "classic ACCENT_BLUE must be restored with its arity")
     Assert.Equal(colors.BG_PRIMARY[4], 0.8, "the design switch must not touch the background opacity")
 
-    design, changed = UICommon.ApplyDesign("neon")
-    Assert.Equal(design, "classic", "an unknown design must fall back to classic")
-    Assert.False(changed, "falling back to the active classic design must not change anything")
+    design = UICommon.ApplyDesign("neon")
+    Assert.Equal(design, "modern", "an unknown design must fall back to the default design")
   end)
 
   test("UI design ADDON_LOADED applies the stored design and repaints the main frame", function()
     local overrideSurface = { 0.2, 0.25, 0.3 }
     local env = BootFactory({ locale = "enUS", uiDesign = "modern", bgAlpha = 0.4 }, function(addon)
-      Assert.Equal(addon.UICommon.GetActiveDesign(), "classic", "file load must run the classic design")
+      -- Without SavedVariables the init pass already runs the default design;
+      -- start from the base palette so ADDON_LOADED has to apply the override.
+      Assert.Equal(addon.UICommon.GetActiveDesign(), "modern", "without SavedVariables the default design runs")
+      addon.UICommon.ApplyDesign("classic")
       addon.UICommon.ThemeOverrides.modern = { SURFACE_MAIN_FRAME = overrideSurface }
     end)
     Assert.Equal(env.addon.UICommon.GetActiveDesign(), "modern", "ADDON_LOADED must apply the stored design")
@@ -424,12 +426,29 @@ return function(test, ctx)
     Assert.NotNil(mainFrame._isiLiveDesignDecor, "the modern main frame must carry its rounded decoration")
 
     local unknown = BootFactory({ locale = "enUS", uiDesign = "neon" })
-    Assert.Equal(unknown.db.uiDesign, "classic", "ADDON_LOADED must sanitize an unknown design to classic")
-    Assert.Equal(unknown.addon.UICommon.GetActiveDesign(), "classic", "an unknown design must run classic")
+    Assert.Equal(unknown.db.uiDesign, "modern", "ADDON_LOADED must sanitize an unknown design to the default")
+    Assert.Equal(unknown.addon.UICommon.GetActiveDesign(), "modern", "an unknown design must run the default")
+
+    local classic = BootFactory({ locale = "enUS", uiDesign = "classic" })
+    Assert.Equal(
+      classic.addon.UICommon.GetActiveDesign(),
+      "classic",
+      "a stored classic choice must win over the default"
+    )
   end)
 
   test("UI design settings selector stores and applies the design at once outside combat", function()
-    local env = BootFactory({ locale = "enUS" })
+    local fresh = BootFactory({ locale = "enUS" })
+    WithGlobals(fresh.globals, function()
+      fresh.runtime.settingsPanel.EnsureBuilt()
+      for _, frame in ipairs(fresh.created) do
+        if frame._optionLabelKey == "SETTINGS_UI_DESIGN_MODERN" then
+          Assert.Equal(frame._backdropColor[4], 0.25, "Modern must be highlighted on a fresh install")
+        end
+      end
+    end)
+
+    local env = BootFactory({ locale = "enUS", uiDesign = "classic" })
     local panel = Assert.NotNil(env.runtime.settingsPanel, "the composition root must create the settings panel")
     WithGlobals(env.globals, function()
       panel.EnsureBuilt()
@@ -443,7 +462,7 @@ return function(test, ctx)
       end
       modernButton = Assert.NotNil(modernButton, "the general section must offer a Modern button")
       classicButton = Assert.NotNil(classicButton, "the general section must offer a Classic button")
-      Assert.Equal(classicButton._backdropColor[4], 0.25, "Classic must be highlighted by default")
+      Assert.Equal(classicButton._backdropColor[4], 0.25, "a stored Classic choice must be highlighted")
 
       modernButton:GetScript("OnClick")(modernButton, "LeftButton")
       Assert.Equal(env.db.uiDesign, "modern", "clicking Modern must persist IsiLiveDB.uiDesign")
@@ -475,7 +494,7 @@ return function(test, ctx)
   end)
 
   test("UI design slash command reports, stores and validates the design", function()
-    local env = BootFactory({ locale = "enUS" })
+    local env = BootFactory({ locale = "enUS", uiDesign = "classic" })
     WithGlobals(env.globals, function()
       local slash = Assert.NotNil(env.globals.SlashCmdList.ISILIVE, "/isilive must be registered")
 

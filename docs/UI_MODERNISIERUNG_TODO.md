@@ -60,7 +60,7 @@ Stand: 2026-09-27. Abgehakt wird nach Implementierung und deterministischer Prue
 
 ## P4 — Modern-Design (Branch `feature/mplus-ui-redesign`, Regel 233)
 
-Stand: 2026-11-02, Version 0.9.478 (Commit `5d56c6e`, gepusht, kein Tag). Ruecksprungpunkt: Tag `isiLive_release_0.9.477`. Merge nach `main` erst nach User-Freigabe. Alles Modern liegt hinter dem Schalter `IsiLiveDB.uiDesign` (Einstellungen > Allgemein > Design, `/isilive design classic|modern`, wirkt nach `/reload`); Classic bleibt unveraendert und Standard.
+Stand: 2026-11-02, Version 0.9.478 (Commit `5d56c6e`, gepusht, kein Tag). Ruecksprungpunkt: Tag `isiLive_release_0.9.477`. Merge nach `main` erst nach User-Freigabe. Alles Modern liegt hinter dem Schalter `IsiLiveDB.uiDesign` (Einstellungen > Allgemein > Design, `/isilive design classic|modern`, wirkt ausserhalb des Kampfs sofort). Seit 2026-11-03 ist Modern der Standard; Classic bleibt waehlbar und unveraendert.
 
 Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgehakt = umgesetzt und deterministisch geprueft; Simulator-Vorschau mit `--savedvars`-Datei `IsiLiveDB = { uiDesign = "modern" }`.
 
