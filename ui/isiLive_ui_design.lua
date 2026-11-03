@@ -65,6 +65,9 @@ UICommon.DesignBackdropPresets.modern = {
   MPLUS_BOX = { backgroundAlphaFactor = 0, borderColor = UICommon.Colors.TRANSPARENT },
   FLAT_BUTTON = { backdrop = BACKDROP_BORDERLESS },
   TITLE_BUTTON = { backdrop = BACKDROP_BORDERLESS },
+  -- The close control keeps its red hover and press fill on the rounded
+  -- button surface; a square red outline would not follow the rounding.
+  CLOSE_BUTTON = { backdrop = BACKDROP_BORDERLESS },
 }
 
 -- All action buttons share the calm secondary surface (user decision
@@ -164,6 +167,7 @@ local CORNER_COORDS = {
 }
 local WINDOW_RADIUS = 6
 local CARD_RADIUS = 4
+local BUTTON_RADIUS = 3
 
 local function NewCorner(frame, layer, sublevel, path, corner, radius)
   local texture = frame:CreateTexture(nil, layer, nil, sublevel)
@@ -404,13 +408,41 @@ local function BuildRunCardDecor(frame)
 end
 
 -- Buttons: a faint top-down sheen behind the label.
+-- Kept clear of the rounded corners (BUTTON_RADIUS), so no light corner of
+-- the sheen shows outside the rounded surface.
 local function BuildButtonDecor(frame)
   local sheen = frame:CreateTexture(nil, "BORDER", nil, 1)
-  sheen:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-  sheen:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+  sheen:SetPoint("TOPLEFT", frame, "TOPLEFT", BUTTON_RADIUS, -1)
+  sheen:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -BUTTON_RADIUS, 1)
   PaintGradient(sheen, "VERTICAL", UICommon.Colors.WHITE_RGB, 0, 0.07)
   return { sheen }
 end
+
+-- Rounded button surface: built on the first paint, then only recolored for
+-- each state (default / hover / pressed / locked) through PaintButtonSurface
+-- in ui/isiLive_ui_common.lua.
+UICommon.DesignButtonShapes.modern = {
+  Paint = function(button, color)
+    if type(button) ~= "table" or type(button.CreateTexture) ~= "function" or type(color) ~= "table" then
+      return false
+    end
+    local pieces = button._isiLiveRoundedPieces
+    if not pieces then
+      pieces = BuildRoundedFill(button, "BACKGROUND", 1, BUTTON_RADIUS)
+      button._isiLiveRoundedPieces = pieces
+    end
+    for _, piece in ipairs(pieces) do
+      piece.texture[piece.method](piece.texture, color[1], color[2], color[3], color[4] or 1)
+      piece.texture:Show()
+    end
+    return true
+  end,
+  Release = function(button)
+    for _, piece in ipairs(type(button) == "table" and button._isiLiveRoundedPieces or {}) do
+      piece.texture:Hide()
+    end
+  end,
+}
 
 -- Portal tiles (ui/isiLive_teleport_ui.lua): a bottom-up scrim keeps the
 -- dungeon short code readable on bright artwork, a hairline replaces the dark

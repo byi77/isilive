@@ -15,7 +15,7 @@ local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryContr
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
 -- UI design switch helpers (rule 233): factory/isiLive_factory_secondary_runtime.lua.
 local ApplyStoredUiDesign = FI.ApplyStoredUiDesign
-local AnnounceUiDesignChange = FI.AnnounceUiDesignChange
+local ApplyUiDesignChange = FI.ApplyUiDesignChange
 local SetUiDesign = FI.SetUiDesign
 
 -- Auto-close when the M+ keystone starts. Default OFF: only an explicit
@@ -333,7 +333,7 @@ local function FinalizeFactorySettings(ctx)
         ctx.RestoreLayoutState()
       end,
       onUiDesignChange = function(design)
-        AnnounceUiDesignChange(ctx, design)
+        ApplyUiDesignChange(ctx, design)
       end,
       onNameMaxCharsChange = function(_maxChars)
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then

@@ -301,11 +301,21 @@ return function(test, ctx)
 
       local primaryButton = NewBackdropFrame()
       UICommon.ApplyActionButtonVisual(primaryButton, "primary", "default")
-      AssertSameArray(
-        primaryButton.backdropColor,
-        UICommon.Colors.SURFACE_ACTION_SECONDARY,
-        "modern must draw primary buttons with the calm secondary surface"
-      )
+      Assert.Equal(primaryButton.backdropColor[4], 0, "a modern button keeps its square backdrop transparent")
+      local buttonPieces = Assert.NotNil(primaryButton._isiLiveRoundedPieces, "a modern button gets a rounded surface")
+      local buttonCorners = 0
+      for _, piece in ipairs(buttonPieces) do
+        local painted = piece.texture.colorTexture or piece.texture.vertexColor
+        AssertSameArray(
+          painted,
+          UICommon.Colors.SURFACE_ACTION_SECONDARY,
+          "modern must draw primary buttons with the calm secondary surface"
+        )
+        if piece.method == "SetVertexColor" then
+          buttonCorners = buttonCorners + 1
+        end
+      end
+      Assert.Equal(buttonCorners, 4, "a modern button rounds all four corners")
       Assert.Equal(primaryButton._isiLiveSemanticRole, "primary", "the semantic role must stay primary")
 
       local lockedButton = NewBackdropFrame()
@@ -324,6 +334,9 @@ return function(test, ctx)
         UICommon.Colors.SURFACE_ACTION_PRIMARY,
         "classic must give primary buttons their primary surface back"
       )
+      for _, piece in ipairs(buttonPieces) do
+        Assert.False(piece.texture:IsShown(), "classic must hide the rounded button surface")
+      end
       AssertSameArray(tile.icon.points.TOPLEFT, { 2, -2 }, "classic must restore the 2 px tile inset")
       Assert.Equal(forcesBar.height, 10, "classic must restore the forces bar height")
       for _, region in ipairs(tileDecor.portalTile) do
@@ -415,7 +428,7 @@ return function(test, ctx)
     Assert.Equal(unknown.addon.UICommon.GetActiveDesign(), "classic", "an unknown design must run classic")
   end)
 
-  test("UI design settings selector stores the design and asks for a reload", function()
+  test("UI design settings selector stores and applies the design at once outside combat", function()
     local env = BootFactory({ locale = "enUS" })
     local panel = Assert.NotNil(env.runtime.settingsPanel, "the composition root must create the settings panel")
     WithGlobals(env.globals, function()
@@ -434,17 +447,30 @@ return function(test, ctx)
 
       modernButton:GetScript("OnClick")(modernButton, "LeftButton")
       Assert.Equal(env.db.uiDesign, "modern", "clicking Modern must persist IsiLiveDB.uiDesign")
-      Assert.True(
-        ContainsLine(env.printed, "Design set to Modern. Type /reload to apply it."),
-        "switching away from the active design must print the reload hint"
-      )
-      Assert.Equal(env.addon.UICommon.GetActiveDesign(), "classic", "the switch must not apply before /reload")
-      Assert.Equal(modernButton._backdropColor[4], 0.25, "Modern must be highlighted after the click")
+      Assert.Equal(env.addon.UICommon.GetActiveDesign(), "modern", "outside combat the switch must apply at once")
+      Assert.True(ContainsLine(env.printed, "Design set to Modern."), "the switch must be confirmed in chat")
+      Assert.False(ContainsLine(env.printed, "/reload"), "an applied switch needs no reload hint")
 
-      local printedBefore = #env.printed
       classicButton:GetScript("OnClick")(classicButton, "LeftButton")
       Assert.Equal(env.db.uiDesign, "classic", "clicking Classic must persist classic again")
-      Assert.Equal(#env.printed, printedBefore, "returning to the active design needs no reload hint")
+      Assert.Equal(env.addon.UICommon.GetActiveDesign(), "classic", "switching back must apply at once as well")
+
+      local function InCombat()
+        return true
+      end
+      env.globals.InCombatLockdown = InCombat
+      _G.InCombatLockdown = InCombat
+      local printedBefore = #env.printed
+      modernButton:GetScript("OnClick")(modernButton, "LeftButton")
+      Assert.Equal(env.db.uiDesign, "modern", "the design must be stored during combat")
+      Assert.Equal(env.addon.UICommon.GetActiveDesign(), "classic", "during combat nothing may be repainted")
+      Assert.True(
+        ContainsLine(
+          { unpack(env.printed, printedBefore + 1) },
+          "Design set to Modern. During combat it takes effect after /reload."
+        ),
+        "during combat the reload hint must explain the delay"
+      )
     end)
   end)
 
@@ -459,10 +485,8 @@ return function(test, ctx)
 
       slash("design modern")
       Assert.Equal(env.db.uiDesign, "modern", "/isilive design modern must persist the design")
-      Assert.True(
-        ContainsLine(env.printed, "Design set to Modern. Type /reload to apply it."),
-        "/isilive design modern must print the reload hint"
-      )
+      Assert.Equal(env.addon.UICommon.GetActiveDesign(), "modern", "/isilive design modern must apply at once")
+      Assert.True(ContainsLine(env.printed, "Design set to Modern."), "/isilive design modern must confirm the switch")
 
       local printedBefore = #env.printed
       slash("design neon")

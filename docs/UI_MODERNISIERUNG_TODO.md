@@ -74,6 +74,9 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - Hinweis: wowsim zeigte den Readycheck-Verlauf korrekt, der Client deckend weiss — Verlaeufe auf Render-Pfaden immer ingame pruefen.
 - [~] Mockups vor dem Code: uebersprungen, stattdessen direkt Code mit Simulator-Vorschau und Ingame-Screenshots je Schritt (User-Entscheidung "lass sehen was du kannst").
 
+- [x] Design-Wechsel ohne `/reload` ausserhalb des Kampfs (2026-11-03); im Kampf weiter gespeichert und nach `/reload` wirksam.
+- [ ] Live-Wechsel ingame pruefen (Settings-Schalter und `/isilive design`, hin und zurueck, auch mit offener Gruppe).
+
 ### Stufe 1 — Skin
 
 - [x] Palette: Grafit-Flaechen, neue Modern-Werte nur fuer bestehende Tokens.
@@ -87,7 +90,9 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [ ] Typografie, weiter: Groessenstufen fuer Labels und Werte (Schriftart bleibt User-Wahl); Kandidaten erst ingame bewerten.
 - [x] Abgerundete Ecken fuer Hauptfenster (6 px, Ring, runder Titelbalken) und Run-Karten (4 px), aus Einzelteilen statt Textur-Slicing; neue Texturen `media/corner_disc.tga` / `corner_ring6.tga` (Generator `tools/generate_rounded_corners.py`).
 - [x] Abgerundete Ecken ingame geprueft (2026-11-03, User-Screenshot): Ecken sauber, Ring durchgehend, Schatten folgt der Rundung (`media/corner_shadow.tga`), keine Ecken-Kaestchen.
-- [ ] Optional: Buttons und Portal-Kacheln abrunden (Buttons faerben ihren Hintergrund je Zustand ueber den Backdrop, braucht eigenen Pfad).
+- [x] Buttons abgerundet (3 px): Aktions-, Titel- und Schliessen-Buttons malen ihre Zustandsfarbe ueber `PaintButtonSurface` auf eine runde Flaeche (`DesignButtonShapes`).
+- [ ] Runde Buttons ingame pruefen: Hover, Druck, gesperrt, Schliessen-Button rot beim Hover.
+- [~] Portal-Kacheln bleiben eckig (Bild abrunden braeuchte eine verzerrte Maske).
 
 ### Stufe 2 — Komponenten
 

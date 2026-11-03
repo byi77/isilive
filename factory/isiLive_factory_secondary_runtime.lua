@@ -117,23 +117,53 @@ local function ApplyStoredUiDesign(ctx, db)
   end
 end
 
--- A design switch is not live: it is stored and takes effect after /reload.
--- Prints the reload hint when the stored design differs from the active one.
-local function AnnounceUiDesignChange(ctx, design)
+-- Re-renders the views whose design variants are chosen at render time
+-- (ready-check rows, M+ timer box, killtracker); everything else was
+-- repainted by UICommon.ApplyDesign.
+local function RefreshDesignedViews(ctx)
+  local panel = ctx.rosterPanelController
+  if type(panel) ~= "table" then
+    return
+  end
+  if type(panel.RenderRoster) == "function" and type(ctx.GetRoster) == "function" then
+    panel.RenderRoster(ctx.GetRoster())
+  end
+  if type(panel.RefreshCdTracker) == "function" then
+    panel.RefreshCdTracker()
+  end
+  if type(panel.RefreshKillTrackRow) == "function" then
+    panel.RefreshKillTrackRow()
+  end
+end
+
+-- Applies a stored design switch at once. During combat lockdown nothing is
+-- repainted (secure buttons are among the repainted frames); the design then
+-- takes effect after /reload and the reload hint says so. Returns whether a
+-- reload is still needed to see the design.
+local function ApplyUiDesignChange(ctx, design)
   local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
   if type(uiCommon) ~= "table" or design == uiCommon.GetActiveDesign() then
     return false
   end
   local L = (type(ctx.GetL) == "function" and ctx.GetL()) or {}
   local labelKey = design == "modern" and "SETTINGS_UI_DESIGN_MODERN" or "SETTINGS_UI_DESIGN_CLASSIC"
-  local hint = L.UI_DESIGN_RELOAD_HINT or "Design set to %s. Type /reload to apply it."
-  ctx.Print(string.format(hint, L[labelKey] or design))
-  return true
+  local label = L[labelKey] or design
+  local inCombat = rawget(_G, "InCombatLockdown")
+  if type(inCombat) == "function" and inCombat() then
+    local hint = L.UI_DESIGN_RELOAD_HINT or "Design set to %s. During combat it takes effect after /reload."
+    ctx.Print(string.format(hint, label))
+    return true
+  end
+  local db = rawget(_G, "IsiLiveDB")
+  ApplyStoredUiDesign(ctx, type(db) == "table" and db or { uiDesign = design })
+  RefreshDesignedViews(ctx)
+  ctx.Print(string.format(L.UI_DESIGN_APPLIED or "Design set to %s.", label))
+  return false
 end
 
 -- Shared write path of the settings selector callback and /isilive design.
 -- Returns the stored design (nil for an unknown name) and whether a reload is
--- needed to see it.
+-- still needed to see it (only during combat).
 local function SetUiDesign(ctx, name)
   local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
   local design = type(uiCommon) == "table" and uiCommon.NormalizeDesign(name) or nil
@@ -145,12 +175,12 @@ local function SetUiDesign(ctx, name)
   if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
     ctx.settingsPanel.Refresh()
   end
-  return design, AnnounceUiDesignChange(ctx, design)
+  return design, ApplyUiDesignChange(ctx, design)
 end
 
 FI.RegisterBlizzardUnitLanguageTooltip = RegisterBlizzardUnitLanguageTooltip
 FI.ApplyStoredUiDesign = ApplyStoredUiDesign
-FI.AnnounceUiDesignChange = AnnounceUiDesignChange
+FI.ApplyUiDesignChange = ApplyUiDesignChange
 FI.SetUiDesign = SetUiDesign
 FI.InitializeFactorySecondaryRuntimeMethods = InitializeFactorySecondaryRuntimeMethods
 

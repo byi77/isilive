@@ -180,6 +180,10 @@ UICommon.DesignComponents = {}
 -- Text roles a design may recolor ({ [role] = token }). Classic has none:
 -- a registered text keeps whatever color its font object or module gave it.
 UICommon.DesignTextRoles = {}
+-- Button surface shape of a design ({ Paint(button, color), Release(button) }).
+-- With a shape the button's backdrop stays transparent and the shape draws
+-- the state color (default / hover / pressed / locked).
+UICommon.DesignButtonShapes = {}
 
 -- Classic values of every token, captured once at file load. Many modules
 -- cache `UICommon.Colors` or one of its inner arrays at their own file load,
@@ -854,6 +858,9 @@ function UICommon.RepaintDesign()
       count = count + 1
     end
   end
+  if type(UICommon.RepaintCloseButtons) == "function" then
+    count = count + UICommon.RepaintCloseButtons()
+  end
   return count
 end
 
@@ -887,6 +894,23 @@ local function ApplyColorTuple(target, methodName, color)
     return
   end
   method(target, color[1], color[2], color[3], color[4] or 1)
+end
+
+-- Paints a button's state background: through the active design's button
+-- shape when it has one, otherwise on the backdrop as before.
+local function PaintButtonSurface(button, color)
+  local shape = UICommon.DesignButtonShapes[activeDesign]
+  if type(shape) == "table" and type(shape.Paint) == "function" and shape.Paint(button, color) then
+    ApplyColorTuple(button, "SetBackdropColor", UICommon.Colors.TRANSPARENT)
+    button._isiLiveButtonShape = shape
+    return
+  end
+  local previous = button._isiLiveButtonShape
+  if type(previous) == "table" and type(previous.Release) == "function" then
+    previous.Release(button)
+    button._isiLiveButtonShape = nil
+  end
+  ApplyColorTuple(button, "SetBackdropColor", color)
 end
 
 local function CallMethod(target, methodName, ...)
@@ -988,7 +1012,7 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
   -- button must not outshine an available one).
   local designBorders = UICommon.DesignAvailabilityBorders[activeDesign]
   local border = type(designBorders) == "table" and designBorders[availability] or nil
-  ApplyColorTuple(button, "SetBackdropColor", background)
+  PaintButtonSurface(button, background)
   ApplyColorTuple(button, "SetBackdropBorderColor", border or ACTION_AVAILABILITY_COLORS[availability] or style.border)
   ApplyColorTuple(
     button._flatLabel,
@@ -1287,13 +1311,26 @@ local function CreateCloseButtonLabel(button)
   return label
 end
 
+-- Close controls painted so far, so a design switch repaints them too.
+local closeButtons = setmetatable({}, { __mode = "k" })
+
 local function ApplyCloseButtonVisual(button, label, state)
+  closeButtons[button] = label or false
   local resolvedState = CLOSE_BUTTON_STYLE[state] and state or "default"
   local style = CLOSE_BUTTON_STYLE[resolvedState]
-  ApplyColorTuple(button, "SetBackdropColor", style.background)
+  PaintButtonSurface(button, style.background)
   ApplyColorTuple(button, "SetBackdropBorderColor", style.border)
   ApplyColorTuple(label, "SetTextColor", style.text)
   button._isiLiveVisualState = resolvedState
+end
+
+function UICommon.RepaintCloseButtons()
+  local count = 0
+  for button, label in pairs(closeButtons) do
+    ApplyCloseButtonVisual(button, label or nil, "default")
+    count = count + 1
+  end
+  return count
 end
 
 local function AttachCloseButtonVisualStates(button, label, opts)
