@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - Technical follow-ups
+
+- AddonCompartment entry: isiLive is listed in the addon menu behind the minimap's addon button (TOC `AddonCompartmentFunc` / `FuncOnEnter` / `FuncOnLeave`). Left click toggles the window, right click opens the settings, hover shows the same tooltip as the minimap button; both launchers share one click and tooltip path in `factory/isiLive_factory_minimap.lua`. The entry is there whether or not the minimap button is shown.
+
 ## 2026-11-03 - Version 0.9.479 (patch)
 
 - Modern ready check: the hold countdown along the bottom of a row is a quiet 1 px line at 40 % instead of classic's 2 px line at 90 %.

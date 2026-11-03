@@ -5,6 +5,9 @@
 ## Version: 0.9.479
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
+## AddonCompartmentFunc: isiLive_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: isiLive_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: isiLive_OnAddonCompartmentLeave
 libs/ChatThrottleLib/ChatThrottleLib.lua
 core/isiLive_validation_helpers.lua
 core/isiLive_runtime_mode.lua

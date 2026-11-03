@@ -4,6 +4,63 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
+-- Shared by the minimap button and the AddonCompartment entry, so both
+-- launchers behave the same: left click toggles the window, right click
+-- opens the settings.
+local function HandleLauncherClick(ctx, mouseButton, source)
+  local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
+  if logf then
+    logf("[UI] btn_click name=%s mouseButton=%s", tostring(source), tostring(mouseButton))
+  end
+  if mouseButton == "RightButton" then
+    local blizzardSettings = rawget(_G, "Settings")
+    if type(blizzardSettings) == "table" and type(blizzardSettings.OpenToCategory) == "function" then
+      if ctx.settingsPanel and ctx.settingsPanel.category then
+        blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
+      end
+    end
+  elseif ctx.ToggleMainFrameVisibility then
+    ctx.ToggleMainFrameVisibility()
+  end
+end
+
+local function ShowLauncherTooltip(ctx, owner, anchor)
+  local GameTooltip = rawget(_G, "GameTooltip")
+  if not GameTooltip or type(owner) ~= "table" then
+    return
+  end
+  local L = type(ctx.GetL) == "function" and ctx.GetL() or {}
+  GameTooltip:SetOwner(owner, anchor or "ANCHOR_LEFT")
+  GameTooltip:AddLine("isiLive")
+  GameTooltip:AddLine(L.TOOLTIP_MINIMAP_TOGGLE_WINDOW or "Left-click to toggle window.", 0.8, 0.8, 0.8)
+  GameTooltip:AddLine(L.TOOLTIP_MINIMAP_OPEN_SETTINGS or "Right-click to open settings.", 0.8, 0.8, 0.8)
+  GameTooltip:Show()
+end
+
+local function HideLauncherTooltip()
+  local GameTooltip = rawget(_G, "GameTooltip")
+  if GameTooltip then
+    GameTooltip:Hide()
+  end
+end
+
+-- AddonCompartment entry (the addon list behind the minimap's addon button).
+-- The TOC names these globals in ## AddonCompartmentFunc / FuncOnEnter /
+-- FuncOnLeave; the client calls them with (addonName, mouseButton) and
+-- (addonName, menuButton). They stay registered whether or not the minimap
+-- button is shown.
+local function RegisterAddonCompartmentHandlers(ctx)
+  rawset(_G, "isiLive_OnAddonCompartmentClick", function(_addonName, mouseButton)
+    HandleLauncherClick(ctx, mouseButton, "compartment")
+  end)
+  rawset(_G, "isiLive_OnAddonCompartmentEnter", function(_addonName, menuButton)
+    ShowLauncherTooltip(ctx, menuButton, "ANCHOR_LEFT")
+  end)
+  rawset(_G, "isiLive_OnAddonCompartmentLeave", function()
+    HideLauncherTooltip()
+  end)
+end
+
 local function CreateFactoryMinimapButton(ctx)
   local Minimap = rawget(_G, "Minimap")
   if not Minimap then
@@ -78,38 +135,12 @@ local function CreateFactoryMinimapButton(ctx)
 
   btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   btn:SetScript("OnClick", function(_, mouseButton)
-    local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
-    if logf then
-      logf("[UI] btn_click name=minimap mouseButton=%s", tostring(mouseButton))
-    end
-    if mouseButton == "RightButton" then
-      local blizzardSettings = rawget(_G, "Settings")
-      if type(blizzardSettings) == "table" and type(blizzardSettings.OpenToCategory) == "function" then
-        if ctx.settingsPanel and ctx.settingsPanel.category then
-          blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
-        end
-      end
-    elseif ctx.ToggleMainFrameVisibility then
-      ctx.ToggleMainFrameVisibility()
-    end
+    HandleLauncherClick(ctx, mouseButton, "minimap")
   end)
   btn:SetScript("OnEnter", function(self)
-    local GameTooltip = rawget(_G, "GameTooltip")
-    if GameTooltip then
-      local L = type(ctx.GetL) == "function" and ctx.GetL() or {}
-      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine("isiLive")
-      GameTooltip:AddLine(L.TOOLTIP_MINIMAP_TOGGLE_WINDOW or "Left-click to toggle window.", 0.8, 0.8, 0.8)
-      GameTooltip:AddLine(L.TOOLTIP_MINIMAP_OPEN_SETTINGS or "Right-click to open settings.", 0.8, 0.8, 0.8)
-      GameTooltip:Show()
-    end
+    ShowLauncherTooltip(ctx, self, "ANCHOR_LEFT")
   end)
-  btn:SetScript("OnLeave", function()
-    local GameTooltip = rawget(_G, "GameTooltip")
-    if GameTooltip then
-      GameTooltip:Hide()
-    end
-  end)
+  btn:SetScript("OnLeave", HideLauncherTooltip)
 
   -- Apply visibility on PLAYER_LOGIN when SavedVariables are available.
   -- Mimics LibDBIcon pattern: register once, then show/hide based on db setting.
@@ -128,3 +159,4 @@ local function CreateFactoryMinimapButton(ctx)
   return btn
 end
 FI.CreateFactoryMinimapButton = CreateFactoryMinimapButton
+FI.RegisterAddonCompartmentHandlers = RegisterAddonCompartmentHandlers

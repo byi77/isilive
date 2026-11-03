@@ -13,6 +13,7 @@ local InitializeFactoryPrimaryControllers = FI.InitializeFactoryPrimaryControlle
 local InitializeFactoryRefreshAndStatusControllers = FI.InitializeFactoryRefreshAndStatusControllers
 local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryControllers
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
+local RegisterAddonCompartmentHandlers = FI.RegisterAddonCompartmentHandlers
 -- UI design switch helpers (rule 233): factory/isiLive_factory_secondary_runtime.lua.
 local ApplyStoredUiDesign = FI.ApplyStoredUiDesign
 local ApplyUiDesignChange = FI.ApplyUiDesignChange
@@ -523,6 +524,8 @@ local function FinalizeFactorySettings(ctx)
   if ctx.minimapButton then
     ctx.minimapButton:Hide()
   end
+  -- Addon list entry behind the minimap's addon button (TOC AddonCompartment*).
+  RegisterAddonCompartmentHandlers(ctx)
 end
 
 local function BuildRuntimeSetupGroupContext(ctx, runtimeState)

@@ -379,6 +379,49 @@ local function Register(test, ctx)
     Assert.True(string.find(lines[1], "LeftButton", 1, true) ~= nil, "log line must include the mouse button")
   end)
 
+  test("factory_minimap: AddonCompartment entry shares the minimap launcher behaviour", function()
+    local opens = {}
+    local globals, state = BuildMinimapEnv({
+      Settings = {
+        OpenToCategory = function(id)
+          opens[#opens + 1] = id
+        end,
+      },
+    })
+    local overrides = {}
+    ctx.with_globals(globals, function()
+      local addonTable = ctx.load_modules({ "isiLive_factory_minimap.lua" })
+      addonTable._FactoryInternal.RegisterAddonCompartmentHandlers({
+        settingsPanel = { category = { ID = "isiLive-category-id" } },
+        ToggleMainFrameVisibility = function()
+          overrides.toggled = (overrides.toggled or 0) + 1
+        end,
+      })
+      local click = Assert.NotNil(rawget(_G, "isiLive_OnAddonCompartmentClick"), "the click handler must be global")
+      local enter = Assert.NotNil(rawget(_G, "isiLive_OnAddonCompartmentEnter"), "the enter handler must be global")
+      local leave = Assert.NotNil(rawget(_G, "isiLive_OnAddonCompartmentLeave"), "the leave handler must be global")
+      click("isiLive", "LeftButton")
+      click("isiLive", "RightButton")
+      enter("isiLive", {})
+      Assert.Equal(state.tooltipShown, true, "hovering the entry must show the launcher tooltip")
+      leave("isiLive", {})
+    end)
+    Assert.Equal(overrides.toggled, 1, "left click must toggle the main window")
+    Assert.Equal(opens[1], "isiLive-category-id", "right click must open the isiLive settings")
+    Assert.Equal(state.tooltipShown, false, "leaving the entry must hide the tooltip")
+
+    local toc = assert(io.open("isiLive.toc", "r"))
+    local tocText = toc:read("*a")
+    toc:close()
+    for _, line in ipairs({
+      "## AddonCompartmentFunc: isiLive_OnAddonCompartmentClick",
+      "## AddonCompartmentFuncOnEnter: isiLive_OnAddonCompartmentEnter",
+      "## AddonCompartmentFuncOnLeave: isiLive_OnAddonCompartmentLeave",
+    }) do
+      Assert.True(string.find(tocText, line, 1, true) ~= nil, "the TOC must register " .. line)
+    end
+  end)
+
   test("factory_minimap: PLAYER_LOGIN handler shows button when showMinimapButton is true", function()
     local globals, state = BuildMinimapEnv({ IsiLiveDB = { showMinimapButton = true } })
     local buttonShown
