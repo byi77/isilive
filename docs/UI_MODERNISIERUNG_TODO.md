@@ -70,7 +70,7 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [x] Repaint-Grundlage (die frueher offene Luecke "Farben bleiben nach /reload Classic"): `ApplyBackdrop` merkt sich Flaechen, `PaintToken` beim Bau gefaerbte Regionen, `RegisterDesignSurface` Flaechen ohne Backdrop, `RepaintDesign` malt nach ADDON_LOADED neu; dazu `DesignBackdropPresets`, `DesignDecorators`, `DesignAvailabilityBorders`, `DesignComponents`.
 - [x] wowsim rendert `SetGradient`-Verlaeufe.
 - [x] wowsim: `WHITE8X8` mit Vertex-Farbe als Vollflaeche (Forces-Fuellung, Pull-Segment sichtbar) und Kreismaske als runder Ausschnitt (BR/BL-Icons).
-- [ ] wowsim: andere Masken, `CreateLine`-Linien und Textur-Slicing (9-Slice) darstellen.
+- [~] wowsim: andere Masken, `CreateLine`-Linien und Textur-Slicing — nicht noetig, solange isiLive sie nicht nutzt (siehe unten).
 - Hinweis: wowsim zeigte den Readycheck-Verlauf korrekt, der Client deckend weiss — Verlaeufe auf Render-Pfaden immer ingame pruefen.
 - [~] Mockups vor dem Code: uebersprungen, stattdessen direkt Code mit Simulator-Vorschau und Ingame-Screenshots je Schritt (User-Entscheidung "lass sehen was du kannst").
 
@@ -130,7 +130,7 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [x] AddonCompartment-Eintrag (2026-11-03): Linksklick Fenster, Rechtsklick Einstellungen, Tooltip wie am Minimap-Button.
 - [x] LuaLS-Annotationen, erster Schritt: Design-API in `UICommon`, `MplusTimerData`, `DBSchema` (2026-11-03).
 - [ ] LuaLS-Annotationen weiter (z. B. `ContextHelpers`, `RosterPanel`-Controller, `KillTrack`) nach Bedarf.
-- [ ] Simulator-Ausbau: weitere Masken, `CreateLine`-Linien, Textur-Slicing (laeuft).
+- [~] Simulator-Ausbau nicht noetig (2026-11-03): isiLive nutzt keine Line-Regionen (`CreateLine` in der Loadout-Karte ist ein eigener Helfer fuer Textzeilen) und kein Textur-Slicing; die einzige Maske (Kreis fuer BR/BL) rendert wowsim bereits. Wieder aufgreifen, sobald eine dieser APIs im Addon auftaucht.
 - [~] Object Pools, MenuUtil, LibEditMode: vorerst nicht (User-Entscheidung 2026-11-03, nur risikoarme Punkte).
 - [ ] LibEditMode (Vor-/Nachteile besprochen 2026-11-02, neue Abhaengigkeit) — erst nach dem Redesign entscheiden.
 - [ ] ruRU-Text "Модерн" von jemandem mit Russischkenntnissen pruefen lassen.
