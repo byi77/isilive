@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-04 - Version 0.9.502 (patch)
+
+- Talent and loot check card: the active loadout and loot spec are highlighted again (gold border and label via the new `SetSelected` on action buttons). The card used the primary role, which the Modern design draws like secondary, so the active choice looked like every other button. Regression `LoadoutCheckCard highlights the active loadout and loot spec in every design`.
+- Reset popup: closing it also drops the shared StaticPopup frame from the design-switch repaint (`UICommon.UnregisterDesignSurface`), so a later Classic/Modern switch no longer paints the isiLive backdrop onto an unrelated Blizzard dialog. Regression `R7 S-1b` in `testmodul/isilive_test_scenarios_audit_r7_ui.lua`.
+- `CHANGELOG_RELEASE.md`: removed the stale "Unreleased checkpoint (2026-10-30)" paragraph; those fixes shipped long ago.
+
 ## 2026-11-04 - Version 0.9.501 (patch)
 
 - Power Infusion announces from peers no longer raise a Lua error on receipt (`showPowerInfusionAnnounce` was never wired into the event-handler context); a priest's self-PI is now broadcast to peers.

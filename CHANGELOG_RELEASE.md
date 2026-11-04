@@ -3,11 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.501`.
+Current version: `0.9.502`.
 
-Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
-timestamp regression coverage updated. Follow-up audit findings are fixed;
-the released version is unchanged.
+Version 0.9.502: the talent and loot check card highlights your active
+loadout and loot spec again (gold frame and label, in both designs), and the
+reset confirmation no longer leaves its style on other game dialogs after a
+design switch.
 
 Version 0.9.501: bug fixes from an audit. Power Infusion calls from group
 members no longer cause an error, the M+ timer comes back after you walk out of
@@ -180,7 +181,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.501 -->
+<!-- highlights-reviewed-for: 0.9.502 -->
 
 Highlights:
 - **New Modern design, now the default.** Calm graphite surfaces, rounded
