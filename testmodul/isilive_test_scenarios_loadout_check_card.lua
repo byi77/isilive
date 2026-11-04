@@ -168,6 +168,51 @@ local function RegisterLoadoutCheckCardTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("LoadoutCheckCard highlights the active loadout and loot spec in every design", function()
+    WithCard(function(addon, card, createdFrames)
+      local gold = addon.UICommon.Colors.GOLD_TARGET_TEXT
+      local function IsGold(button)
+        local c = button._flatLabel and button._flatLabel._textColor
+        return type(c) == "table" and c[1] == gold[1] and c[2] == gold[2] and c[3] == gold[3]
+      end
+      for _, design in ipairs({ "modern", "classic" }) do
+        addon.UICommon.ApplyDesign(design)
+        local controller = BuildController()
+        -- Live: loadout 101 "M+ AoE" and loot spec Fire are active.
+        card:Show(addon.LoadoutCheck.BuildModel(BuildLive(), nil), controller)
+        local activeLoadout = FindButton(createdFrames, "M+ AoE")
+        local otherLoadout = FindButton(createdFrames, "M+ Single")
+        local activeLoot = FindButton(createdFrames, "Fire")
+        local otherLoot = FindButton(createdFrames, "Frost")
+        Assert.True(IsGold(activeLoadout), design .. ": the active loadout label is gold")
+        Assert.Equal(
+          activeLoadout._backdropBorderColor[1],
+          addon.UICommon.Colors.BORDER_ACTION_SELECTED[1],
+          design .. ": the active loadout carries the selected border"
+        )
+        Assert.False(IsGold(otherLoadout), design .. ": another loadout is not highlighted")
+        Assert.True(IsGold(activeLoot), design .. ": the active loot spec label is gold")
+        Assert.False(IsGold(otherLoot), design .. ": another loot spec is not highlighted")
+
+        -- Hovering and leaving must not drop the highlight.
+        activeLoadout._scripts.OnEnter(activeLoadout)
+        activeLoadout._scripts.OnLeave(activeLoadout)
+        Assert.True(IsGold(activeLoadout), design .. ": the highlight survives hover")
+
+        -- In combat the buttons lock, but the active choice stays visible.
+        local locked = addon.LoadoutCheck.BuildModel(BuildLive(), nil)
+        locked.inCombat = true
+        card:Show(locked, controller)
+        Assert.True(IsGold(FindButton(createdFrames, "M+ AoE")), design .. ": the highlight stays while locked")
+
+        -- A switch moves the highlight with it.
+        card:Show(addon.LoadoutCheck.BuildModel(BuildLive({ selectedLoadoutID = 102 }), nil), controller)
+        Assert.True(IsGold(FindButton(createdFrames, "M+ Single")), design .. ": the new loadout is highlighted")
+        Assert.False(IsGold(FindButton(createdFrames, "M+ AoE")), design .. ": the old loadout loses the highlight")
+      end
+    end)
+  end)
+
   test("LoadoutCheckCard falls back to client texts without a controller text getter", function()
     WithCard(function(addon, card, createdFrames)
       local controller = BuildController()

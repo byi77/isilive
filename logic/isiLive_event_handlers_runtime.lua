@@ -781,8 +781,6 @@ local function HandleAddonLoaded(ctx, loadedAddon)
   -- and the user would see the overlay revert to the off default after
   -- every /reload.
   ctx.applyDBSettings()
-  -- IsiLiveDB is now available; apply minimap button visibility before PLAYER_LOGIN
-  -- so MinimapButtonButton sees the correct shown-state when it scans.
   -- Last: the saved locale is active now, so the hint speaks the user's
   -- language. At file load it could only ever be English.
   if type(ctx.printLoadedHint) == "function" then

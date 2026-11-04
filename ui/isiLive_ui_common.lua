@@ -81,6 +81,9 @@ UICommon.Colors = {
   SURFACE_ACTION_SECONDARY_PRESSED = { 0.04, 0.05, 0.08, 0.98 },
   BORDER_ACTION_PRIMARY = { 0.28, 0.68, 1, 0.72 },
   BORDER_ACTION_SECONDARY = { 0.32, 0.40, 0.52, 0.62 },
+  -- The chosen option of a choice row (e.g. the active loadout); gold like
+  -- GOLD_TARGET_TEXT so it reads the same in every design.
+  BORDER_ACTION_SELECTED = { 1.0, 0.84, 0.35, 0.9 },
   BORDER_TITLE_BAR = { 0.26, 0.62, 0.92, 0.38 },
   TEXT_HEADING = { 0.93, 0.96, 1 },
   TEXT_SECTION = { 0.64, 0.80, 0.96 },
@@ -846,6 +849,17 @@ function UICommon.ApplyBackdrop(frame, presetName)
   return true
 end
 
+--- Drops a frame from the design-switch repaint, e.g. a Blizzard frame that
+--- isiLive styled only for a while and has handed back.
+---@param frame table
+function UICommon.UnregisterDesignSurface(frame)
+  if type(frame) ~= "table" then
+    return
+  end
+  designSurfaces[frame] = nil
+  plainSurfaces[frame] = nil
+end
+
 -- Paints a region with a color token and remembers it, so a design switch
 -- repaints regions whose color is set once at build time. `alpha` replaces
 -- the token's alpha (or the implicit 1 of an RGB token) when given.
@@ -1060,13 +1074,20 @@ function UICommon.ApplyActionButtonVisual(button, role, state)
   -- button must not outshine an available one).
   local designBorders = UICommon.DesignAvailabilityBorders[activeDesign]
   local border = type(designBorders) == "table" and designBorders[availability] or nil
+  local labelColor = availability == "available" and style.text or UICommon.Colors.TEXT_SUPPORTING
+  -- The selected option of a choice row stays recognisable in every design
+  -- and while locked: a design may draw primary like secondary (Modern), so
+  -- the role alone cannot carry "this one is active".
+  if button._isiLiveSelected == true then
+    border = UICommon.Colors.BORDER_ACTION_SELECTED
+    labelColor = UICommon.Colors.GOLD_TARGET_TEXT
+    if availability == "available" and resolvedState == "default" then
+      background = style.hoverBg
+    end
+  end
   PaintButtonSurface(button, background)
   ApplyColorTuple(button, "SetBackdropBorderColor", border or ACTION_AVAILABILITY_COLORS[availability] or style.border)
-  ApplyColorTuple(
-    button._flatLabel,
-    "SetTextColor",
-    availability == "available" and style.text or UICommon.Colors.TEXT_SUPPORTING
-  )
+  ApplyColorTuple(button._flatLabel, "SetTextColor", labelColor)
   button._isiLiveSemanticRole = resolvedRole
   button._isiLiveVisualState = resolvedState
   actionButtons[button] = true
@@ -1137,6 +1158,12 @@ function UICommon.CreateActionButton(parent, opts)
 
   function button:SetSemanticRole(nextRole)
     role = ACTION_BUTTON_STYLE_BY_ROLE[nextRole] and nextRole or "secondary"
+    UICommon.ApplyActionButtonVisual(self, role, "default")
+  end
+
+  -- Marks the chosen option of a choice row (gold border and label).
+  function button:SetSelected(selected)
+    self._isiLiveSelected = selected == true
     UICommon.ApplyActionButtonVisual(self, role, "default")
   end
 

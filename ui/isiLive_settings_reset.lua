@@ -53,6 +53,12 @@ local function RestoreResetConfirmPopup(dialog)
   end
   local orig = dialog._isiLiveOrig
   dialog._isiLiveOrig = nil
+  -- ApplyBackdrop registered the shared frame for design switches; without
+  -- this a later Classic/Modern switch repaints whatever dialog it shows then.
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.UnregisterDesignSurface) == "function" then
+    uiCommon.UnregisterDesignSurface(dialog)
+  end
   if orig.movable ~= nil and type(dialog.SetMovable) == "function" then
     dialog:SetMovable(orig.movable)
   end

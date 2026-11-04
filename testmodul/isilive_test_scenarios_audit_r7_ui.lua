@@ -344,4 +344,35 @@ return function(test, ctx)
       Assert.Equal(textColor[3], 0, "text color restored")
     end)
   end)
+
+  test("R7 S-1b: a design switch after the reset popup closed leaves the shared StaticPopup alone", function()
+    local dialogs = {}
+    local shown
+    local popup = { backdropCalls = 0 }
+    function popup:SetBackdrop(backdrop)
+      self.backdropCalls = self.backdropCalls + 1
+      self.backdrop = backdrop
+    end
+    function popup:GetBackdrop()
+      return self.backdrop
+    end
+    function popup:SetBackdropColor() end
+    function popup:SetBackdropBorderColor() end
+    WithGlobals({
+      StaticPopupDialogs = dialogs,
+      StaticPopup_Show = function(name)
+        shown = name
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings_reset.lua" })
+      addon.SettingsReset.ShowResetConfirmation("R7B", "Reset?", function() end)
+      local def = dialogs[shown]
+      def.OnShow(popup)
+      Assert.True(popup.backdropCalls > 0, "popup styled while shown")
+      def.OnHide(popup)
+      local afterHide = popup.backdropCalls
+      addon.UICommon.RepaintDesign()
+      Assert.Equal(popup.backdropCalls, afterHide, "design repaint must not touch the handed-back popup")
+    end)
+  end)
 end

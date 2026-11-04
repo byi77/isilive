@@ -203,7 +203,10 @@ local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, a
     if button._flatLabel then
       SetReadable(button._flatLabel, label)
     end
-    button:SetSemanticRole(option.active and "primary" or "secondary")
+    -- The active option is marked as selected, not by the primary role: the
+    -- Modern design draws primary like secondary, which hid the active choice.
+    button:SetSemanticRole("secondary")
+    button:SetSelected(option.active == true)
     button:SetAvailabilityState(availability or "available")
     button:SetScript("OnClick", function()
       onClick(option)
