@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-11-04 - Unreleased audit round 7
+## 2026-11-04 - Version 0.9.501 (patch)
 
 - Power Infusion announces from peers no longer raise a Lua error on receipt (`showPowerInfusionAnnounce` was never wired into the event-handler context); a priest's self-PI is now broadcast to peers.
 - M+ timer comes back after walking out of a running key and back in (the instance-exit reset no longer blocks the restore); a real reset or completion still clears the run.
@@ -11,7 +11,7 @@
 - LibKeystone self-echo no longer wipes the own key row; the loaded hint and tooltip language names follow the chosen UI language.
 - Roster: DPS/Kick/tank headers stay hidden in the compact V/H layouts on re-render; clearing an empty row slot no longer hides the tooltip of the hovered row.
 - Reset popup restores Blizzard's shared StaticPopup after use (HookScript instead of SetScript); `/isilive npstate` never compares secret values; the trace chat tab is re-resolved by name; Durability row default is off.
-- Regressions in `testmodul/isilive_test_scenarios_audit_r7_{wiring,sync_factory,ui}.lua`. No version bump or release.
+- Regressions in `testmodul/isilive_test_scenarios_audit_r7_{wiring,sync_factory,ui}.lua`.
 
 ## 2026-11-03 - Version 0.9.500 (patch)
 

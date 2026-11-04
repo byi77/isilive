@@ -3,11 +3,17 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.500`.
+Current version: `0.9.501`.
 
 Unreleased checkpoint (2026-10-30): sync identity, active-key roster and
 timestamp regression coverage updated. Follow-up audit findings are fixed;
 the released version is unchanged.
+
+Version 0.9.501: bug fixes from an audit. Power Infusion calls from group
+members no longer cause an error, the M+ timer comes back after you walk out of
+a running key and back in, the minimap button keeps its position after a
+reload, the window lock is restored on login, and the simulation tablet no
+longer leaves demo data behind in real play.
 
 Version 0.9.500: isiLive is now also listed in the addon menu behind the
 minimap's addon button: left click opens or closes the window, right click
@@ -174,7 +180,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.500 -->
+<!-- highlights-reviewed-for: 0.9.501 -->
 
 Highlights:
 - **New Modern design, now the default.** Calm graphite surfaces, rounded
