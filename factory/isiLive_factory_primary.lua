@@ -200,6 +200,15 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.UpdateLeaderButtons = function()
     ctx.rosterPanelController.UpdateLeaderButtons()
   end
+  -- Called once at the end of ADDON_LOADED: only then is the saved locale
+  -- active, so a file-load print could only ever be English.
+  ctx.PrintLoadedHint = function()
+    if ctx.loadedHintPrinted == true then
+      return
+    end
+    ctx.loadedHintPrinted = true
+    ctx.Print(string.format(ctx.L.LOADED_HINT, ctx.GetAddonVersionRaw()))
+  end
   ctx.ApplyPendingLeaderButtonUpdates = function()
     if ctx.rosterPanelController and type(ctx.rosterPanelController.ApplyPendingLeaderButtonUpdates) == "function" then
       ctx.rosterPanelController.ApplyPendingLeaderButtonUpdates()

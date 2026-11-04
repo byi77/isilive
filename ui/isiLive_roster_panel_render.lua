@@ -755,7 +755,11 @@ local function RenderRosterImpl(state, roster)
     row.getLanguageTooltipMarkup = nil
     row.getL = nil
     if row.hoverFrame then
-      HideRosterHoverTooltip(rosterTooltip)
+      -- Only dismiss the shared tooltip when this row owns it; stale slots are
+      -- cleared on every render and must not kill a hovered live row's tooltip.
+      if type(rosterTooltip) == "table" and rosterTooltip._isiLiveTooltipOwner == row.hoverFrame then
+        HideRosterHoverTooltip(rosterTooltip)
+      end
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
     end
@@ -782,7 +786,9 @@ local function RenderRosterImpl(state, roster)
   end
 
   -- Temporarily hidden in Settings: keep the DPS/Deaths/Kicks columns hard-enabled in runtime.
-  local showDpsColumn = FORCE_SHOW_DPS_COLUMN
+  -- Compact V/H layouts hide the DPS/Kick columns (UI_VISIBILITY_RULES), so never
+  -- re-show them there.
+  local showDpsColumn = FORCE_SHOW_DPS_COLUMN and not isCollapsed
   if state.uiRef then
     local function setHeaderVisible(key, visible)
       local h = state.uiRef[key]
@@ -810,7 +816,8 @@ local function RenderRosterImpl(state, roster)
       end
     end
     if state.uiRef.tankHeader then
-      if showMarkers and not isVertical then
+      -- Rule table: the tank header is visible in the expanded layout only.
+      if showMarkers and not isVertical and not isCollapsed then
         state.uiRef.tankHeader:Show()
       else
         state.uiRef.tankHeader:Hide()
@@ -903,7 +910,7 @@ local function RenderRosterImpl(state, roster)
     end
     SetReadableText(row.ilvl, displayData.ilvlText)
     SetReadableText(row.rio, displayData.rioText)
-    local showDps = FORCE_SHOW_DPS_COLUMN
+    local showDps = FORCE_SHOW_DPS_COLUMN and not isCollapsed
     if showDps then
       local dpsText = "-"
       if type(getPlayerLastRunDps) == "function" then

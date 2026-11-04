@@ -5,8 +5,9 @@ addonTable = addonTable or {}
 local MplusTimer = {}
 addonTable.MplusTimer = MplusTimer
 local IsSecretValue = addonTable.Validators.IsSecretValue
--- Recovery is only for a freshly loaded runtime. Completion/reset must not
--- resurrect a cleared run even if Blizzard still reports its previous map.
+-- Recovery is for a freshly loaded runtime and for re-entering a running key
+-- after walking out. Completion/reset must not resurrect a cleared run even if
+-- Blizzard still reports its previous map.
 local canRestoreActiveRun = true
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
@@ -218,13 +219,26 @@ function MplusTimer.GetKeyLevel()
   return state.keyLevel or 0
 end
 
-function MplusTimer.HandleEvent(event)
+-- Reason tag the event layer adds to its synthetic CHALLENGE_MODE_RESET when
+-- the player leaves a party instance (logic/isiLive_event_handlers_runtime.lua).
+local PARTY_INSTANCE_EXIT_REASON = "PARTY_INSTANCE_EXIT"
+
+function MplusTimer.HandleEvent(event, reason)
   if event == "CHALLENGE_MODE_START" then
     StartTimer()
   elseif event == "CHALLENGE_MODE_COMPLETED" then
     ResetTimerState()
   elseif event == "CHALLENGE_MODE_RESET" then
+    -- Walking out of a running key clears the display, but the key goes on
+    -- and re-entry fires no CHALLENGE_MODE_START: keep the restore armed so
+    -- the next PLAYER_ENTERING_WORLD inside picks the run up again. Only a
+    -- run that was still running qualifies; a completed or already reset run
+    -- stays cleared. A real reset carries no reason and clears for good.
+    local resumeOnReentry = reason == PARTY_INSTANCE_EXIT_REASON and state.running == true
     ResetTimerState()
+    if resumeOnReentry then
+      canRestoreActiveRun = true
+    end
   elseif event == "CHALLENGE_MODE_DEATH_COUNT_UPDATED" then
     UpdateDeaths()
   elseif event == "PLAYER_ENTERING_WORLD" then

@@ -308,7 +308,10 @@ function PiTracker.CreateController(opts)
     if sourceUnit and getUnitClassToken(sourceUnit) == "PRIEST" then
       casterName = ResolveVerifiedUnitName(sourceUnit)
     end
-    announcePowerInfusion(casterName, ResolveVerifiedUnitName("player"), true, false)
+    -- A priest's self-PI must reach the party like any other cast by the local
+    -- player. ReadSourceUnit already drops a masked sourceUnit, so this
+    -- comparison only ever sees a plain string or nil.
+    announcePowerInfusion(casterName, ResolveVerifiedUnitName("player"), true, sourceUnit == "player")
     return true
   end
 

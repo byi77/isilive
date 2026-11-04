@@ -521,10 +521,17 @@ return function(test, ctx)
 
       local bg = addon.UICommon.Colors.BG_PRIMARY
       local color = panelFrame._backdropColor
-      Assert.Equal(color[1], bg[1], "resetui must restore the default ESC panel red channel")
-      Assert.Equal(color[2], bg[2], "resetui must restore the default ESC panel green channel")
-      Assert.Equal(color[3], bg[3], "resetui must restore the default ESC panel blue channel")
-      Assert.Equal(color[4], addon.UICommon.DEFAULT_BG_ALPHA, "resetui must restore the default ESC panel alpha")
+      Assert.Equal(bg[4], addon.UICommon.DEFAULT_BG_ALPHA, "resetui must restore the default palette alpha")
+      if panelFrame._isiLiveRoundedFill == true then
+        -- Modern draws the rounded fill itself (rule 233): resetui goes
+        -- through UICommon.ApplyBgAlpha, which leaves this backdrop alone.
+        Assert.Equal(color[4], 0.9, "resetui must not paint over the Modern rounded fill's backdrop")
+      else
+        Assert.Equal(color[1], bg[1], "resetui must restore the default ESC panel red channel")
+        Assert.Equal(color[2], bg[2], "resetui must restore the default ESC panel green channel")
+        Assert.Equal(color[3], bg[3], "resetui must restore the default ESC panel blue channel")
+        Assert.Equal(color[4], addon.UICommon.DEFAULT_BG_ALPHA, "resetui must restore the default ESC panel alpha")
+      end
     end)
   end)
 

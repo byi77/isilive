@@ -886,9 +886,8 @@ local function FinalizeFactoryRuntime(ctx)
     end,
   })
 
-  -- This is the explicit adapter surface consumed by ControllerWiring.
-  -- Keep it separate from RuntimeSetup's own small composition context so a
-  -- missing dependency cannot be masked by falling back to the factory root.
+  -- Explicit adapter surface consumed by ControllerWiring, kept apart from RuntimeSetup's
+  -- context so a missing dependency cannot be masked by the factory root.
   local eventHandlersContext = {
     modules = ctx.modules,
     HandleKickTrackerEvent = ctx.HandleKickTrackerEvent,
@@ -901,6 +900,7 @@ local function FinalizeFactoryRuntime(ctx)
     ClearAllReadyCheckDeclined = ctx.ClearAllReadyCheckDeclined,
     ClearExpiredReadyCheckDeclined = ctx.ClearExpiredReadyCheckDeclined,
     ShowCombatAnnounce = ctx.ShowCombatAnnounce,
+    ShowPowerInfusionAnnounce = ctx.ShowPowerInfusionAnnounce,
     TriggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     GetShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
     GetShareKeysLocalCooldownRemaining = ctx.GetShareKeysLocalCooldownRemaining,
@@ -929,6 +929,7 @@ local function FinalizeFactoryRuntime(ctx)
     setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
     setMainFrameWidthSafe = ctx.SetMainFrameWidthSafe,
     updateLeaderButtons = ctx.UpdateLeaderButtons,
+    applyPendingLeaderButtonUpdates = ctx.ApplyPendingLeaderButtonUpdates,
     clearLatestQueueTarget = ctx.ClearLatestQueueTarget,
     clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
     clearPendingQueueJoinInfo = function()
@@ -1111,6 +1112,7 @@ local function FinalizeFactoryRuntime(ctx)
     exitTestModeForCombat = ctx.ExitTestModeForCombat,
     updateStatusLine = ctx.UpdateStatusLine,
     applyLocalizationToUI = ctx.ApplyLocalizationToUI,
+    printLoadedHint = ctx.PrintLoadedHint,
     applyDBSettings = function()
       if type(ctx.ApplyDBSettings) == "function" then
         return ctx.ApplyDBSettings()
@@ -1166,10 +1168,8 @@ local function FinalizeFactoryRuntime(ctx)
   local runtimeSetupResult = isiLiveRuntimeSetup.Configure(runtimeSetupContext)
 
   ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
-  -- No init line here: this runs at file load, before SavedVariables exist,
-  -- so the runtime log is always off. The settings snapshot that used to be
-  -- logged here is part of the session_start header instead.
-  ctx.Print(string.format(ctx.L.LOADED_HINT, ctx.GetAddonVersionRaw()))
+  -- No init line or loaded hint here: file load runs before SavedVariables and
+  -- the saved locale exist (session_start header; ADDON_LOADED prints the hint).
 
   FinalizeFactorySettings(ctx)
 end

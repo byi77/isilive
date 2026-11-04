@@ -87,8 +87,18 @@ local function CreateFactoryMinimapButton(ctx)
   icon:SetTexture("Interface\\Icons\\inv_misc_key_15")
   icon:SetPoint("TOPLEFT", 7, -6)
 
-  local db = IsiLiveDB or {}
-  local minimapAngle = type(db.minimapAngle) == "number" and db.minimapAngle or 225
+  -- This runs at file load, before SavedVariables exist; PLAYER_LOGIN below
+  -- re-reads the stored angle.
+  local DEFAULT_MINIMAP_ANGLE = 225
+  local function ReadStoredAngle()
+    local db = rawget(_G, "IsiLiveDB")
+    local angle = type(db) == "table" and db.minimapAngle or nil
+    if type(angle) ~= "number" or angle ~= angle or angle == math.huge or angle == -math.huge then
+      return DEFAULT_MINIMAP_ANGLE
+    end
+    return angle % 360
+  end
+  local minimapAngle = ReadStoredAngle()
   local radius = 80
   local getCursorPosition = rawget(_G, "GetCursorPosition")
 
@@ -126,7 +136,8 @@ local function CreateFactoryMinimapButton(ctx)
     local cx, cy = getCursorPosition()
     local scale = Minimap:GetEffectiveScale()
     cx, cy = cx / scale, cy / scale
-    minimapAngle = math.deg(math.atan2(cy - my, cx - mx))
+    -- atan2 yields -180..180; the schema keeps the angle in [0, 360).
+    minimapAngle = math.deg(math.atan2(cy - my, cx - mx)) % 360
     if IsiLiveDB then
       IsiLiveDB.minimapAngle = minimapAngle
     end
@@ -148,6 +159,8 @@ local function CreateFactoryMinimapButton(ctx)
   loginFrame:RegisterEvent("PLAYER_LOGIN")
   loginFrame:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
+    minimapAngle = ReadStoredAngle()
+    UpdatePosition()
     local savedDb = rawget(_G, "IsiLiveDB")
     if savedDb and savedDb.showMinimapButton then
       btn:Show()

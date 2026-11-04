@@ -425,7 +425,16 @@ local function ResetChallengeRuntimeOnPartyInstanceExit(ctx, wasInPartyInstance,
     return false
   end
 
-  ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET")
+  -- Walking out does not end the key: the group may still run it, and
+  -- CHALLENGE_MODE_START does not fire again on re-entry. The reason tag
+  -- makes the M+ timer clear its display but keep the active-run restore
+  -- armed for the next PLAYER_ENTERING_WORLD inside the instance.
+  ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET", "PARTY_INSTANCE_EXIT")
+  -- DeathWatch keeps the full reset on purpose: its per-player summary is
+  -- local-only (C_ChallengeMode.GetDeathCount restores only the total, which
+  -- the timer reads back on re-entry) and nothing tells this client whether
+  -- the key ended while it was outside, so a kept summary could leak into
+  -- the roster tooltip of a later, unrelated session.
   ctx.handleDeathWatchEvent("CHALLENGE_MODE_RESET")
   ctx.updateCdTracker({
     suppressBattleResReadySound = true,
@@ -710,8 +719,8 @@ local function RestoreMainFrameFromSavedVariables(ctx)
     mainFrame:ClearAllPoints()
     mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
   end
-  if ctx.mainUI and type(ctx.mainUI.SetDragLocked) == "function" then
-    ctx.mainUI.SetDragLocked(IsiLiveDB.lockMainFramePosition ~= false)
+  if type(ctx.setMainFrameDragLocked) == "function" then
+    ctx.setMainFrameDragLocked(IsiLiveDB.lockMainFramePosition ~= false)
   end
   -- Restore UI scale and background opacity from SavedVariables.
   -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.
@@ -774,6 +783,11 @@ local function HandleAddonLoaded(ctx, loadedAddon)
   ctx.applyDBSettings()
   -- IsiLiveDB is now available; apply minimap button visibility before PLAYER_LOGIN
   -- so MinimapButtonButton sees the correct shown-state when it scans.
+  -- Last: the saved locale is active now, so the hint speaks the user's
+  -- language. At file load it could only ever be English.
+  if type(ctx.printLoadedHint) == "function" then
+    ctx.printLoadedHint()
+  end
 end
 
 function RuntimeLifecycle.BuildHandlers(ctx)

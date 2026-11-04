@@ -428,7 +428,14 @@ local function ClearDemoFeatureData(ctx)
     soundUtils.StopAllActiveSounds()
   end
   if type(ctx.HideSimulationTablet) == "function" then
-    ctx.HideSimulationTablet()
+    -- This hide is part of a cleanup already; the tablet's own hide cleanup
+    -- must not run it a second time from inside.
+    ctx._demoFeatureClearing = true
+    local ok, err = pcall(ctx.HideSimulationTablet)
+    ctx._demoFeatureClearing = false
+    if not ok then
+      error(err, 0)
+    end
   end
   if type(ctx.SetDemoCenterNoticesVisible) == "function" then
     ctx.SetDemoCenterNoticesVisible(false)
@@ -477,8 +484,109 @@ local function ClearDemoKeyEndBanner(ctx)
   end
 end
 
+-- The previews point the queue target at the demo dungeon. The real target is
+-- kept aside on the first overwrite and comes back when the preview ends, as
+-- long as nothing real replaced the demo target in the meantime.
+local function ApplyDemoQueueTarget(ctx, runtimeState, targetName, targetMapID)
+  if not targetMapID or type(runtimeState.SetLatestQueueState) ~= "function" then
+    return
+  end
+  if ctx._demoQueueSnapshot == nil and type(runtimeState.GetLatestQueueState) == "function" then
+    local name, activityID, teleportSpellID, mapID = runtimeState.GetLatestQueueState()
+    ctx._demoQueueSnapshot = {
+      runtimeState = runtimeState,
+      name = name,
+      activityID = activityID,
+      teleportSpellID = teleportSpellID,
+      mapID = mapID,
+    }
+  end
+  runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
+  ctx._demoQueueTarget = { name = targetName, mapID = targetMapID }
+end
+
+local function RestoreDemoQueueTarget(ctx)
+  local snapshot = ctx._demoQueueSnapshot
+  local demoTarget = ctx._demoQueueTarget
+  ctx._demoQueueSnapshot = nil
+  ctx._demoQueueTarget = nil
+  if type(snapshot) ~= "table" or type(demoTarget) ~= "table" then
+    return
+  end
+  local runtimeState = snapshot.runtimeState
+  if type(runtimeState) ~= "table" or type(runtimeState.GetLatestQueueState) ~= "function" then
+    return
+  end
+  local name, activityID, teleportSpellID, mapID = runtimeState.GetLatestQueueState()
+  local stillDemo = name == demoTarget.name
+    and activityID == nil
+    and teleportSpellID == nil
+    and mapID == demoTarget.mapID
+  if not stillDemo then
+    return
+  end
+  if snapshot.name == nil and snapshot.activityID == nil and snapshot.mapID == nil then
+    if type(runtimeState.ClearLatestQueueTarget) == "function" then
+      runtimeState.ClearLatestQueueTarget({ keepActiveJoinedKey = true })
+    end
+  elseif type(runtimeState.SetLatestQueueState) == "function" then
+    runtimeState.SetLatestQueueState(snapshot.name, snapshot.activityID, snapshot.teleportSpellID, snapshot.mapID)
+  end
+  if type(ctx.UpdateStatusLine) == "function" then
+    ctx.UpdateStatusLine()
+  end
+end
+
+-- Bumped on every demo timer set and clear. The deferred cooldown-tracker
+-- write below only lands while its own preview is still the current one, so
+-- leaving the preview within the delay cannot leave fake BR / Lust behind.
+local function NextDemoTimerGeneration(ctx)
+  ctx._demoTimerGeneration = (tonumber(ctx._demoTimerGeneration) or 0) + 1
+  return ctx._demoTimerGeneration
+end
+
+local ClearDemoTimerData
+
+-- A real key start must never be hidden behind demo timer data that a tablet
+-- action left behind outside the test mode (the timer reports demo data first).
+local function EnsureDemoKeyStartWatcher(ctx)
+  if ctx._demoKeyStartWatcher ~= nil then
+    return
+  end
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) ~= "function" then
+    return
+  end
+  local watcher = createFrame("Frame")
+  ctx._demoKeyStartWatcher = watcher
+  if type(watcher) ~= "table" or type(watcher.RegisterEvent) ~= "function" then
+    return
+  end
+  watcher:RegisterEvent("CHALLENGE_MODE_START")
+  watcher:SetScript("OnEvent", function()
+    if ctx._demoTimerDataActive == true and not FactoryDemo.IsPreviewModeActive(ctx) then
+      ClearDemoTimerData(ctx)
+    end
+  end)
+end
+
+--- True while the test or demo mode owns the preview state.
+function FactoryDemo.IsPreviewModeActive(ctx)
+  local runtimeState = type(ctx) == "table" and ctx._demoRuntimeState or nil
+  if type(runtimeState) ~= "table" then
+    return false
+  end
+  local isTestMode = runtimeState.IsTestMode
+  local isTestAllMode = runtimeState.IsTestAllMode
+  return (type(isTestMode) == "function" and isTestMode() == true)
+    or (type(isTestAllMode) == "function" and isTestAllMode() == true)
+end
+
 local function SetDemoTimerData(ctx, runtimeState)
   ClearDemoKeyEndBanner(ctx)
+  local generation = NextDemoTimerGeneration(ctx)
+  ctx._demoTimerDataActive = true
+  EnsureDemoKeyStartWatcher(ctx)
   local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.SetDemoData) == "function" then
@@ -499,9 +607,7 @@ local function SetDemoTimerData(ctx, runtimeState)
       deathTimeLost = 8,
     })
   end
-  if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
-    runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
-  end
+  ApplyDemoQueueTarget(ctx, runtimeState, targetName, targetMapID)
   local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
   if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
     KillTrack.SetDemoData({
@@ -528,6 +634,9 @@ local function SetDemoTimerData(ctx, runtimeState)
   local C_Timer_ref = rawget(_G, "C_Timer")
   if type(C_Timer_ref) == "table" and type(C_Timer_ref.After) == "function" then
     C_Timer_ref.After(0.2, function()
+      if ctx._demoTimerGeneration ~= generation then
+        return
+      end
       if ctx.cdTrackerController and type(ctx.cdTrackerController.SetDemoData) == "function" then
         ctx.cdTrackerController.SetDemoData({
           bres = { charges = 0, maxCharges = 1, cooldownRemain = 112, cooldownDuration = 600 },
@@ -546,10 +655,12 @@ end
 -- sweep and the pulsing target. C1 brings the running key back.
 local function SetDemoPreKeyData(ctx, runtimeState)
   ClearDemoKeyEndBanner(ctx)
+  -- Cancels a pending C1 cooldown write: the pre-key state shows no run.
+  NextDemoTimerGeneration(ctx)
+  ctx._demoTimerDataActive = true
+  EnsureDemoKeyStartWatcher(ctx)
   local targetMapID, targetName, targetLevel = ResolveDemoTarget(ctx)
-  if targetMapID and type(runtimeState.SetLatestQueueState) == "function" then
-    runtimeState.SetLatestQueueState(targetName, nil, nil, targetMapID)
-  end
+  ApplyDemoQueueTarget(ctx, runtimeState, targetName, targetMapID)
   ctx._demoTargetKey = targetMapID and { mapID = targetMapID, level = targetLevel } or nil
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
@@ -567,8 +678,10 @@ local function SetDemoPreKeyData(ctx, runtimeState)
   end
 end
 
-local function ClearDemoTimerData(ctx)
+ClearDemoTimerData = function(ctx)
   ClearDemoKeyEndBanner(ctx)
+  NextDemoTimerGeneration(ctx)
+  ctx._demoTimerDataActive = false
   ctx._demoTargetKey = nil
   local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
   if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
@@ -584,6 +697,7 @@ local function ClearDemoTimerData(ctx)
   if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
     ctx.rosterPanelController.RefreshCdTracker()
   end
+  RestoreDemoQueueTarget(ctx)
 end
 
 -- One button per key end outcome on the M+ tab (rule 231). The banner loops, so
@@ -1016,8 +1130,7 @@ local function BuildSimulationTabletActions(ctx)
       title = "Clear simulation state",
       description = "Clears timer and feature preview state, then keeps the tablet open.",
       run = function()
-        ClearDemoTimerData(ctx)
-        ClearDemoFeatureData(ctx)
+        FactoryDemo.ClearSimulationTabletState(ctx)
         if type(ctx.ShowSimulationTablet) == "function" then
           ctx.ShowSimulationTablet()
         end
@@ -1025,6 +1138,59 @@ local function BuildSimulationTabletActions(ctx)
       end,
     },
   }
+end
+
+--- Clears everything the tablet actions can set: demo timer, kill-track and
+--- cooldown data, the demo queue target (the real one comes back), the
+--- feature previews including the nameplate test mode, and the B1 settings
+--- overrides (restored from their snapshot). Used by F3 and by closing a
+--- tablet that was used outside the test / demo mode.
+function FactoryDemo.ClearSimulationTabletState(ctx)
+  if ctx._simulationTabletClearing == true then
+    return
+  end
+  ctx._simulationTabletClearing = true
+  local ok, err = pcall(function()
+    ClearDemoTimerData(ctx)
+    ClearDemoFeatureData(ctx)
+    if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
+      ctx.rosterPanelController.RefreshKillTrackRow()
+    end
+  end)
+  ctx._simulationTabletDirty = false
+  ctx._simulationTabletClearing = false
+  if not ok then
+    error(err, 0)
+  end
+end
+
+-- Every executable action marks the tablet dirty, so closing it only cleans
+-- up after previews it really started; an untouched tablet leaves live state
+-- (ready check, Share Keys cooldown) alone.
+local function TrackTabletActions(ctx, actions)
+  for _, action in ipairs(actions) do
+    local run = action.run
+    if type(run) == "function" then
+      action.run = function(...)
+        ctx._simulationTabletDirty = true
+        return run(...)
+      end
+    end
+  end
+  return actions
+end
+
+-- Outside the test / demo mode nothing else ends the previews: closing the
+-- tablet (close button, `/isilive sim`, ESC) restores the live state. Inside
+-- those modes their own exit owns the cleanup.
+local function HandleSimulationTabletHidden(ctx)
+  if ctx._demoFeatureClearing == true or ctx._simulationTabletClearing == true then
+    return
+  end
+  if ctx._simulationTabletDirty ~= true or FactoryDemo.IsPreviewModeActive(ctx) then
+    return
+  end
+  FactoryDemo.ClearSimulationTabletState(ctx)
 end
 
 -- The tablet frame is only reachable through `/isilive sim` and the demo
@@ -1044,12 +1210,19 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
         getL = ctx.GetL,
         getActions = function()
           if type(ctx._simulationTabletActions) ~= "table" then
-            ctx._simulationTabletActions = AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx))
+            ctx._simulationTabletActions =
+              TrackTabletActions(ctx, AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx)))
           end
           return ctx._simulationTabletActions
         end,
       })
       ctx.simulationTabletController = controller
+      local frame = type(controller) == "table" and controller.frame or nil
+      if type(frame) == "table" and type(frame.HookScript) == "function" then
+        frame:HookScript("OnHide", function()
+          HandleSimulationTabletHidden(ctx)
+        end)
+      end
     end
     return controller
   end
@@ -1100,6 +1273,9 @@ function FactoryDemo.BuildTestModeControllerCallbacks(ctx, runtimeState)
     end,
     clearDemoFeatureData = function()
       ClearDemoFeatureData(ctx)
+      -- The test mode exit has cleared timer and feature previews, so a later
+      -- tablet close has nothing left to restore.
+      ctx._simulationTabletDirty = false
     end,
   }
 end

@@ -120,6 +120,8 @@ local MIGRATIONS = {
 --     default = <value> | function() return <value> end,
 --     min = <number>,            -- for type="number"; clamped (not reset)
 --     max = <number>,            -- for type="number"; clamped
+--     wrap = <number>,           -- for type="number"; folded into [0, wrap)
+--                                -- before min/max apply (angles)
 --     enum = { "a", "b", ... },  -- for type="string"; reset on mismatch
 --     fields = { ... }           -- for type="table"; recursive sub-schema
 --   }
@@ -232,7 +234,9 @@ local SCHEMA = {
 
   -- Minimap button.
   showMinimapButton = { type = "boolean", default = false },
-  minimapAngle = { type = "number", default = 225, min = 0, max = 360 },
+  -- The drag handler stores atan2 degrees (-180..180). Wrapping keeps an angle
+  -- saved below the minimap's horizontal axis instead of clamping it to 0.
+  minimapAngle = { type = "number", default = 225, min = 0, max = 360, wrap = 360 },
 
   -- LFG flags + tooltip flags.
   lfgFlagsEnabled = { type = "boolean", default = true },
@@ -510,6 +514,14 @@ local function ValidateField(parent, key, schema, log, path)
       parent[key] = ResolveDefault(schema)
       log(string.format("reset %s: non-finite number", fullPath))
       value = parent[key]
+    end
+    if schema.wrap ~= nil then
+      local wrapped = value % schema.wrap
+      if wrapped ~= value then
+        parent[key] = wrapped
+        log(string.format("wrapped %s from %s to %s", fullPath, tostring(value), tostring(wrapped)))
+        value = wrapped
+      end
     end
     if schema.min ~= nil and value < schema.min then
       parent[key] = schema.min

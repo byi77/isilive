@@ -149,6 +149,9 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     getRaidTransitionBehavior = deps.getRaidTransitionBehavior or function()
       return "hide"
     end,
+    -- Delays the join REQSYNC until IsInGroup() has settled; without it the
+    -- group module falls back to an immediate callback.
+    timerAfter = type(deps.timerAfter) == "function" and deps.timerAfter or nil,
     shouldAutoCloseOnSoloChange = deps.shouldAutoCloseOnSoloChange or function()
       return false
     end,
@@ -343,6 +346,9 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     showKeyEndOutcome = deps.showKeyEndOutcome,
     clearKeyEndOutcome = deps.clearKeyEndOutcome,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
+    applyPendingLeaderButtonUpdates = type(callbacks.applyPendingLeaderButtonUpdates) == "function"
+        and callbacks.applyPendingLeaderButtonUpdates
+      or nil,
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
     sendLibKeystonePartyData = type(deps.sendLibKeystonePartyData) == "function" and deps.sendLibKeystonePartyData
@@ -351,6 +357,8 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       end,
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendOwnBackgroundSnapshot = RequireFunction(deps.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot"),
+    -- Forced TARGET of the HELLO/REQSYNC peer fan-out.
+    sendOwnTargetSnapshot = type(deps.sendOwnTargetSnapshot) == "function" and deps.sendOwnTargetSnapshot or nil,
     shouldAutoCloseOnKeyStart = type(deps.shouldAutoCloseOnKeyStart) == "function" and deps.shouldAutoCloseOnKeyStart
       or function()
         return false
@@ -380,6 +388,13 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       "callbacks.updateCountdownCancelButton"
     ),
     restoreBgAlpha = type(callbacks.restoreBgAlpha) == "function" and callbacks.restoreBgAlpha or function(_alpha) end,
+    setMainFrameDragLocked = function(locked)
+      local mainUI = refs.mainUI
+      if type(mainUI) == "table" and type(mainUI.SetDragLocked) == "function" then
+        mainUI.SetDragLocked(locked)
+      end
+    end,
+    printLoadedHint = type(callbacks.printLoadedHint) == "function" and callbacks.printLoadedHint or nil,
   }
 end
 
@@ -746,6 +761,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     sendLibKeystonePartyData = ctx.sendLibKeystonePartyData,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
+    sendOwnTargetSnapshot = ctx.sendOwnTargetSnapshot,
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
     armMainFrameRestoreAfterRaid = ctx.armMainFrameRestoreAfterRaid,
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
@@ -1045,6 +1061,8 @@ local function BuildEventHandlersDepsFromContext(ctx)
       refreshReadyCheckUI = ctx.refreshReadyCheckUI,
       setMainFrameVisible = ctx.setMainFrameVisible,
       updateLeaderButtons = ctx.updateLeaderButtons,
+      applyPendingLeaderButtonUpdates = ctx.applyPendingLeaderButtonUpdates,
+      printLoadedHint = ctx.printLoadedHint,
       updateStatusLine = ctx.updateStatusLine,
       applyLocalizationToUI = ctx.applyLocalizationToUI,
       applyDBSettings = ctx.applyDBSettings,

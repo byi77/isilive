@@ -39,14 +39,11 @@ end
 
 function TraceChatFrame.CreateController()
   local controller = {}
-  local frameRef = nil
 
+  -- Never cache the ChatFrameN: after the user closes the tab Blizzard may
+  -- reuse that slot for an unrelated window, so resolve by name every time.
   local function GetOrCreateFrame()
-    if frameRef and type(frameRef.IsShown) == "function" then
-      return frameRef
-    end
-    frameRef = FindExistingFrame() or CreateNewFrame()
-    return frameRef
+    return FindExistingFrame() or CreateNewFrame()
   end
 
   local function SelectTab(frame)
@@ -66,7 +63,14 @@ function TraceChatFrame.CreateController()
 
   function controller.Close()
     local frame = FindExistingFrame()
-    if frame and type(frame.Hide) == "function" then
+    if not frame then
+      return
+    end
+    local fcfClose = rawget(_G, "FCF_Close")
+    if type(fcfClose) == "function" and pcall(fcfClose, frame) then
+      return
+    end
+    if type(frame.Hide) == "function" then
       frame:Hide()
     end
   end

@@ -73,6 +73,11 @@ addonTable.SyncReceiveFactory = function(deps)
       }
     end
 
+    -- Skip self-echo like KEY / KICK: a same-client LibKS "0,0,<rio>" would wipe the own key.
+    if senderKey == selfKey then
+      return nil
+    end
+
     local levelRaw, mapIDRaw, ratingRaw = nil, nil, nil
     if type(message) == "string" then
       levelRaw, mapIDRaw, ratingRaw = string.match(message, "^(%d+),(%d+),(%d+)$")

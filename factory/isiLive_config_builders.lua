@@ -194,24 +194,21 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
         mainUI.ResetPosition()
       end
 
-      local colors = uiCommon and uiCommon.Colors
-      if type(colors) == "table" and type(colors.BG_PRIMARY) == "table" then
-        colors.BG_PRIMARY[4] = defaultBgAlpha
-      end
-
-      if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
-        local mainSurface = colors and colors.SURFACE_MAIN_FRAME or { 0.035, 0.045, 0.065 }
-        mainFrame:SetBackdropColor(mainSurface[1], mainSurface[2], mainSurface[3], defaultBgAlpha)
-      end
-
-      local bg = colors and colors.BG_PRIMARY or { 0.08, 0.08, 0.12, defaultBgAlpha }
+      -- Same path as ResetMainFrameDefaults: ApplyBgAlpha keeps the Modern
+      -- rounded fill's backdrop transparent and repaints the registered
+      -- background-alpha surfaces, which a direct SetBackdropColor skipped.
       local panelUI = ResolvePanelUI()
-      if panelUI and panelUI.panelFrame and type(panelUI.panelFrame.SetBackdropColor) == "function" then
-        panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-      end
       local settingsPanel = ResolveSettingsPanel()
-      if settingsPanel and settingsPanel.canvas and type(settingsPanel.canvas.SetBackdropColor) == "function" then
-        settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+      if type(uiCommon) == "table" and type(uiCommon.ApplyBgAlpha) == "function" then
+        uiCommon.ApplyBgAlpha({
+          mainFrame = mainFrame,
+          panelFrame = panelUI and panelUI.panelFrame,
+          settingsCanvas = settingsPanel and settingsPanel.canvas,
+        }, defaultBgAlpha)
+      elseif mainFrame and type(mainFrame.SetBackdropColor) == "function" then
+        -- Without UICommon there is no design and no surface registry; paint
+        -- the classic main-frame backdrop directly.
+        mainFrame:SetBackdropColor(0.035, 0.045, 0.065, defaultBgAlpha)
       end
       if settingsPanel and type(settingsPanel.Refresh) == "function" then
         settingsPanel.Refresh()

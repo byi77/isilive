@@ -620,6 +620,10 @@ Ratings, Prozentformeln) von Frame, Layout und Event-Lifecycle.
 `game/isiLive_loadout_check.lua` steht seit dem Audit 2026-10-30 ueber der
 Warnschwelle auf der Watchlist; ein Split trennt spaeter die Live-API-Leser und
 das reine Modell vom Controller-Lebenszyklus.
+`factory/isiLive_factory_demo.lua` steht seit dem Audit 2026-11-04 (Runde 7,
+Befunde F-1/F-4: Aufraeumen des Simulations-Tablets, Queue-Ziel-Sicherung,
+Demo-Generation) ueber der Warnschwelle auf der Watchlist; ein Split trennt
+spaeter die Tablet-Aktionen und ihr Aufraeumen von Demo-Einstieg und -Ausstieg.
 Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits

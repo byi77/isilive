@@ -238,8 +238,11 @@ local function CreateFactoryContext(addonName, tbl)
   end
 
   ctx.GetRealmInfoLib = modules.contextHelpers.CreateRealmInfoGetter()
+  -- The language name follows the isiLive UI language, not the client
+  -- language (see ctx.GetActiveLocaleTag below; it is resolved per call).
   ctx.GetLanguageTooltipMarkup = function(languageTag)
-    return modules.locale.GetLanguageTooltipMarkup(languageTag, ctx.locale)
+    local localeTag = type(ctx.GetActiveLocaleTag) == "function" and ctx.GetActiveLocaleTag() or ctx.locale
+    return modules.locale.GetLanguageTooltipMarkup(languageTag, localeTag)
   end
   ctx.GetUnitRole = modules.units.GetUnitRole
   ctx.GetUnitClass = modules.units.GetUnitClass

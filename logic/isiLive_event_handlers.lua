@@ -97,6 +97,9 @@ local function BuildContext(opts)
   ctx.showKeyEndOutcome = OptionalFunction(opts.showKeyEndOutcome, function() end)
   ctx.clearKeyEndOutcome = OptionalFunction(opts.clearKeyEndOutcome, function() end)
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
+  -- Leader-button changes queued during combat lockdown; drained on
+  -- PLAYER_REGEN_ENABLED.
+  ctx.applyPendingLeaderButtonUpdates = OptionalFunction(opts.applyPendingLeaderButtonUpdates, function() end)
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
   ctx.sendOwnBackgroundSnapshot = RequireFunction(opts.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot")
@@ -128,6 +131,10 @@ local function BuildContext(opts)
   ctx.restoreLayoutState = RequireFunction(opts.restoreLayoutState, "restoreLayoutState")
   ctx.updateCountdownCancelButton = RequireFunction(opts.updateCountdownCancelButton, "updateCountdownCancelButton")
   ctx.restoreBgAlpha = OptionalFunction(opts.restoreBgAlpha, function(_alpha) end)
+  -- Applies the saved main-frame position lock on ADDON_LOADED.
+  ctx.setMainFrameDragLocked = OptionalFunction(opts.setMainFrameDragLocked, function(_locked) end)
+  -- Prints the "loaded" chat hint once the saved locale is active.
+  ctx.printLoadedHint = OptionalFunction(opts.printLoadedHint, function() end)
   ctx.getUnitNameAndRealm = RequireFunction(opts.getUnitNameAndRealm, "getUnitNameAndRealm")
   ctx.getUnitRole = OptionalFunction(opts.getUnitRole, function(_unit)
     return nil
@@ -192,6 +199,7 @@ local function BuildContext(opts)
   ctx.processAddonMessage = RequireFunction(opts.processAddonMessage, "processAddonMessage")
   ctx.sendAck = RequireFunction(opts.sendAck, "sendAck")
   ctx.showCombatAnnounce = RequireFunction(opts.showCombatAnnounce, "showCombatAnnounce")
+  ctx.showPowerInfusionAnnounce = OptionalFunction(opts.showPowerInfusionAnnounce, function(_info) end)
   ctx.playIncomingSummonSound = OptionalFunction(opts.playIncomingSummonSound, function() end)
   ctx.playPetStuckSound = OptionalFunction(opts.playPetStuckSound, function() end)
   ctx.isIncomingSummonSoundLoopEnabled = OptionalFunction(opts.isIncomingSummonSoundLoopEnabled, function()

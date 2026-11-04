@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-04 - Unreleased audit round 7
+
+- Power Infusion announces from peers no longer raise a Lua error on receipt (`showPowerInfusionAnnounce` was never wired into the event-handler context); a priest's self-PI is now broadcast to peers.
+- M+ timer comes back after walking out of a running key and back in (the instance-exit reset no longer blocks the restore); a real reset or completion still clears the run.
+- Wiring: leader buttons queued in combat are applied when combat ends, the saved frame lock is restored on login, REQSYNC replies carry the forced TARGET snapshot, the group-join REQSYNC waits its 0.5 s again.
+- Minimap button position survives reload (angle re-read on `PLAYER_LOGIN`, stored in 0–360, old negative values wrap instead of clamping to 0).
+- `/isilive resetui` goes through `UICommon.ApplyBgAlpha` (no square backdrop behind the Modern rounded fill).
+- Simulation tablet: F3 and closing the tablet outside test mode clear all demo state (timer, kill track, cooldowns, queue target, nameplate test mode, settings overrides); a real key start drops leftover demo timer data; the delayed demo cooldown write respects a demo exit.
+- LibKeystone self-echo no longer wipes the own key row; the loaded hint and tooltip language names follow the chosen UI language.
+- Roster: DPS/Kick/tank headers stay hidden in the compact V/H layouts on re-render; clearing an empty row slot no longer hides the tooltip of the hovered row.
+- Reset popup restores Blizzard's shared StaticPopup after use (HookScript instead of SetScript); `/isilive npstate` never compares secret values; the trace chat tab is re-resolved by name; Durability row default is off.
+- Regressions in `testmodul/isilive_test_scenarios_audit_r7_{wiring,sync_factory,ui}.lua`. No version bump or release.
+
 ## 2026-11-03 - Version 0.9.500 (patch)
 
 - LuaLS annotations for the central public APIs: the design API in `ui/isiLive_ui_common.lua` (`ApplyDesign`, `PaintToken`, `RegisterDesignSurface`, `RegisterDesignText`, `GetDesignComponent`, `RepaintDesign`, `ApplyBackdrop`, `RegisterBackgroundAlphaSurface`, `ApplyActionButtonVisual`) with the aliases `IsiLiveDesign` / `IsiLiveColor` and the classes `IsiLiveDesignComponent` / `IsiLiveButtonShape`, the M+ timer snapshot (`MplusTimerData`) and `DBSchema.Sanitize` / `GetSchemaVersion`. Comments only, no runtime change.

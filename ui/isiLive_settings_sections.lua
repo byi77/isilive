@@ -151,7 +151,7 @@ local STATS_BOX_OPTIONAL_ROWS = {
     field = "statsBoxShowDurability",
     labelKey = "durability",
     settingKey = "SETTINGS_STATS_BOX_SHOW_DURABILITY",
-    default = true,
+    default = false,
   },
   {
     control = "statsBoxShowStamina",

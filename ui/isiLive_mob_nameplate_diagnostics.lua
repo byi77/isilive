@@ -27,7 +27,13 @@ local function ReadFontStringInto(target, fontString)
   if type(fontString.GetText) == "function" then
     local okText, txt = pcall(fontString.GetText, fontString)
     if okText then
-      target.fontStringText = txt
+      -- Check the secret gate first: the printer must never see (or compare) a
+      -- secret string.
+      if IsSecretValue(txt) then
+        target.fontStringText = "<secret>"
+      else
+        target.fontStringText = txt
+      end
     end
   end
 end
@@ -175,11 +181,15 @@ function MobNameplateDiagnostics.Create(deps)
     -- returns in M+ tainted context. Redact the value if it comes back as a
     -- Secret Value so the resulting line does not get filtered out by chat
     -- copy/paste tools.
+    local apiPercentValue = nil
     if HasProgressAPI() then
       local api = rawget(_G, "C_ScenarioInfo")
       local _, _, apiPercent = SafeCall(api.GetUnitCriteriaProgressValues, unit)
       out.apiPercentSecret = IsSecretValue(apiPercent)
-      out.apiPercentRaw = apiPercent
+      -- Secret values stay in this local only; `out` carries placeholders.
+      if not out.apiPercentSecret then
+        apiPercentValue = apiPercent
+      end
       out.apiPercent = out.apiPercentSecret and "<secret>" or apiPercent
     end
 
@@ -191,9 +201,12 @@ function MobNameplateDiagnostics.Create(deps)
     -- cannot work" when the actual reason was simply that it was switched off.
     local percentString = dbPercent
     local resolvedIsSecret = false
-    if percentString == nil and out.apiPercentRaw ~= nil then
-      percentString = out.apiPercentRaw
-      resolvedIsSecret = out.apiPercentSecret == true
+    if percentString == nil then
+      if out.apiPercentSecret == true then
+        resolvedIsSecret = true
+      elseif apiPercentValue ~= nil then
+        percentString = apiPercentValue
+      end
     end
     out.resolvedFromMaskedApi = resolvedIsSecret
     out.resolvedPercent = resolvedIsSecret and "<secret, would render>" or percentString
