@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-05 - Version 0.9.503 (patch)
+
+- Forces pace and time pace: refreshed start values (`data/isiLive_forces_seed.lua`) and time curves (`data/isiLive_time_seed.lua`) for all eight Midnight S2 dungeons, medians of timed +12 to +18 keys from public Warcraft Logs reports as of 2026-11-05. Learned routes and own references keep their priority.
+- Tests: the minimap angle helper of `R7 F-2` uses `math.atan2`, so the check also holds on Lua 5.1 (CI).
+
 ## 2026-11-04 - Version 0.9.502 (patch)
 
 - Talent and loot check card: the active loadout and loot spec are highlighted again (gold border and label via the new `SetSelected` on action buttons). The card used the primary role, which the Modern design draws like secondary, so the active choice looked like every other button. Regression `LoadoutCheckCard highlights the active loadout and loot spec in every design`.

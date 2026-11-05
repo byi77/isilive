@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.502`.
+Current version: `0.9.503`.
+
+Version 0.9.503: the forces and time forecast in a key start from fresh values
+for all eight season dungeons, until your own learned routes and runs take
+over.
 
 Version 0.9.502: the talent and loot check card highlights your active
 loadout and loot spec again (gold frame and label, in both designs), and the
@@ -181,7 +185,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.502 -->
+<!-- highlights-reviewed-for: 0.9.503 -->
 
 Highlights:
 - **New Modern design, now the default.** Calm graphite surfaces, rounded
