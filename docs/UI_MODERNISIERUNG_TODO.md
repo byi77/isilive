@@ -137,6 +137,6 @@ Plan nach Stufen (zusammengefuehrt 2026-11-02 aus beiden Planungs-Chats). Abgeha
 - [ ] ruRU-Text "Модерн" von jemandem mit Russischkenntnissen pruefen lassen.
 - [x] Abschluss: Redesign am 2026-11-03 per Fast-Forward nach `main` gefuehrt (`a538be0`), Modern als Standard, einmalige Migration aller Nutzer auf Modern (Schema-Schritt 5); Feature-Branch geloescht.
 - [x] Release-Commit `release(v0.9.479)` mit README, `CHANGELOG_RELEASE.md` (Highlights, Pruefvermerk 0.9.479) und Baseline-Sync (2026-11-03).
-- [ ] Tag `isiLive_release_0.9.479` und CurseForge-Release nur auf ausdrueckliche Freigabe (vorher WCL-Seed-Dateien gegen den letzten Tag diffen).
+- [ ] Tag `isiLive_release_0.9.479` und CurseForge-Release nur auf ausdrueckliche Freigabe.
 
 Verworfen (User-Entscheidung 2026-11-02): Roster entschlacken (Version nur im Tooltip, DPS/Kick erst ab Key-Start, Flagge nur bei Fremdsprache).
