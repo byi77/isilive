@@ -103,7 +103,9 @@ end
 local function ButtonAngle(button)
   local point = button._points[#button._points]
   local x, y = point[4], point[5]
-  return math.deg(math.atan(y, x)) % 360, x, y
+  -- Lua 5.1 (CI, game client) ignores a second argument to math.atan.
+  local atan2 = rawget(math, "atan2") or math.atan
+  return math.deg(atan2(y, x)) % 360, x, y
 end
 
 local function SelfRow(session)
