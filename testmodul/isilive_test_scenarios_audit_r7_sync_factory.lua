@@ -47,7 +47,10 @@ end
 local function WithAtan2(fn)
   local previous = rawget(math, "atan2")
   rawset(math, "atan2", previous or function(y, x)
-    return math.atan(y, x)
+    -- Only reached on Lua 5.3+, where math.atan takes (y, x).
+    ---@diagnostic disable-next-line: redundant-parameter
+    -- rawget: LuaLS checks against the 5.1 signature, where atan takes one argument.
+    return rawget(math, "atan")(y, x)
   end)
   local ok, err = pcall(fn)
   rawset(math, "atan2", previous)

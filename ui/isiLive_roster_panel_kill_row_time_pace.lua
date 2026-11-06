@@ -8,7 +8,13 @@ local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 local UICommon = addonTable.UICommon or {}
 
-local ApplyFontStringSize = RI.ApplyFontStringSize or function(_fontString, _size) end
+---@type fun(fontString: table?, size: number)
+local function ApplyFontStringSize(fontString, size)
+  local apply = RI.ApplyFontStringSize
+  if type(apply) == "function" then
+    apply(fontString, size)
+  end
+end
 local FormatMplusTime = RI.FormatMplusTime
   or function(seconds)
     local abs = math.abs(seconds)
