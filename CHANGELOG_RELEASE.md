@@ -3,7 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.503`.
+Current version: `0.9.504`.
+
+Version 0.9.504: the killtracker shows at a glance whether the key makes it:
+a badge reads ON TIME (green), CLOSE (yellow) or TOO SLOW (red) with the
+margin to the time limit. During a fight it turns grey with a pause sign, so
+you see the value is frozen until the pull's kills are counted. A running key
+no longer shows the dungeon name on the bar.
 
 Version 0.9.503: the forces and time forecast in a key start from fresh values
 for all eight season dungeons, until your own learned routes and runs take
@@ -185,9 +191,13 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.503 -->
+<!-- highlights-reviewed-for: 0.9.504 -->
 
 Highlights:
+- **Clear on-time badge.** The killtracker bar says in one word whether the
+  key makes it: ON TIME, CLOSE or TOO SLOW, with the margin to the time
+  limit. During a fight it turns grey with a pause sign while the value waits
+  for the pull's kills.
 - **New Modern design, now the default.** Calm graphite surfaces, rounded
   windows, cards and buttons with a soft shadow, round Battle Res and Bloodlust
   icons, readable portal tiles, a timer that leads with the elapsed time and a
@@ -210,6 +220,3 @@ Highlights:
   call. The accepted-invite card lists Talents and Loot under Loadout, the
   loadout name in gold, and a switch counts only once it has really gone
   through.
-- **Key end banner.** A banner over the killtracker row shows how a key ended:
-  timed, over time, abandoned or group left. The bar now shows the real forces
-  during a pull, and the time pace turns red only past the time limit.

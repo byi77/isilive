@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-06 - Version 0.9.504 (patch)
+
+- Killtracker time pace: the `+/-m:ss` delta is replaced by a coloured badge on the right end of the bar, `ON TIME m:ss` (green), `CLOSE m:ss` (yellow, forecast within 30 s of the limit either side) or `TOO SLOW m:ss` (red), margin without a sign (deDE `IN TIME` / `KNAPP` / `ZU LANGSAM`, translated in all five languages). New colour tokens `MPLUS_TIME_PACE_*_BG`.
+- In a fight the badge turns grey with a pause sign and keeps the word in its state colour; the `Pause` word (`TIME_PACE_PAUSED_FMT`) is removed. Settings description updated.
+- A running key no longer shows the dungeon name and level on the killtracker bar; before the key and after it ends the name stays.
+- Code: the badge lives in `ui/isiLive_roster_panel_kill_row_time_pace.lua`. New wowsim scenario `time_pace_badge`; rules 208 and the killtracker target rule, UC-30 and README updated.
+
 ## 2026-11-05 - Version 0.9.503 (patch)
 
 - Forces pace and time pace: refreshed start values (`data/isiLive_forces_seed.lua`) and time curves (`data/isiLive_time_seed.lua`) for all eight Midnight S2 dungeons, medians of timed +12 to +18 keys from public Warcraft Logs reports as of 2026-11-05. Learned routes and own references keep their priority.
