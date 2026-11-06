@@ -43,14 +43,6 @@ local PREKEY_SHIMMER_WIDTH = 72
 local PREKEY_SHIMMER_SECONDS = 2.4
 local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 8
 local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 8
-local FormatMplusTime = RI.FormatMplusTime
-  or function(seconds)
-    local abs = math.abs(seconds)
-    return string.format("%d:%02d", math.floor(abs / 60), math.floor(abs % 60))
-  end
--- Time pace delta: right end of the forces bar, outlined like the dungeon name.
-local TIME_PACE_FONT_SIZE = 11
-local TIME_PACE_RIGHT_INSET = 2
 -- Line under the bar in the frame's bottom padding: the target's time to kill
 -- (game/isiLive_ttk.lua).
 local TTK_FONT_SIZE = 10
@@ -190,52 +182,6 @@ local function LocalizedText(key, fallback)
   return fallback
 end
 
--- Signed whole-second delta: whole seconds decide the sign, so a run exactly
--- on target reads "0:00" and counts as on time.
-local function FormatTimeDelta(delta)
-  local seconds = math.floor(math.abs(delta) + 0.5)
-  local sign = seconds == 0 and "" or (delta < 0 and "-" or "+")
-  return sign .. FormatMplusTime(seconds), (sign == "+") and "late" or "ontime"
-end
-
--- Time pace of the run (see game/isiLive_time_pace.lua) as a signed delta
--- plus "ontime" or "late", or nil when
--- nothing is shown: the forecast end time against the time limit, from the
--- reference run or the projection. Without the TimePace module
--- the setting cannot be read: fail closed.
-local function BuildTimePaceText(data)
-  local status = type(data) == "table" and data.timePace or nil
-  if type(status) ~= "table" then
-    return nil
-  end
-  local pace = addonTable.TimePace
-  if type(pace) ~= "table" or type(pace.IsEnabled) ~= "function" or pace.IsEnabled() ~= true then
-    return nil
-  end
-  local text, paceState
-  if status.mode == "reference" then
-    local delta = status.delta
-    if type(delta) ~= "number" or delta ~= delta then
-      return nil
-    end
-    text, paceState = FormatTimeDelta(delta)
-  elseif status.mode == "projection" then
-    local projected, limit = status.projected, status.timeLimit
-    if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
-      return nil
-    end
-    text, paceState = FormatTimeDelta(projected - limit)
-  else
-    return nil
-  end
-  if status.paused == true then
-    -- Infight pause: the word in front says the frozen value is on purpose;
-    -- the colour keeps the pull's on-time/late state.
-    return string.format(LocalizedText("TIME_PACE_PAUSED_FMT", "Pause %s"), text), paceState
-  end
-  return text, paceState
-end
-
 -- Forces still missing for the next section, empty once it is reached.
 local function UpdateSectionText(row, pct, paceTarget)
   local fontString = row.killTrackSectionText
@@ -252,17 +198,8 @@ local function UpdateSectionText(row, pct, paceTarget)
 end
 
 local function UpdateTimePaceText(row, data)
-  local fontString = row.killTrackTimePaceText
-  if not fontString then
-    return
-  end
-  local text, paceState = BuildTimePaceText(data)
-  SetReadableText(fontString, text or "")
-  if text and type(fontString.SetTextColor) == "function" then
-    local colors = UICommon.Colors or {}
-    local color = paceState == "late" and (colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 })
-      or (colors.GREEN_HINT_TEXT or { 0.45, 0.85, 0.45 })
-    fontString:SetTextColor(color[1], color[2], color[3])
+  if type(RI.UpdateKillTrackTimePace) == "function" then
+    RI.UpdateKillTrackTimePace(row, data)
   end
 end
 
@@ -728,15 +665,10 @@ local function CreateKillTrackRow(mainFrame)
   pctText:SetText(BuildPercentPlaceholder())
   ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE + 2)
 
-  -- Lives on the bar overlay so it draws above fill, gap and strip.
-  local timePaceText = barOverlay:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
-  timePaceText:SetPoint("RIGHT", barOverlay, "RIGHT", -TIME_PACE_RIGHT_INSET, 0)
-  timePaceText:SetJustifyH("RIGHT")
-  if type(timePaceText.SetDrawLayer) == "function" then
-    timePaceText:SetDrawLayer("OVERLAY", 7)
+  -- Time pace badge (isiLive_roster_panel_kill_row_time_pace.lua).
+  if type(RI.CreateKillTrackTimePaceBadge) == "function" then
+    RI.CreateKillTrackTimePaceBadge(row, barOverlay)
   end
-  SetReadableText(timePaceText, "")
-  ApplyFontStringSize(timePaceText, TIME_PACE_FONT_SIZE)
 
   -- Time overlay: the gap tint sits above the forces fill, the time strip
   -- above both; the pace tick (OVERLAY) stays on top.
@@ -806,7 +738,6 @@ local function CreateKillTrackRow(mainFrame)
   row.killTrackTargetPulseGroup = targetPulseGroup
   row.killTrackPctText = pctText
   row.killTrackPullText = pullText
-  row.killTrackTimePaceText = timePaceText
   row.killTrackTtkText = ttkText
   return row
 end
@@ -1034,13 +965,9 @@ local function UpdateKillTrackRow(row, deps)
     if barBg and type(barBg.Show) == "function" then
       barBg:Show()
     end
-    -- The running key keeps its dungeon on the bar, steady instead of pulsing.
-    local activeInfo = type(deps) == "table"
-        and type(deps.getTargetDungeonInfo) == "function"
-        and deps.getTargetDungeonInfo()
-      or nil
-    local activeName = ResolveTargetDungeonNameFromInfo(activeInfo)
-    SetBarTarget(row, activeName, activeName and ResolveActiveKeyLevel() or nil)
+    -- The running key shows no dungeon name on the bar: the whole bar belongs
+    -- to forces and the time pace badge (user decision 2026-11-06).
+    SetBarTarget(row, nil, nil)
     SetTargetPulse(row, false)
     SetPreKeyReady(row, false)
     PlaceBarTarget(row, false)
@@ -1167,7 +1094,7 @@ end
 RI.CreateKillTrackRow = CreateKillTrackRow
 RI.UpdateKillTrackRow = UpdateKillTrackRow
 RI.UpdateKillTrackTimeOverlay = UpdateKillTrackTimeOverlay
--- Shared with isiLive_roster_panel_kill_row_run_end.lua.
+-- Shared with isiLive_roster_panel_kill_row_run_end.lua and _time_pace.lua.
 RI.KillRowIsReducedMotion = IsReducedMotionEnabled
 RI.KillRowLocalizedText = LocalizedText
 RI.KillRowPaintGradient = PaintGradient

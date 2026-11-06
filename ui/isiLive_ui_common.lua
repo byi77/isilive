@@ -118,6 +118,13 @@ UICommon.Colors = {
   -- green while forces lead, red while the clock leads.
   MPLUS_PACE_AHEAD_GAP = { 0.3, 0.85, 0.4, 0.4 },
   MPLUS_PACE_BEHIND_GAP = { 1, 0.25, 0.25, 0.45 },
+  -- Time pace badge on the forces bar: on time / tight / late behind white
+  -- text, grey while a fight freezes the value (the text then keeps the
+  -- state colour).
+  MPLUS_TIME_PACE_ONTIME_BG = { 0.1, 0.5, 0.2, 0.95 },
+  MPLUS_TIME_PACE_TIGHT_BG = { 0.72, 0.5, 0.04, 0.95 },
+  MPLUS_TIME_PACE_LATE_BG = { 0.72, 0.1, 0.1, 0.95 },
+  MPLUS_TIME_PACE_PAUSED_BG = { 0.2, 0.21, 0.24, 0.95 },
 
   -- Restrained danger states for the shared close control. Only hover and
   -- press expose red; the default state uses the quiet secondary surface.

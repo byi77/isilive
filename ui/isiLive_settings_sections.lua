@@ -32,9 +32,9 @@ local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green plus signs for relevant non
   .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
   .. "Atrophic Poison."
 
-local FALLBACK_TIME_PACE_DESC = "Shows on the killtracker bar whether the key is on time, as a +/- time delta:"
-  .. " against your slowest timed run on the same dungeon and key level, otherwise the forecast against the time limit."
-  .. ' During a fight the value pauses ("Pause", in its colour from before the pull)'
+local FALLBACK_TIME_PACE_DESC = "Shows a badge at the right end of the killtracker bar whether the key is on time:"
+  .. " ON TIME (green), CLOSE (yellow, within 30 seconds of the limit) or TOO SLOW (red), with the margin."
+  .. " During a fight the badge turns grey with a pause sign: the value is frozen at the pull"
   .. " and updates once the pull's kills are counted."
 local FALLBACK_TTK_DESC = "Shows in a Mythic+ key fight roughly how many seconds your target has left, above"
   .. " its nameplate and in the killtracker line: fight time x health left / health lost, taken at the last"

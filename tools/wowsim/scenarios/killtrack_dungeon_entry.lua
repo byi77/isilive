@@ -154,7 +154,7 @@ return {
     sim.StartKey({ mapID = KINGS_REST_MAP_ID, level = 15, owner = "Isiplayer" })
     sim.Wait(12)
     sim.Step("Key running")
-    ExpectRow(sim, "Königsruh|%+15", "the running key shows its dungeon and level")
+    ExpectNoTarget(sim, "the running key leaves the bar to forces and the time pace badge")
 
     sim.CompleteKey()
     -- Wait past the upgraded keystone (+16/+17): the bar keeps the level

@@ -214,6 +214,10 @@ local function NewRow()
     killTrackPctText = NewTextStub(),
     killTrackPullText = NewTextStub(),
     killTrackTimePaceText = NewTextStub(),
+    killTrackTimePaceBadge = NewTextureStub(),
+    killTrackTimePaceBadgeBg = NewTextureStub(),
+    killTrackTimePausePrimary = NewTextureStub(),
+    killTrackTimePauseSecondary = NewTextureStub(),
     killTrackTimeStrip = NewTextureStub(),
     killTrackTimeGap = NewTextureStub(),
   }
@@ -694,34 +698,51 @@ end
 local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   local ROW_FILES = { "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" }
 
-  test("UpdateKillTrackRow shows the reference delta on the bar in green or red", function()
+  test("UpdateKillTrackRow shows the reference forecast as an on time / close / too slow badge", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = Load(LoadAddonModules, ROW_FILES)
+      local colors = addon.UICommon.Colors
       PlayRun(addon, env, 1600)
       StartRun(addon, env)
       Advance(addon, env, 728, 150, 1)
       local row = NewRow()
       addon._RosterInternal.UpdateKillTrackRow(row)
-      local line = row.killTrackTimePaceText
-      Assert.Equal(line._text, "-4:32", "a forecast inside the limit shows a minus delta")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "inside the limit is green")
+      local line, badge, bg = row.killTrackTimePaceText, row.killTrackTimePaceBadge, row.killTrackTimePaceBadgeBg
+      Assert.Equal(line._text, "ON TIME 4:32", "a forecast well inside the limit says on time, margin unsigned")
+      Assert.True(badge._shown, "the badge shows during a key")
+      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_ONTIME_BG[1], "on time is the green badge")
+      Assert.Equal(line._color[1], colors.WHITE_RGB[1], "the live badge has white text")
+      Assert.False(row.killTrackTimePausePrimary._shown, "no pause sign outside a fight")
 
       Advance(addon, env, 853, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "-2:27", "behind the reference the row shows the room to the limit")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "behind it but inside the limit is green")
+      Assert.Equal(line._text, "ON TIME 2:27", "behind the reference but inside the limit is still on time")
+
+      Advance(addon, env, 1003, 150, 1)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.Equal(line._text, "CLOSE 0:03", "a forecast within 30 s of the limit is close")
+      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_TIGHT_BG[1], "close is the yellow badge")
 
       Advance(addon, env, 1075, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "+1:15", "a forecast past the limit shows a plus delta")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "past the limit is red")
+      Assert.Equal(line._text, "TOO SLOW 1:15", "a forecast past the limit says too slow")
+      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_LATE_BG[1], "too slow is the red badge")
 
       Dispatch(addon, "PLAYER_REGEN_DISABLED")
       Advance(addon, env, 1150, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "Pause +1:15", "a fight keeps the pull's delta behind the pause word")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "the paused delta keeps the pull's red")
+      Assert.Equal(line._text, "TOO SLOW 1:15", "a fight keeps the pull's answer")
+      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_PAUSED_BG[1], "a frozen answer turns the badge grey")
+      Assert.Equal(line._color[1], colors.TEXT_ALERT_DANGER[1], "the frozen word keeps the pull's red")
+      Assert.True(row.killTrackTimePausePrimary._shown, "the pause sign shows while frozen")
+      Assert.True(row.killTrackTimePauseSecondary._shown, "both pause bars show while frozen")
+
+      Dispatch(addon, "PLAYER_REGEN_ENABLED")
+      RunTimers(env)
+      addon._RosterInternal.UpdateKillTrackRow(row)
+      Assert.False(row.killTrackTimePausePrimary._shown, "the pause sign goes once the pull is counted")
+      Assert.Equal(line._color[1], colors.WHITE_RGB[1], "the live badge is back to white text")
     end)
   end)
 
@@ -734,21 +755,24 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       local row = NewRow()
       addon._RosterInternal.UpdateKillTrackRow(row)
       local line = row.killTrackTimePaceText
-      Assert.Equal(line._text, "+1:35", "the forecast shows its delta to the time limit")
-      Assert.Equal(line._color[1], addon.UICommon.Colors.TEXT_ALERT_DANGER[1], "over the limit is red")
+      local bg = row.killTrackTimePaceBadgeBg
+      Assert.Equal(line._text, "TOO SLOW 1:35", "the forecast shows its margin to the time limit")
+      Assert.Equal(bg._color[1], addon.UICommon.Colors.MPLUS_TIME_PACE_LATE_BG[1], "over the limit is red")
 
       Advance(addon, env, 600, 150, 2)
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._color[1], addon.UICommon.Colors.GREEN_HINT_TEXT[1], "within the limit is green")
+      Assert.Equal(bg._color[1], addon.UICommon.Colors.MPLUS_TIME_PACE_ONTIME_BG[1], "within the limit is green")
 
       env.db.timePaceEnabled = false
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "", "the setting turns the line off")
+      Assert.False(row.killTrackTimePaceBadge._shown, "the setting hides the badge")
       env.db.timePaceEnabled = nil
 
       Dispatch(addon, "CHALLENGE_MODE_RESET")
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "", "no line outside a run")
+      Assert.False(row.killTrackTimePaceBadge._shown, "no badge outside a run")
     end)
   end)
 end
