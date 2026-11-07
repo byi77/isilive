@@ -28,7 +28,10 @@ local DBSchema = {}
 addonTable.DBSchema = DBSchema
 
 -- Bump every time MIGRATIONS gains a new step.
-local LATEST_SCHEMA_VERSION = 5
+local LATEST_SCHEMA_VERSION = 6
+-- Distance of the nameplate forces text from the bar at offset 0. Must match
+-- ANCHOR_GAP in ui/isiLive_mob_nameplate.lua (used by migration 6).
+local NAMEPLATE_ANCHOR_GAP = 8
 local FRAME_ANCHOR_POINTS = {
   "TOPLEFT",
   "TOP",
@@ -108,6 +111,53 @@ local MIGRATIONS = {
     end
     db.uiDesign = "modern"
     log("migrated uiDesign -> modern (one-time switch to the new default design)")
+    return true
+  end,
+  -- The nameplate forces text used to clamp its offset to at least the 8 px
+  -- gap on the side it sits (RIGHT: x >= 8, LEFT: x <= -8, TOP: y >= 8,
+  -- BOTTOM: y <= -8), so offsets towards the bar had no effect. Since
+  -- 2026-11-07 the gap is the distance at offset 0 and the offset is added on
+  -- top. This step rewrites stored offsets so every save keeps exactly the
+  -- position it showed before.
+  [6] = function(db, log)
+    local position = rawget(db, "mobNameplatePosition")
+    if position == nil then
+      position = "RIGHT"
+    end
+    local field, sign
+    if position == "RIGHT" then
+      field, sign = "mobNameplateXOffset", 1
+    elseif position == "LEFT" then
+      field, sign = "mobNameplateXOffset", -1
+    elseif position == "TOP" then
+      field, sign = "mobNameplateYOffset", 1
+    elseif position == "BOTTOM" then
+      field, sign = "mobNameplateYOffset", -1
+    else
+      return false
+    end
+    local stored = rawget(db, field)
+    if type(stored) ~= "number" then
+      return false
+    end
+    local converted
+    if sign > 0 then
+      converted = math.max(stored, NAMEPLATE_ANCHOR_GAP) - NAMEPLATE_ANCHOR_GAP
+    else
+      converted = math.min(stored, -NAMEPLATE_ANCHOR_GAP) + NAMEPLATE_ANCHOR_GAP
+    end
+    if converted == stored then
+      return false
+    end
+    db[field] = converted
+    log(
+      string.format(
+        "migrated %s %s -> %s (nameplate gap now added to the offset)",
+        field,
+        tostring(stored),
+        tostring(converted)
+      )
+    )
     return true
   end,
 }

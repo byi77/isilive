@@ -30,6 +30,8 @@ local appearance = {
   yOffset = 0,
 }
 
+-- Keep in sync with NAMEPLATE_ANCHOR_GAP in core/isiLive_db_schema.lua
+-- (migration 6 converts old offsets with the same value).
 local ANCHOR_GAP = 8
 
 -- Debug overlay: when active, UpdateNameplate skips the challenge-mode and
@@ -617,6 +619,33 @@ local function FindHealthBar(container, prefix)
   return nil
 end
 
+-- Nameplate addons that draw their own plate keep Blizzard's `UnitFrame` on
+-- the nameplate but take it out of the layout. Plater (OnRetailNamePlateShow)
+-- calls ClearAllPoints + SetParent(nil) on it and ClearAllPoints on its
+-- HealthBarsContainer, or just hides it. Its healthbar then has a stale or
+-- undefined position, and an overlay anchored there sits offset from the
+-- visible plate and jumps whenever Blizzard re-lays the frame out. Only a
+-- positive "detached" or "hidden" answer skips the frame; frames without
+-- these methods, failed calls or masked values keep the old behaviour.
+local function IsDetachedBlizzardUnitFrame(container, nameplate)
+  if type(container) ~= "table" then
+    return false
+  end
+  if type(container.GetParent) == "function" then
+    local ok, parent = pcall(container.GetParent, container)
+    if ok and not IsSecretValue(parent) and parent ~= nameplate then
+      return true
+    end
+  end
+  if type(container.IsShown) == "function" then
+    local ok, shown = pcall(container.IsShown, container)
+    if ok and not IsSecretValue(shown) and shown == false then
+      return true
+    end
+  end
+  return false
+end
+
 local function ResolveAnchorTarget(nameplate)
   if type(nameplate) ~= "table" then
     return nil, "missing"
@@ -629,9 +658,12 @@ local function ResolveAnchorTarget(nameplate)
 
   for index = 1, #ANCHOR_CONTAINER_KEYS do
     local key = ANCHOR_CONTAINER_KEYS[index]
-    local candidate, source = FindHealthBar(nameplate[key], key)
-    if candidate then
-      return candidate, source
+    local container = nameplate[key]
+    if not (key == "UnitFrame" and IsDetachedBlizzardUnitFrame(container, nameplate)) then
+      local candidate, source = FindHealthBar(container, key)
+      if candidate then
+        return candidate, source
+      end
     end
   end
   local candidate, source = FindHealthBar(nameplate, "nameplate")
@@ -688,17 +720,20 @@ local function ApplyPosition(frame, nameplate, force)
   local pos = appearance.position or "RIGHT"
   local xo = appearance.xOffset or 0
   local yo = appearance.yOffset or 0
+  -- The gap is the distance at offset 0; the offset is added on top in both
+  -- directions, so a negative value moves the text towards (or onto) the bar.
+  -- Saves from before this rule were converted by DB schema migration 6.
   if pos == "RIGHT" then
-    xo = math.max(xo, ANCHOR_GAP)
+    xo = ANCHOR_GAP + xo
     frame:SetPoint("LEFT", anchorTarget, "RIGHT", xo, yo)
   elseif pos == "LEFT" then
-    xo = math.min(xo, -ANCHOR_GAP)
+    xo = xo - ANCHOR_GAP
     frame:SetPoint("RIGHT", anchorTarget, "LEFT", xo, yo)
   elseif pos == "TOP" then
-    yo = math.max(yo, ANCHOR_GAP)
+    yo = ANCHOR_GAP + yo
     frame:SetPoint("BOTTOM", anchorTarget, "TOP", xo, yo)
   elseif pos == "BOTTOM" then
-    yo = math.min(yo, -ANCHOR_GAP)
+    yo = yo - ANCHOR_GAP
     frame:SetPoint("TOP", anchorTarget, "BOTTOM", xo, yo)
   else
     frame:SetPoint("CENTER", anchorTarget, "CENTER", xo, yo)

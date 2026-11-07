@@ -842,6 +842,117 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  -- Live Plater layout: Blizzard's UnitFrame stays on the nameplate next to
+  -- Plater's own unitFrame, but Plater detaches it (ClearAllPoints +
+  -- SetParent(nil)) or hides it. Anchoring to its healthbar put the forces
+  -- text offset to the top left of the visible plate.
+  local function BuildPlaterPlate(blizzardState)
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    plate:SetFrameStrata("HIGH")
+    local blizzardUnitFrame = MakeFrame()
+    blizzardUnitFrame:Show()
+    if blizzardState == "attached" or blizzardState == "hidden" then
+      blizzardUnitFrame:SetParent(plate)
+    end
+    if blizzardState == "hidden" then
+      blizzardUnitFrame:Hide()
+    end
+    local blizzardHealthBar = MakeFrame()
+    blizzardUnitFrame.healthBar = blizzardHealthBar
+    plate.UnitFrame = blizzardUnitFrame
+    local platerHealthBar = MakeFrame()
+    platerHealthBar:SetFrameLevel(60)
+    plate.unitFrame = { healthBar = platerHealthBar }
+    return plate, blizzardUnitFrame, blizzardHealthBar, platerHealthBar
+  end
+
+  local function RunPlaterPlate(plate, fn)
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ position = "RIGHT", xOffset = 0, yOffset = 0 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      fn(addon)
+    end)
+  end
+
+  test("MobNameplate skips Blizzard's UnitFrame when Plater detached it", function()
+    local plate, _, blizzardHealthBar, platerHealthBar = BuildPlaterPlate("detached")
+    RunPlaterPlate(plate, function(addon)
+      local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "overlay must exist")
+      Assert.True(frame._points[2] ~= blizzardHealthBar, "the detached Blizzard healthbar must not be the anchor")
+      Assert.Equal(frame._points[2], platerHealthBar, "the visible Plater healthbar must be the anchor")
+      Assert.Equal(frame._isiLiveAnchorSource, "unitFrame.healthBar", "diagnostics must report the Plater anchor")
+    end)
+  end)
+
+  test("MobNameplate skips Blizzard's UnitFrame when Plater only hid it", function()
+    local plate, _, _, platerHealthBar = BuildPlaterPlate("hidden")
+    RunPlaterPlate(plate, function(addon)
+      local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "overlay must exist")
+      Assert.Equal(frame._points[2], platerHealthBar, "a hidden Blizzard UnitFrame must not win over Plater")
+    end)
+  end)
+
+  test("MobNameplate keeps Blizzard's UnitFrame while it is attached and shown", function()
+    local plate, _, blizzardHealthBar = BuildPlaterPlate("attached")
+    RunPlaterPlate(plate, function(addon)
+      local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "overlay must exist")
+      Assert.Equal(frame._points[2], blizzardHealthBar, "an attached, shown Blizzard healthbar stays the anchor")
+      Assert.Equal(frame._isiLiveAnchorSource, "UnitFrame.healthBar", "diagnostics must report the Blizzard anchor")
+    end)
+  end)
+
+  test("MobNameplate re-anchors to Plater once Blizzard's UnitFrame is detached after the first update", function()
+    -- Event order between isiLive and Plater is not fixed: the first update
+    -- can still see the attached Blizzard frame. The next sweep must move.
+    local plate, blizzardUnitFrame, blizzardHealthBar, platerHealthBar = BuildPlaterPlate("attached")
+    RunPlaterPlate(plate, function(addon)
+      local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "overlay must exist")
+      Assert.Equal(frame._points[2], blizzardHealthBar, "first update sees the still attached Blizzard frame")
+      blizzardUnitFrame:SetParent(nil)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      Assert.Equal(frame._points[2], platerHealthBar, "after Plater detaches the frame the overlay must follow")
+    end)
+  end)
+
+  test("MobNameplate adds the offset to the anchor gap in every direction", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    local healthBar = MakeFrame()
+    plate.UnitFrame = { healthBar = healthBar }
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      local cases = {
+        { position = "RIGHT", xOffset = -5, yOffset = 2, x = 3, y = 2 },
+        { position = "RIGHT", xOffset = 10, yOffset = 0, x = 18, y = 0 },
+        { position = "LEFT", xOffset = 5, yOffset = 0, x = -3, y = 0 },
+        { position = "TOP", xOffset = 4, yOffset = -3, x = 4, y = 5 },
+        { position = "BOTTOM", xOffset = 0, yOffset = 4, x = 0, y = -4 },
+      }
+      for _, case in ipairs(cases) do
+        addon.MobNameplate.SetAppearance({ position = case.position, xOffset = case.xOffset, yOffset = case.yOffset })
+        addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+        local frame = Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "overlay must exist")
+        local label = string.format("%s x=%d y=%d", case.position, case.xOffset, case.yOffset)
+        Assert.Equal(frame._points[4], case.x, label .. ": x must be gap plus offset")
+        Assert.Equal(frame._points[5], case.y, label .. ": y must be gap plus offset")
+      end
+    end)
+  end)
+
   test("MobNameplate ApplyPosition anchors to the Platynator display health widget when available", function()
     local plate = MakeFrame()
     plate:SetFrameLevel(10)

@@ -622,7 +622,7 @@ return function(test, ctx)
     local db = { __schemaVersion = 4, uiDesign = "classic" }
     DBSchema.Sanitize(db)
     Assert.Equal(db.uiDesign, "modern", "a stored Classic choice must be switched to Modern once")
-    Assert.Equal(db.__schemaVersion, 5, "the migration stamps schema version 5")
+    Assert.Equal(db.__schemaVersion, DBSchema.GetSchemaVersion(), "the migration stamps the current schema version")
 
     db.uiDesign = "classic"
     DBSchema.Sanitize(db)
@@ -631,6 +631,40 @@ return function(test, ctx)
     local unversioned = { uiDesign = "classic" }
     DBSchema.Sanitize(unversioned)
     Assert.Equal(unversioned.uiDesign, "modern", "an unversioned save must be switched to Modern as well")
+  end)
+
+  test("DBSchema migration keeps the visible nameplate offset when the gap becomes additive", function()
+    local DBSchema = LoadSchema()
+    local cases = {
+      -- old clamp max(x, 8) on the right: everything up to 8 looked like 8
+      { position = nil, x = 3, y = 5, wantX = 0, wantY = 5 },
+      { position = "RIGHT", x = 20, y = -4, wantX = 12, wantY = -4 },
+      { position = "RIGHT", x = -30, y = 0, wantX = 0, wantY = 0 },
+      { position = "LEFT", x = -15, y = 2, wantX = -7, wantY = 2 },
+      { position = "LEFT", x = 10, y = 0, wantX = 0, wantY = 0 },
+      { position = "TOP", x = 6, y = 12, wantX = 6, wantY = 4 },
+      { position = "BOTTOM", x = 0, y = -20, wantX = 0, wantY = -12 },
+    }
+    for _, case in ipairs(cases) do
+      local db = {
+        __schemaVersion = 5,
+        mobNameplatePosition = case.position,
+        mobNameplateXOffset = case.x,
+        mobNameplateYOffset = case.y,
+      }
+      DBSchema.Sanitize(db)
+      local label = string.format("%s x=%d y=%d", tostring(case.position), case.x, case.y)
+      Assert.Equal(db.mobNameplateXOffset, case.wantX, label .. ": x offset")
+      Assert.Equal(db.mobNameplateYOffset, case.wantY, label .. ": y offset")
+    end
+
+    local fresh = { __schemaVersion = 5 }
+    DBSchema.Sanitize(fresh)
+    Assert.Equal(fresh.mobNameplateXOffset, 0, "a save without offsets keeps the default")
+
+    local already = { __schemaVersion = DBSchema.GetSchemaVersion(), mobNameplateXOffset = -5 }
+    DBSchema.Sanitize(already)
+    Assert.Equal(already.mobNameplateXOffset, -5, "an offset set after the migration must not be converted again")
   end)
 
   test("DBSchema.GetSchemaVersion returns the current LATEST_SCHEMA_VERSION", function()
