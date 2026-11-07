@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-07 - Version 0.9.505 (patch)
+
+- Killtracker time pace badge is half transparent, so the forces fill underneath stays visible.
+- Nameplate forces text with Plater: the text sat offset to the top left of the plate and jumped back after moving it in the settings. Plater detaches (`ClearAllPoints` + `SetParent(nil)`) or hides Blizzard's `UnitFrame`, and isiLive anchored to that frame's healthbar instead of Plater's `unitFrame.healthBar`. A detached or hidden Blizzard `UnitFrame` is now skipped; an attached one is used as before. `/isilive npstate` shows `anchorSource=unitFrame.healthBar` with Plater.
+- Nameplate forces offsets now move the text towards the bar too: the 8 px gap is the distance at offset 0 and the X/Y offset is added on top (before, RIGHT/TOP clamped to at least +8 and LEFT/BOTTOM to at most -8, so the slider did nothing in that direction). DB schema migration 6 rewrites stored offsets so every existing setup keeps its exact position.
+- Tests: Plater plate with both `UnitFrame` and `unitFrame` (detached, hidden, attached, detached after the first update), additive gap in all four positions, migration 6.
+
 ## 2026-11-06 - Version 0.9.504 (patch)
 
 - Killtracker time pace: the `+/-m:ss` delta is replaced by a coloured badge on the right end of the bar, `ON TIME m:ss` (green), `CLOSE m:ss` (yellow, forecast within 30 s of the limit either side) or `TOO SLOW m:ss` (red), margin without a sign (deDE `IN TIME` / `KNAPP` / `ZU LANGSAM`, translated in all five languages). New colour tokens `MPLUS_TIME_PACE_*_BG`.

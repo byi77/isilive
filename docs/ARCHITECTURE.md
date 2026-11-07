@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.504`
-Zuletzt aktualisiert: `2026-11-06`
+Versionsbasis: `0.9.505`
+Zuletzt aktualisiert: `2026-11-07`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): KeySync akzeptiert keine Alias-Zuordnung allein wegen eines gemeinsamen Realms und weist mehrdeutige Owner-Hinweise zurueck. Group aktualisiert Party-Mitglieder auch im laufenden Key und erhaelt bestehende Mitgliedsdaten. Sync fuehrt pro Snapshot-Bucket Zeitstempel-Wasserstandsmarken auch nach Clears. Die Folgefindings aus Audit und Nachaudit sind im Code behoben, ungestempelte LibKS-Daten gelten in Empfangsreihenfolge, und die Raid-Rueckkehr im aktiven Key stellt die eigene Zeile wieder her. Ein Ingame-Nachweis steht aus.
 
@@ -442,7 +442,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.504                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.505                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

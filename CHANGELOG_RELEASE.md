@@ -3,7 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.504`.
+Current version: `0.9.505`.
+
+Version 0.9.505: with Plater the enemy forces percentage sits right next to
+the health bar again instead of offset to the top left, and it stays there
+after you change its position in the settings. The X and Y offsets now also
+move the text towards the bar; your current position is kept. The time pace
+badge is half transparent, so the forces fill shows through.
 
 Version 0.9.504: the killtracker shows at a glance whether the key makes it:
 a badge reads ON TIME (green), CLOSE (yellow) or TOO SLOW (red) with the
@@ -191,9 +197,12 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.504 -->
+<!-- highlights-reviewed-for: 0.9.505 -->
 
 Highlights:
+- **Nameplate forces work with Plater.** The enemy forces percentage follows
+  Plater's health bar instead of hanging offset at the top left, and the X/Y
+  offsets now move it in both directions.
 - **Clear on-time badge.** The killtracker bar says in one word whether the
   key makes it: ON TIME, CLOSE or TOO SLOW, with the margin to the time
   limit. During a fight it turns grey with a pause sign while the value waits
@@ -214,9 +223,3 @@ Highlights:
   undergeared applicants stand out. Item levels fill in faster: inspects by
   other addons are reused, and group members running Details! report theirs
   without an inspect.
-- **Talent and loot check before the key.** Entering a season dungeon in a
-  group shows your active talent loadout and loot spec, with one-click
-  switches to every saved loadout and loot spec; which one is right is your
-  call. The accepted-invite card lists Talents and Loot under Loadout, the
-  loadout name in gold, and a switch counts only once it has really gone
-  through.
