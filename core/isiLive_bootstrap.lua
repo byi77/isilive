@@ -166,6 +166,11 @@ local EVENT_REGISTRY = {
   { "CHALLENGE_MODE_COMPLETED", true, true, false },
   { "CHALLENGE_MODE_RESET", true, true, false },
   { "CHALLENGE_MODE_DEATH_COUNT_UPDATED", true, true, false },
+  -- Addon restriction lifted (12.0.0): the late run capture retries the
+  -- damage meter that was masked at the key end. combat=true because combat
+  -- and challenge restrictions lift at combat edges; hidden=true because the
+  -- capture is independent of main-UI visibility.
+  { "ADDON_RESTRICTION_STATE_CHANGED", true, true, false },
   { "SCENARIO_CRITERIA_UPDATE", false, true, false },
   { "BAG_UPDATE_DELAYED", false, true, false },
   { "CHALLENGE_MODE_MAPS_UPDATE", false, true, false },

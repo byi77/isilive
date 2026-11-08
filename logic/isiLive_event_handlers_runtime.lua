@@ -812,6 +812,24 @@ local function HandleAddonLoaded(ctx, loadedAddon)
   end
 end
 
+-- Late run capture (rule 118): a run masked at the key end is read again once
+-- the player stands readably outside any instance ("world", "zone"); new
+-- combat ("combat") ends the window because it extends the Overall session.
+-- The "world" capture skips its own peer send: PLAYER_ENTERING_WORLD sends
+-- the "world" snapshot right after it.
+local function NotifyLateRunCapture(ctx, kind)
+  if type(ChallengeLifecycle) == "table" and type(ChallengeLifecycle.NotifyLateRunCapture) == "function" then
+    ChallengeLifecycle.NotifyLateRunCapture(ctx, kind)
+  end
+end
+
+local function WithLateRunCapture(ctx, handler, kind)
+  return function(self, ...)
+    handler(self, ...)
+    NotifyLateRunCapture(ctx, kind)
+  end
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -932,6 +950,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if type(ChallengeLifecycle) == "table" and type(ChallengeLifecycle.TryRecordAbandonedRun) == "function" then
       ChallengeLifecycle.TryRecordAbandonedRun(ctx)
     end
+    NotifyLateRunCapture(ctx, "world")
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world", not ctx.isMainFrameShown())
     ctx.sendOwnKickState(true)
@@ -977,6 +996,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.endMainFrameResizeForCombat()
     end
     ctx.handleKillTrackEvent("PLAYER_REGEN_DISABLED")
+    NotifyLateRunCapture(ctx, "combat")
     ApplyCombatFade(ctx, 0)
   end
 
@@ -1192,7 +1212,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     PLAYER_DIFFICULTY_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,
-    ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
+    ZONE_CHANGED_NEW_AREA = WithLateRunCapture(ctx, HandleInstanceContextChangedEvent, "zone"),
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
     CHALLENGE_MODE_MAPS_UPDATE = HandleChallengeModeMapsUpdateEvent,

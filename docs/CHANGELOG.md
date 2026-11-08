@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the last-run DPS stayed empty after a key because the damage meter still answered in protected (secret) values for several seconds after `CHALLENGE_MODE_COMPLETED` -- longer than the five 1 s retries (seen at release 0.9.506: six masked attempts, then none). A run whose capture failed now stays pending for up to 10 minutes (at most 20 attempts) and is read again when `ADDON_RESTRICTION_STATE_CHANGED` reports a lifted restriction or when `PLAYER_ENTERING_WORLD` / `ZONE_CHANGED_NEW_AREA` show the player readably outside any instance. The late capture reads only the Overall session (reset at key start, so it spans exactly the run) and matches against the group of the run; a new key start or new combat (`PLAYER_REGEN_DISABLED`) cancels it. The same applies to abandoned keys. After a late capture the own DPS is sent to isiLive peers at once. The `[STATS]` trace now shows `phase=initial|retry|late`, the trigger and the session type for every attempt plus `late_capture state=armed|captured|cancel` (rule 118/119).
+
 ## 2026-11-08 - Version 0.9.506 (patch)
 
 - Missed kick alert ("Kick ins Leere", rule 236, default off: Display -> `Kick: Missed kick alert`). After your own interrupt isiLive waits briefly for any hostile cast to be interrupted (0.25 s; pet kicks and Solar Beam 0.6 s; an interrupt up to 0.1 s before your cast event also counts). If none is, a short red `MISSED KICK` notice appears in the death-alert style (it never replaces a death or PI alert still on screen). Only the event time counts, never who interrupted, so a simultaneous teammate kick counts as a hit. Only in combat, never in raids, and by default only in a running key (`Missed kick: only in a key`, default on). Avenger's Shield and Axe Toss never alert. Optional sound (`Missed kick: play a sound`, default off) on the selected sound channel. Simulation tablet action E6 previews it. The window values are start values to be calibrated in game.

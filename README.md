@@ -242,7 +242,7 @@ Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 - **Key** — keystone and level, short code (e.g. `MT +14`, `DAWN+12`). Red if this player owns the key you joined for.
 - **iLvl** — equipped item level
 - **RIO** — current Raider.IO score. After a run, a green `(+X)` shows the gain: `(+12)3521`
-- **DPS** — overall DPS from the last dungeon, read from Blizzard's in-game damage meter
+- **DPS** — overall DPS from the last dungeon, read from Blizzard's in-game damage meter (if the meter is still hidden at the key end, isiLive reads it again once you leave the dungeon)
 - **Kick** — green `ready`, red seconds on cooldown, or `-` if the spec has no interrupt. Heal specs without interrupt (Holy Paladin, Mistweaver Monk, Restoration Druid, Discipline / Holy Priest) correctly show `-` instead of a stale cooldown. **Hover** over the cell to see extra interrupts the player has via talents (e.g. Protection Paladin's Avenger's Shield) — synced live across the group through isiLive.
 
 ### Markers next to names
@@ -475,7 +475,7 @@ section to jump directly to its settings. The active section follows manual scro
 ## FAQ
 
 **Why don't I see DPS after a run?**
-DPS is read from Blizzard's own damage meter. If Blizzard hasn't finalized the session yet, isiLive briefly retries. If the damage meter has no data for a player (e.g. late joiner), the DPS column stays empty rather than showing a guess.
+DPS is read from Blizzard's own damage meter. If Blizzard hasn't finalized the session yet, isiLive briefly retries. Right after a key ends the client often still hides the meter values from addons; isiLive then keeps the run pending for up to 10 minutes and reads it again as soon as the addon restriction lifts or you are outside the dungeon (only the meter's Overall session, and only until you start a new key or enter combat again). Group members with isiLive get the late value automatically. If the damage meter has no data for a player (e.g. late joiner) or stays hidden, the DPS column stays empty rather than showing a guess.
 
 **Why is the Key column empty for another player?**
 They either don't have a keystone, or they don't have isiLive or a LibKeystone-compatible addon to share it.

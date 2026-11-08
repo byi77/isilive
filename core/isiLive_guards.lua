@@ -74,6 +74,7 @@ local REQUIRED_MODULES = {
   { key = "SeasonManifest", file = "isiLive_seasons.lua" },
   { key = "SeasonData", file = "isiLive_season_data.lua" },
   { key = "EventHandlersQueueLifecycle", file = "isiLive_event_handlers_queue.lua" },
+  { key = "LateRunCapture", file = "isiLive_late_run_capture.lua" },
   { key = "EventHandlersChallengeLifecycle", file = "isiLive_event_handlers_challenge.lua" },
   { key = "EventHandlersRuntimeLifecycle", file = "isiLive_event_handlers_runtime.lua" },
 }

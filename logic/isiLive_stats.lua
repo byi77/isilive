@@ -167,19 +167,33 @@ local function GetCombatSessionFromTypeSafe(api, sessionType, damageMeterType)
   return session
 end
 
-local function ResolveCompletedRunSession()
+-- Overall is the session the key start reset (CHALLENGE_MODE_START calls
+-- ResetAllCombatSessions), so it spans exactly the run. Current is only the
+-- last combat segment; it stays a fallback for the capture at the key end,
+-- where it can still hold the whole last pull. A late capture after the key
+-- (`overallOnly`) never falls back to it: by then Current may already be a
+-- fight that has nothing to do with the run.
+local function ResolveCompletedRunSession(overallOnly)
   local api = ResolveDamageMeterAPI()
   if not api then
-    return nil
+    return nil, nil
   end
 
   local overallSession =
     GetCombatSessionFromTypeSafe(api, DAMAGE_METER_SESSION_TYPE_OVERALL, DAMAGE_METER_TYPE_DAMAGE_DONE)
   if overallSession then
-    return overallSession
+    return overallSession, DAMAGE_METER_SESSION_TYPE_OVERALL
+  end
+  if overallOnly then
+    return nil, nil
   end
 
-  return GetCombatSessionFromTypeSafe(api, DAMAGE_METER_SESSION_TYPE_CURRENT, DAMAGE_METER_TYPE_DAMAGE_DONE)
+  local currentSession =
+    GetCombatSessionFromTypeSafe(api, DAMAGE_METER_SESSION_TYPE_CURRENT, DAMAGE_METER_TYPE_DAMAGE_DONE)
+  if currentSession then
+    return currentSession, DAMAGE_METER_SESSION_TYPE_CURRENT
+  end
+  return nil, nil
 end
 
 -- Joins up to MAX_TRACED_KEYS keys into one sorted, comma-separated string.
@@ -206,9 +220,10 @@ end
 -- The second return value is diagnostics only: the caller traces it so a failed
 -- capture says which of the three stages broke (no roster, no damage-meter
 -- session, or names that do not resolve to the same key on both sides).
-local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
+local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, overallOnly)
   local diagnostics = {
     sessionFound = false,
+    sessionType = nil,
     sourceCount = 0,
     matchedCount = 0,
     maskedCount = 0,
@@ -220,11 +235,12 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     return {}, diagnostics
   end
 
-  local session = ResolveCompletedRunSession()
+  local session, sessionType = ResolveCompletedRunSession(overallOnly)
   if not session then
     return {}, diagnostics
   end
   diagnostics.sessionFound = true
+  diagnostics.sessionType = sessionType
 
   local rosterByKey = {}
   for _, info in pairs(roster) do
@@ -311,28 +327,38 @@ function Stats.CreateController(opts)
 
   local controller = {}
 
-  function controller.RecordRun(mapID, level, onTime, rosterOverride)
+  -- captureOpts (optional): overallOnly restricts the capture to the Overall
+  -- session (late capture after the key), phase and trigger only label the
+  -- trace line ("initial", "retry", "late").
+  function controller.RecordRun(mapID, level, onTime, rosterOverride, captureOpts)
     if not mapID then
       return false
     end
+    captureOpts = type(captureOpts) == "table" and captureOpts or {}
 
     EnsureInitialized()
     EnsureStatsTables()
 
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
-    local runSnapshot, diagnostics = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
+    local runSnapshot, diagnostics =
+      CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, captureOpts.overallOnly == true)
     local recordedAnyPlayer = next(runSnapshot) ~= nil
 
     if type(logRuntimeTracef) == "function" and type(diagnostics) == "table" then
       -- One line per attempt, retries included. It names the stage that failed:
       -- session=false is a damage meter with nothing to read, matched=0 with a
-      -- non-zero sourceCount is a key mismatch between meter and roster.
+      -- non-zero sourceCount is a key mismatch between meter and roster, and
+      -- masked>0 is a meter that still answers in secrets (key end); the late
+      -- capture after the key shows up as phase=late with its trigger.
       logRuntimeTracef(
-        "[STATS] record_run mapID=%s level=%s session=%s sources=%d matched=%d masked=%d "
-          .. "playerKey=%s rosterKeys=%s sourceKeys=%s",
+        "[STATS] record_run phase=%s trigger=%s mapID=%s level=%s session=%s sessionType=%s sources=%d "
+          .. "matched=%d masked=%d playerKey=%s rosterKeys=%s sourceKeys=%s",
+        tostring(captureOpts.phase or "initial"),
+        tostring(captureOpts.trigger or "-"),
         tostring(mapID),
         tostring(level),
         tostring(diagnostics.sessionFound),
+        tostring(diagnostics.sessionType),
         diagnostics.sourceCount,
         diagnostics.matchedCount,
         diagnostics.maskedCount,

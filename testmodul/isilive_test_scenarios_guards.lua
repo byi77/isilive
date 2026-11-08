@@ -90,6 +90,7 @@ local REQUIRED_MODULES = {
   "isiLive_runtime_setup.lua",
   "isiLive_controller_init.lua",
   "isiLive_event_handlers_queue.lua",
+  "isiLive_late_run_capture.lua",
   "isiLive_event_handlers_challenge.lua",
   "isiLive_event_handlers_runtime.lua",
   "isiLive_guards.lua",

@@ -140,6 +140,7 @@ local FILE_PATHS = {
   ["isiLive_inspect.lua"] = "logic/isiLive_inspect.lua",
   ["isiLive_events.lua"] = "logic/isiLive_events.lua",
   ["isiLive_event_handlers_queue.lua"] = "logic/isiLive_event_handlers_queue.lua",
+  ["isiLive_late_run_capture.lua"] = "logic/isiLive_late_run_capture.lua",
   ["isiLive_event_handlers_challenge.lua"] = "logic/isiLive_event_handlers_challenge.lua",
   ["isiLive_event_handlers_party_run.lua"] = "logic/isiLive_event_handlers_party_run.lua",
   ["isiLive_event_handlers_cd_coalescer.lua"] = "logic/isiLive_event_handlers_cd_coalescer.lua",
@@ -211,6 +212,10 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_ui_motion.lua",
     "isiLive_ui_private_tooltip.lua",
   },
+  -- The challenge lifecycle binds the late run capture at load.
+  ["isiLive_event_handlers_challenge.lua"] = {
+    "isiLive_late_run_capture.lua",
+  },
   -- The runtime lifecycle binds its party-run and CD-coalescer modules at load.
   ["isiLive_event_handlers_runtime.lua"] = {
     "isiLive_event_handlers_party_run.lua",
@@ -218,6 +223,7 @@ local IMPLICIT_DEPENDENCIES = {
   },
   ["isiLive_event_handlers.lua"] = {
     "isiLive_event_handlers_queue.lua",
+    "isiLive_late_run_capture.lua",
     "isiLive_event_handlers_challenge.lua",
     "isiLive_event_handlers_runtime.lua",
   },
