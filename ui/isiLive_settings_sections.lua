@@ -339,6 +339,36 @@ local function CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
   )
 end
 
+local FALLBACK_INSTANCE_RESET_BUTTON_DESC = "After a key in a dungeon of the current Mythic+ season, the group"
+  .. " leader gets a button to reset all instances with the leader buttons of the main window (M and M+ layouts),"
+  .. " once outside the dungeon and for up to one hour. It goes away as soon as the game confirms the reset."
+
+local function ApplyInstanceResetSetting()
+  local instanceReset = addonTable.InstanceReset
+  if type(instanceReset) == "table" and type(instanceReset.ApplySettings) == "function" then
+    instanceReset.ApplySettings()
+  end
+end
+
+local function CreateInstanceResetCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_INSTANCE_RESET_BUTTON or "M+: Reset button after a key",
+    function()
+      local db = config.getDB()
+      return db.instanceResetButtonEnabled == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.instanceResetButtonEnabled = checked
+      ApplyInstanceResetSetting()
+    end,
+    "SETTINGS_INSTANCE_RESET_BUTTON",
+    CheckboxDescriptionOptions(labels.SETTINGS_INSTANCE_RESET_BUTTON_DESC or FALLBACK_INSTANCE_RESET_BUTTON_DESC)
+  )
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -361,6 +391,7 @@ local DISPLAY_DEFAULTS = {
   ttkEnabled = true,
   ttkImportantOnly = true,
   loadoutCheckEnabled = true,
+  instanceResetButtonEnabled = false,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -407,6 +438,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "ttkEnabled",
   "ttkImportantOnly",
   "loadoutCheckEnabled",
+  "instanceResetButtonEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -423,6 +455,8 @@ local function RestoreDisplayDefaults(config)
       db[field] = default
       if field == "ttkEnabled" then
         RefreshTtkRuntime()
+      elseif field == "instanceResetButtonEnabled" then
+        ApplyInstanceResetSetting()
       end
       local callbackName = DISPLAY_CALLBACKS[field]
       if callbackName and type(config[callbackName]) == "function" then
@@ -861,6 +895,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.ttk, yOffset = CreateTtkCheckbox(canvas, yOffset, labels, config)
   controls.ttkImportant, yOffset = CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
   controls.loadoutCheck, yOffset = CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
+  controls.instanceResetButton, yOffset = CreateInstanceResetCheckbox(canvas, yOffset, labels, config)
 
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1103,6 +1138,14 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.loadoutCheck.label:SetText(labels.SETTINGS_LOADOUT_CHECK or "M+: Talent & loot check before the key")
     SetCheckboxDescription(controls.loadoutCheck, labels.SETTINGS_LOADOUT_CHECK_DESC or FALLBACK_LOADOUT_CHECK_DESC)
     controls.loadoutCheck.check:SetChecked(db.loadoutCheckEnabled ~= false)
+  end
+  if controls.instanceResetButton then
+    controls.instanceResetButton.label:SetText(labels.SETTINGS_INSTANCE_RESET_BUTTON or "M+: Reset button after a key")
+    SetCheckboxDescription(
+      controls.instanceResetButton,
+      labels.SETTINGS_INSTANCE_RESET_BUTTON_DESC or FALLBACK_INSTANCE_RESET_BUTTON_DESC
+    )
+    controls.instanceResetButton.check:SetChecked(db.instanceResetButtonEnabled == true)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

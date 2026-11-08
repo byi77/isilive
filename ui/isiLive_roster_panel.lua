@@ -495,13 +495,13 @@ local function CreatePanelButtons(mainFrame, deps)
     isPlayerLeader
   )
 
-  return {
+  return RI.AddInstanceResetButton({
     readyCheckButton = readyCheckButton,
     countdownButton = countdownButton,
     markRolesButton = markRolesButton,
     shareKeysButton = shareKeysButton,
     countdownCancelButton = countdownCancelButton,
-  }
+  }, mainFrame, deps)
 end
 
 local function ConstructPanelUI(mainFrame, uiDeps)
@@ -873,7 +873,6 @@ function RosterPanel.CreateController(opts)
 
   local readyCheckButton = ui.readyCheckButton
   local countdownButton = ui.countdownButton
-  local refreshButton = ui.refreshButton
   local shareKeysButton = ui.shareKeysButton
   local countdownCancelButton = ui.countdownCancelButton
 
@@ -1020,6 +1019,7 @@ function RosterPanel.CreateController(opts)
         button:SetAlpha(enabled and 1 or 0.45)
       end
     end
+    RI.UpdateInstanceResetButton(ui, logRuntimeTraceDeep)
     RefreshSystemOptionToggles(ui)
     updateStatusLine()
   end
@@ -1188,12 +1188,8 @@ function RosterPanel.CreateController(opts)
     MarkCdTrackerDirty()
   end
 
-  AttachControllerAccessors(controller, {
-    refreshButton = refreshButton,
-    countdownCancelButton = countdownCancelButton,
-    statusLine = ui.statusLine,
-    shareKeysButton = shareKeysButton,
-  })
+  -- ui carries refreshButton, countdownCancelButton, statusLine and shareKeysButton.
+  AttachControllerAccessors(controller, ui)
 
   return controller
 end

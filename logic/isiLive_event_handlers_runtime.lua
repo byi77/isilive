@@ -17,6 +17,19 @@ local CdCoalescer = assert(addonTable.EventHandlersCdCoalescer, "isiLive: EventH
 local UnitAuraUpdateRequiresCdScan = CdCoalescer.UnitAuraUpdateRequiresCdScan
 local BuildSpellCooldownCoalescer = CdCoalescer.BuildSpellCooldownCoalescer
 local IsRaidModeActive
+-- Instance reset after a key (rule 235): leaving the dungeon and the client's
+-- reset confirmation reach logic/isiLive_instance_reset.lua.
+local INSTANCE_RESET_RUNTIME_EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "CHAT_MSG_SYSTEM" }
+
+-- The tap helper lives with the challenge lifecycle; without that module (a
+-- partial load in tests) the handlers stay unwrapped.
+local function WithInstanceResetTap(ctx, handlers, events)
+  local challenge = addonTable.EventHandlersChallengeLifecycle
+  if type(challenge) == "table" and type(challenge.WithInstanceResetTap) == "function" then
+    return challenge.WithInstanceResetTap(ctx, handlers, events)
+  end
+  return handlers
+end
 local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
 -- The client repeats the no-path error for every pet order that fails, so one
 -- stuck pet can raise it several times per second while the player spams
@@ -1157,7 +1170,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SchedulePlayerAuraCdScan()
   end
 
-  return {
+  return WithInstanceResetTap(ctx, {
     GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
     ADDON_LOADED = HandleAddonLoadedEvent,
     PLAYER_LOGIN = HandlePlayerLoginEvent,
@@ -1203,5 +1216,5 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SCENARIO_CRITERIA_UPDATE = BuildNonRaidEventForwarder(ctx, "handleKillTrackEvent", "SCENARIO_CRITERIA_UPDATE"),
     CHALLENGE_MODE_DEATH_COUNT_UPDATED = BuildChallengeModeDeathCountForwarder(ctx),
     PARTY_LEADER_CHANGED = BuildPartyLeaderChangedForwarder(ctx),
-  }
+  }, INSTANCE_RESET_RUNTIME_EVENTS)
 end

@@ -319,6 +319,10 @@ local SCHEMA = {
   -- Pre-key talent / loot spec check (game/isiLive_loadout_check.lua).
   loadoutCheckEnabled = { type = "boolean", default = true },
 
+  -- Instance reset button after a key (logic/isiLive_instance_reset.lua).
+  instanceResetButtonEnabled = { type = "boolean", default = false },
+  instanceResetAnnounce = { type = "boolean", default = false },
+
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },

@@ -155,6 +155,25 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
     )
   )
 
+  controls.instanceResetAnnounce, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_INSTANCE_RESET_ANNOUNCE or "Chat: Announce instance reset",
+    function()
+      local db = config.getDB()
+      return db.instanceResetAnnounce == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.instanceResetAnnounce = checked
+    end,
+    "SETTINGS_INSTANCE_RESET_ANNOUNCE",
+    DescriptionOptions(
+      labels.SETTINGS_INSTANCE_RESET_ANNOUNCE_DESC
+        or "After a reset through the isiLive button, names the reset dungeon in party chat."
+    )
+  )
+
   return yOffset
 end
 
@@ -447,6 +466,17 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
         or "Announces Power Infusion locally in chat during Mythic+ runs and shows the center alert for the recipient."
     )
     controls.powerInfusionTextAlert.check:SetChecked(db.powerInfusionTextEnabled ~= false)
+  end
+  if controls.instanceResetAnnounce and controls.instanceResetAnnounce.label then
+    controls.instanceResetAnnounce.label:SetText(
+      labels.SETTINGS_INSTANCE_RESET_ANNOUNCE or "Chat: Announce instance reset"
+    )
+    SetDescription(
+      controls.instanceResetAnnounce,
+      labels.SETTINGS_INSTANCE_RESET_ANNOUNCE_DESC
+        or "After a reset through the isiLive button, names the reset dungeon in party chat."
+    )
+    controls.instanceResetAnnounce.check:SetChecked(db.instanceResetAnnounce == true)
   end
 
   if controls.debugHeader then

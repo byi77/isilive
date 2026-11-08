@@ -973,6 +973,8 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
         )
         and frame._flatLabel
         and frame._modeTarget == nil
+        -- The instance reset button (rule 235) stays hidden until a key ends.
+        and frame._shown ~= false
       then
         table.insert(toolbarButtons, frame)
       elseif frame._template == "SecureActionButtonTemplate" and frame:GetAttribute("type1") == "worldmarker" then

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# Regellogik
+﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -315,6 +315,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 230. Beim Roster-Update sendet der Client sein Hello vor dem Key-Snapshot, damit Empfaenger ihn noch als unbekannten Peer beantworten.
 234. Der Groessen-Griff unten rechts am Hauptfenster aendert nur `db.uiScale`: Ziehen skaliert live bei fester oberer linker Ecke, Loslassen rundet auf 0,05 und speichert einmal, Doppelklick setzt 1,0; bei Fenstersperre ist er aus, im Kampf startet kein Ziehen und ein laufendes endet bei `PLAYER_REGEN_DISABLED`.
+
+235. Nach einem Key in einem Dungeon der aktiven Saison bekommt der Gruppenleiter draussen bis zu einer Stunde einen Instanz-Reset-Button bei den Leiter-Buttons; erst die Erfolgsmeldung des Clients loescht die Vormerkung.
 
 ## Regelbloecke
 
@@ -3550,3 +3552,20 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Resize grip drag still runs at PLAYER_REGEN_DISABLED before lockdown applies at once
   - UI.RoundUiScale rounds to the slider step and clamps
   - Frame bridge forwards settings opener to the main frame
+### RULE-INSTANZ-RESET-NACH-KEY
+- Regelnummer: 235
+- Status: aktiv
+- Zusammenfassung: `logic/isiLive_instance_reset.lua` merkt sich ein Key-Ende (`CHALLENGE_MODE_COMPLETED`, oder `CHALLENGE_MODE_RESET` eines zuvor per `CHALLENGE_MODE_START` bzw. aktiver Challenge-Map beim `PLAYER_ENTERING_WORLD` gesehenen Runs) nur, wenn die Challenge-Map ueber `SeasonData` zu einem Dungeon der aktiven Saison gehoert; ein Key ausserhalb der Saison oder ohne lesbare Map merkt nichts. Sobald danach `PLAYER_ENTERING_WORLD` oder `ZONE_CHANGED_NEW_AREA` den Spieler lesbar ausserhalb jeder Instanz zeigt (`IsInInstance()` = false), gilt ein Reset fuer eine Stunde (`GetTime`) als offen; ein Timer blendet den Button nach Ablauf aus. Die Vormerkung lebt nur im Speicher der Sitzung (Instanz-Sperren sind charaktergebunden, `IsiLiveDB` ist accountweit); nach einem Reload ist sie weg. Der Button zeigt sich nur bei `instanceResetButtonEnabled == true` (Pattern B, Default aus), offener Vormerkung, lesbar ausserhalb einer Instanz, in einer Gruppe, nicht im Raid und mit `UnitIsGroupLeader("player") == true`; jeder unlesbare oder secret Wert verbirgt ihn. Er ist ein normaler Button (kein Secure-Template) bei den Leiter-Buttons des Hauptfensters: im Layout M in der Leiter-Spalte unter Mark-T/H (`TOPRIGHT -145/-210`, 120x24), im Layout M+ als sechster Button der Toolbar-Zeile, die ihre 484 px dann gleichmaessig auf sechs Buttons verteilt (Kurztext `BTN_INSTANCE_RESET_SHORT`) und nach dem Ausblenden wieder fuenf 92-px-Buttons zeigt; in H und V bleibt er wie Keys teilen und Mark-T/H verborgen. Die Sichtbarkeit wird bei jedem `UpdateLeaderButtons` neu bewertet; das Modul loest diesen Durchlauf bei eigenen Zustandswechseln, Instanzwechseln mit offener Vormerkung und beim Umschalten des Settings aus. Ein Klick prueft alle Bedingungen erneut und ruft `ResetInstances()` per Typpruefung und `pcall`; der Klick allein loescht nichts. Erst eine `CHAT_MSG_SYSTEM`-Meldung, die auf das aus `INSTANCE_RESET_SUCCESS` gebaute, verankerte Muster passt (Magic-Zeichen maskiert, `%s` bzw. `%1$s` als Capture), loescht die Vormerkung; `INSTANCE_RESET_FAILED` und `INSTANCE_RESET_FAILED_OFFLINE` lassen sie fuer einen weiteren Versuch stehen, secret Meldungen werden ignoriert. Mit `instanceResetAnnounce == true` (Pattern B, Default aus) nennt isiLive den zurueckgesetzten Dungeon einmal im Gruppenchat (`ContextHelpers.SendPartyChatMessage`, ohne Farbcodes), aber nur wenn die Erfolgsmeldung binnen 10 Sekunden nach dem eigenen Klick kommt. Die Events laufen ueber den statisch registrierten Haupt-Dispatcher (`ChallengeLifecycle.WithInstanceResetTap` nach dem jeweiligen Handler); es kommen keine neuen Events hinzu.
+- Erforderliche Tests:
+  - Instance reset button shows for the leader outside after a season key and clears on the reset message
+  - Instance reset button counts an abandoned season key
+  - Instance reset button stays hidden for a non-leader and a secret leader value
+  - Instance reset button stays hidden with the setting off and follows the toggle
+  - Instance reset pending mark expires after one hour
+  - Instance reset ignores keys outside the active season
+  - Instance reset failure keeps the mark and a foreign reset is not announced
+  - Instance reset announce stays silent with the announce setting off
+  - Instance reset button hides again when the leader re-enters an instance
+  - Instance reset button splits the M+ toolbar row without overlap
+  - Instance reset button takes the next leader slot in the M layout
+  - Instance reset system message pattern escapes magic characters and positional placeholders

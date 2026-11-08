@@ -306,6 +306,7 @@ Click the **tank icon** in a roster row to put a **blue square** on that player.
 Only enabled when you are the leader:
 - **Ready Check**
 - **Countdown 10s / Countdown 0s** (pull timers)
+- **Reset Dungeons** (optional, off by default: Settings → Display → `M+: Reset button after a key`) — after a completed or abandoned key in a dungeon of the current season, the leader gets this button once outside the dungeon, for up to one hour. It resets all instances; it disappears as soon as the game confirms the reset (a failed reset, e.g. someone still inside, keeps it for a retry). In the **M** layout it sits below Mark-T/H, in **M+** it joins the toolbar row as a sixth (shorter) button; **H** and **V** do not show it. It is gone after a reload. Optionally isiLive names the reset dungeon in party chat (Chat Announcements → `Chat: Announce instance reset`, off by default).
 
 ### Share Keys
 
@@ -432,12 +433,12 @@ section to jump directly to its settings. The active section follows manual scro
 - **Beta** — current beta notice plus GitHub issue and CurseForge comment links
 - **General** — language and default layout when opening isiLive
 - **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button
-- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, time pace and time to kill, Group Finder language flags and class-bonus hints
+- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, time pace and time to kill, the optional instance reset button after a key, Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Raid** — optional raid opt-ins for the incoming-summon alert (with its 5-second repeat), the pet-stuck voice alert, and the lead-transfer sound; all off by default, isiLive otherwise stays off in raids
-- **Chat Announcements** — announce Battle Res / announce Bloodlust
+- **Chat Announcements** — announce Battle Res / announce Bloodlust / announce an instance reset done through the isiLive button
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak (mount and, separately, its two vendor voices), and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder
 

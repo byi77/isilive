@@ -46,6 +46,7 @@ local function BuildFactoryModules(tbl)
     piTracker = tbl and tbl.PiTracker,
     bloodlustButtonWarning = tbl and tbl.BloodlustButtonWarning,
     vipDkAssist = tbl and tbl.VipDkAssist,
+    instanceReset = tbl and tbl.InstanceReset,
     deathWatch = tbl and tbl.DeathWatch,
     deathAlert = tbl and tbl.DeathAlert,
     bindings = tbl and tbl.Bindings,

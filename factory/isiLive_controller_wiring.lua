@@ -687,6 +687,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function(_event, ...) end
   config.handleVipDkAssistEvent = type(deps.handleVipDkAssistEvent) == "function" and deps.handleVipDkAssistEvent
     or function(_event, ...) end
+  config.handleInstanceResetEvent = type(deps.handleInstanceResetEvent) == "function" and deps.handleInstanceResetEvent
+    or function(_event, ...) end
   config.handleDeathWatchEvent = type(deps.handleDeathWatchEvent) == "function" and deps.handleDeathWatchEvent
     or function(_event, ...) end
   config.handleKickTrackerEvent = type(deps.handleKickTrackerEvent) == "function" and deps.handleKickTrackerEvent
@@ -991,6 +993,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
     end,
     handleVipDkAssistEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.vipDkAssist, event, ...)
+    end,
+    handleInstanceResetEvent = function(event, ...)
+      DispatchModuleEvent(ctx.modules and ctx.modules.instanceReset, event, ...)
     end,
     handleDeathWatchEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.deathWatch, event, ...)

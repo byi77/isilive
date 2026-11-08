@@ -319,6 +319,29 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       loadoutCheck.Install()
     end
   end
+
+  -- Instance reset after a key (rule 235): fed by the main dispatcher; a state
+  -- change re-evaluates the leader buttons, which own the reset button.
+  local instanceReset = addonTable.InstanceReset
+  if type(instanceReset) == "table" and type(instanceReset.SetDependencies) == "function" then
+    instanceReset.SetDependencies({
+      getDB = function()
+        return rawget(_G, "IsiLiveDB") or {}
+      end,
+      getL = ctx.GetL,
+      onStateChanged = function()
+        if type(ctx.UpdateLeaderButtons) == "function" then
+          ctx.UpdateLeaderButtons()
+        end
+      end,
+      trace = function(buildMessage)
+        local runtimeLog = ctx.runtimeLogController
+        if runtimeLog and type(runtimeLog.Trace) == "function" then
+          runtimeLog.Trace(buildMessage)
+        end
+      end,
+    })
+  end
 end
 
 FI.InitializeFactoryCombatAnnounceControllers = InitializeFactoryCombatAnnounceControllers
