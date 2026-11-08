@@ -3,7 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.505`.
+Current version: `0.9.506`.
+
+Version 0.9.506: isiLive has its own settings window (`/isilive settings`,
+the gear button or a right-click on the minimap button); typing "isiLive"
+into Blizzard's settings search now finds it. A resize grip in the bottom-right
+corner of the unlocked main window scales it, double-click returns to 100 %.
+Two new optional helpers, both off by default: an instance reset button for
+the group leader after a key, and a short MISSED KICK warning when your
+interrupt hit nothing. The demo shows all of it.
 
 Version 0.9.505: with Plater the enemy forces percentage sits right next to
 the health bar again instead of offset to the top left, and it stays there
@@ -197,12 +205,15 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.505 -->
+<!-- highlights-reviewed-for: 0.9.506 -->
 
 Highlights:
-- **Nameplate forces work with Plater.** The enemy forces percentage follows
-  Plater's health bar instead of hanging offset at the top left, and the X/Y
-  offsets now move it in both directions.
+- **Own settings window.** `/isilive settings`, the gear button, the minimap
+  button and the ESC panel open isiLive's own movable window instead of a page
+  in Blizzard's settings; Blizzard's settings search finds "isiLive".
+- **New optional helpers.** A resize grip on the unlocked main window, an
+  instance reset button for the group leader after a key, and a MISSED KICK
+  warning when your interrupt hit nothing (the last two off by default).
 - **Clear on-time badge.** The killtracker bar says in one word whether the
   key makes it: ON TIME, CLOSE or TOO SLOW, with the margin to the time
   limit. During a fight it turns grey with a pause sign while the value waits
@@ -217,9 +228,3 @@ Highlights:
   the isiLive language instead of the game client, and a language switch takes
   effect at once. The download is several megabytes smaller: screenshots stay
   out of the package and the English announcements are compact Ogg files.
-- **Coloured item level and rating.** The roster and its tooltip colour each
-  item level by this season's Mythic+ reward tiers (epic, rare, uncommon,
-  poor) and each Mythic+ rating with Blizzard's own score colour, so
-  undergeared applicants stand out. Item levels fill in faster: inspects by
-  other addons are reused, and group members running Details! report theirs
-  without an inspect.
