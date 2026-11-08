@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.507`.
+Current version: `0.9.508`.
+
+Version 0.9.508: a new probe mode for diagnostics. `/isilive probe` (or
+Settings > Administrative > Probe mode) makes isiLive write in-game API checks
+during a key into its runtime log: damage meter readability, threat, own
+interrupt spells, chat and addon restrictions and kick timing. Off by default.
 
 Version 0.9.507: after a key the roster shows each member's kicks in the kick
 column, like the DPS: `37/32` means 37 kicks cast and 32 that landed (group
@@ -212,7 +217,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.507 -->
+<!-- highlights-reviewed-for: 0.9.508 -->
 
 Highlights:
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
