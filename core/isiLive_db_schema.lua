@@ -342,6 +342,10 @@ local SCHEMA = {
   missedKickOnlyInKey = { type = "boolean", default = true },
   missedKickSound = { type = "boolean", default = false },
 
+  -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
+  -- unlike runtimeLogEnabled, kept across reloads.
+  probeLogEnabled = { type = "boolean", default = false },
+
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },

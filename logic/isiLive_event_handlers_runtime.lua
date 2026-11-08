@@ -823,6 +823,23 @@ local function NotifyLateRunCapture(ctx, kind)
   end
 end
 
+-- Probe mode (rule 239): one boolean check when off; never in a raid.
+local function NotifyProbe(ctx, hookName)
+  local activeProbe = type(ChallengeLifecycle) == "table" and ChallengeLifecycle.ActiveProbe or nil
+  local probe = type(activeProbe) == "function" and activeProbe() or nil
+  if probe and not IsRaidModeActive(ctx) then
+    probe[hookName]()
+  end
+end
+
+-- Runs the probe hook after the handler (combat edges).
+local function WithProbe(ctx, handler, hookName)
+  return function(self, ...)
+    handler(self, ...)
+    NotifyProbe(ctx, hookName)
+  end
+end
+
 local function WithLateRunCapture(ctx, handler, kind)
   return function(self, ...)
     handler(self, ...)
@@ -1207,8 +1224,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     PLAYER_LOGIN = HandlePlayerLoginEvent,
     PLAYER_ENTERING_WORLD = HandlePlayerEnteringWorldEvent,
     UPDATE_BINDINGS = HandleUpdateBindingsEvent,
-    PLAYER_REGEN_ENABLED = HandlePlayerRegenEnabledEvent,
-    PLAYER_REGEN_DISABLED = HandlePlayerRegenDisabledEvent,
+    PLAYER_REGEN_ENABLED = WithProbe(ctx, HandlePlayerRegenEnabledEvent, "OnCombatEnd"),
+    PLAYER_REGEN_DISABLED = WithProbe(ctx, HandlePlayerRegenDisabledEvent, "OnCombatStart"),
     PLAYER_DIFFICULTY_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,

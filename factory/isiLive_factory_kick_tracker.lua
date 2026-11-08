@@ -9,6 +9,15 @@ addonTable._FactoryInternal = FI
 -- interrupt event inside it means the kick landed, none means it went into the
 -- void. Only the event timestamp counts -- interruptedBy is secret inside keys
 -- and is never compared or converted.
+-- Probe mode (rule 239): looked up per call; off costs one boolean check.
+local function ActiveProbe()
+  local probe = addonTable.ProbeLog
+  if type(probe) == "table" and probe.IsEnabled() then
+    return probe
+  end
+  return nil
+end
+
 local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFromBridge, timerAfter)
   local function IsMissedKickAlertEnabled()
     local db = rawget(_G, "IsiLiveDB")
@@ -74,9 +83,15 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     return type(interruptedBy) == "string" and interruptedBy ~= ""
   end
 
+  -- Probe mode (rule 239) records the same filtered interrupts for the kick
+  -- calibration, also while the alert itself is off.
   local function HandleHostileInterruptEvent(event, unit, interruptedBy)
     local controller = ctx.kickTrackerController
-    if not IsMissedKickAlertEnabled() or not controller or type(controller.OnHostileInterrupt) ~= "function" then
+    local alertOn = IsMissedKickAlertEnabled()
+      and controller ~= nil
+      and type(controller.OnHostileInterrupt) == "function"
+    local probe = ActiveProbe()
+    if not alertOn and not probe then
       return
     end
     if event == "UNIT_SPELLCAST_CHANNEL_STOP" and not IsInterruptedChannelStop(interruptedBy) then
@@ -85,7 +100,27 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     if not IsHostileInterruptUnit(unit) then
       return
     end
-    controller.OnHostileInterrupt()
+    if probe then
+      probe.OnHostileInterrupt(event)
+    end
+    if alertOn then
+      controller.OnHostileInterrupt()
+    end
+  end
+
+  -- Probe mode (rule 239): the own cast's readability and, for a kick, the
+  -- calibration record. Reads the armed kick before ScheduleMissedKickCheck
+  -- may cancel it (alert off).
+  local function ProbeOwnCast(unit, castGUID, spellID, observedKick)
+    local probe = ActiveProbe()
+    if not probe then
+      return
+    end
+    probe.OnOwnCast(unit, castGUID, spellID, observedKick)
+    local controller = ctx.kickTrackerController
+    if observedKick and controller and type(controller.GetPendingMissedKick) == "function" then
+      probe.OnOwnKick(spellID, controller.GetPendingMissedKick(), IsMissedKickAlertEnabled())
+    end
   end
 
   local function ScheduleMissedKickCheck()
@@ -116,6 +151,7 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
   return {
     HandleHostileInterruptEvent = HandleHostileInterruptEvent,
     ScheduleMissedKickCheck = ScheduleMissedKickCheck,
+    ProbeOwnCast = ProbeOwnCast,
   }
 end
 
@@ -487,7 +523,7 @@ local function InitializeFactorySecondaryKickTracker(
     return SyncOwnKickState(force ~= false)
   end
 
-  ctx.HandleKickTrackerEvent = function(event, unit, _, spellID, interruptedBy)
+  ctx.HandleKickTrackerEvent = function(event, unit, castGUID, spellID, interruptedBy)
     if event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
       missedKickAlert.HandleHostileInterruptEvent(event, unit, interruptedBy)
       return
@@ -505,6 +541,7 @@ local function InitializeFactorySecondaryKickTracker(
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
       if ctx.kickTrackerController then
         local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
+        missedKickAlert.ProbeOwnCast(unit, castGUID, spellID, observedKick)
         if observedKick then
           ScheduleObservedKickCooldownReconcile()
           missedKickAlert.ScheduleMissedKickCheck()

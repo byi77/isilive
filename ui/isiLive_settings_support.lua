@@ -289,6 +289,26 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
     nil
   )
 
+  -- Probe mode (rule 239): persisted, read-only API checks into the runtime log.
+  local probeLog = addonTable.ProbeLog
+  if type(probeLog) == "table" then
+    controls.probeLog, yOffset = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels.SETTINGS_PROBE_LOG or "Probe mode (API checks into the runtime log)",
+      function()
+        return probeLog.IsEnabled()
+      end,
+      function(checked)
+        probeLog.SetEnabled(checked)
+      end,
+      "SETTINGS_PROBE_LOG",
+      DescriptionOptions(
+        labels.SETTINGS_PROBE_LOG_DESC or "Records read-only API checks as [PROBE] lines in the runtime log."
+      )
+    )
+  end
+
   -- Developer-only (performance audit): shown only after `/isilive perf dev`
   -- set IsiLiveDB.devTools on this account.
   local perfProbe = addonTable.PerfProbe
@@ -522,6 +542,15 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
     controls.runtimeLog.check:SetChecked(
       type(config.getRuntimeLogEnabled) == "function" and config.getRuntimeLogEnabled() or false
     )
+  end
+  if controls.probeLog then
+    controls.probeLog.label:SetText(labels.SETTINGS_PROBE_LOG or "Probe mode (API checks into the runtime log)")
+    SetDescription(
+      controls.probeLog,
+      labels.SETTINGS_PROBE_LOG_DESC or "Records read-only API checks as [PROBE] lines in the runtime log."
+    )
+    local probeLog = addonTable.ProbeLog
+    controls.probeLog.check:SetChecked(type(probeLog) == "table" and probeLog.IsEnabled() or false)
   end
   if controls.perfAuto then
     controls.perfAuto.label:SetText(labels.SETTINGS_PERF_AUTO or "Performance recording (developer)")

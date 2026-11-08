@@ -429,6 +429,46 @@ at 1500 entries, keep readable UTF-8 player and realm names, and filtered
 tails search the complete retained buffer. Dumping a log with `tail` does not
 write the dump back into the log.
 
+### Probe mode (diagnostics)
+
+`/isilive probe` (or `on` / `off` / `status`; without an argument it toggles)
+switches on an opt-in probe mode that records read-only in-game API checks
+into the runtime log, so nothing has to be typed as `/run` lines. The switch
+is also in the configuration window under **Administrative → Probe mode**. It
+is off by default and, unlike the runtime-log switch, stays on across reloads
+until you turn it off.
+
+Probe lines start with `[PROBE] event=...` and land in the same ring buffer as
+the runtime log (`IsiLiveDB.runtimeLog` in
+`WTF/Account/<account>/SavedVariables/isiLive.lua`, written on logout or
+`/reload`). They are written even while the runtime log itself is off; turn on
+`/isilive log on` as well if you also want the surrounding context lines.
+`/isilive log tail 50 PROBE` shows the newest probe lines in chat.
+
+What is recorded (never sent to chat or to other players):
+
+- `event=meter` — damage meter readability (Overall and Current sessions,
+  damage done and interrupts): between pulls in a key, at the key end and
+  5 s later, and after the key once outside the instance or when a
+  restriction lifts. Only counts and readable names/values; protected values
+  are written as `secret`.
+- `event=threat` — 2 s into each key pull: how many hostile nameplates
+  answer `UnitThreatSituation` readably, per threat level, nil or secret.
+- `event=own_cast` — whether the spell ID and cast GUID of your own casts are
+  readable (once per spell per key).
+- `event=kick` — for every own interrupt: the missed-kick verdict, the time to
+  the first hostile interrupt (or `none` within 1 s) and an interrupt seen
+  shortly before your cast, also while the missed-kick alert is off.
+- `event=chat_lockdown` — changes of the chat messaging lockdown at key
+  start/end and combat edges.
+- `event=restriction` — every addon restriction change with its type and state
+  names.
+
+Each probe has a per-key line budget (for example 30 meter snapshots,
+60 threat samples, 80 kicks) and the meter is read at most once per 10 s per
+moment; a reached budget writes one `event=cap_reached` line. With probe mode
+off nothing is read and no timer is started.
+
 ## Settings
 
 isiLive has its own configuration window. Open it with `/isilive settings`,
@@ -450,7 +490,7 @@ section to jump directly to its settings. The active section follows manual scro
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; these alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Raid** — optional raid opt-ins for the incoming-summon alert (with its 5-second repeat), the pet-stuck voice alert, and the lead-transfer sound; all off by default, isiLive otherwise stays off in raids
 - **Chat Announcements** — announce Battle Res / announce Bloodlust / announce an instance reset done through the isiLive button
-- **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
+- **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), probe mode (persistent, see [Probe mode](#probe-mode-diagnostics)), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak (mount and, separately, its two vendor voices), and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder
 
 ### Languages and translations
