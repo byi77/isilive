@@ -76,6 +76,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_loadout_check.lua",
   "testmodul/isilive_test_scenarios_loadout_check_card.lua",
   "testmodul/isilive_test_scenarios_instance_reset.lua",
+  "testmodul/isilive_test_scenarios_demo_reset_grip.lua",
   "testmodul/isilive_test_scenarios_vip_dk_assist.lua",
   "testmodul/isilive_test_scenarios_ui_frame_bridge.lua",
   "testmodul/isilive_test_scenarios_ui_center_notice.lua",

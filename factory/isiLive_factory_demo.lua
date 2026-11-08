@@ -47,6 +47,7 @@ local DEMO_FEATURE_DB_KEYS = {
   "deathAlertEnabled",
   "powerInfusionTextEnabled",
   "timePaceEnabled",
+  "instanceResetButtonEnabled",
 }
 
 -- Preview target: the player's own keystone, else the active season's first
@@ -129,15 +130,24 @@ function FactoryDemo.RestorePersistedDemoSnapshot(db)
   return true
 end
 
-local function ApplyDemoFeatureDbOverrides(ctx)
+-- Captures (and persists) the pre-demo values once per preview; every demo
+-- override of a saved setting goes through here first.
+local function EnsureDemoFeatureSnapshot(ctx)
   local db = rawget(_G, "IsiLiveDB")
   if type(db) ~= "table" then
     return nil
   end
-
   if type(ctx._demoFeatureSnapshot) ~= "table" then
     ctx._demoFeatureSnapshot = CaptureDemoFeatureSnapshot(db)
     PersistDemoFeatureSnapshot(db, ctx._demoFeatureSnapshot)
+  end
+  return db
+end
+
+local function ApplyDemoFeatureDbOverrides(ctx)
+  local db = EnsureDemoFeatureSnapshot(ctx)
+  if not db then
+    return nil
   end
 
   db.statsBoxEnabled = true
@@ -154,8 +164,67 @@ local function ApplyDemoFeatureDbOverrides(ctx)
   -- The spent-time strip on the forces bar is the only time display left
   -- besides the timer texts, so the preview always shows it.
   db.timePaceEnabled = true
+  -- The demo shows the instance reset button (rule 235) even with the
+  -- default-off setting; the snapshot brings the user's choice back.
+  db.instanceResetButtonEnabled = true
 
   return db
+end
+
+local function InstanceResetModule(ctx)
+  local module = ctx.addonTable and ctx.addonTable.InstanceReset
+  if type(module) == "table" and type(module.SetDemoActive) == "function" then
+    return module
+  end
+  return nil
+end
+
+-- Instance reset button as if the leader just left a season key: the module's
+-- demo mark drives its real visibility and M / M+ placement. A click only
+-- drops the mark and prints a local notice; ResetInstances() and the party
+-- chat are never reached from the demo.
+local function ShowDemoInstanceReset(ctx)
+  local instanceReset = InstanceResetModule(ctx)
+  if not instanceReset then
+    return false
+  end
+  local db = EnsureDemoFeatureSnapshot(ctx)
+  if db then
+    db.instanceResetButtonEnabled = true
+  end
+  instanceReset.SetDemoActive(true, function()
+    if type(ctx.Print) == "function" then
+      local L = ctx.GetL and ctx.GetL() or {}
+      ctx.Print(L.SIM_INSTANCE_RESET_DEMO_CLICKED or "Demo: no instance was reset.")
+    end
+  end)
+  return true
+end
+
+-- Runs after the snapshot restore, so the button follows the user's own
+-- setting again (a real pending mark keeps its button).
+local function ClearDemoInstanceReset(ctx)
+  local instanceReset = InstanceResetModule(ctx)
+  if not instanceReset then
+    return
+  end
+  if instanceReset.SetDemoActive(false) ~= true and type(instanceReset.ApplySettings) == "function" then
+    instanceReset.ApplySettings()
+  end
+end
+
+-- The resize grip (rule 234) hides while the window position is locked, the
+-- default. The demo shows it through a session-only override in the grip
+-- instead of unlocking the window: the lock setting is never written, so
+-- nothing has to be restored after the demo or a reload.
+local function SetDemoResizeGripVisible(ctx, visible)
+  local mainUI = ctx.mainUI
+  if type(mainUI) ~= "table" or type(mainUI.SetResizeGripDemoVisible) ~= "function" then
+    return false
+  end
+  mainUI.SetResizeGripDemoVisible(visible == true)
+  ctx._demoResizeGripVisible = visible == true
+  return true
 end
 
 local function ApplyDemoStatsBox(ctx)
@@ -329,6 +398,8 @@ local function ApplyDemoFeatureData(ctx)
   ApplyDemoMobForces(ctx)
   ApplyDemoReadyCheckPreview(ctx)
   ApplyDemoShareKeysCooldown(ctx)
+  ShowDemoInstanceReset(ctx)
+  SetDemoResizeGripVisible(ctx, true)
 
   local L = ctx.GetL and ctx.GetL() or {}
   ApplyDemoAlertAndSoundPreview(ctx, L)
@@ -454,6 +525,8 @@ local function ClearDemoFeatureData(ctx)
   ctx._demoFeatureSnapshot = nil
 
   RestoreDemoStatsBox(ctx)
+  ClearDemoInstanceReset(ctx)
+  SetDemoResizeGripVisible(ctx, false)
   RestoreDemoLfgFlags(ctx, db)
   RestoreDemoMobForces(ctx, db)
   ClearDemoReadyCheckPreview(ctx)
@@ -744,6 +817,52 @@ local function AppendDemoKeyEndActions(ctx, actions)
       return L().SIM_ACTION_DONE or "Simulation applied."
     end,
   })
+  return actions
+end
+
+-- Demo toggles for the instance reset button (rule 235, M+ tab) and the
+-- resize grip (rule 234, extras tab). Kept apart from the main palette builder
+-- so it stays within the function size gate.
+local function AppendDemoToggleActions(ctx, actions)
+  local function done()
+    local locale = ctx.GetL and ctx.GetL() or {}
+    return locale.SIM_ACTION_DONE or "Simulation applied."
+  end
+  for _, action in ipairs({
+    {
+      id = "C12",
+      category = "mplus",
+      status = "green",
+      titleKey = "SIM_ACTION_C12_TITLE",
+      descKey = "SIM_ACTION_C12_DESC",
+      title = "Instance reset button",
+      description = "Toggles the reset button as after a season key; a click never resets.",
+      run = function()
+        local instanceReset = InstanceResetModule(ctx)
+        if instanceReset and type(instanceReset.IsDemoActive) == "function" and instanceReset.IsDemoActive() then
+          ClearDemoInstanceReset(ctx)
+        else
+          ShowDemoInstanceReset(ctx)
+        end
+        return done()
+      end,
+    },
+    {
+      id = "F4",
+      category = "extras",
+      status = "green",
+      titleKey = "SIM_ACTION_F4_TITLE",
+      descKey = "SIM_ACTION_F4_DESC",
+      title = "Resize grip",
+      description = "Toggles the resize grip in the window corner; the window lock stays as it is.",
+      run = function()
+        SetDemoResizeGripVisible(ctx, ctx._demoResizeGripVisible ~= true)
+        return done()
+      end,
+    },
+  }) do
+    table.insert(actions, action)
+  end
   return actions
 end
 
@@ -1210,8 +1329,10 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
         getL = ctx.GetL,
         getActions = function()
           if type(ctx._simulationTabletActions) ~= "table" then
-            ctx._simulationTabletActions =
-              TrackTabletActions(ctx, AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx)))
+            ctx._simulationTabletActions = TrackTabletActions(
+              ctx,
+              AppendDemoToggleActions(ctx, AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx)))
+            )
           end
           return ctx._simulationTabletActions
         end,

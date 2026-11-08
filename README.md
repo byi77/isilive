@@ -211,7 +211,7 @@ The window opens automatically when you join a group and closes when you leave. 
 - **× button** in the top-right corner — close it
 - **Lock icon** in the top-right — prevents dragging so the window doesn't move by accident
 - Drag the title bar to move the window. The position is remembered, and the window stops at the WoW screen edge instead of being draggable outside the game view.
-- **Resize grip** in the bottom-right corner — drag it to make the whole window bigger or smaller (50-200 %, the same value as the "UI scale" setting); the top-left corner stays where it is. Double-click the grip to go back to 100 %. The grip only shows while the window is unlocked and does nothing in combat.
+- **Resize grip** in the bottom-right corner — drag it to make the whole window bigger or smaller (50-200 %, the same value as the "UI scale" setting); the top-left corner stays where it is. Double-click the grip to go back to 100 %. The grip only shows while the window is unlocked and does nothing in combat. The full preview (`/isilive testall`) and the demo simulator (action F4) show it on a locked window too, so it can be tried; the lock setting stays as it is.
 
 ### Layouts
 
@@ -306,7 +306,7 @@ Click the **tank icon** in a roster row to put a **blue square** on that player.
 Only enabled when you are the leader:
 - **Ready Check**
 - **Countdown 10s / Countdown 0s** (pull timers)
-- **Reset Dungeons** (optional, off by default: Settings → Display → `M+: Reset button after a key`) — after a completed or abandoned key in a dungeon of the current season, the leader gets this button once outside the dungeon, for up to one hour. It resets all instances; it disappears as soon as the game confirms the reset (a failed reset, e.g. someone still inside, keeps it for a retry). In the **M** layout it sits below Mark-T/H, in **M+** it joins the toolbar row as a sixth (shorter) button; **H** and **V** do not show it. It is gone after a reload. Optionally isiLive names the reset dungeon in party chat (Chat Announcements → `Chat: Announce instance reset`, off by default).
+- **Reset Dungeons** (optional, off by default: Settings → Display → `M+: Reset button after a key`) — after a completed or abandoned key in a dungeon of the current season, the leader gets this button once outside the dungeon, for up to one hour. It resets all instances; it disappears as soon as the game confirms the reset (a failed reset, e.g. someone still inside, keeps it for a retry). In the **M** layout it sits below Mark-T/H, in **M+** it joins the toolbar row as a sixth (shorter) button; **H** and **V** do not show it. It is gone after a reload. Optionally isiLive names the reset dungeon in party chat (Chat Announcements → `Chat: Announce instance reset`, off by default). The full preview (`/isilive testall`) and the demo simulator (action C12, M+ tab) show the button without a key or group; a click there only prints a local notice and never resets anything.
 
 ### Share Keys
 

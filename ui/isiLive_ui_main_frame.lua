@@ -485,6 +485,14 @@ local function CreateResizeGrip(frame, deps)
   local session = nil
   local locked = false
   local hovered = false
+  -- Demo preview override: shows the grip (and lets it be tried) while the
+  -- window position stays locked. Session memory only; the lock setting
+  -- itself is never touched.
+  local demoVisible = false
+
+  local function IsBlocked()
+    return locked and not demoVisible
+  end
 
   local function UpdateAlpha()
     if type(button.SetAlpha) == "function" then
@@ -550,7 +558,7 @@ local function CreateResizeGrip(frame, deps)
   end
 
   local function Begin()
-    if session or locked or deps.isInCombat() then
+    if session or IsBlocked() or deps.isInCombat() then
       return false
     end
     local startScale = type(frame.GetScale) == "function" and tonumber(frame:GetScale()) or nil
@@ -575,7 +583,7 @@ local function CreateResizeGrip(frame, deps)
 
   local function ResetToDefault()
     Finish()
-    if locked or deps.isInCombat() then
+    if IsBlocked() or deps.isInCombat() then
       return false
     end
     local current = type(frame.GetScale) == "function" and tonumber(frame:GetScale()) or nil
@@ -627,15 +635,43 @@ local function CreateResizeGrip(frame, deps)
 
   local grip = { button = button }
 
-  -- The lock owns the grip: locked hides it and ends a running drag.
-  function grip.SetLocked(isLocked)
-    locked = isLocked == true
-    if locked then
+  local function ApplyShown()
+    if IsBlocked() then
       Finish()
       button:Hide()
     else
       button:Show()
     end
+  end
+
+  -- The lock owns the grip: locked hides it and ends a running drag, unless
+  -- the demo preview shows it.
+  function grip.SetLocked(isLocked)
+    locked = isLocked == true
+    ApplyShown()
+  end
+
+  -- The demo can end from a tablet close during combat; the grip sits on the
+  -- protected main frame, so its Show/Hide then waits for the
+  -- PLAYER_REGEN_ENABLED drain (ApplyPendingGeometry).
+  local demoShowPending = false
+
+  function grip.SetDemoVisible(visible)
+    demoVisible = visible == true
+    if deps.isInCombat() then
+      demoShowPending = true
+      return
+    end
+    demoShowPending = false
+    ApplyShown()
+  end
+
+  function grip.ApplyPendingDemoVisibility()
+    if not demoShowPending or deps.isInCombat() then
+      return
+    end
+    demoShowPending = false
+    ApplyShown()
   end
 
   function grip.EndForCombat()
@@ -930,6 +966,7 @@ function UI.CreateMainFrame(opts)
     if pendingResetPosition then
       ResetPosition()
     end
+    resizeGrip.ApplyPendingDemoVisibility()
   end
 
   -- Routed through SetVisible so a click in combat is queued for the
@@ -948,6 +985,8 @@ function UI.CreateMainFrame(opts)
     -- PLAYER_REGEN_DISABLED: ends a running grip drag before lockdown starts.
     EndResizeForCombat = resizeGrip.EndForCombat,
     IsResizing = resizeGrip.IsResizing,
+    -- Demo preview: shows the grip despite the lock (rule 234).
+    SetResizeGripDemoVisible = resizeGrip.SetDemoVisible,
     SetVisible = SetVisible,
     SetHeightSafe = SetHeightSafe,
     ToggleVisibility = ToggleVisibility,

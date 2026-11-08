@@ -182,6 +182,13 @@ local function ResetDependencies()
   deps.after = DefaultAfter
 end
 
+-- Demo preview mark (feature demo and simulation tablet action C12). It
+-- stands in for "pending, outside, party leader" so the button can be shown
+-- through its real visibility and placement path without any group or
+-- instance state. It never reaches ResetInstances() or the party chat, is
+-- independent of the real pending mark and lives in session memory only.
+local demo = { active = false, onReset = nil }
+
 ResetState()
 ResetDependencies()
 
@@ -411,12 +418,16 @@ end
 
 --- The button shows only with the setting on, a fresh pending mark, readably
 --- outside any instance, in a party (not a raid) and as readable group leader.
---- Every unreadable or secret answer hides it.
+--- Every unreadable or secret answer hides it. The demo mark replaces every
+--- condition but the setting (the demo enables it through its own snapshot).
 function InstanceReset.ShouldShowButton()
   local db = GetDB()
   local buttonEnabled = db.instanceResetButtonEnabled == true
   if not buttonEnabled then
     return false
+  end
+  if demo.active then
+    return true
   end
   if not IsPendingFresh(deps.now()) then
     return false
@@ -431,8 +442,24 @@ function InstanceReset.ShouldShowButton()
 end
 
 --- Button click. Re-checks every show condition, then calls ResetInstances()
---- defensively. Returns true when the call went out.
+--- defensively. Returns true when the call went out. While the demo mark
+--- stands, a click only drops that mark (the button goes away as after a
+--- confirmed reset) and hands over to the demo's own callback; it never
+--- resets, never announces and returns false.
 function InstanceReset.RequestReset()
+  if demo.active then
+    local onReset = demo.onReset
+    demo.active = false
+    demo.onReset = nil
+    Trace(function()
+      return "[INSTANCE_RESET] demo_click reset=false"
+    end)
+    NotifyStateChanged()
+    if type(onReset) == "function" then
+      onReset()
+    end
+    return false
+  end
   if not InstanceReset.ShouldShowButton() then
     return false
   end
@@ -449,6 +476,27 @@ end
 --- Re-evaluates the button after a settings toggle.
 function InstanceReset.ApplySettings()
   NotifyStateChanged()
+end
+
+--- Sets or drops the demo preview mark. `onReset` runs once when the demo
+--- button is clicked. Re-evaluates the button and returns true when the
+--- mark changed.
+function InstanceReset.SetDemoActive(active, onReset)
+  local nextActive = active == true
+  demo.onReset = nextActive and type(onReset) == "function" and onReset or nil
+  if demo.active == nextActive then
+    return false
+  end
+  demo.active = nextActive
+  Trace(function()
+    return string.format("[INSTANCE_RESET] demo active=%s", tostring(nextActive))
+  end)
+  NotifyStateChanged()
+  return true
+end
+
+function InstanceReset.IsDemoActive()
+  return demo.active == true
 end
 
 InstanceReset.PENDING_LIFETIME_SECONDS = PENDING_LIFETIME_SECONDS
