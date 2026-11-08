@@ -163,6 +163,7 @@ function LateRunCapture.Try(ctx, trigger, opts)
     overallOnly = true,
     phase = "late",
     trigger = trigger,
+    kicksCast = runInfo.kicksCast,
   }) == true
   if not captured then
     if pending.attempts >= LATE_RUN_CAPTURE_MAX_ATTEMPTS then

@@ -13,6 +13,7 @@ local StringUtils = addonTable.StringUtils
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local ReadPlainString = addonTable.Validators.ReadPlainString
 local ReadPlainField = addonTable.Validators.ReadPlainField
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local DAMAGE_METER_TYPE_DAMAGE_DONE = 0
 local DAMAGE_METER_SESSION_TYPE_OVERALL = 0
@@ -196,6 +197,58 @@ local function ResolveCompletedRunSession(overallOnly)
   return nil, nil
 end
 
+-- Enum.DamageMeterType.Interrupts (warcraft.wiki.gg, 12.0.0), read at run time
+-- and never hard-coded: without it the run has no landed kicks.
+local function ResolveInterruptsMeterType()
+  local enum = rawget(_G, "Enum")
+  local types = type(enum) == "table" and enum.DamageMeterType or nil
+  local interrupts = type(types) == "table" and types.Interrupts or nil
+  if IsSecretValue(interrupts) or type(interrupts) ~= "number" then
+    return nil
+  end
+  return interrupts
+end
+
+-- Landed interrupts per normalized player key from the Interrupts session of
+-- the same session type the DPS came from (rule 238). Returns nil -- no value
+-- for anybody -- when the type, the session or any source is missing, masked
+-- or unreadable: only a fully readable list proves that a member who is not
+-- in it landed no interrupt. A readable empty list is a run without any
+-- landed interrupt.
+local function ReadLandedInterrupts(sessionType)
+  local api = ResolveDamageMeterAPI()
+  local interruptsType = ResolveInterruptsMeterType()
+  if not api or not interruptsType or sessionType == nil then
+    return nil
+  end
+  local ok, session = pcall(api.GetCombatSessionFromType, sessionType, interruptsType)
+  if not ok or type(session) ~= "table" then
+    return nil
+  end
+  local combatSources = ReadPlainField(session, "combatSources")
+  if type(combatSources) ~= "table" then
+    return nil
+  end
+  local counts = {}
+  local readable = true
+  local okIterate = pcall(function()
+    for _, source in ipairs(combatSources) do
+      local name = ReadPlainString(source, "name")
+      local amount = ReadPlainNumber(source, "totalAmount")
+      local key = name and name ~= "" and NormalizeName(name, nil) or nil
+      if not key or not amount or amount < 0 then
+        readable = false
+        return
+      end
+      counts[key] = (counts[key] or 0) + math.floor(amount + 0.5)
+    end
+  end)
+  if not okIterate or not readable then
+    return nil
+  end
+  return counts
+end
+
 -- Joins up to MAX_TRACED_KEYS keys into one sorted, comma-separated string.
 -- The capture either matches every group member or none of them, so a handful
 -- of keys from each side is enough to tell a lookup miss from an empty session.
@@ -224,6 +277,7 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, overa
   local diagnostics = {
     sessionFound = false,
     sessionType = nil,
+    kicksState = "none",
     sourceCount = 0,
     matchedCount = 0,
     maskedCount = 0,
@@ -282,6 +336,19 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, overa
     end
   end
 
+  -- Landed kicks come from the same pass and the same session type, and only
+  -- for members whose DPS was captured: a member of the run who is missing
+  -- from a fully readable Interrupts list landed none.
+  if next(snapshot) ~= nil then
+    local landed = ReadLandedInterrupts(sessionType)
+    diagnostics.kicksState = landed and "read" or "unreadable"
+    if landed then
+      for key, entry in pairs(snapshot) do
+        entry.kicksLanded = landed[key] or 0
+      end
+    end
+  end
+
   return snapshot, diagnostics
 end
 
@@ -290,6 +357,7 @@ function Stats.CreateController(opts)
   local getRoster = opts.getRoster
   local getUnitNameAndRealm = opts.getUnitNameAndRealm
   local logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or nil
+  local getPeerRunKicksCast = type(opts.getPeerRunKicksCast) == "function" and opts.getPeerRunKicksCast or nil
 
   -- localPlayerKey and migration are intentionally lazy-initialized:
   -- Stats.CreateController() runs at Lua load time, before ADDON_LOADED fires.
@@ -299,6 +367,9 @@ function Stats.CreateController(opts)
   local migrated = false
   local sessionPlayerLastRuns = {}
   local sessionPlayerLastRunMisses = {}
+  -- Run kicks belong to the last run only (rule 238): a key start hides them
+  -- until that key is captured. DPS keeps its last-captured value.
+  local runKicksSuperseded = false
 
   local function PersistOwnRun(selfRun)
     local db = rawget(_G, "IsiLiveDB")
@@ -329,7 +400,8 @@ function Stats.CreateController(opts)
 
   -- captureOpts (optional): overallOnly restricts the capture to the Overall
   -- session (late capture after the key), phase and trigger only label the
-  -- trace line ("initial", "retry", "late").
+  -- trace line ("initial", "retry", "late"), kicksCast is the own interrupt
+  -- cast count of the run (nil when unknown).
   function controller.RecordRun(mapID, level, onTime, rosterOverride, captureOpts)
     if not mapID then
       return false
@@ -352,7 +424,7 @@ function Stats.CreateController(opts)
       -- capture after the key shows up as phase=late with its trigger.
       logRuntimeTracef(
         "[STATS] record_run phase=%s trigger=%s mapID=%s level=%s session=%s sessionType=%s sources=%d "
-          .. "matched=%d masked=%d playerKey=%s rosterKeys=%s sourceKeys=%s",
+          .. "matched=%d masked=%d kicks=%s kicksCast=%s playerKey=%s rosterKeys=%s sourceKeys=%s",
         tostring(captureOpts.phase or "initial"),
         tostring(captureOpts.trigger or "-"),
         tostring(mapID),
@@ -362,6 +434,8 @@ function Stats.CreateController(opts)
         diagnostics.sourceCount,
         diagnostics.matchedCount,
         diagnostics.maskedCount,
+        tostring(diagnostics.kicksState),
+        tostring(captureOpts.kicksCast),
         tostring(localPlayerKey),
         FormatKeysForTrace(diagnostics.rosterKeys),
         FormatKeysForTrace(diagnostics.sourceKeys)
@@ -379,8 +453,15 @@ function Stats.CreateController(opts)
       return false
     end
 
+    local ownEntry = localPlayerKey and runSnapshot[localPlayerKey] or nil
+    local kicksCast = tonumber(captureOpts.kicksCast)
+    if ownEntry and kicksCast and kicksCast >= 0 then
+      ownEntry.kicksCast = math.floor(kicksCast)
+    end
+
     sessionPlayerLastRuns = runSnapshot
     sessionPlayerLastRunMisses = {}
+    runKicksSuperseded = false
     for _, info in pairs(roster or {}) do
       if type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
         local key = NormalizeName(info.name, info.realm)
@@ -418,6 +499,82 @@ function Stats.CreateController(opts)
   function controller.GetPlayerLastRunDps(name, realm)
     local info = GetPlayerLastRunInfo(name, realm)
     return info and tonumber(info.dps) or nil
+  end
+
+  local function ReadCount(value)
+    local number = tonumber(value)
+    if not number or number < 0 or number ~= math.floor(number) then
+      return nil
+    end
+    return number
+  end
+
+  --- Kicks of the last captured run for one member (rule 238), or nil.
+  -- landed comes from the damage meter; cast is the member's own count --
+  -- the local player's from the kick tracker, a peer's from its KC sync when
+  -- it names the same map and key level. A cast count below the landed one
+  -- is incomplete and dropped.
+  -- @return table|nil {landed:number, cast:number|nil}
+  function controller.GetPlayerLastRunKicks(name, realm)
+    if runKicksSuperseded then
+      return nil
+    end
+    local info = GetPlayerLastRunInfo(name, realm)
+    local landed = info and ReadCount(info.kicksLanded) or nil
+    if not landed then
+      return nil
+    end
+    local cast = ReadCount(info.kicksCast)
+    if cast == nil and getPeerRunKicksCast then
+      local peer = getPeerRunKicksCast(name, realm)
+      if
+        type(peer) == "table"
+        and tonumber(peer.mapID) == tonumber(info.mapID)
+        and tonumber(peer.level) == tonumber(info.level)
+      then
+        cast = ReadCount(peer.cast)
+      end
+    end
+    if cast and cast < landed then
+      cast = nil
+    end
+    return { landed = landed, cast = cast }
+  end
+
+  --- True when some member has run kicks to show. Costs no API call, so the
+  -- roster asks it before reading the key state on every kick refresh.
+  -- @return boolean
+  function controller.HasRunKicks()
+    if runKicksSuperseded then
+      return false
+    end
+    for _, entry in pairs(sessionPlayerLastRuns) do
+      if type(entry) == "table" and ReadCount(entry.kicksLanded) then
+        return true
+      end
+    end
+    EnsureInitialized()
+    local own = localPlayerKey and GetPlayerLastRunInfo(localPlayerKey) or nil
+    return own ~= nil and ReadCount(own.kicksLanded) ~= nil
+  end
+
+  --- Own interrupt casts of the last captured run for the KC sync suffix, or nil.
+  -- @return table|nil {cast, mapID, level}
+  function controller.GetOwnRunKicks()
+    EnsureInitialized()
+    local info = localPlayerKey and GetPlayerLastRunInfo(localPlayerKey) or nil
+    local cast = info and ReadCount(info.kicksCast) or nil
+    local mapID = info and tonumber(info.mapID) or nil
+    if not cast or not mapID then
+      return nil
+    end
+    return { cast = cast, mapID = mapID, level = tonumber(info.level) or 0 }
+  end
+
+  --- Hides the run kicks of the previous key while a new key runs (called at
+  -- CHALLENGE_MODE_START); the next captured run shows its own.
+  function controller.MarkRunStarted()
+    runKicksSuperseded = true
   end
 
   -- Runs the real capture against the live damage meter and current roster

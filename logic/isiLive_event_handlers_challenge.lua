@@ -133,6 +133,18 @@ end
 local TryRecordCompletedRun
 local IsRaidModeActive
 
+-- Own interrupt casts of the run that just ended (rule 238), or nil.
+local function ReadRunKickAttempts(ctx)
+  if type(ctx.getRunKickAttempts) ~= "function" then
+    return nil
+  end
+  local attempts = tonumber(ctx.getRunKickAttempts())
+  if not attempts or attempts < 0 then
+    return nil
+  end
+  return attempts
+end
+
 local function GetPendingPostChallengeRefresh(ctx)
   return type(ctx.getPendingPostChallengeRefresh) == "function" and ctx.getPendingPostChallengeRefresh() or nil
 end
@@ -338,6 +350,7 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
   local isRetry = retriesRemaining ~= nil and retriesRemaining < POST_RUN_CAPTURE_RETRIES
   local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
     phase = isRetry and "retry" or "initial",
+    kicksCast = runInfo.kicksCast,
   }) ~= false
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
@@ -449,6 +462,7 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx, outcome)
     ShowKeyEndBanner(ctx, outcome)
   end
   ctx.activeChallengeRunIdentity = nil
+  identity.kicksCast = ReadRunKickAttempts(ctx)
   if type(ctx.logRuntimeTracef) == "function" then
     ctx.logRuntimeTracef(
       "[RC] challenge_mode_abandoned mapID=%s level=%s",
@@ -886,6 +900,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     -- finished POS run leaking into a subsequent NPX +15 run).
     ctx.handleLFGDetectEvent(event)
     local runInfo = ResolveCompletedRunInfo()
+    if runInfo then
+      runInfo.kicksCast = ReadRunKickAttempts(ctx)
+    end
     local identity = ctx.activeChallengeRunIdentity
     if event == "CHALLENGE_MODE_RESET" then
       -- A reset carries no completion of its own, and the struct keeps the last

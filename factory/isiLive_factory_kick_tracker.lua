@@ -119,6 +119,29 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
   }
 end
 
+-- Run kicks (rule 238), published on the shared modules table that the
+-- event-handler wiring reads: the key start resets the own cast count and
+-- hides the previous run's kicks; the key end reads the count for the
+-- snapshot.
+local function InstallRunKickHooks(ctx, modules)
+  modules.runKicks = {
+    -- kind "m0": an M0 run only hides the last key's run kicks; the own cast
+    -- count stays a key-only value and is not reset there.
+    ResetForKey = function(kind)
+      if kind ~= "m0" then
+        ctx.kickTrackerController.ResetRunKickAttempts()
+      end
+      local stats = ctx.statsController
+      if type(stats) == "table" and type(stats.MarkRunStarted) == "function" then
+        stats.MarkRunStarted()
+      end
+    end,
+    GetAttempts = function()
+      return ctx.kickTrackerController.GetRunKickAttempts()
+    end,
+  }
+end
+
 local function InitializeFactorySecondaryKickTracker(
   ctx,
   modules,
@@ -446,6 +469,7 @@ local function InitializeFactorySecondaryKickTracker(
 
   ctx.RefreshKickTrackerPolling = RefreshKickTrackerPolling
   ctx.StopKickTrackerPolling = StopKickTrackerPolling
+  InstallRunKickHooks(ctx, modules)
 
   ctx.SendOwnKickState = function(force)
     RefreshKickTrackerPolling()

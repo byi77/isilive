@@ -583,16 +583,29 @@ end
 -- Missed-kick state (rule 236): the last own kick waiting for its verdict and
 -- the time of the last observed hostile interrupt. Only timestamps are kept;
 -- who interrupted is never read or compared.
+--
+-- It also counts the own interrupt casts of the running key (rule 238): every
+-- armed kick is one attempt. Kicks that also work without a cast to stop
+-- (MISSED_KICK_EXCLUDED_SPELLS: Avenger's Shield, Axe Toss) are mostly cast for
+-- their damage or stun and are not counted. The count is nil until the key
+-- start resets it, so a reload mid-key reports "unknown" instead of a short
+-- count; a masked cast of the watched unit could have been a kick and makes
+-- the count unknown as well.
 local function CreateMissedKickState(getTime)
   local pending = nil
   local seq = 0
   local lastHostileInterruptAt = nil
+  local runAttempts = nil
+  local runAttemptsUnknown = false
   local state = { api = {} }
 
   function state.Arm(castSpellID, trackedSpellID, castUnit)
     if MISSED_KICK_EXCLUDED_SPELLS[castSpellID] or MISSED_KICK_EXCLUDED_SPELLS[trackedSpellID] then
       pending = nil
       return
+    end
+    if runAttempts then
+      runAttempts = runAttempts + 1
     end
     seq = seq + 1
     pending = {
@@ -646,8 +659,33 @@ local function CreateMissedKickState(getTime)
     return "missed"
   end
 
-  -- Exposes GetPendingMissedKick, CancelMissedKick, OnHostileInterrupt and
-  -- ResolveMissedKick on the kick controller and returns it.
+  -- A cast whose spell ID is masked; isWatchedUnit when it came from the unit
+  -- whose kicks are tracked. Returns false: OnCast never treats it as a kick.
+  function state.OnMaskedCast(isWatchedUnit)
+    if isWatchedUnit then
+      runAttemptsUnknown = true
+    end
+    return false
+  end
+
+  --- Starts a new run count (CHALLENGE_MODE_START).
+  function state.api.ResetRunKickAttempts()
+    runAttempts = 0
+    runAttemptsUnknown = false
+  end
+
+  --- Own interrupt casts since the last key start, or nil when unknown.
+  -- @return number|nil
+  function state.api.GetRunKickAttempts()
+    if runAttemptsUnknown then
+      return nil
+    end
+    return runAttempts
+  end
+
+  -- Exposes GetPendingMissedKick, CancelMissedKick, OnHostileInterrupt,
+  -- ResolveMissedKick and the run-attempt accessors on the kick controller
+  -- and returns it.
   function state.AttachTo(controller)
     for name, fn in pairs(state.api) do
       controller[name] = fn
@@ -949,7 +987,7 @@ function KickTracker.CreateController(opts)
     -- forwarder calls this first, so a raise here would also cost CombatEvents
     -- and VipDkAssist the same event.
     if IsSecretValue(spellID) then
-      return false
+      return missedKick.OnMaskedCast(IsSecretValue(unit) or unit == watchedCastUnit)
     end
     RefreshSpecIfUnwatched()
     if unit ~= watchedCastUnit then

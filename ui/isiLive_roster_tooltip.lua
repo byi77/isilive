@@ -704,7 +704,8 @@ local function ShowRosterInfoTooltip(
   getPlayerLastRunDps,
   getLanguageTooltipMarkup,
   getL,
-  getDeathSummaryForPlayer
+  getDeathSummaryForPlayer,
+  getPlayerLastRunKicks
 )
   if type(info) ~= "table" then
     return false
@@ -715,6 +716,10 @@ local function ShowRosterInfoTooltip(
   end
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
+  local lastRunKicks = type(getPlayerLastRunKicks) == "function" and getPlayerLastRunKicks(info.name, info.realm) or nil
+  if type(lastRunKicks) ~= "table" or type(lastRunKicks.landed) ~= "number" then
+    lastRunKicks = nil
+  end
   local deathSummary = type(getDeathSummaryForPlayer) == "function" and getDeathSummaryForPlayer(info.name, info.realm)
     or nil
   local syncModule = addonTable.Sync
@@ -774,6 +779,7 @@ local function ShowRosterInfoTooltip(
     or (tonumber(info.ilvl) and tonumber(info.ilvl) > 0)
     or (tonumber(info.rio) and tonumber(info.rio) > 0)
     or (tonumber(lastRunDps) and tonumber(lastRunDps) > 0)
+    or lastRunKicks ~= nil
     or (type(deathSummary) == "table" and tonumber(deathSummary.count) and tonumber(deathSummary.count) > 0)
     or rosterBonusTooltipLine ~= nil
     or (unitLevel and unitLevel > 0)
@@ -958,6 +964,19 @@ local function ShowRosterInfoTooltip(
       local label = type(L.TOOLTIP_LAST_RUN_DPS) == "string" and L.TOOLTIP_LAST_RUN_DPS or "Last run DPS: %s"
       local formattedDps = FormatCompactTooltipNumber(lastRunDps) or tostring(math.floor(lastRunDps + 0.5))
       tooltip:AddLine(string.format(label, formattedDps), 0.4, 0.8, 1)
+    end
+    -- Run kicks (rule 238): own casts and landed interrupts of the last run.
+    if lastRunKicks then
+      local landed = math.floor(lastRunKicks.landed)
+      if type(lastRunKicks.cast) == "number" then
+        local label = type(L.TOOLTIP_LAST_RUN_KICKS) == "string" and L.TOOLTIP_LAST_RUN_KICKS
+          or "Kicks last run: %d cast, %d landed"
+        tooltip:AddLine(string.format(label, math.floor(lastRunKicks.cast), landed), 0.4, 0.8, 1)
+      else
+        local label = type(L.TOOLTIP_LAST_RUN_KICKS_LANDED) == "string" and L.TOOLTIP_LAST_RUN_KICKS_LANDED
+          or "Kicks last run: %d landed"
+        tooltip:AddLine(string.format(label, landed), 0.4, 0.8, 1)
+      end
     end
   end
 

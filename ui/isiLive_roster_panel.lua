@@ -129,7 +129,9 @@ local ApplyPanelLocalization = RI.ApplyPanelLocalization or function(_ui, _getL)
 -- Render imports (defined in isiLive_roster_panel_render.lua).
 local RenderRosterImpl = RI.RenderRosterImpl or function(_state, _roster) end
 local RefreshReadyCheckStateImpl = RI.RefreshReadyCheckStateImpl or function(_state, _roster) end
-local SetKickCellText = RI.SetKickCellText or function(_cell, _info, _getL) end
+local SetKickCellText = RI.SetKickCellText or function(_cell, _info, _getL, _runKicks) end
+local ResolveRunKicks = RI.ResolveRunKicks
+local AreRunKicksBlocked = RI.AreRunKicksBlocked
 
 -- These settings are temporarily hidden from Blizzard Settings.
 -- Keep the runtime behavior hard-forced until the controls are re-enabled.
@@ -846,6 +848,7 @@ function RosterPanel.CreateController(opts)
     or nil
   local getTargetDungeonInfo = type(opts.getTargetDungeonInfo) == "function" and opts.getTargetDungeonInfo or nil
   local isInChallengeMode = type(opts.isInChallengeMode) == "function" and opts.isInChallengeMode or nil
+  local runKickSource = { get = opts.getPlayerLastRunKicks, has = opts.hasRunKicks, inKey = isInChallengeMode }
   local logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or nil
   local logRuntimeTraceDeep = type(opts.logRuntimeTraceDeep) == "function" and opts.logRuntimeTraceDeep or nil
   local ui = ConstructPanelUI(mainFrame, {
@@ -1071,6 +1074,7 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      runKickSource = runKickSource,
       getDeathSummaryForPlayer = getDeathSummaryForPlayer,
       getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
@@ -1146,13 +1150,14 @@ function RosterPanel.CreateController(opts)
     if DeferRenderWhileHidden() then
       return
     end
+    local runKicksBlocked = AreRunKicksBlocked(runKickSource)
     for _, row in pairs(memberRows) do
       if row.kick and row.tooltipInfo then
         local info = row.tooltipInfo
         if type(applyKnownKickToRosterEntry) == "function" then
           applyKnownKickToRosterEntry(info)
         end
-        SetKickCellText(row.kick, info, getL)
+        SetKickCellText(row.kick, info, getL, ResolveRunKicks(runKickSource, runKicksBlocked, info))
       end
     end
   end

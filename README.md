@@ -244,6 +244,7 @@ Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 - **RIO** — current Raider.IO score. After a run, a green `(+X)` shows the gain: `(+12)3521`
 - **DPS** — overall DPS from the last dungeon, read from Blizzard's in-game damage meter (if the meter is still hidden at the key end, isiLive reads it again once you leave the dungeon)
 - **Kick** — green `ready`, red seconds on cooldown, or `-` if the spec has no interrupt. Heal specs without interrupt (Holy Paladin, Mistweaver Monk, Restoration Druid, Discipline / Holy Priest) correctly show `-` instead of a stale cooldown. **Hover** over the cell to see extra interrupts the player has via talents (e.g. Protection Paladin's Avenger's Shield) — synced live across the group through isiLive.
+  After a key (like DPS) the cell shows the kicks of the run instead: `37/32` means 37 interrupt casts, 32 of them landed. Landed kicks come from Blizzard's damage meter (Interrupts) for every member, `0` for a member the meter lists no interrupt for; the cast count is your own client's count and is synced to group members with isiLive, so their rows show `cast/landed` too, everybody else shows the landed count. Avenger's Shield and Axe Toss are not counted as casts. While the next key runs, the cooldown display is back; the row tooltip shows `Kicks last run: 37 cast, 32 landed`.
 
 ### Markers next to names
 
