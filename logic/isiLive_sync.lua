@@ -104,6 +104,14 @@ local targetInfoByPlayerKey = {}
 local kickInfoByPlayerKey = {}
 local runKicksCastByPlayerKey = {}
 local kickInfoGeneration = 0
+-- send_kick trace state: the kick poll calls SendKick every 0.5 s while a
+-- cooldown runs, so the trace only records a change of what it reports (see
+-- TraceKickSend). kickSendLockedDown remembers a send skipped because addon
+-- chat was locked down, so the first send after the lockdown bypasses the
+-- dedupe gate.
+local lastKickTrace = {}
+local kickTraceRepeats = 0
+local kickSendLockedDown = false
 local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
@@ -749,6 +757,8 @@ function Sync.ClearKnownUsers()
   lastLocPayloadSent = nil
   lastTargetPayloadSent = nil
   lastKickPayloadSent = nil
+  lastKickTrace = {}
+  kickTraceRepeats = 0
 end
 
 local function GetEntrySyncStamp(entry)
@@ -1817,8 +1827,56 @@ function Sync.SendDps(opts)
   )
 end
 
+-- C_ChatInfo.InChatMessagingLockdown() (12.0, warcraft.wiki.gg): true while
+-- the client restricts addon chat. Missing API, error or a secret answer count
+-- as "not locked": the send is attempted as before.
+local function IsAddonChatLockedDown()
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  local inLockdown = type(chatInfo) == "table" and chatInfo.InChatMessagingLockdown or nil
+  if type(inLockdown) ~= "function" then
+    return false
+  end
+  local ok, restricted = pcall(inLockdown)
+  return ok and not addonTable.Validators.IsSecretValue(restricted) and restricted == true
+end
+
+-- Traces a SendKick outcome only when what it reports changes: hasKick,
+-- onCooldown, the cooldown running or done (remain > 0), the channel or the
+-- send result ("true", "false", "lockdown"). The running remain itself is not
+-- part of it -- it changes every second. The next logged line carries the
+-- number of identical outcomes it stood for (repeats).
+local function TraceKickSend(hasKick, onCooldown, remain, channel, sent)
+  local trace = lastKickTrace
+  local running = remain > 0
+  if
+    trace.hasKick == hasKick
+    and trace.onCooldown == onCooldown
+    and trace.running == running
+    and trace.channel == channel
+    and trace.sent == sent
+  then
+    kickTraceRepeats = kickTraceRepeats + 1
+    return
+  end
+  lastKickTrace = { hasKick = hasKick, onCooldown = onCooldown, running = running, channel = channel, sent = sent }
+  local repeats = kickTraceRepeats
+  kickTraceRepeats = 0
+  SyncLog(
+    "send_kick",
+    "hasKick=%s onCooldown=%s remain=%s channel=%s sent=%s repeats=%d",
+    tostring(hasKick),
+    tostring(onCooldown),
+    tostring(remain),
+    tostring(channel),
+    tostring(sent),
+    repeats
+  )
+end
+
 --- Broadcasts the local player's kick/interrupt availability to the group.
--- Rate-limited to 1 s; deduplicated by payload string.
+-- Rate-limited to 1 s; deduplicated by payload string. While addon chat is
+-- locked down nothing is dispatched; the first send after it bypasses the
+-- dedupe gate so peers converge at once.
 -- @param opts table {hasKick:boolean, onCooldown:boolean, cooldownRemain:number, spellID:number|nil, force:boolean}
 function Sync.SendKick(opts)
   opts = opts or {}
@@ -1852,7 +1910,13 @@ function Sync.SendKick(opts)
   local extrasSuffix = EncodeKickExtrasSuffix(opts.extras)
   local spellSuffix = EncodeKickSpellSuffix(opts.spellID, encodedHasKick)
   local payload = string.format("KICK:%d:%d%s%s", encodedOnCooldown, remain, extrasSuffix, spellSuffix)
-  local blocked, now = IsBlockedBySendGate(opts, lastKickPayloadSent, lastIsiLiveKickAt, payload, 1, nil)
+  if IsAddonChatLockedDown() then
+    kickSendLockedDown = true
+    TraceKickSend(hasKick, onCooldown, remain, channel, "lockdown")
+    return false
+  end
+  local gateOpts = kickSendLockedDown and { force = true } or opts
+  local blocked, now = IsBlockedBySendGate(gateOpts, lastKickPayloadSent, lastIsiLiveKickAt, payload, 1, nil)
   if blocked then
     return false
   end
@@ -1860,16 +1924,9 @@ function Sync.SendKick(opts)
   if sent == true then
     lastIsiLiveKickAt = now
     lastKickPayloadSent = payload
+    kickSendLockedDown = false
   end
-  SyncLog(
-    "send_kick",
-    "hasKick=%s onCooldown=%s remain=%s channel=%s sent=%s",
-    tostring(hasKick),
-    tostring(onCooldown),
-    tostring(remain),
-    tostring(channel),
-    tostring(sent)
-  )
+  TraceKickSend(hasKick, onCooldown, remain, channel, tostring(sent == true))
   return sent == true
 end
 
