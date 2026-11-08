@@ -13,11 +13,8 @@ local function HandleLauncherClick(ctx, mouseButton, source)
     logf("[UI] btn_click name=%s mouseButton=%s", tostring(source), tostring(mouseButton))
   end
   if mouseButton == "RightButton" then
-    local blizzardSettings = rawget(_G, "Settings")
-    if type(blizzardSettings) == "table" and type(blizzardSettings.OpenToCategory) == "function" then
-      if ctx.settingsPanel and ctx.settingsPanel.category then
-        blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
-      end
+    if type(ctx.OpenConfig) == "function" then
+      ctx.OpenConfig()
     end
   elseif ctx.ToggleMainFrameVisibility then
     ctx.ToggleMainFrameVisibility()

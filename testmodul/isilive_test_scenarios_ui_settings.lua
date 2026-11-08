@@ -293,9 +293,6 @@ local function RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, 
           lastPopupName = name
         end,
         Settings = {
-          RegisterCanvasLayoutCategory = function(canvas, name)
-            return { canvas = canvas, name = name }
-          end,
           RegisterAddOnCategory = function() end,
         },
       }, function()
@@ -470,9 +467,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -551,9 +545,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -621,9 +612,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -700,9 +688,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -783,9 +768,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -858,9 +840,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -922,9 +901,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -991,9 +967,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1120,9 +1093,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1202,9 +1172,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1309,9 +1276,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
           end,
         },
         Settings = {
-          RegisterCanvasLayoutCategory = function(canvas, name)
-            return { canvas = canvas, name = name }
-          end,
           RegisterAddOnCategory = function() end,
         },
       }, function()
@@ -1467,9 +1431,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         end,
       },
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1523,7 +1484,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(coldLabel, "Night Fae Hearthstone", "a cold item cache falls back to the verified English name")
 
       toyName = "Nachtfae-Ruhestein"
-      panel.canvas:Show()
+      panel.windowFrame:Show()
       itemDataFrame:FireEvent("GET_ITEM_INFO_RECEIVED", 180290, true)
 
       local found = false
@@ -1552,9 +1513,6 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1633,9 +1591,6 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1717,9 +1672,6 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1841,9 +1793,6 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -1943,9 +1892,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2012,9 +1958,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2103,9 +2046,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2172,9 +2112,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2231,9 +2168,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2309,9 +2243,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         previewCalls[#previewCalls + 1] = { path = path, channel = channel }
       end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2660,9 +2591,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         IsiLiveDB = db,
         CreateFrame = createFrameStub,
         Settings = {
-          RegisterCanvasLayoutCategory = function(canvas, name)
-            return { canvas = canvas, name = name }
-          end,
           RegisterAddOnCategory = function() end,
         },
       }, function()
@@ -2787,9 +2715,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2855,9 +2780,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -2982,9 +2904,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -3053,9 +2972,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         IsiLiveDB = db,
         CreateFrame = createFrameStub,
         Settings = {
-          RegisterCanvasLayoutCategory = function(canvas, name)
-            return { canvas = canvas, name = name }
-          end,
           RegisterAddOnCategory = function() end,
         },
       }, function()
@@ -3122,9 +3038,6 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

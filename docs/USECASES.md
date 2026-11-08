@@ -762,7 +762,7 @@ Die aktuelle Szenarioanzahl wird bei jedem Lauf von `lua tools/validate_usecases
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Anzeige-Vorschau, Anzeige-Standardwerte und Aktionszustaende | `isiLive_settings_sections.lua`, `isiLive_ui_common.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_layout.lua`, `isiLive_roster_panel_kill_row.lua` |
-| Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
+| Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Konfigurationsfenster mit Blizzard-Settings-Stub | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_config_window.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
 | Auto-Marker-Logik, entfernt oder ersetzt | `isiLive_group.lua` nach Bereinigung |
 | Raid-Size-H-Mode-UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
 | Event-Routing und Gate | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |

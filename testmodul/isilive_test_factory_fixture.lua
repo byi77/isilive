@@ -494,13 +494,26 @@ local function BuildGlobals()
       return true
     end,
     InterfaceOptions_AddCategory = function() end,
+    -- 12.1.5 vertical-layout API for the config window's Blizzard stub
+    -- (rule 237); the stub builds nothing until the category is displayed.
     Settings = {
       RegisterAddOnCategory = function() end,
-      RegisterCanvasLayoutCategory = function(_, _name)
-        return { ID = "isiLive-settings" }
+      RegisterVerticalLayoutCategory = function(name)
+        local layout = { initializers = {} }
+        function layout.AddInitializer(self, initializer)
+          table.insert(self.initializers, initializer)
+        end
+        return { ID = "isiLive-settings", name = name, layout = layout }, layout
       end,
       OpenToCategory = function() end,
     },
+    CreateSettingsButtonInitializer = function(name, buttonText, buttonClick, tooltip)
+      return { data = { name = name, buttonText = buttonText, buttonClick = buttonClick, tooltip = tooltip } }
+    end,
+    CreateSettingsListSectionHeaderInitializer = function(name, tooltip)
+      return { data = { name = name, tooltip = tooltip } }
+    end,
+    UISpecialFrames = {},
     C_Timer = {
       NewTicker = function(_interval, _callback)
         return { Cancel = function() end }

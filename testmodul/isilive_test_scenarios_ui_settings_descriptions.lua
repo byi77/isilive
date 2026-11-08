@@ -127,9 +127,6 @@ return function(test, ctx)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -367,9 +364,6 @@ return function(test, ctx)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -453,9 +447,6 @@ return function(test, ctx)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

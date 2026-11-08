@@ -105,6 +105,22 @@ local function CreateFactoryContext(addonName, tbl)
     return ctx.L
   end
 
+  -- Central config-window openers (rule 237). Every launcher (slash command,
+  -- main-frame title button, minimap, AddonCompartment, ESC panel) goes
+  -- through these; the settings panel is created later, so it is read per call.
+  local function CallConfigWindow(method)
+    return function()
+      local panel = ctx.settingsPanel
+      if type(panel) == "table" and type(panel[method]) == "function" then
+        return panel[method]() == true
+      end
+      return false
+    end
+  end
+  ctx.OpenConfig = CallConfigWindow("Open")
+  ctx.CloseConfig = CallConfigWindow("Close")
+  ctx.ToggleConfig = CallConfigWindow("Toggle")
+
   ctx.Print = function(msg)
     local text = tostring(msg or "")
     print("isiLive: " .. text)
@@ -527,13 +543,7 @@ local function InitializeFactoryFrameBridge(ctx)
     resolveDungeonArtwork = ctx.ResolveDungeonArtwork,
     getL = ctx.GetL,
     onOpenSettings = function()
-      local blizzardSettings = rawget(_G, "Settings")
-      if type(blizzardSettings) ~= "table" or type(blizzardSettings.OpenToCategory) ~= "function" then
-        return
-      end
-      if ctx.settingsPanel and ctx.settingsPanel.category then
-        blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
-      end
+      ctx.OpenConfig()
     end,
     -- The resize grip already wrote IsiLiveDB.uiScale; the settings panel
     -- only repaints, so the "UI scale" slider shows the new value.
@@ -708,7 +718,7 @@ local function InitializeFactoryFrameBridge(ctx)
     uiCommon.ApplyBgAlpha({
       mainFrame = ctx.mainFrame,
       panelFrame = ctx.panelUI and ctx.panelUI.panelFrame,
-      settingsCanvas = ctx.settingsPanel and ctx.settingsPanel.canvas,
+      settingsWindow = ctx.settingsPanel and ctx.settingsPanel.windowFrame,
     }, alpha)
   end
   ctx.ToggleMainFrameVisibility = function()

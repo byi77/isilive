@@ -147,6 +147,7 @@ ui/isiLive_settings_sound.lua
 ui/isiLive_settings_support.lua
 ui/isiLive_settings_general.lua
 ui/isiLive_settings_sections.lua
+ui/isiLive_config_window.lua
 ui/isiLive_settings.lua
 core/isiLive_guards.lua
 factory/isiLive_factory_frame_bridge.lua

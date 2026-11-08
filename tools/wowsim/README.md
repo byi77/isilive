@@ -26,7 +26,7 @@ error, so scenarios double as regression tests.
 |---|---|---|
 | Widgets | `widgets.lua` | Frame, Button, Texture, FontString, StatusBar, Cooldown, EditBox, ScrollFrame, Slider, GameTooltip, animation groups, font objects; anchor resolution to absolute rects, OnShow/OnHide/OnUpdate/OnEvent, ScrollFrame clipping |
 | World | `world.lua` | Clock + timer queue, party model, addon-message network (party/instance/whisper routing, sender echo) |
-| WoW API | `api.lua` | Units, specs, group, challenge mode, scenario criteria (enemy forces), keystone in bag, inspect, chat, sounds, C_Timer, CVars, Settings panel, ... read from the world model per client |
+| WoW API | `api.lua` | Units, specs, group, challenge mode, scenario criteria (enemy forces), keystone in bag, inspect, chat, sounds, C_Timer, CVars, Settings panel (canvas and vertical-layout categories with button initializers; `Settings._SearchInitializers(text)` mirrors Blizzard's settings search), ... read from the world model per client |
 | Runner | `wowsim.lua` | Clients, TOC loading, scenario API, JSON + viewer output |
 | Viewer | `viewer_template.html`, `build_viewer.lua` | Self-contained HTML; local `.tga`/`.png` media are embedded |
 | Lua 5.1 bridges | `compat.lua` | Runs on the CI's Lua 5.1 and on local Lua 5.4; on 5.4 `tostring` / `string.format("%d")` inside the addon follow 5.1 |

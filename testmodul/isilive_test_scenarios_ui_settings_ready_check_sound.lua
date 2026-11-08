@@ -39,9 +39,6 @@ return function(test, ctx)
         previewCalls[#previewCalls + 1] = { path = path, channel = channel }
       end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -114,9 +111,6 @@ return function(test, ctx)
       end,
       PlaySoundFile = function() end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -175,9 +169,6 @@ return function(test, ctx)
       end,
       PlaySoundFile = function() end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

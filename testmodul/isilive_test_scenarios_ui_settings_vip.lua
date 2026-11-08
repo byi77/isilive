@@ -28,9 +28,6 @@ return function(test, ctx)
         unmuted[#unmuted + 1] = id
       end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

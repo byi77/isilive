@@ -185,16 +185,15 @@ local function BuildPanelSession(db)
   ApplyFactorySettingsDefaults(db)
   ApplyLiveSettingsFromDB(db, live)
 
+  -- Blizzard's 12.x vertical-layout API for the config window stub (rule 237).
+  local blizzardSettings = UIHelpers.BuildBlizzardSettingsStub()
   Harness.WithGlobals({
     UIParent = {},
     IsiLiveDB = db,
     CreateFrame = createFrame,
-    Settings = {
-      RegisterCanvasLayoutCategory = function(canvas, name)
-        return { canvas = canvas, name = name }
-      end,
-      RegisterAddOnCategory = function() end,
-    },
+    Settings = blizzardSettings.Settings,
+    CreateSettingsButtonInitializer = blizzardSettings.CreateSettingsButtonInitializer,
+    CreateSettingsListSectionHeaderInitializer = blizzardSettings.CreateSettingsListSectionHeaderInitializer,
     C_AddOns = {
       IsAddOnLoaded = function()
         return false

@@ -118,6 +118,7 @@ local FILE_PATHS = {
   ["isiLive_settings_support.lua"] = "ui/isiLive_settings_support.lua",
   ["isiLive_settings_general.lua"] = "ui/isiLive_settings_general.lua",
   ["isiLive_settings_sections.lua"] = "ui/isiLive_settings_sections.lua",
+  ["isiLive_config_window.lua"] = "ui/isiLive_config_window.lua",
   ["isiLive_settings.lua"] = "ui/isiLive_settings.lua",
   ["isiLive_lfg_bonus_model.lua"] = "ui/isiLive_lfg_bonus_model.lua",
   ["isiLive_lfg_view_hooks.lua"] = "ui/isiLive_lfg_view_hooks.lua",
@@ -347,6 +348,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_settings_support.lua",
     "isiLive_settings_general.lua",
     "isiLive_settings_sections.lua",
+    "isiLive_config_window.lua",
   },
   -- SettingsSections re-exports the General / ESC-menu sections at load.
   ["isiLive_settings_sections.lua"] = {

@@ -36,9 +36,6 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       end,
       SetCVar = function() end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -115,9 +112,6 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

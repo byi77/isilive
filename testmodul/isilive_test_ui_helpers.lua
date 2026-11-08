@@ -520,6 +520,135 @@ local function BuildCreateFrameStub(opts)
   return CreateFrameStub, createdFrames
 end
 
+-- COMPONENT-ONLY (Blizzard side): mirrors the 12.1.5 Settings API the config
+-- window stub uses (Blizzard_Settings_Shared: RegisterVerticalLayoutCategory,
+-- CreateSettingsButtonInitializer with AddSearchTags, the vertical-layout
+-- search of SettingsPanelMixin:FindInitializersMatchingSearchText, and
+-- HideUIPanel's refusal from addon code in combat). The client's Settings
+-- frame has no addon-side event path. Returns globals plus a state table.
+local function BuildBlizzardSettingsStub(opts)
+  opts = opts or {}
+  local state = { categories = {}, hideCalls = 0, blockedHides = 0, openCalls = 0 }
+  local function CreateInitializer(template, data)
+    local initializer = { template = template, data = data, searchTags = {} }
+    function initializer.GetData(self)
+      return self.data
+    end
+    function initializer.AddSearchTags(self, ...)
+      for index = 1, select("#", ...) do
+        local tag = select(index, ...)
+        if type(tag) == "string" and tag ~= "" then
+          table.insert(self.searchTags, tag:upper())
+        end
+      end
+    end
+    function initializer.MatchesSearchTags(self, words)
+      for _, word in ipairs(words) do
+        for _, tag in ipairs(self.searchTags) do
+          local first, last = string.find(tag, word, nil, true)
+          if first and last then
+            return last - first
+          end
+        end
+      end
+      return nil
+    end
+    return initializer
+  end
+  local settingsPanel = {
+    _shown = false,
+    Show = function(self)
+      self._shown = true
+    end,
+    Hide = function(self)
+      self._shown = false
+    end,
+    IsShown = function(self)
+      return self._shown == true
+    end,
+  }
+  state.settingsPanel = settingsPanel
+  local globals = {
+    SettingsPanel = settingsPanel,
+    HideUIPanel = function(frame)
+      state.hideCalls = state.hideCalls + 1
+      local inCombat = type(opts.isInCombat) == "function" and opts.isInCombat() == true
+      if inCombat then
+        -- CheckProtectedFunctionsAllowed: InCombatLockdown() and not issecure().
+        state.blockedHides = state.blockedHides + 1
+        return
+      end
+      frame:Hide()
+    end,
+    CreateSettingsButtonInitializer = function(name, buttonText, buttonClick, tooltip, addSearchTags)
+      assert(addSearchTags ~= nil, "addSearchTags must not be nil")
+      local initializer = CreateInitializer("SettingButtonControlTemplate", {
+        name = name,
+        buttonText = buttonText,
+        buttonClick = buttonClick,
+        tooltip = tooltip,
+      })
+      if addSearchTags then
+        initializer:AddSearchTags(name)
+        initializer:AddSearchTags(buttonText)
+      end
+      return initializer
+    end,
+    CreateSettingsListSectionHeaderInitializer = function(name, tooltip)
+      return CreateInitializer("SettingsListSectionHeaderTemplate", { name = name, tooltip = tooltip })
+    end,
+    Settings = {
+      RegisterVerticalLayoutCategory = function(name)
+        local layout = { initializers = {} }
+        function layout.AddInitializer(self, initializer)
+          table.insert(self.initializers, initializer)
+        end
+        local category = { ID = "isiLive-stub-" .. tostring(#state.categories + 1), name = name, layout = layout }
+        table.insert(state.categories, category)
+        return category, layout
+      end,
+      RegisterCanvasLayoutCategory = function()
+        error("isiLive must not register a canvas category any more (rule 237)")
+      end,
+      RegisterAddOnCategory = function(category)
+        category.registered = true
+      end,
+      OpenToCategory = function(categoryID)
+        state.openCalls = state.openCalls + 1
+        state.openedCategory = categoryID
+        settingsPanel:Show()
+      end,
+    },
+  }
+  function state.Search(text)
+    local searchText = tostring(text or ""):upper()
+    local words = { searchText }
+    for word in string.gmatch(searchText, "([^, ]+)") do
+      table.insert(words, word)
+    end
+    local matches = {}
+    for _, category in ipairs(state.categories) do
+      for _, initializer in ipairs(category.layout.initializers) do
+        if initializer:MatchesSearchTags(words) then
+          matches[#matches + 1] = { initializer = initializer, category = category }
+        end
+      end
+    end
+    return matches
+  end
+  function state.FindButton()
+    for _, category in ipairs(state.categories) do
+      for _, initializer in ipairs(category.layout.initializers) do
+        if initializer.template == "SettingButtonControlTemplate" then
+          return initializer
+        end
+      end
+    end
+    return nil
+  end
+  return globals, state
+end
+
 return {
   CreateTextureStub = CreateTextureStub,
   CreateFontStringStub = CreateFontStringStub,
@@ -527,4 +656,5 @@ return {
   RequireValue = RequireValue,
   FindCombatRetryFrame = FindCombatRetryFrame,
   BuildCreateFrameStub = BuildCreateFrameStub,
+  BuildBlizzardSettingsStub = BuildBlizzardSettingsStub,
 }

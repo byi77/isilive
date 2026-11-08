@@ -2,10 +2,8 @@
 local helpers = dofile("testmodul/isilive_test_ui_helpers.lua")
 local BuildCreateFrameStub = helpers.BuildCreateFrameStub
 
--- COMPONENT-ONLY: the trigger for the lazy build is Blizzard's
--- SettingsPanelMixin:DisplayLayout (frame:Show(), then OnRefresh), which has no
--- addon-side event path. The tests drive SettingsPanel.Create through that
--- same sequence: Show + the hooked OnShow script, and canvas:OnRefresh().
+-- The lazy build runs on the first Open() of isiLive's own config window
+-- (rule 237); the tests drive the real SettingsPanel.Create and Open.
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -22,11 +20,18 @@ return function(test, ctx)
         After = function() end,
       },
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas)
-          return { canvas = canvas, ID = 7 }
+        RegisterVerticalLayoutCategory = function(name)
+          local layout = { initializers = {} }
+          function layout.AddInitializer(self, initializer)
+            table.insert(self.initializers, initializer)
+          end
+          return { ID = 7, name = name, layout = layout }, layout
         end,
         RegisterAddOnCategory = function() end,
       },
+      CreateSettingsButtonInitializer = function(name, buttonText, buttonClick)
+        return { data = { name = name, buttonText = buttonText, buttonClick = buttonClick } }
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
       local panel = addon.SettingsPanel.Create({
@@ -47,25 +52,26 @@ return function(test, ctx)
   end
 
   local function DisplayCanvas(panel)
-    panel.canvas:Show()
-    panel.canvas._scripts.OnShow(panel.canvas)
-    panel.canvas:OnRefresh()
+    panel.Open()
   end
 
   test("SettingsPanel deferBuild registers the category but builds no section before the first display", function()
     WithDeferredPanel(function(panel, frames, getLabelReads)
-      Assert.NotNil(panel.category, "the category must be registered at load so it can be opened")
-      Assert.False(panel.IsBuilt(), "no section may be built before the canvas is displayed")
-      Assert.False(panel.canvas:IsShown(), "the canvas starts hidden like an unopened category")
+      Assert.NotNil(panel.category, "the Blizzard stub category must be registered at load")
+      Assert.False(panel.IsBuilt(), "no section may be built before the config window opens")
+      Assert.False(panel.IsOpen(), "the config window starts closed")
       Assert.Nil(panel.navigation, "the section navigation does not exist yet")
-      Assert.Equal(getLabelReads(), 0, "no locale lookup happens before the first display")
+      Assert.True(getLabelReads() <= 4, "only the window title and the stub texts are read at load")
       local framesBefore = #frames
+      local readsBefore = getLabelReads()
 
       panel.Refresh()
-      panel.canvas:OnRefresh()
-      Assert.False(panel.IsBuilt(), "Refresh and OnRefresh on a hidden canvas must not build it")
-      Assert.Equal(#frames, framesBefore, "nothing may be created while the canvas stays hidden")
-      Assert.Equal(getLabelReads(), 0, "a refresh before the first display repaints nothing")
+      Assert.False(panel.IsBuilt(), "Refresh on a closed window must not build the sections")
+      Assert.Equal(#frames, framesBefore, "nothing may be created while the window stays closed")
+      Assert.True(
+        getLabelReads() - readsBefore <= 4,
+        "a refresh before the first open only relabels the window title and the stub"
+      )
     end)
   end)
 
@@ -78,7 +84,7 @@ return function(test, ctx)
       local framesAfterBuild = #frames
       Assert.True(framesAfterBuild > framesBefore, "the first display must create the section widgets")
 
-      panel.canvas:Hide()
+      panel.Close()
       DisplayCanvas(panel)
       Assert.Equal(#frames, framesAfterBuild, "a second display must not build the sections again")
       Assert.False(panel.EnsureBuilt(), "EnsureBuilt after the build is a no-op")

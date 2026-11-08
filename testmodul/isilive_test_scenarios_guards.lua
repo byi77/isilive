@@ -75,6 +75,7 @@ local REQUIRED_MODULES = {
   "isiLive_death_alert.lua",
   "isiLive_loadout_check_card.lua",
   "isiLive_loadout_check.lua",
+  "isiLive_config_window.lua",
   "isiLive_settings.lua",
   "isiLive_bindings.lua",
   "isiLive_event_utils.lua",

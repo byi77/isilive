@@ -32,7 +32,7 @@ return {
     sim.Slash("/il settings")
     sim.Wait(1)
     sim.Step("Settings panel (/il settings)")
-    sim.Env().SettingsPanel:Hide()
+    sim.Env().isiLiveConfigWindow:Hide()
 
     -- The full preview opens every surface at once, the tablet included.
     sim.Slash("/il testall")
