@@ -663,6 +663,11 @@ local function SetFrameSizeSafe(frame, width, height)
   frame:SetSize(width, height)
 end
 
+-- Shared with ui/isiLive_roster_panel_instance_reset.lua.
+RI.RefreshButtonDisplayText = RefreshButtonDisplayText
+RI.ReanchorFrame = ReanchorFrame
+RI.SetFrameSizeSafe = SetFrameSizeSafe
+
 local function UpdateColumnPositions(ui, layoutMode)
   layoutMode = NormalizeLayoutMode(layoutMode)
   local isCollapsed = IsCompactLayoutMode(layoutMode)
@@ -949,6 +954,11 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   local modeCol = isMainHorizontal and 5 or (isHorizontal and 4 or (isCollapsed and 3 or 2))
   for _, rule in ipairs(UI_VISIBILITY_RULES) do
     SetVisible(ui[rule[1]], rule[modeCol])
+  end
+
+  -- Instance reset button (rule 234): visibility, slot and the M+ row split.
+  if type(RI.ApplyInstanceResetLayout) == "function" then
+    RI.ApplyInstanceResetLayout(ui)
   end
 
   if ui.m2ColumnGuides then

@@ -758,6 +758,18 @@ local function ApplyPanelButtonLocalization(ui, L)
     useShortManagementLabels and countdownCancelButton._hModeText or countdownCancelButton._fullText
   )
   SetFlatButtonText(markRolesButton, markRolesButton._fullText)
+  local instanceResetButton = ui.instanceResetButton
+  if instanceResetButton then
+    instanceResetButton._fullText = L.BTN_INSTANCE_RESET
+    -- The M+ toolbar splits its row six ways while the reset button shows.
+    instanceResetButton._m2ToolbarText = L.BTN_INSTANCE_RESET_SHORT or L.BTN_INSTANCE_RESET
+    local isMainHorizontal = type(RI.IsMainHorizontalLayoutMode) == "function"
+      and RI.IsMainHorizontalLayoutMode(normalizedLayoutMode)
+    SetFlatButtonText(
+      instanceResetButton,
+      isMainHorizontal and instanceResetButton._m2ToolbarText or instanceResetButton._fullText
+    )
+  end
   if type(shareKeysButton.RefreshDisplayText) == "function" then
     shareKeysButton.RefreshDisplayText()
   else

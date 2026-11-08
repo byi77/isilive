@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Instance reset button after a key (rule 234, default off: Display -> `M+: Reset button after a key`). After a completed or abandoned key in a dungeon of the current season, the group leader gets a reset button with the leader buttons once outside the dungeon, for up to one hour: in the M layout below Mark-T/H, in the M+ layout as a sixth toolbar button (the row splits its width six ways and goes back to five buttons afterwards); hidden in H and V. A click calls `ResetInstances()`; only the client's `INSTANCE_RESET_SUCCESS` system message clears the mark, a failed reset keeps it for a retry. Non-leaders, raids and secret or unreadable leader/instance values never see it. The mark lives in session memory only, so a reload drops it.
+- Optional party chat line after an own reset through the button (Chat Announcements -> `Chat: Announce instance reset`, default off), plain text without colour codes.
+- Code: `logic/isiLive_instance_reset.lua` (state, key-end and leave detection, system message pattern built from the localized global), `ui/isiLive_roster_panel_instance_reset.lua` (button, M/M+ placement, M+ toolbar split). Events come from the existing static dispatcher registry; no new event registrations. Tests in `testmodul/isilive_test_scenarios_instance_reset.lua`, new wowsim scenario `instance_reset_button` (no overlap in M and M+).
+
 ## 2026-11-07 - Version 0.9.505 (patch)
 
 - Killtracker time pace badge is half transparent, so the forces fill underneath stays visible.

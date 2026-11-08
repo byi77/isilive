@@ -69,6 +69,7 @@ local FILE_PATHS = {
   ["isiLive_death_alert.lua"] = "ui/isiLive_death_alert.lua",
   ["isiLive_loadout_check_card.lua"] = "ui/isiLive_loadout_check_card.lua",
   ["isiLive_loadout_check.lua"] = "game/isiLive_loadout_check.lua",
+  ["isiLive_instance_reset.lua"] = "logic/isiLive_instance_reset.lua",
   ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
   ["isiLive_ui_motion.lua"] = "ui/isiLive_ui_motion.lua",
   ["isiLive_ui_private_tooltip.lua"] = "ui/isiLive_ui_private_tooltip.lua",
@@ -98,6 +99,7 @@ local FILE_PATHS = {
   ["isiLive_roster_panel_kill_row_time_pace.lua"] = "ui/isiLive_roster_panel_kill_row_time_pace.lua",
   ["isiLive_roster_panel_kill_row.lua"] = "ui/isiLive_roster_panel_kill_row.lua",
   ["isiLive_roster_panel_render.lua"] = "ui/isiLive_roster_panel_render.lua",
+  ["isiLive_roster_panel_instance_reset.lua"] = "ui/isiLive_roster_panel_instance_reset.lua",
   ["isiLive_ui.lua"] = "ui/isiLive_ui.lua",
   ["isiLive_ui_main_frame.lua"] = "ui/isiLive_ui_main_frame.lua",
   ["isiLive_ui_game_menu_actions.lua"] = "ui/isiLive_ui_game_menu_actions.lua",
@@ -226,6 +228,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_roster_panel_cd_row.lua",
     "isiLive_roster_panel_kill_row.lua",
     "isiLive_roster_panel_render.lua",
+    "isiLive_roster_panel_instance_reset.lua",
   },
   ["isiLive_roster_panel_render.lua"] = {
     "isiLive_roster_tooltip.lua",

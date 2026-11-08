@@ -162,6 +162,7 @@ local function BuildContext(opts)
     function(_event, ...) end
   )
   ctx.handleVipDkAssistEvent = OptionalFunction(opts.handleVipDkAssistEvent, function(_event, ...) end)
+  ctx.handleInstanceResetEvent = OptionalFunction(opts.handleInstanceResetEvent, function(_event, ...) end)
   ctx.handleDeathWatchEvent = OptionalFunction(opts.handleDeathWatchEvent, function(_event, ...) end)
   ctx.handleKickTrackerEvent = OptionalFunction(opts.handleKickTrackerEvent, function(_event, ...) end)
   ctx.resetKickStats = OptionalFunction(opts.resetKickStats, nil)

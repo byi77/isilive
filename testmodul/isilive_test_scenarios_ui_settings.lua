@@ -2938,7 +2938,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        59,
+        61,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls (and the retired reduced-motion option)"
           .. " while keeping the startup/key-end, navigator, sound,"
@@ -2947,7 +2947,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " the two auto-close split checkboxes, the three raid sound opt-ins and the"
-          .. " forces-/time-pace, both TTK toggles and the pre-key loadout check visible"
+          .. " forces-/time-pace, both TTK toggles, the pre-key loadout check and the"
+          .. " instance reset button and announce toggles visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
 
@@ -2955,7 +2956,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        59,
+        61,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
@@ -2963,7 +2964,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " the two auto-close split checkboxes, the three raid sound opt-ins, the pace/TTK toggles"
-          .. " and the loadout check"
+          .. ", the loadout check and the two instance reset toggles"
       )
     end)
   end)

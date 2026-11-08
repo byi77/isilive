@@ -753,6 +753,26 @@ function ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
   return true
 end
 
+-- Instance reset after a key (rule 234): the listed events reach
+-- logic/isiLive_instance_reset.lua after their own handler ran, independent of
+-- that handler's early returns. The runtime lifecycle reuses this helper.
+local INSTANCE_RESET_CHALLENGE_EVENTS = { "CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED", "CHALLENGE_MODE_RESET" }
+
+function ChallengeLifecycle.WithInstanceResetTap(ctx, handlers, events)
+  for _, eventName in ipairs(events or {}) do
+    local handler = handlers[eventName]
+    if type(handler) == "function" then
+      handlers[eventName] = function(frame, ...)
+        handler(frame, ...)
+        if type(ctx.handleInstanceResetEvent) == "function" then
+          ctx.handleInstanceResetEvent(eventName, ...)
+        end
+      end
+    end
+  end
+  return handlers
+end
+
 function ChallengeLifecycle.BuildHandlers(ctx)
   ctx.handleMplusTimerEvent = type(ctx.handleMplusTimerEvent) == "function" and ctx.handleMplusTimerEvent
     or function(_event, ...) end
@@ -891,7 +911,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     StartPostRunRefreshChain(ctx, frame, event)
   end
 
-  return {
+  return ChallengeLifecycle.WithInstanceResetTap(ctx, {
     CHALLENGE_MODE_START = HandleChallengeModeStart,
     CHALLENGE_MODE_COMPLETED = function(frame)
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_COMPLETED")
@@ -972,5 +992,5 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       LogReadyCheckFinishHold(ctx, activeBefore, readyUnits, declinedUnits)
       RefreshReadyCheckUI(ctx)
     end,
-  }
+  }, INSTANCE_RESET_CHALLENGE_EVENTS)
 end
