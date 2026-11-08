@@ -281,7 +281,8 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.getPlayerLastRunDps,
         row.getLanguageTooltipMarkup,
         row.getL,
-        row.getDeathSummaryForPlayer
+        row.getDeathSummaryForPlayer,
+        row.getPlayerLastRunKicks
       )
     then
       ShowRosterNameFallbackTooltip(rosterTooltip, row.hoverFrame, row.tooltipName, row.tooltipRealm)
@@ -658,8 +659,58 @@ local function HasReadyCheckHoldInRoster(state, roster)
   return false
 end
 
-local function SetKickCellText(cell, info, getL)
+-- Longest run-kick text the 32 px kick column holds ("37/32"); longer pairs
+-- fall back to the landed count alone (the tooltip keeps both numbers).
+local RUN_KICKS_MAX_PAIR_CHARS = 5
+
+-- runKickSource: { get = getPlayerLastRunKicks(name, realm), has = hasRunKicks(),
+-- inKey = isInChallengeMode() }. True when no run kicks may show: nothing to
+-- show at all, or a key runs (the column then keeps its kick cooldown). Read
+-- once per render or kick-column refresh; "has" goes first and costs no API
+-- call, so the in-key kick refreshes never read the key state.
+local function AreRunKicksBlocked(source)
+  if type(source) ~= "table" or type(source.get) ~= "function" then
+    return true
+  end
+  if type(source.has) == "function" and source.has() ~= true then
+    return true
+  end
+  return type(source.inKey) == "function" and source.inKey() == true
+end
+RI.AreRunKicksBlocked = AreRunKicksBlocked
+
+-- Run kicks of the last key for one roster member (rule 238), or nil.
+local function ResolveRunKicks(source, blocked, info)
+  if blocked or type(info) ~= "table" or type(info.name) ~= "string" then
+    return nil
+  end
+  local runKicks = source.get(info.name, info.realm)
+  if type(runKicks) ~= "table" or type(runKicks.landed) ~= "number" then
+    return nil
+  end
+  return runKicks
+end
+RI.ResolveRunKicks = ResolveRunKicks
+
+-- "cast/landed" when the cast count is known, otherwise "landed".
+local function FormatRunKicksText(runKicks)
+  local landed = math.floor(runKicks.landed)
+  if type(runKicks.cast) == "number" then
+    local pair = string.format("%d/%d", math.floor(runKicks.cast), landed)
+    if #pair <= RUN_KICKS_MAX_PAIR_CHARS then
+      return pair
+    end
+  end
+  return tostring(landed)
+end
+RI.FormatRunKicksText = FormatRunKicksText
+
+local function SetKickCellText(cell, info, getL, runKicks)
   if not cell then
+    return
+  end
+  if type(runKicks) == "table" and type(runKicks.landed) == "number" then
+    SetReadableText(cell, FormatRunKicksText(runKicks))
     return
   end
   if type(info) ~= "table" or info.syncHasKick == false then
@@ -719,6 +770,8 @@ local function RenderRosterImpl(state, roster)
   local getDungeonShortCode = state.getDungeonShortCode
   local getDungeonName = state.getDungeonName
   local getPlayerLastRunDps = state.getPlayerLastRunDps
+  local runKickSource = state.runKickSource
+  local runKicksBlocked = AreRunKicksBlocked(runKickSource)
   local getL = state.getL
   local isRaidGroup = state.isRaidGroup
   local applyKnownKeyToRosterEntry = state.applyKnownKeyToRosterEntry
@@ -751,6 +804,7 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = nil
     row.getDungeonName = nil
     row.getPlayerLastRunDps = nil
+    row.getPlayerLastRunKicks = nil
     row.getDeathSummaryForPlayer = nil
     row.getLanguageTooltipMarkup = nil
     row.getL = nil
@@ -930,7 +984,7 @@ local function RenderRosterImpl(state, roster)
       if type(applyKnownKeyToRosterEntry) == "function" then
         applyKnownKeyToRosterEntry(info)
       end
-      SetKickCellText(row.kick, info, state.getL)
+      SetKickCellText(row.kick, info, state.getL, ResolveRunKicks(runKickSource, runKicksBlocked, info))
     end
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
@@ -939,6 +993,7 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = getDungeonShortCode
     row.getDungeonName = getDungeonName
     row.getPlayerLastRunDps = getPlayerLastRunDps
+    row.getPlayerLastRunKicks = type(runKickSource) == "table" and runKickSource.get or nil
     row.getDeathSummaryForPlayer = state.getDeathSummaryForPlayer
     row.getLanguageTooltipMarkup = getLanguageTooltipMarkup
     row.getL = getL

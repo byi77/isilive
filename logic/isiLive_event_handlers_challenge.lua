@@ -7,6 +7,7 @@ addonTable.EventHandlersChallengeLifecycle = ChallengeLifecycle
 local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local LateRunCapture = addonTable.LateRunCapture
 
 local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
 local POST_RUN_REFRESH_RETRIES = 5
@@ -131,6 +132,18 @@ end
 
 local TryRecordCompletedRun
 local IsRaidModeActive
+
+-- Own interrupt casts of the run that just ended (rule 238), or nil.
+local function ReadRunKickAttempts(ctx)
+  if type(ctx.getRunKickAttempts) ~= "function" then
+    return nil
+  end
+  local attempts = tonumber(ctx.getRunKickAttempts())
+  if not attempts or attempts < 0 then
+    return nil
+  end
+  return attempts
+end
 
 local function GetPendingPostChallengeRefresh(ctx)
   return type(ctx.getPendingPostChallengeRefresh) == "function" and ctx.getPendingPostChallengeRefresh() or nil
@@ -334,14 +347,25 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
     return false
   end
 
-  local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime) ~= false
+  local isRetry = retriesRemaining ~= nil and retriesRemaining < POST_RUN_CAPTURE_RETRIES
+  local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
+    phase = isRetry and "retry" or "initial",
+    kicksCast = runInfo.kicksCast,
+  }) ~= false
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
     ctx.pendingRecordedRunRetrySignature = nil
     ctx.activeChallengeRunIdentity = nil
+    local pending = ctx.pendingLateRunCapture
+    if type(pending) == "table" and pending.signature == runInfo.signature then
+      LateRunCapture.Cancel(ctx, "captured")
+    end
     return true
   end
 
+  -- The short retries keep running; the late capture covers the case that
+  -- the meter stays masked past them.
+  LateRunCapture.Arm(ctx, runInfo)
   ScheduleCompletedRunRetry(ctx, runInfo, retriesRemaining or POST_RUN_CAPTURE_RETRIES)
   return false
 end
@@ -401,6 +425,22 @@ function ChallengeLifecycle.ShowKeyLeftIfGroupGone(ctx)
   return true
 end
 
+--- Late run capture hooks for the runtime lifecycle (rule 118): "world" and
+-- "zone" retry when the player stands readably outside any instance, "combat"
+-- drops the pending capture because new combat extends the Overall session.
+-- @param ctx table Event-handler context.
+-- @param kind string "world", "zone" or "combat".
+function ChallengeLifecycle.NotifyLateRunCapture(ctx, kind)
+  if kind == "combat" then
+    return LateRunCapture.Cancel(ctx, "combat")
+  end
+  if IsRaidModeActive(ctx) then
+    return false
+  end
+  -- PLAYER_ENTERING_WORLD sends its own "world" snapshot right after this.
+  return LateRunCapture.TryOutsideInstance(ctx, kind, { skipSync = kind == "world" })
+end
+
 -- Records the run of a key that ended without completion info: abandoned,
 -- depleted-and-left, or left mid-run. The identity comes from the stash taken
 -- at CHALLENGE_MODE_START, the damage still from the live meter, which keeps
@@ -422,6 +462,7 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx, outcome)
     ShowKeyEndBanner(ctx, outcome)
   end
   ctx.activeChallengeRunIdentity = nil
+  identity.kicksCast = ReadRunKickAttempts(ctx)
   if type(ctx.logRuntimeTracef) == "function" then
     ctx.logRuntimeTracef(
       "[RC] challenge_mode_abandoned mapID=%s level=%s",
@@ -785,6 +826,12 @@ function ChallengeLifecycle.BuildHandlers(ctx)
 
   local function HandleChallengeModeStart(_self)
     ClearKeyEndBanner(ctx)
+    -- A new key resets the damage meter: the previous run can no longer be
+    -- captured.
+    LateRunCapture.Cancel(ctx, "key_start")
+    -- Abandoned-run signatures repeat for the same map and level; every key
+    -- gets its own late window.
+    ctx.lateRunCaptureArmedSignature = nil
     if IsRaidModeActive(ctx) then
       return
     end
@@ -853,6 +900,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     -- finished POS run leaking into a subsequent NPX +15 run).
     ctx.handleLFGDetectEvent(event)
     local runInfo = ResolveCompletedRunInfo()
+    if runInfo then
+      runInfo.kicksCast = ReadRunKickAttempts(ctx)
+    end
     local identity = ctx.activeChallengeRunIdentity
     if event == "CHALLENGE_MODE_RESET" then
       -- A reset carries no completion of its own, and the struct keeps the last
@@ -915,6 +965,13 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_START = HandleChallengeModeStart,
     CHALLENGE_MODE_COMPLETED = function(frame)
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_COMPLETED")
+    end,
+    ADDON_RESTRICTION_STATE_CHANGED = function(_frame, restrictionType, state)
+      if IsRaidModeActive(ctx) or not LateRunCapture.IsRestrictionLiftedState(state) then
+        return
+      end
+      local typeLabel = IsSecretValue(restrictionType) and "secret" or tostring(restrictionType)
+      LateRunCapture.Try(ctx, "restriction:" .. typeLabel)
     end,
     CHALLENGE_MODE_RESET = function(frame)
       -- COMPLETED already fired for this run: its reset is no abandoned key,

@@ -263,7 +263,8 @@ local function GetOwnedLocIDs()
   return math.floor(mapID), instanceID
 end
 
-local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, opts)
+-- lastRun: { dps = getPlayerLastRunDps(name, realm), ownKicks = getOwnRunKicks() }
+local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, lastRun, getUnitNameAndRealm, opts)
   opts = opts or {}
   -- Solo or in a raid there is no sync channel and every Send* below drops
   -- its payload; skip building the key, stats, rating, DPS and location
@@ -304,18 +305,25 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
 
   if includeDps then
     local dps = nil
+    local getPlayerLastRunDps = type(lastRun) == "table" and lastRun.dps or nil
     if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
       local name, realm = getUnitNameAndRealm("player")
       if name then
         dps = getPlayerLastRunDps(name, realm)
       end
     end
+    -- Own interrupt casts of the last captured run ride along (rule 238).
+    local getOwnRunKicks = type(lastRun) == "table" and lastRun.ownKicks or nil
+    local ownKicks = type(getOwnRunKicks) == "function" and getOwnRunKicks() or nil
     sync.SendDps({
       force = force,
       isVisible = isVisible,
       allowHidden = allowHidden,
       onlyIfChanged = onlyIfChanged,
       dps = dps,
+      kicksCast = type(ownKicks) == "table" and ownKicks.cast or nil,
+      kicksMapID = type(ownKicks) == "table" and ownKicks.mapID or nil,
+      kicksLevel = type(ownKicks) == "table" and ownKicks.level or nil,
       source = source,
     })
   end
@@ -339,7 +347,7 @@ local function SendRefreshResponse(
   sync,
   isFrameVisible,
   getUnitRio,
-  getPlayerLastRunDps,
+  lastRun,
   getUnitNameAndRealm,
   canRespondToRefreshRequest
 )
@@ -347,7 +355,7 @@ local function SendRefreshResponse(
     return false
   end
 
-  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, lastRun, getUnitNameAndRealm, {
     force = true,
     source = "reqsync",
     allowHidden = true,
@@ -916,7 +924,10 @@ function KeySync.CreateController(opts)
   local canRespondToRefreshRequest = opts.canRespondToRefreshRequest or function()
     return true
   end
-  local getPlayerLastRunDps = opts.getPlayerLastRunDps or nil
+  local lastRun = {
+    dps = opts.getPlayerLastRunDps or nil,
+    ownKicks = type(opts.getOwnRunKicks) == "function" and opts.getOwnRunKicks or nil,
+  }
   local logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or nil
   assert(type(sync.MarkUser) == "function", "isiLive: KeySync requires sync.MarkUser")
   assert(type(sync.IsUnitKnown) == "function", "isiLive: KeySync requires sync.IsUnitKnown")
@@ -966,7 +977,7 @@ function KeySync.CreateController(opts)
   end
 
   function controller.SendOwnKeySnapshot(force, source, allowHidden, onlyIfChanged, includeDps)
-    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, lastRun, getUnitNameAndRealm, {
       force = force,
       source = source,
       allowHidden = allowHidden,
@@ -981,7 +992,7 @@ function KeySync.CreateController(opts)
     -- what changed, visible or not: an unchanged key, stats, DPS or location
     -- re-sent on every loot reached every peer's receive path for nothing.
     -- HELLO, REQSYNC and explicit refreshes keep sending full state.
-    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, lastRun, getUnitNameAndRealm, {
       force = false,
       source = source,
       allowHidden = not visible,
@@ -995,7 +1006,7 @@ function KeySync.CreateController(opts)
       sync,
       isFrameVisible,
       getUnitRio,
-      getPlayerLastRunDps,
+      lastRun,
       getUnitNameAndRealm,
       canRespondToRefreshRequest
     )

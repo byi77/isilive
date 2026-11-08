@@ -667,6 +667,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
   config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
+  -- Run kicks (rule 238): the key start resets the own cast count and hides
+  -- the previous run's kicks; the key end reads the count for the snapshot.
+  config.resetKickStats = type(deps.resetKickStats) == "function" and deps.resetKickStats or nil
+  config.getRunKickAttempts = type(deps.getRunKickAttempts) == "function" and deps.getRunKickAttempts or nil
   config.getRoster = RequireFunction(state.getRoster, "state.getRoster")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
   config.restoreRioBaseline = callbacks.restoreRioBaseline
@@ -1012,6 +1016,16 @@ local function BuildEventHandlersDepsFromContext(ctx)
     end,
     getTime = ctx.getTime,
     recordRun = ctx.recordRun,
+    resetKickStats = function(kind)
+      local runKicks = ctx.modules and ctx.modules.runKicks
+      if type(runKicks) == "table" then
+        runKicks.ResetForKey(kind)
+      end
+    end,
+    getRunKickAttempts = function()
+      local runKicks = ctx.modules and ctx.modules.runKicks
+      return type(runKicks) == "table" and runKicks.GetAttempts() or nil
+    end,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     sendOwnKickState = ctx.sendOwnKickState,
     runFullRefresh = function(opts)

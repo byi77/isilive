@@ -403,6 +403,7 @@ return function(test, ctx)
       getL = overrides.getL or function()
         return {}
       end,
+      getPlayerLastRunKicks = overrides.getPlayerLastRunKicks,
     }
   end
 
@@ -416,7 +417,9 @@ return function(test, ctx)
       args.getDungeonName,
       args.getPlayerLastRunDps,
       args.getLanguageTooltipMarkup,
-      args.getL
+      args.getL,
+      nil,
+      args.getPlayerLastRunKicks
     )
   end
 
@@ -596,6 +599,44 @@ return function(test, ctx)
         end
       end
       Assert.Equal(matched, true)
+    end)
+  end)
+
+  -- COMPONENT-ONLY: the tooltip line is a pure render of the stats getter; the
+  -- getter itself runs end-to-end in isilive_test_scenarios_run_kicks.lua.
+  test("Roster tooltip shows the run kicks of the last key as cast and landed", function()
+    WithGlobals(BuildGlobals(), function()
+      local addon = Load()
+      local L = {
+        TOOLTIP_LAST_RUN_KICKS = "Kicks last run: %d cast, %d landed",
+        TOOLTIP_LAST_RUN_KICKS_LANDED = "Kicks last run: %d landed",
+      }
+      local function Lines(runKicks)
+        local args = buildShowArgs({ name = "Alice", class = "MAGE" }, {
+          getPlayerLastRunKicks = function()
+            return runKicks
+          end,
+          getL = function()
+            return L
+          end,
+        })
+        Assert.Equal(callShow(addon, args), true)
+        local texts = {}
+        for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+          texts[#texts + 1] = line:GetText()
+        end
+        return table.concat(texts, " | ")
+      end
+      Assert.True(
+        Lines({ cast = 37, landed = 32 }):find("Kicks last run: 37 cast, 32 landed", 1, true) ~= nil,
+        "a known cast count shows both numbers"
+      )
+      local landedOnly = Lines({ landed = 23 })
+      Assert.True(
+        landedOnly:find("Kicks last run: 23 landed", 1, true) ~= nil,
+        "a member without a cast count shows the landed kicks only"
+      )
+      Assert.True(Lines(nil):find("Kicks last run", 1, true) == nil, "no run kicks, no line")
     end)
   end)
 

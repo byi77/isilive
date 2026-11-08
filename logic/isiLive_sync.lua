@@ -45,6 +45,9 @@ local MAX_SYNC_RIO = 100000
 local MAX_SYNC_DPS = 100000000
 -- Far above any interrupt or stun cooldown; the kick column renders this value.
 local MAX_SYNC_KICK_REMAIN = 3600
+-- Own interrupt casts of one run (rule 238, KC suffix of the DPS bucket); far
+-- above any real key, rendered in the kick column as "cast/landed".
+local MAX_SYNC_RUN_KICKS = 1000
 
 local function ToFiniteNumber(value)
   local numericValue = tonumber(value)
@@ -99,7 +102,16 @@ local dpsInfoByPlayerKey = {}
 local locInfoByPlayerKey = {}
 local targetInfoByPlayerKey = {}
 local kickInfoByPlayerKey = {}
+local runKicksCastByPlayerKey = {}
 local kickInfoGeneration = 0
+-- send_kick trace state: the kick poll calls SendKick every 0.5 s while a
+-- cooldown runs, so the trace only records a change of what it reports (see
+-- TraceKickSend). kickSendLockedDown remembers a send skipped because addon
+-- chat was locked down, so the first send after the lockdown bypasses the
+-- dedupe gate.
+local lastKickTrace = {}
+local kickTraceRepeats = 0
+local kickSendLockedDown = false
 local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
@@ -586,6 +598,34 @@ local function NormalizeDpsPayload(dps, capturedAt, source)
     normalizedSource
 end
 
+-- Run kicks ride on the DPS bucket as the tagged suffix ":KC:<cast>:<mapID>:<level>"
+-- (rule 238). Clients up to 0.9.506 read only fields 2-4 of a DPS payload and
+-- ignore the suffix. The map ID and key level bind the count to the run it
+-- was cast in; a receiver pairs it only with its own snapshot of that run.
+-- Returns the suffix and the three normalized numbers, or "" when any part is
+-- missing or out of bounds.
+local function NormalizeRunKicksSuffix(cast, mapID, level)
+  local numericCast = ToFiniteNumber(cast)
+  local numericMapID = ToFiniteNumber(mapID)
+  local numericLevel = ToFiniteNumber(level)
+  if
+    not numericCast
+    or numericCast < 0
+    or numericCast > MAX_SYNC_RUN_KICKS
+    or numericCast ~= math.floor(numericCast)
+    or not numericMapID
+    or numericMapID <= 0
+    or numericMapID ~= math.floor(numericMapID)
+    or not numericLevel
+    or numericLevel < 0
+    or numericLevel > MAX_SYNC_KEY_LEVEL
+    or numericLevel ~= math.floor(numericLevel)
+  then
+    return "", nil, nil, nil
+  end
+  return string.format(":KC:%d:%d:%d", numericCast, numericMapID, numericLevel), numericCast, numericMapID, numericLevel
+end
+
 local function NormalizePositiveLocID(value)
   local numeric = ToFiniteNumber(value)
   if not numeric or numeric <= 0 then
@@ -698,6 +738,7 @@ function Sync.ClearKnownUsers()
   locInfoByPlayerKey = {}
   targetInfoByPlayerKey = {}
   kickInfoByPlayerKey = {}
+  runKicksCastByPlayerKey = {}
   kickInfoGeneration = kickInfoGeneration + 1
   snapshotWatermarks = {}
   lastIsiLiveHelloAt = 0
@@ -716,6 +757,8 @@ function Sync.ClearKnownUsers()
   lastLocPayloadSent = nil
   lastTargetPayloadSent = nil
   lastKickPayloadSent = nil
+  lastKickTrace = {}
+  kickTraceRepeats = 0
 end
 
 local function GetEntrySyncStamp(entry)
@@ -1068,6 +1111,48 @@ function Sync.GetPlayerDpsInfo(name, realm)
     return nil
   end
   return dpsInfoByPlayerKey[key]
+end
+
+--- Stores a peer's own interrupt casts of its last run (KC suffix, rule 238).
+-- Out-of-bounds or incomplete values are rejected and leave the entry as it was.
+-- @param name string Sender name.
+-- @param realm string|nil Sender realm.
+-- @param cast number Own interrupt casts of the run.
+-- @param mapID number Challenge map ID of the run.
+-- @param level number Key level of the run.
+-- @return boolean true if the stored value changed.
+function Sync.SetPlayerRunKicksCast(name, realm, cast, mapID, level)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if StringUtils.IsBlank(key) then
+    return false
+  end
+  local suffix, numericCast, numericMapID, numericLevel = NormalizeRunKicksSuffix(cast, mapID, level)
+  if suffix == "" then
+    return false
+  end
+  local previous = runKicksCastByPlayerKey[key]
+  if
+    previous
+    and previous.cast == numericCast
+    and previous.mapID == numericMapID
+    and previous.level == numericLevel
+  then
+    return false
+  end
+  runKicksCastByPlayerKey[key] = { cast = numericCast, mapID = numericMapID, level = numericLevel }
+  return true
+end
+
+--- Returns a peer's synced interrupt casts of its last run, or nil.
+-- @param name string Player name.
+-- @param realm string|nil Realm name.
+-- @return table|nil {cast, mapID, level}
+function Sync.GetPlayerRunKicksCast(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if StringUtils.IsBlank(key) then
+    return nil
+  end
+  return runKicksCastByPlayerKey[key]
 end
 
 --- Stores a received kick/interrupt availability payload for a peer.
@@ -1700,9 +1785,11 @@ function Sync.SendStats(opts)
   )
 end
 
---- Broadcasts the local player's last-run DPS to the group.
+--- Broadcasts the local player's last-run DPS to the group, plus the own
+-- interrupt casts of that run as the tagged KC suffix when known (rule 238).
 -- Deduplicated and rate-limited by ISILIVE_STATS_COOLDOWN (5 s).
 -- @param opts table {dps:number, capturedAt:number, source:string,
+--   kicksCast:number|nil, kicksMapID:number|nil, kicksLevel:number|nil,
 --   isVisible:boolean, allowHidden:boolean, force:boolean, onlyIfChanged:boolean}
 function Sync.SendDps(opts)
   opts = opts or {}
@@ -1712,7 +1799,9 @@ function Sync.SendDps(opts)
   end
 
   local payload, numericDps = NormalizeDpsPayload(opts.dps, opts.capturedAt, opts.source)
-  local dedupePayload = string.format("DPS:%d", tonumber(numericDps) or 0)
+  local kicksSuffix = NormalizeRunKicksSuffix(opts.kicksCast, opts.kicksMapID, opts.kicksLevel)
+  payload = payload .. kicksSuffix
+  local dedupePayload = string.format("DPS:%d%s", tonumber(numericDps) or 0, kicksSuffix)
   local blocked, now =
     IsBlockedBySendGate(opts, lastDpsPayloadSent, lastIsiLiveDpsAt, dedupePayload, ISILIVE_STATS_COOLDOWN, nil)
   if blocked then
@@ -1728,11 +1817,66 @@ function Sync.SendDps(opts)
     lastIsiLiveDpsAt = now
     lastDpsPayloadSent = dedupePayload
   end
-  SyncLog("send_dps", "dps=%s channel=%s sent=%s", tostring(numericDps), tostring(channel), tostring(sent))
+  SyncLog(
+    "send_dps",
+    "dps=%s kicks=%s channel=%s sent=%s",
+    tostring(numericDps),
+    kicksSuffix ~= "" and kicksSuffix or "-",
+    tostring(channel),
+    tostring(sent)
+  )
+end
+
+-- C_ChatInfo.InChatMessagingLockdown() (12.0, warcraft.wiki.gg): true while
+-- the client restricts addon chat. Missing API, error or a secret answer count
+-- as "not locked": the send is attempted as before.
+local function IsAddonChatLockedDown()
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  local inLockdown = type(chatInfo) == "table" and chatInfo.InChatMessagingLockdown or nil
+  if type(inLockdown) ~= "function" then
+    return false
+  end
+  local ok, restricted = pcall(inLockdown)
+  return ok and not addonTable.Validators.IsSecretValue(restricted) and restricted == true
+end
+
+-- Traces a SendKick outcome only when what it reports changes: hasKick,
+-- onCooldown, the cooldown running or done (remain > 0), the channel or the
+-- send result ("true", "false", "lockdown"). The running remain itself is not
+-- part of it -- it changes every second. The next logged line carries the
+-- number of identical outcomes it stood for (repeats).
+local function TraceKickSend(hasKick, onCooldown, remain, channel, sent)
+  local trace = lastKickTrace
+  local running = remain > 0
+  if
+    trace.hasKick == hasKick
+    and trace.onCooldown == onCooldown
+    and trace.running == running
+    and trace.channel == channel
+    and trace.sent == sent
+  then
+    kickTraceRepeats = kickTraceRepeats + 1
+    return
+  end
+  lastKickTrace = { hasKick = hasKick, onCooldown = onCooldown, running = running, channel = channel, sent = sent }
+  local repeats = kickTraceRepeats
+  kickTraceRepeats = 0
+  SyncLog(
+    "send_kick",
+    "hasKick=%s onCooldown=%s remain=%s channel=%s sent=%s repeats=%d",
+    tostring(hasKick),
+    tostring(onCooldown),
+    tostring(remain),
+    tostring(channel),
+    tostring(sent),
+    repeats
+  )
 end
 
 --- Broadcasts the local player's kick/interrupt availability to the group.
--- Rate-limited to 1 s; deduplicated by payload string.
+-- Rate-limited to 1 s; deduplicated by payload string. While addon chat is
+-- locked down nothing is dispatched; the first send after it bypasses the
+-- dedupe gate so peers converge at once.
 -- @param opts table {hasKick:boolean, onCooldown:boolean, cooldownRemain:number, spellID:number|nil, force:boolean}
 function Sync.SendKick(opts)
   opts = opts or {}
@@ -1766,7 +1910,13 @@ function Sync.SendKick(opts)
   local extrasSuffix = EncodeKickExtrasSuffix(opts.extras)
   local spellSuffix = EncodeKickSpellSuffix(opts.spellID, encodedHasKick)
   local payload = string.format("KICK:%d:%d%s%s", encodedOnCooldown, remain, extrasSuffix, spellSuffix)
-  local blocked, now = IsBlockedBySendGate(opts, lastKickPayloadSent, lastIsiLiveKickAt, payload, 1, nil)
+  if IsAddonChatLockedDown() then
+    kickSendLockedDown = true
+    TraceKickSend(hasKick, onCooldown, remain, channel, "lockdown")
+    return false
+  end
+  local gateOpts = kickSendLockedDown and { force = true } or opts
+  local blocked, now = IsBlockedBySendGate(gateOpts, lastKickPayloadSent, lastIsiLiveKickAt, payload, 1, nil)
   if blocked then
     return false
   end
@@ -1774,16 +1924,9 @@ function Sync.SendKick(opts)
   if sent == true then
     lastIsiLiveKickAt = now
     lastKickPayloadSent = payload
+    kickSendLockedDown = false
   end
-  SyncLog(
-    "send_kick",
-    "hasKick=%s onCooldown=%s remain=%s channel=%s sent=%s",
-    tostring(hasKick),
-    tostring(onCooldown),
-    tostring(remain),
-    tostring(channel),
-    tostring(sent)
-  )
+  TraceKickSend(hasKick, onCooldown, remain, channel, tostring(sent == true))
   return sent == true
 end
 

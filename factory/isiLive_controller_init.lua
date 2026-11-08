@@ -35,6 +35,7 @@ local function CreateKeySyncController(ctx)
     isFrameVisible = ctx.isFrameVisible,
     canRespondToRefreshRequest = ctx.canRespondToRefreshRequest,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
+    getOwnRunKicks = ctx.getOwnRunKicks,
     getPlayerSyncSummary = ctx.getPlayerSyncSummary,
     -- KeySync reads the format variant; passing logRuntimeTrace left its
     -- [KEYSYNC] applied line dead.
@@ -73,6 +74,14 @@ local function CreateStatsController(ctx)
     getRoster = ctx.getRoster,
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
     logRuntimeTracef = ctx.logRuntimeTracef,
+    -- Peers' own interrupt casts of their last run (KC suffix, rule 238).
+    getPeerRunKicksCast = function(name, realm)
+      local sync = ctx.sync
+      if type(sync) ~= "table" or type(sync.GetPlayerRunKicksCast) ~= "function" then
+        return nil
+      end
+      return sync.GetPlayerRunKicksCast(name, realm)
+    end,
   })
 end
 
@@ -126,6 +135,8 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
+    getPlayerLastRunKicks = ctx.getPlayerLastRunKicks,
+    hasRunKicks = ctx.hasRunKicks,
     getTargetDungeonInfo = ctx.getTargetDungeonInfo,
     isInChallengeMode = ctx.isInChallengeMode,
     sendShareKeysRequest = ctx.sendShareKeysRequest,
@@ -187,6 +198,9 @@ function ControllerInit.CreateControllers(ctx)
   result.statsController = statsController
   -- Inject stats getters into context for downstream consumers
   ctx.getPlayerLastRunDps = statsController.GetPlayerLastRunDps
+  ctx.getPlayerLastRunKicks = statsController.GetPlayerLastRunKicks
+  ctx.hasRunKicks = statsController.HasRunKicks
+  ctx.getOwnRunKicks = statsController.GetOwnRunKicks
   result.recordRun = statsController.RecordRun
 
   local keySyncResult = CreateKeySyncController(ctx)

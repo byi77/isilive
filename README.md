@@ -242,8 +242,9 @@ Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 - **Key** — keystone and level, short code (e.g. `MT +14`, `DAWN+12`). Red if this player owns the key you joined for.
 - **iLvl** — equipped item level
 - **RIO** — current Raider.IO score. After a run, a green `(+X)` shows the gain: `(+12)3521`
-- **DPS** — overall DPS from the last dungeon, read from Blizzard's in-game damage meter
+- **DPS** — overall DPS from the last dungeon, read from Blizzard's in-game damage meter (if the meter is still hidden at the key end, isiLive reads it again once you leave the dungeon)
 - **Kick** — green `ready`, red seconds on cooldown, or `-` if the spec has no interrupt. Heal specs without interrupt (Holy Paladin, Mistweaver Monk, Restoration Druid, Discipline / Holy Priest) correctly show `-` instead of a stale cooldown. **Hover** over the cell to see extra interrupts the player has via talents (e.g. Protection Paladin's Avenger's Shield) — synced live across the group through isiLive.
+  After a key (like DPS) the cell shows the kicks of the run instead: `37/32` means 37 interrupt casts, 32 of them landed. Landed kicks come from Blizzard's damage meter (Interrupts) for every member, `0` for a member the meter lists no interrupt for; the cast count is your own client's count and is synced to group members with isiLive, so their rows show `cast/landed` too, everybody else shows the landed count. Avenger's Shield and Axe Toss are not counted as casts. While the next key runs, the cooldown display is back; the row tooltip shows `Kicks last run: 37 cast, 32 landed`.
 
 ### Markers next to names
 
@@ -370,7 +371,7 @@ You can turn either announce off in the settings. Non-isiLive group members won'
 
 ### Missed kick alert
 
-Optional (off by default: **Display -> Kick: Missed kick alert**). When your own interrupt goes into the void, isiLive shows a short red **MISSED KICK** notice in the death-alert style. After your interrupt cast it waits briefly (0.25 s, pet kicks and Solar Beam 0.6 s) for any hostile cast on a nameplate, your target, focus or a boss to be interrupted; if none is, the kick counts as missed. Only that moment counts: who interrupted is not read (it is a protected value inside keys), so a teammate's kick at the same moment counts as a hit, and isiLive would rather miss an alert than show a wrong one. Only in combat and, by default, only in a running key (**Missed kick: only in a key**); never in raids. Kicks that still do something without a cast (Avenger's Shield, Axe Toss) never alert. **Missed kick: play a sound** adds a short sound on the selected sound channel. The simulation tablet (`/isilive sim`, action E6) previews the notice and sound without a key. The windows are start values and still need in-game calibration.
+Optional (off by default: **Display -> Kick: Missed kick alert**). When your own interrupt goes into the void, isiLive shows a short red **MISSED KICK** notice in the death-alert style. After your interrupt cast it waits briefly (0.25 s, pet kicks and Solar Beam 0.6 s) for any hostile cast on a nameplate, your target, focus or a boss to be interrupted; if none is, the kick counts as missed. Only that moment counts: who interrupted is not read (it is a protected value inside keys), so a teammate's kick at the same moment counts as a hit. A kick that comes after a teammate already interrupted the cast (an earlier frame than your cast) came too late and counts as missed. Only in combat and, by default, only in a running key (**Missed kick: only in a key**); never in raids. Kicks that still do something without a cast (Avenger's Shield, Axe Toss) never alert. **Missed kick: play a sound** adds a short sound on the selected sound channel. The simulation tablet (`/isilive sim`, action E6) previews the notice and sound without a key. The windows are start values and still need in-game calibration.
 
 ### Pre-key group view
 
@@ -475,7 +476,7 @@ section to jump directly to its settings. The active section follows manual scro
 ## FAQ
 
 **Why don't I see DPS after a run?**
-DPS is read from Blizzard's own damage meter. If Blizzard hasn't finalized the session yet, isiLive briefly retries. If the damage meter has no data for a player (e.g. late joiner), the DPS column stays empty rather than showing a guess.
+DPS is read from Blizzard's own damage meter. If Blizzard hasn't finalized the session yet, isiLive briefly retries. Right after a key ends the client often still hides the meter values from addons; isiLive then keeps the run pending for up to 10 minutes and reads it again as soon as the addon restriction lifts or you are outside the dungeon (only the meter's Overall session, and only until you start a new key or enter combat again). Group members with isiLive get the late value automatically. If the damage meter has no data for a player (e.g. late joiner) or stays hidden, the DPS column stays empty rather than showing a guess.
 
 **Why is the Key column empty for another player?**
 They either don't have a keystone, or they don't have isiLive or a LibKeystone-compatible addon to share it.

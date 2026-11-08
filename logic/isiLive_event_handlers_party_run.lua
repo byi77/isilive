@@ -200,6 +200,11 @@ local function UpdateTrackedMythicZeroRun(ctx)
     end
     if not previousMapID and currentMapID then
       ctx.activeMythicZeroMapID = currentMapID
+      -- A new M0 run hides the last key's run kicks (rule 238) so the kick
+      -- column shows the cooldown again; the cast count is a key-only value.
+      if type(ctx.resetKickStats) == "function" then
+        ctx.resetKickStats("m0")
+      end
     end
     if currentMapID and currentDifficultyID then
       if type(ctx.setTrackedPartyRunInfo) == "function" then

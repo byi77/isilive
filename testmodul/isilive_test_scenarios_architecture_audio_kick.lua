@@ -978,7 +978,7 @@ return function(test, ctx)
     AssertContains(
       Assert,
       rosterPanelContent,
-      "SetKickCellText(row.kick, info, getL)",
+      "SetKickCellText(row.kick, info, getL, ResolveRunKicks(runKickSource, runKicksBlocked, info))",
       "RosterPanel dedicated kick-column refresh must use the same compact ready marker as full roster renders"
     )
     local rosterPanelRenderContent = ReadFile("isiLive_roster_panel_render.lua")
