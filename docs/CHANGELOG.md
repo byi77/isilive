@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-08 - Version 0.9.507 (patch)
 
 - Fix: the runtime log no longer fills up with `[SYNC] send_kick` lines (1189 of 1500 ring-buffer entries in one key). The kick poll still sends every 0.5 s while a cooldown runs, but the trace is written only when what it reports changes (hasKick, onCooldown, cooldown running/done, channel, send result) and the line carries `repeats=N` for the identical outcomes it stood for. While `C_ChatInfo.InChatMessagingLockdown()` reports addon chat as locked down, `Sync.SendKick` dispatches nothing (traced once as `sent=lockdown`); the first send afterwards bypasses the dedupe gate so peers converge at once (rule 50).
 - Fix: the missed-kick alert (rule 236) now counts a late kick as missed (user decision). An interrupt observed before your own cast event used to count as a hit up to 0.1 s earlier -- exactly the case of a teammate who interrupted the cast first (combat log of a +17: 4 of 37 own kicks came 32-231 ms after a teammate's interrupt). Now only an interrupt in the same frame as your cast (same `GetTime()`) or inside the window after it counts; any earlier frame is a miss. The windows after the cast (0.25 s, pet kicks and Solar Beam 0.6 s) are unchanged. The landed kicks of rule 238 come from the damage meter and are not affected.

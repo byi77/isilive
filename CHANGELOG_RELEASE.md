@@ -3,7 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.506`.
+Current version: `0.9.507`.
+
+Version 0.9.507: after a key the roster shows each member's kicks in the kick
+column, like the DPS: `37/32` means 37 kicks cast and 32 that landed (group
+members without isiLive show the landed number). The last-run DPS is filled in
+again: isiLive now reads it once you are outside, because the game still hides
+the values right at the key end. The missed kick warning now also counts a kick
+that came after a teammate had already interrupted the cast.
 
 Version 0.9.506: isiLive has its own settings window (`/isilive settings`,
 the gear button or a right-click on the minimap button); typing "isiLive"
@@ -205,9 +212,11 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.506 -->
+<!-- highlights-reviewed-for: 0.9.507 -->
 
 Highlights:
+- **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
+  member (e.g. `37/32`) and the DPS column is filled again after the key.
 - **Own settings window.** `/isilive settings`, the gear button, the minimap
   button and the ESC panel open isiLive's own movable window instead of a page
   in Blizzard's settings; Blizzard's settings search finds "isiLive".
@@ -224,7 +233,3 @@ Highlights:
   glassy forces bar. Everyone is switched to Modern once; Classic stays
   available under Settings > General > Design or `/isilive design classic`, and
   the switch applies at once outside combat.
-- **Voice announcements in your isiLive language.** Spoken alerts now follow
-  the isiLive language instead of the game client, and a language switch takes
-  effect at once. The download is several megabytes smaller: screenshots stay
-  out of the package and the English announcements are compact Ogg files.
