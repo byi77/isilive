@@ -144,10 +144,14 @@ local MISSED_KICK_WINDOW_PET_SECONDS = 0.6
 local MISSED_KICK_WINDOW_BY_SPELL = {
   [78675] = 0.6, -- Solar Beam: ground effect, the interrupt applies when the beam lands
 }
--- The order of the own UNIT_SPELLCAST_SUCCEEDED and the hostile interrupt event
--- inside one server update is not documented, so an interrupt observed this
--- long BEFORE the own cast also counts. CALIBRATE IN-GAME.
-local MISSED_KICK_PRE_CAST_TOLERANCE_SECONDS = 0.1
+-- An interrupt observed BEFORE the own cast belongs to a teammate who was
+-- faster: the own kick came late and counts as missed (user decision
+-- 2026-11-08; combat log of a +17: 4 of 37 own kicks came 32-231 ms after a
+-- teammate's interrupt). GetTime() is constant within one frame, so an
+-- interrupt with the same timestamp as the own cast arrived in the same frame;
+-- the event order inside a frame is not documented, so that tie counts as
+-- landed. Zero tolerance: any earlier frame is a miss.
+local MISSED_KICK_PRE_CAST_TOLERANCE_SECONDS = 0
 -- Interrupt casts that still do something without a target cast (damage,
 -- stun), so an "empty" use is not a wasted kick. VERIFY IN-GAME.
 local MISSED_KICK_EXCLUDED_SPELLS = {
@@ -636,12 +640,13 @@ local function CreateMissedKickState(getTime)
     lastHostileInterruptAt = getTime()
   end
 
-  -- Verdict for the pending kick `kickSeq`: "landed" when any hostile
-  -- interrupt fell into [castAt - tolerance, castAt + window], otherwise
-  -- "missed". A simultaneous teammate kick therefore also counts as landed --
-  -- a missed alert is preferred over a false one. Returns nil for a stale or
-  -- unknown seq (a newer kick replaced it) and consumes the pending kick
-  -- otherwise.
+  -- Verdict for the pending kick `kickSeq`: "landed" when the last hostile
+  -- interrupt fell into [castAt - tolerance, castAt + window] (tolerance 0:
+  -- the same frame as the own cast or later), otherwise "missed". A teammate
+  -- kick in the same frame or inside the window therefore also counts as
+  -- landed; one in an earlier frame made the own kick late, a miss. Returns
+  -- nil for a stale or unknown seq (a newer kick replaced it) and consumes the
+  -- pending kick otherwise.
   function state.api.ResolveMissedKick(kickSeq)
     local current = pending
     if not current or current.seq ~= kickSeq then

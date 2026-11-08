@@ -184,13 +184,42 @@ return function(test, ctx)
       session.Advance(0.5)
       Assert.False(AlertShown(session), "a simultaneous teammate kick suppresses the alert")
 
-      -- The teammate's interrupt reaches the client just before the own cast.
+      -- Same frame (equal GetTime), the interrupt event first: still landed.
       NextStep(session)
       HostileInterrupt(session, "focus", "Player-1-Peer2")
-      session.Advance(0.05)
       Kick(session)
       session.Advance(0.5)
-      Assert.False(AlertShown(session), "an interrupt just before the own cast event also counts")
+      Assert.False(AlertShown(session), "an interrupt in the same frame as the own cast counts as landed")
+    end, Prepare())
+  end)
+
+  test("Missed kick alert counts a late kick after a teammate interrupt as missed", function()
+    Stress.WithKey(ctx, FixtureWithSound, function(session)
+      EnterCombat(session)
+      -- A teammate interrupted the cast 30 ms before the own kick.
+      HostileInterrupt(session, "target", "Player-1-Peer1")
+      session.Advance(0.03)
+      Kick(session)
+      session.Advance(0.5)
+      Assert.True(AlertShown(session), "a kick 30 ms after a teammate's interrupt came late and is missed")
+
+      -- 200 ms late.
+      NextStep(session)
+      HostileInterrupt(session, "focus", "Player-1-Peer2")
+      session.Advance(0.2)
+      Kick(session)
+      session.Advance(0.5)
+      Assert.True(AlertShown(session), "a kick 200 ms after a teammate's interrupt is missed")
+
+      -- An interrupt inside the window after the own kick still lands it.
+      NextStep(session)
+      HostileInterrupt(session, "focus", "Player-1-Peer2")
+      session.Advance(0.2)
+      Kick(session)
+      session.Advance(0.1)
+      HostileInterrupt(session, "nameplate3")
+      session.Advance(0.5)
+      Assert.False(AlertShown(session), "the own interrupt event after the cast decides, not the earlier one")
     end, Prepare())
   end)
 
