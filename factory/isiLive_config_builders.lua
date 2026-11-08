@@ -203,7 +203,7 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
         uiCommon.ApplyBgAlpha({
           mainFrame = mainFrame,
           panelFrame = panelUI and panelUI.panelFrame,
-          settingsCanvas = settingsPanel and settingsPanel.canvas,
+          settingsWindow = settingsPanel and settingsPanel.windowFrame,
         }, defaultBgAlpha)
       elseif mainFrame and type(mainFrame.SetBackdropColor) == "function" then
         -- Without UICommon there is no design and no surface registry; paint
@@ -266,15 +266,11 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
         errorLog.Clear()
       end
     end,
+    -- /isilive settings opens isiLive's own config window (rule 237).
     openSettings = function()
-      local blizzardSettings = rawget(_G, "Settings")
-      if type(blizzardSettings) ~= "table" or type(blizzardSettings.OpenToCategory) ~= "function" then
-        return false
-      end
       local settingsPanel = ResolveSettingsPanel()
-      if settingsPanel and settingsPanel.category then
-        blizzardSettings.OpenToCategory(settingsPanel.category.ID)
-        return true
+      if settingsPanel and type(settingsPanel.Open) == "function" then
+        return settingsPanel.Open() == true
       end
       return false
     end,

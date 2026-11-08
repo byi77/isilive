@@ -35,11 +35,7 @@ return function(test, ctx)
       UIParent = {},
       IsiLiveDB = {},
       CreateFrame = createFrame,
-      Settings = {
-        RegisterCanvasLayoutCategory = function(canvas)
-          return { canvas = canvas }
-        end,
-      },
+      Settings = {},
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_languages.lua", "isiLive_settings.lua" })
       local active = labels
@@ -144,9 +140,6 @@ return function(test, ctx)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -220,9 +213,6 @@ return function(test, ctx)
       end,
       PlaySoundFile = function() end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -293,9 +283,6 @@ return function(test, ctx)
       end,
       PlaySoundFile = function() end,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

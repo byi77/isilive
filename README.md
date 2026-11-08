@@ -409,7 +409,7 @@ bonus plus signs, death alert, ready-check sound, and sound preview.
 ```
 /isilive help         — show normal user commands
 /isilive admin        — show administrative / support commands
-/isilive settings     — open the settings panel
+/isilive settings     — open the isiLive configuration window
 /isilive lock         — lock window position
 /isilive unlock       — unlock window position
 /isilive resetui      — recenter window and reset scale + opacity (asks for confirmation)
@@ -426,7 +426,13 @@ write the dump back into the log.
 
 ## Settings
 
-Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
+isiLive has its own configuration window. Open it with `/isilive settings`,
+the gear button in the main window's title bar, a right-click on the minimap
+button or on the isiLive entry in the addon menu, or the isiLive button in the
+ESC panel. In **Escape → Options → AddOns → isiLive** (also found by typing
+"isiLive" into Blizzard's settings search) a button opens the same window.
+Drag the window by its title bar; the position is saved. ESC or the × closes
+it, and it also opens during combat. Everything takes effect immediately.
 The fixed two-row section navigation stays visible while you scroll; select a
 section to jump directly to its settings. The active section follows manual scrolling.
 

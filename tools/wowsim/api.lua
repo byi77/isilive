@@ -538,6 +538,180 @@ local function InstallOutput(ctx)
   end
 end
 
+-- Blizzard's Settings API and panel (SettingsPanel itself is created as a
+-- hidden Blizzard frame in InstallFramesAndFonts).
+local function InstallBlizzardSettings(ctx)
+  local world = ctx.world
+  local client = ctx.client
+  local engine = ctx.engine
+  local env = ctx.env
+  -- Blizzard settings (Blizzard_Settings_Shared, 12.1.5): initializers carry
+  -- data and upper-cased search tags; the search walks only vertical layouts
+  -- (SettingsPanelMixin:FindInitializersMatchingSearchText) and matches a
+  -- plain substring of a tag.
+  local function CreateSettingsInitializer(template, data)
+    local initializer = { template = template, data = data }
+    function initializer.GetData(self)
+      return self.data
+    end
+    function initializer.AddSearchTags(self, ...)
+      self.searchTags = self.searchTags or {}
+      for index = 1, select("#", ...) do
+        local tag = select(index, ...)
+        if type(tag) == "string" and tag ~= "" then
+          table.insert(self.searchTags, tag:upper())
+        end
+      end
+    end
+    function initializer.MatchesSearchTags(self, words)
+      for _, word in ipairs(words) do
+        for _, tag in ipairs(self.searchTags or {}) do
+          local first, last = string.find(tag, word, nil, true)
+          if first and last then
+            return last - first
+          end
+        end
+      end
+      return nil
+    end
+    return initializer
+  end
+  env.CreateSettingsButtonInitializer = function(name, buttonText, buttonClick, tooltip, addSearchTags)
+    assert(addSearchTags ~= nil, "CreateSettingsButtonInitializer: addSearchTags must not be nil")
+    local initializer = CreateSettingsInitializer("SettingButtonControlTemplate", {
+      name = name,
+      buttonText = buttonText,
+      buttonClick = buttonClick,
+      tooltip = tooltip,
+    })
+    if addSearchTags then
+      initializer:AddSearchTags(name)
+      initializer:AddSearchTags(buttonText)
+    end
+    return initializer
+  end
+  env.CreateSettingsListSectionHeaderInitializer = function(name, tooltip)
+    return CreateSettingsInitializer("SettingsListSectionHeaderTemplate", { name = name, tooltip = tooltip })
+  end
+
+  -- Like the client, opening a category shows Blizzard's SettingsPanel: a
+  -- canvas category docks the addon's frame into the content area, a vertical
+  -- layout lists its initializers (header text, button row).
+  local settingsCategories = {}
+  local settingsCategoryOrder = {}
+  local function RenderVerticalLayout(panel, category)
+    local list = category.listFrame
+    if not list then
+      list = engine.CreateFrame("Frame", nil, panel)
+      list:SetPoint("TOPLEFT", panel, "TOPLEFT", 230, -40)
+      list:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -20, 20)
+      category.listFrame = list
+      category.rows = {}
+    end
+    local y = -10
+    for index, initializer in ipairs(category.layout.initializers) do
+      local row = category.rows[index]
+      local data = initializer.data
+      if not row then
+        row = { label = list:CreateFontString(nil, "OVERLAY", "GameFontNormal") }
+        if initializer.template == "SettingButtonControlTemplate" then
+          row.button = engine.CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
+          row.button:SetSize(200, 26)
+          row.button:SetScript("OnClick", function(button, mouseButton)
+            initializer.data.buttonClick(button, mouseButton)
+          end)
+        end
+        category.rows[index] = row
+      end
+      row.label:ClearAllPoints()
+      row.label:SetPoint("TOPLEFT", list, "TOPLEFT", 10, y)
+      row.label:SetText(data.name)
+      if row.button then
+        row.button:ClearAllPoints()
+        row.button:SetPoint("TOPLEFT", list, "TOPLEFT", 320, y + 6)
+        row.button:SetText(data.buttonText)
+      end
+      y = y - 36
+    end
+    list:Show()
+  end
+  local function OpenSettingsCategory(categoryID)
+    world.Log("note", "Settings.OpenToCategory " .. tostring(categoryID), client)
+    local category = settingsCategories[categoryID] or settingsCategories[settingsCategoryOrder[1] or ""]
+    local panel = env.SettingsPanel
+    panel:ClearAllPoints()
+    panel:SetPoint("CENTER", engine.UIParent, "CENTER", 0, 0)
+    panel:SetSize(1000, 720)
+    panel:SetFrameStrata("HIGH")
+    panel._backdrop = { bgFile = "x", edgeFile = "x", edgeSize = 1 }
+    panel._bg = { 0.06, 0.06, 0.07, 0.97 }
+    panel._border = { 0.35, 0.35, 0.38, 1 }
+    if category and category.frame then
+      local frame = category.frame
+      frame:SetParent(panel)
+      frame:ClearAllPoints()
+      frame:SetPoint("TOPLEFT", panel, "TOPLEFT", 230, -40)
+      frame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -20, 20)
+      frame:Show()
+    elseif category and category.layout then
+      RenderVerticalLayout(panel, category)
+    end
+    panel:Show()
+  end
+  local function RegisterCategory(category)
+    if not settingsCategories[category.ID] then
+      settingsCategoryOrder[#settingsCategoryOrder + 1] = category.ID
+    end
+    settingsCategories[category.ID] = category
+    function category.GetID()
+      return category.ID
+    end
+    return category
+  end
+  env.Settings = {
+    RegisterCanvasLayoutCategory = function(frame, name)
+      return RegisterCategory({ ID = name or "isiLive", name = name, frame = frame })
+    end,
+    RegisterCanvasLayoutSubcategory = function(_, frame, name)
+      return { ID = name, frame = frame }
+    end,
+    RegisterVerticalLayoutCategory = function(name)
+      local layout = { initializers = {} }
+      function layout.AddInitializer(self, initializer)
+        table.insert(self.initializers, initializer)
+      end
+      function layout.IsVerticalLayout()
+        return true
+      end
+      local category = RegisterCategory({ ID = name or "isiLive", name = name, layout = layout })
+      return category, layout
+    end,
+    RegisterAddOnCategory = function() end,
+    OpenToCategory = OpenSettingsCategory,
+    -- Simulator-only: Blizzard's settings search over every registered
+    -- vertical layout (canvas categories are not searchable in the client).
+    _SearchInitializers = function(text)
+      local searchText = tostring(text or ""):upper()
+      local words = { searchText }
+      for word in string.gmatch(searchText, "([^, ]+)") do
+        table.insert(words, word)
+      end
+      local matches = {}
+      for _, id in ipairs(settingsCategoryOrder) do
+        local category = settingsCategories[id]
+        if category.layout then
+          for _, initializer in ipairs(category.layout.initializers) do
+            if initializer:MatchesSearchTags(words) then
+              matches[#matches + 1] = { initializer = initializer, category = category }
+            end
+          end
+        end
+      end
+      return matches
+    end,
+  }
+end
+
 local function InstallFramesAndFonts(ctx)
   local world = ctx.world
   local client = ctx.client
@@ -807,49 +981,6 @@ local function InstallFramesAndFonts(ctx)
   }
   env.Menu = { ModifyMenu = function() end }
   env.MenuUtil = { CreateContextMenu = function() end, CreateRadioMenu = function() end }
-  -- Like the client, opening a canvas category shows Blizzard's SettingsPanel
-  -- with the addon's registered frame docked into its content area.
-  local settingsCategories = {}
-  local function OpenSettingsCategory(categoryID)
-    world.Log("note", "Settings.OpenToCategory " .. tostring(categoryID), client)
-    local category = settingsCategories[categoryID] or settingsCategories[next(settingsCategories) or ""]
-    local panel = env.SettingsPanel
-    panel:ClearAllPoints()
-    panel:SetPoint("CENTER", engine.UIParent, "CENTER", 0, 0)
-    panel:SetSize(1000, 720)
-    panel:SetFrameStrata("HIGH")
-    panel._backdrop = { bgFile = "x", edgeFile = "x", edgeSize = 1 }
-    panel._bg = { 0.06, 0.06, 0.07, 0.97 }
-    panel._border = { 0.35, 0.35, 0.38, 1 }
-    if category and category.frame then
-      local frame = category.frame
-      frame:SetParent(panel)
-      frame:ClearAllPoints()
-      frame:SetPoint("TOPLEFT", panel, "TOPLEFT", 230, -40)
-      frame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -20, 20)
-      frame:Show()
-    end
-    panel:Show()
-  end
-  env.Settings = {
-    RegisterCanvasLayoutCategory = function(frame, name)
-      local category = {
-        ID = name or "isiLive",
-        name = name,
-        frame = frame,
-      }
-      function category.GetID()
-        return category.ID
-      end
-      settingsCategories[category.ID] = category
-      return category
-    end,
-    RegisterCanvasLayoutSubcategory = function(_, frame, name)
-      return { ID = name, frame = frame }
-    end,
-    RegisterAddOnCategory = function() end,
-    OpenToCategory = OpenSettingsCategory,
-  }
   env.SlashCmdList = env.SlashCmdList or {}
   env.hash_SlashCmdList = {}
 end
@@ -2499,6 +2630,7 @@ function Api.Build(opts)
   InstallWowLuaExtensions(ctx)
   InstallOutput(ctx)
   InstallFramesAndFonts(ctx)
+  InstallBlizzardSettings(ctx)
   InstallConstants(ctx)
   InstallCVarsAndBindings(ctx)
   InstallAddons(ctx)

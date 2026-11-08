@@ -20,9 +20,6 @@ return function(test, ctx)
         end,
       },
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas)
-          return { canvas = canvas }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -49,7 +46,7 @@ return function(test, ctx)
         end
       end
       Assert.NotNil(eventFrame, "the production item-event frame must exist")
-      panel.canvas:Hide()
+      Assert.False(panel.IsOpen(), "the config window starts closed")
       local beforeScans, beforeLabels = toyScans, labelReads
       for id = 1, 10000 do
         eventFrame:FireEvent("GET_ITEM_INFO_RECEIVED", id, true)
@@ -58,8 +55,7 @@ return function(test, ctx)
       Assert.Equal(toyScans, beforeScans, "closed settings must perform zero toy scans during an event storm")
       Assert.Equal(labelReads, beforeLabels, "closed settings must perform zero control refreshes")
       Assert.Equal(#pending, 0, "closed settings must schedule zero callbacks")
-      panel.canvas:Show()
-      panel.canvas._scripts.OnShow(panel.canvas)
+      panel.Open()
       beforeScans, beforeLabels = toyScans, labelReads
       for id = 1, 10000 do
         eventFrame:FireEvent("GET_ITEM_INFO_RECEIVED", id, true)
@@ -70,11 +66,10 @@ return function(test, ctx)
       Assert.Equal(toyScans, beforeScans + 1, "the deferred callback must rebuild just the toy options once")
       Assert.Equal(labelReads, beforeLabels + 2, "item events must not refresh every settings section or preview")
       eventFrame:FireEvent("TOYS_UPDATED")
-      panel.canvas:Hide()
+      panel.Close()
       pending[2]()
       Assert.Equal(toyScans, beforeScans + 1, "closing before the callback must discard the visible refresh")
-      panel.canvas:Show()
-      panel.canvas._scripts.OnShow(panel.canvas)
+      panel.Open()
       Assert.Equal(toyScans, beforeScans + 2, "opening settings must hydrate changes skipped while hidden")
     end)
   end)
@@ -120,9 +115,6 @@ return function(test, ctx)
         end,
       },
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas)
-          return { canvas = canvas }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()
@@ -143,8 +135,7 @@ return function(test, ctx)
         end,
         setLanguage = function() end,
       })
-      env.panel.canvas:Show()
-      env.panel.canvas._scripts.OnShow(env.panel.canvas)
+      env.panel.Open()
       ResolveDropdownEnv(env)
       body(env)
     end)
@@ -188,7 +179,7 @@ return function(test, ctx)
       Assert.True(env.menu:IsShown(), "clicking the dropdown opens the menu")
       Assert.True(env.catcher:IsShown(), "the open menu raises the full-screen click catcher")
 
-      env.panel.canvas:Hide()
+      env.panel.Close()
       -- The client fires OnHide on every shown child when an ancestor hides
       -- (warcraft.wiki.gg UIHANDLER_OnHide); the frame stub does not propagate.
       local onHide = env.button._scripts.OnHide

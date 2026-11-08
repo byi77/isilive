@@ -298,25 +298,33 @@ local function Register(test, ctx)
     Assert.Equal(captured.toggled, 1, "left-click must trigger exactly one toggle")
   end)
 
-  test("factory_minimap: right-click opens Blizzard Settings when category exists", function()
-    local opens = {}
+  test("factory_minimap: right-click opens the isiLive config window", function()
+    -- Rule 237: the launcher goes through the central ctx.OpenConfig opener
+    -- (installed by CreateFactoryContext), never Blizzard's Settings panel.
+    local opens = 0
+    local blizzardOpens = 0
     local globals = BuildMinimapEnv({
       Settings = {
-        OpenToCategory = function(id)
-          opens[#opens + 1] = id
+        OpenToCategory = function()
+          blizzardOpens = blizzardOpens + 1
         end,
       },
     })
     LoadAndCreate(ctx, globals, {
-      ctx = { settingsPanel = { category = { ID = "isiLive-category-id" } } },
+      ctx = {
+        OpenConfig = function()
+          opens = opens + 1
+          return true
+        end,
+      },
     }, function(btn)
       btn.scripts["OnClick"](btn, "RightButton")
     end)
-    Assert.Equal(#opens, 1, "right-click must open Settings exactly once")
-    Assert.Equal(opens[1], "isiLive-category-id", "settings opener must receive isiLive category id")
+    Assert.Equal(opens, 1, "right-click must open the config window exactly once")
+    Assert.Equal(blizzardOpens, 0, "right-click must not open Blizzard's Settings panel")
   end)
 
-  test("factory_minimap: right-click is a no-op when Settings global is missing", function()
+  test("factory_minimap: right-click is a no-op when no config opener is wired", function()
     local globals = BuildMinimapEnv({ Settings = nil })
     -- Must not throw; no-op is the contract.
     LoadAndCreate(ctx, globals, {}, function(btn)
@@ -380,19 +388,16 @@ local function Register(test, ctx)
   end)
 
   test("factory_minimap: AddonCompartment entry shares the minimap launcher behaviour", function()
-    local opens = {}
-    local globals, state = BuildMinimapEnv({
-      Settings = {
-        OpenToCategory = function(id)
-          opens[#opens + 1] = id
-        end,
-      },
-    })
+    local opens = 0
+    local globals, state = BuildMinimapEnv()
     local overrides = {}
     ctx.with_globals(globals, function()
       local addonTable = ctx.load_modules({ "isiLive_factory_minimap.lua" })
       addonTable._FactoryInternal.RegisterAddonCompartmentHandlers({
-        settingsPanel = { category = { ID = "isiLive-category-id" } },
+        OpenConfig = function()
+          opens = opens + 1
+          return true
+        end,
         ToggleMainFrameVisibility = function()
           overrides.toggled = (overrides.toggled or 0) + 1
         end,
@@ -407,7 +412,7 @@ local function Register(test, ctx)
       leave("isiLive", {})
     end)
     Assert.Equal(overrides.toggled, 1, "left click must toggle the main window")
-    Assert.Equal(opens[1], "isiLive-category-id", "right click must open the isiLive settings")
+    Assert.Equal(opens, 1, "right click must open the isiLive config window")
     Assert.Equal(state.tooltipShown, false, "leaving the entry must hide the tooltip")
 
     local toc = assert(io.open("isiLive.toc", "r"))

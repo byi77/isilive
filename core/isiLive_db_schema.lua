@@ -205,6 +205,19 @@ local SCHEMA = {
       y = { type = "number", default = 120 },
     },
   },
+  -- Own config window (ui/isiLive_config_window.lua, rule 237).
+  configWindowPosition = {
+    type = "table",
+    default = function()
+      return { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
+    end,
+    fields = {
+      point = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
+      relativePoint = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
+      x = { type = "number", default = 0 },
+      y = { type = "number", default = 0 },
+    },
+  },
   uiScale = { type = "number", default = 1.0, min = 0.5, max = 2.0 },
   -- Selected UI font family. Free-form on purpose: the value is a key from
   -- UICommon.GetFontChoices(), which grows with whatever font pool the client

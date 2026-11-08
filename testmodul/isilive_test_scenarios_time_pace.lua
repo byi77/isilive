@@ -788,9 +788,6 @@ local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

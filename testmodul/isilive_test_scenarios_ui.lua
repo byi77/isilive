@@ -1989,9 +1989,6 @@ local function RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonMo
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

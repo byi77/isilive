@@ -580,9 +580,6 @@ local function RegisterRecoveryTests(test, Assert, WithGlobals, LoadAddonModules
   test("TTK settings wake an ongoing fight and display defaults restart it", function()
     local env = BuildEnv({ db = { ttkEnabled = false } })
     env.globals.Settings = {
-      RegisterCanvasLayoutCategory = function(canvas, name)
-        return { canvas = canvas, name = name }
-      end,
       RegisterAddOnCategory = function() end,
     }
     WithGlobals(env.globals, function()
@@ -930,9 +927,6 @@ local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
       Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
         RegisterAddOnCategory = function() end,
       },
     }, function()

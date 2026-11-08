@@ -57,9 +57,6 @@ return function(test, ctx)
     end
     globals.Settings = {
       RegisterAddOnCategory = function() end,
-      RegisterCanvasLayoutCategory = function(canvas, _name)
-        return { ID = "isiLive-settings", canvas = canvas }
-      end,
     }
     local env = { globals = globals, printed = printed, created = created, db = savedDb }
     WithGlobals(globals, function()

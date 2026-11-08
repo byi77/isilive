@@ -16,7 +16,7 @@ local function SwitchLanguage(sim, tag)
     end
   end
   sim.Expect(clicked, "language button " .. tag .. " exists")
-  sim.Env().SettingsPanel:Hide()
+  sim.Env().isiLiveConfigWindow:Hide()
   sim.Wait(1)
 end
 

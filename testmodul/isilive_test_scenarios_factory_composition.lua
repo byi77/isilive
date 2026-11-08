@@ -2,6 +2,7 @@
 local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack")) or nil
 local FactoryFixture = dofile("testmodul/isilive_test_factory_fixture.lua")
 local BuildGlobals = FactoryFixture.buildGlobals
+local BuildBlizzardSettingsStub = dofile("testmodul/isilive_test_ui_helpers.lua").BuildBlizzardSettingsStub
 local GetAllIsiLiveFiles = FactoryFixture.moduleFiles
 
 return function(test, ctx)
@@ -250,9 +251,10 @@ return function(test, ctx)
   end)
 
   test("factory composition root: settings content and simulation tablet build on first open", function()
-    -- Rule 169/170: addon init registers the Settings category but builds no
-    -- section, and creates no simulation tablet. Both appear on first open
-    -- through the real paths (Blizzard canvas display, `/isilive sim`).
+    -- Rule 169/170/237: addon init registers the Blizzard stub category and
+    -- creates the closed config window but builds no section, and creates no
+    -- simulation tablet. Both appear on first open through the real paths
+    -- (config window Open, `/isilive sim`).
     local globals = BuildGlobals()
     local baseCreateFrame = globals.CreateFrame
     local frameCount = 0
@@ -298,33 +300,38 @@ return function(test, ctx)
       Assert.Equal(ok, true, "InitializeAddon must run without raising: " .. tostring(err))
 
       Assert.NotNil(panel, "the composition root must create the settings panel")
-      Assert.NotNil(panel.category, "the Settings category must be registered during init")
+      Assert.NotNil(panel.category, "the Blizzard stub category must be registered during init")
       Assert.False(panel.IsBuilt(), "addon init must not build the settings sections")
       Assert.Nil(panel.navigation, "addon init must not build the section navigation")
-      Assert.True(createFrames <= 4, "settings init may only create canvas, scroll, content and item-event frames")
-      Assert.Equal(createLabelReads, 0, "settings init must not read localized labels")
-      Assert.False(panel.canvas:IsShown(), "an unopened settings canvas must not report itself as shown")
+      Assert.True(
+        createFrames <= 7,
+        "settings init may only create the window, its drag band and close button, canvas, scroll, content "
+          .. "and item-event frames (got "
+          .. tostring(createFrames)
+          .. ")"
+      )
+      Assert.True(createLabelReads <= 4, "settings init may only read the window title and the three stub texts")
+      Assert.False(panel.IsOpen(), "the config window starts closed")
       Assert.Nil(namedFrames.isiLiveSimulationTablet, "addon init must not create the simulation tablet")
 
       -- Paths that touch the panel before its first display stay no-ops.
       panel.Refresh()
       Assert.False(panel.IsBuilt(), "a refresh before the first display must not build the panel")
 
-      -- Blizzard_SettingsPanel.lua DisplayLayout: frame:Show(), then
-      -- frame:OnRefresh(), before the settings canvas is shown.
+      -- First open of the config window builds the sections.
       local framesBeforeOpen = frameCount
-      panel.canvas:Show()
-      panel.canvas:OnRefresh()
-      Assert.True(panel.IsBuilt(), "displaying the category must build the settings sections")
-      Assert.NotNil(panel.navigation, "displaying the category must build the section navigation")
+      panel.Open()
+      Assert.True(panel.IsOpen(), "Open must show the config window")
+      Assert.True(panel.IsBuilt(), "opening the config window must build the settings sections")
+      Assert.NotNil(panel.navigation, "opening the config window must build the section navigation")
       local openFrames = frameCount - framesBeforeOpen
       Assert.True(openFrames > 50, "the first display must build the full settings tree")
 
-      -- Re-displaying the category never builds again.
+      -- Re-opening never builds again.
       local framesBeforeReopen = frameCount
-      panel.canvas:Hide()
-      panel.canvas:Show()
-      panel.canvas:OnRefresh()
+      panel.Close()
+      Assert.False(panel.IsOpen(), "Close must hide the config window")
+      panel.Open()
       Assert.Equal(frameCount, framesBeforeReopen, "re-opening settings must not rebuild the sections")
 
       globals.SlashCmdList.ISILIVE("sim")
@@ -336,15 +343,12 @@ return function(test, ctx)
   end)
 
   test("factory composition root: every settings open path builds the deferred panel on its first display", function()
-    -- Rule 169, end to end with deferBuild = true as in production: the panel
-    -- is touched by the background paths first (reset, language, alpha, toy
-    -- and CVar events) and then opened through the real slash command, the
-    -- main-frame settings button and the minimap right-click.
-    -- COMPONENT-ONLY (Blizzard side): Settings.OpenToCategory emulates
-    -- Blizzard_SettingsPanel.lua DisplayLayout -- canvas:Show() including its
-    -- hooked OnShow scripts, then canvas:OnRefresh() -- because the Blizzard
-    -- settings frame has no addon-side event path. Hook errors are collected,
-    -- not swallowed, so a raising build fails the test.
+    -- Rule 169/237, end to end with deferBuild = true as in production: the
+    -- panel is touched by the background paths first (reset, language, alpha,
+    -- toy and CVar events) and then opened through the real slash command,
+    -- the main-frame settings button, the minimap right-click, the
+    -- AddonCompartment entry and the Blizzard stub button. Every path opens
+    -- isiLive's own config window.
     local globals, db = BuildGlobals()
     local baseCreateFrame = globals.CreateFrame
     local created = {}
@@ -357,48 +361,10 @@ return function(test, ctx)
       end
       return frame
     end
-    local hookErrors = {}
-    local categories = {}
-    local openCalls = 0
-    local function Collect(ok, err)
-      if not ok then
-        hookErrors[#hookErrors + 1] = tostring(err)
-      end
+    local stubGlobals, blizzard = BuildBlizzardSettingsStub()
+    for key, value in pairs(stubGlobals) do
+      globals[key] = value
     end
-    globals.Settings = {
-      RegisterAddOnCategory = function() end,
-      RegisterCanvasLayoutCategory = function(canvas, _name)
-        local category = { ID = "isiLive-settings", canvas = canvas }
-        categories[category.ID] = category
-        canvas._showHooks = {}
-        canvas.HookScript = function(self, script, fn)
-          if script == "OnShow" then
-            self._showHooks[#self._showHooks + 1] = fn
-          end
-        end
-        return category
-      end,
-      OpenToCategory = function(categoryID)
-        openCalls = openCalls + 1
-        local category = categories[categoryID]
-        if not category then
-          return
-        end
-        local canvas = category.canvas
-        if canvas:IsShown() then
-          return
-        end
-        canvas:Show()
-        for _, hook in ipairs(canvas._showHooks) do
-          Collect(xpcall(function()
-            hook(canvas)
-          end, debug.traceback))
-        end
-        Collect(xpcall(function()
-          canvas:OnRefresh()
-        end, debug.traceback))
-      end,
-    }
     local function FontStringTexts()
       local texts = {}
       for _, frame in ipairs(created) do
@@ -458,30 +424,52 @@ return function(test, ctx)
       Assert.Equal(db.locale, "deDE", "the language switch must persist before the first open")
 
       -- First open: /isilive settings.
+      local window = Assert.NotNil(namedFrames.isiLiveConfigWindow, "the config window frame must exist")
       globals.SlashCmdList.ISILIVE("settings")
-      Assert.Equal(openCalls, 1, "/isilive settings must open the registered category")
-      Assert.Equal(#hookErrors, 0, "the first display must build without errors: " .. table.concat(hookErrors, "\n"))
+      Assert.True(window:IsShown(), "/isilive settings must open the config window")
+      Assert.Equal(blizzard.openCalls, 0, "/isilive settings must not open Blizzard's Settings panel")
       Assert.True(panel.IsBuilt(), "/isilive settings must build the deferred sections")
       Assert.NotNil(panel.navigation, "the first open must build the section navigation")
       Assert.True(FontStringTexts()["Anzeige"] == true, "the build must read the language chosen before the first open")
-      Assert.Equal(panel.canvas._backdropColor[4], 0.3, "the build must keep the alpha applied before the first open")
+      Assert.True(FontStringTexts()["Konfiguration"] == true, "the window title follows the language")
+      Assert.Equal(
+        panel.canvas._backdropColor[4],
+        addon.UICommon.CONFIG_CANVAS_ALPHA,
+        "the settings body keeps its fixed opacity"
+      )
       local framesAfterBuild = #created
 
       -- Re-open through the other entry points: no second build.
-      panel.canvas:Hide()
+      panel.Close()
       local mainUI = Assert.NotNil(ctxRuntime.mainUI, "the main UI must exist")
       local settingsButton = Assert.NotNil(mainUI.settingsButton, "the main frame must carry the settings button")
       settingsButton:GetScript("OnClick")(settingsButton, "LeftButton")
-      Assert.Equal(openCalls, 2, "the main-frame settings button must open the category")
-      Assert.True(panel.canvas:IsShown(), "the settings button must display the canvas")
+      Assert.True(window:IsShown(), "the main-frame settings button must open the config window")
 
-      panel.canvas:Hide()
+      panel.Close()
       local minimapButton = Assert.NotNil(namedFrames.isiLiveMinimapButton, "the minimap button must exist")
       minimapButton:GetScript("OnClick")(minimapButton, "RightButton")
-      Assert.Equal(openCalls, 3, "a minimap right-click must open the category")
-      Assert.True(panel.canvas:IsShown(), "the minimap right-click must display the canvas")
+      Assert.True(window:IsShown(), "a minimap right-click must open the config window")
+
+      panel.Close()
+      local compartmentClick = Assert.NotNil(
+        rawget(_G, "isiLive_OnAddonCompartmentClick"),
+        "the AddonCompartment click handler must be registered"
+      )
+      compartmentClick("isiLive", "RightButton")
+      Assert.True(window:IsShown(), "an AddonCompartment right-click must open the config window")
+
+      -- Blizzard stub: the button closes Blizzard's Settings panel and opens
+      -- the config window.
+      panel.Close()
+      Assert.True(#blizzard.Search("isilive") >= 1, "Blizzard settings search must find the isiLive stub")
+      globals.Settings.OpenToCategory(panel.category.ID)
+      Assert.True(blizzard.settingsPanel:IsShown(), "setup: Blizzard's Settings panel shows the stub")
+      local stubButton = Assert.NotNil(blizzard.FindButton(), "the stub must carry a button")
+      stubButton.data.buttonClick()
+      Assert.False(blizzard.settingsPanel:IsShown(), "the stub button must close Blizzard's Settings panel")
+      Assert.True(window:IsShown(), "the stub button must open the config window")
       Assert.Equal(#created, framesAfterBuild, "re-opening through other paths must not rebuild the sections")
-      Assert.Equal(#hookErrors, 0, "re-opening must not raise: " .. table.concat(hookErrors, "\n"))
 
       -- Background paths after the build repaint without raising.
       local afterOk, afterErr = xpcall(function()

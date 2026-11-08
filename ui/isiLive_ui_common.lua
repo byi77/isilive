@@ -642,6 +642,13 @@ function UICommon.ApplyBgAlpha(frames, alpha)
     mainFrame:SetBackdropColor(surface[1], surface[2], surface[3], alpha)
   end
 
+  -- The config window (rule 237) carries the main-frame surface.
+  local settingsWindow = frames.settingsWindow
+  if PaintsBackdrop(settingsWindow) then
+    local surface = UICommon.Colors.SURFACE_MAIN_FRAME
+    settingsWindow:SetBackdropColor(surface[1], surface[2], surface[3], alpha)
+  end
+
   local bg = UICommon.Colors and UICommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, alpha }
 
   local panelFrame = frames.panelFrame
@@ -658,6 +665,8 @@ function UICommon.ApplyBgAlpha(frames, alpha)
     PaintBackgroundAlphaSurface(target, surface, alpha)
   end
 end
+
+UICommon.CONFIG_CANVAS_ALPHA = 0.85
 
 local BACKDROP_PANEL = {
   bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -722,6 +731,15 @@ UICommon.BACKDROP_PRESETS = {
   BUTTON_BG = {
     backdrop = BACKDROP_BG_ONLY,
     bgColor = UICommon.Colors.BG_SECONDARY,
+  },
+  -- Config window body (rule 237): a fixed-opacity fill under the settings,
+  -- so they stay readable at any background opacity of the window itself.
+  CONFIG_CANVAS = {
+    backdrop = BACKDROP_BG_ONLY,
+    bgColor = function()
+      local surface = UICommon.Colors.SURFACE_MAIN_FRAME
+      return surface[1], surface[2], surface[3], UICommon.CONFIG_CANVAS_ALPHA
+    end,
   },
   CD_BOX = {
     backdrop = BACKDROP_FLAT_BUTTON,

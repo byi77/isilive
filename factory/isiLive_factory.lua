@@ -82,7 +82,7 @@ local function ResetMainFrameDefaults(ctx)
     uiCommon.ApplyBgAlpha({
       mainFrame = mainFrame,
       panelFrame = ctx.panelUI and ctx.panelUI.panelFrame,
-      settingsCanvas = ctx.settingsPanel and ctx.settingsPanel.canvas,
+      settingsWindow = ctx.settingsPanel and ctx.settingsPanel.windowFrame,
     }, defaultBgAlpha)
   end
 
@@ -211,7 +211,7 @@ local function FinalizeFactorySettings(ctx)
           uiCommon.ApplyBgAlpha({
             mainFrame = ctx.mainFrame,
             panelFrame = ctx.panelUI and ctx.panelUI.panelFrame,
-            settingsCanvas = ctx.settingsPanel and ctx.settingsPanel.canvas,
+            settingsWindow = ctx.settingsPanel and ctx.settingsPanel.windowFrame,
           }, val)
         end
       end,

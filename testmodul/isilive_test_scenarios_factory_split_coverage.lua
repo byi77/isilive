@@ -1006,11 +1006,14 @@ return function(test, ctx)
       UpdateMPlusTeleportButton = function() end,
       UpdateStatusLine = function() end,
       settingsPanel = {
-        category = { ID = "isiLive-settings" },
         Refresh = function()
           refreshHits = refreshHits + 1
         end,
       },
+      OpenConfig = function()
+        settingsOpened = "config-window"
+        return true
+      end,
     }
 
     local modules = {
@@ -1045,10 +1048,14 @@ return function(test, ctx)
     }, function()
       addon._FactoryInternal.InitializeFactoryLocalizationControllers(factoryCtx, modules)
       factoryCtx.ApplyLocalizationToUI()
-      Assert.Equal(capturedThirdPanelOpts.panelActions.isilive(), true, "settings panel action must open category")
+      Assert.Equal(
+        capturedThirdPanelOpts.panelActions.isilive(),
+        true,
+        "the ESC panel isiLive action must open the config window"
+      )
     end)
 
-    Assert.Equal(settingsOpened, "isiLive-settings", "settings category ID must be forwarded")
+    Assert.Equal(settingsOpened, "config-window", "the ESC panel action must go through ctx.OpenConfig")
     Assert.Equal(centerVisualHits, 1, "visible center teleport button must refresh its visual state")
     Assert.Equal(refreshHits, 1, "settings panel must be refreshed after localization")
   end)
