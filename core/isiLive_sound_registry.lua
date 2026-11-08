@@ -170,6 +170,21 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
+    -- Missed-kick alert (rule 236). Blizzard SoundKit instead of a bundled
+    -- file; PlaySoundKit no-ops when the name does not resolve. Not part of
+    -- SettingsOrder: its toggle (missedKickSound, Pattern B) sits next to the
+    -- missed-kick alert in the display settings. VERIFY IN-GAME that the cue
+    -- is distinct enough from the client's own raid warnings.
+    missed_kick = {
+      soundKit = "RAID_WARNING",
+      labelKey = "SETTINGS_MISSED_KICK_SOUND",
+      descKey = "SETTINGS_MISSED_KICK_SOUND_DESC",
+      labelFallback = "Missed kick: play a sound",
+      descFallback = "Also plays a short sound with the missed-kick alert.",
+      settingKey = "missedKickSound",
+      defaultEnabled = false,
+      defaultChannel = "Master",
+    },
   },
   SettingsOrder = {
     "leader_transfer",

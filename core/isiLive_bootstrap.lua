@@ -196,6 +196,17 @@ local EVENT_REGISTRY = {
   -- hidden=true because the cue is independent of main-UI visibility.
   { "UI_ERROR_MESSAGE", true, true, false },
   { "UNIT_SPELLCAST_SUCCEEDED", true, true, false, { "player", "pet" } },
+  -- Missed-kick alert (rule 236): a hostile cast being interrupted. The
+  -- hostile units are nameplate1-40, target, focus and boss1-5 -- far more
+  -- than RegisterUnitEvent's two-unit filter -- so the registration stays
+  -- unfiltered and the kick-tracker handler filters the token in Lua after a
+  -- single setting check (feature off = one table read per event). combat=true
+  -- because kicks happen mid-pull; hidden=true because the alert is
+  -- independent of main-UI visibility. Unregistered by the raid hard-off.
+  { "UNIT_SPELLCAST_INTERRUPTED", true, true, false },
+  -- Channels report an interrupt through CHANNEL_STOP's 12.0 interruptedBy
+  -- argument instead (see warcraft.wiki.gg/wiki/UNIT_SPELLCAST_CHANNEL_STOP).
+  { "UNIT_SPELLCAST_CHANNEL_STOP", true, true, false },
   { "READY_CHECK", true, false, false },
   { "READY_CHECK_CONFIRM", true, false, false },
   { "READY_CHECK_FINISHED", true, false, false },

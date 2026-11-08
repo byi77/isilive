@@ -679,6 +679,17 @@ local function BuildUnitSpellcastSucceededForwarder(ctx)
   end
 end
 
+-- Hostile interrupt events for the missed-kick alert (rule 236). Kept out of
+-- BuildHandlers' table literal; both go only to the kick tracker.
+local KICK_INTERRUPT_EVENTS = { "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_CHANNEL_STOP" }
+
+local function WithKickInterruptForwarders(ctx, handlers)
+  for _, event in ipairs(KICK_INTERRUPT_EVENTS) do
+    handlers[event] = BuildNonRaidEventForwarder(ctx, "handleKickTrackerEvent", event)
+  end
+  return handlers
+end
+
 local function BuildUnitPetForwarder(ctx)
   return function(_self, ...)
     if not IsRaidModeActive(ctx) then
@@ -1170,7 +1181,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SchedulePlayerAuraCdScan()
   end
 
-  return WithInstanceResetTap(ctx, {
+  local handlers = WithInstanceResetTap(ctx, {
     GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
     ADDON_LOADED = HandleAddonLoadedEvent,
     PLAYER_LOGIN = HandlePlayerLoginEvent,
@@ -1217,4 +1228,5 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_DEATH_COUNT_UPDATED = BuildChallengeModeDeathCountForwarder(ctx),
     PARTY_LEADER_CHANGED = BuildPartyLeaderChangedForwarder(ctx),
   }, INSTANCE_RESET_RUNTIME_EVENTS)
+  return WithKickInterruptForwarders(ctx, handlers)
 end

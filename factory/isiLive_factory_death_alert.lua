@@ -147,6 +147,32 @@ local function InitializeFactoryDeathAlertControllers(ctx)
     QueueRoleDeathSound(role, opts, now)
   end
 
+  -- Missed kick (rule 236): the short red on-screen notice of the death alert
+  -- style plus the optional sound. Context and setting gates run in the
+  -- kick tracker before this is called. `opts.preview` (simulation tablet)
+  -- plays the sound as a preview, independent of its setting.
+  ctx.ShowMissedKickAlert = function(opts)
+    local shown = false
+    if type(deathAlert) == "table" and type(deathAlert.ShowMissedKick) == "function" then
+      shown = deathAlert.ShowMissedKick() == true
+    end
+    local soundUtils = addonTable.SoundUtils
+    if type(soundUtils) ~= "table" then
+      return shown
+    end
+    if type(opts) == "table" and opts.preview == true then
+      if type(soundUtils.PlayPreviewKey) == "function" then
+        soundUtils.PlayPreviewKey("missed_kick")
+      end
+      return shown
+    end
+    local db = rawget(_G, "IsiLiveDB")
+    if type(db) == "table" and db.missedKickSound == true and type(soundUtils.PlayKey) == "function" then
+      soundUtils.PlayKey("missed_kick")
+    end
+    return shown
+  end
+
   -- Rule 168: on a key start (death alerts enabled) the alert frame is built
   -- one second later from a timer callback -- outside the protected
   -- CHALLENGE_MODE_START dispatch and only when not in combat. A pull inside

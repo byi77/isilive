@@ -4,6 +4,121 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
+-- Missed kick ("Kick ins Leere", rule 236), wired by the kick tracker below.
+-- After the own interrupt cast the controller arms a short window; a hostile
+-- interrupt event inside it means the kick landed, none means it went into the
+-- void. Only the event timestamp counts -- interruptedBy is secret inside keys
+-- and is never compared or converted.
+local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFromBridge, timerAfter)
+  local function IsMissedKickAlertEnabled()
+    local db = rawget(_G, "IsiLiveDB")
+    return type(db) == "table" and db.missedKickAlertEnabled == true
+  end
+
+  local function IsPlayerInCombat()
+    local inCombatLockdown = rawget(_G, "InCombatLockdown")
+    if type(inCombatLockdown) ~= "function" then
+      return false
+    end
+    local ok, inCombat = pcall(inCombatLockdown)
+    return ok and not addonTable.Validators.IsSecretValue(inCombat) and inCombat == true
+  end
+
+  local function IsMissedKickAlertContextActive()
+    if not IsMissedKickAlertEnabled() or IsRaidModeActive() or not IsPlayerInCombat() then
+      return false
+    end
+    local db = rawget(_G, "IsiLiveDB")
+    -- missedKickOnlyInKey is Pattern A (default on): restricting a combat
+    -- alert to keystones is the expected default once the alert is enabled.
+    if db.missedKickOnlyInKey ~= false and not HasActiveChallengeFromBridge() then
+      return false
+    end
+    return true
+  end
+
+  local function IsHostileInterruptUnitToken(unit)
+    return unit == "target"
+      or unit == "focus"
+      or string.find(unit, "^nameplate%d+$") ~= nil
+      or string.find(unit, "^boss%d+$") ~= nil
+  end
+
+  -- Unreadable data counts as hostile: a counted interrupt can only suppress
+  -- an alert, never raise a false one.
+  local function IsHostileInterruptUnit(unit)
+    if addonTable.Validators.IsSecretValue(unit) then
+      return true
+    end
+    if type(unit) ~= "string" or not IsHostileInterruptUnitToken(unit) then
+      return false
+    end
+    local unitCanAttack = rawget(_G, "UnitCanAttack")
+    if type(unitCanAttack) ~= "function" then
+      return true
+    end
+    local ok, canAttack = pcall(unitCanAttack, "player", unit)
+    if not ok or addonTable.Validators.IsSecretValue(canAttack) then
+      return true
+    end
+    return canAttack == true
+  end
+
+  -- UNIT_SPELLCAST_CHANNEL_STOP also fires for channels that simply end; the
+  -- 12.0 interruptedBy argument is only present for an interrupted one. A
+  -- secret value is present but masked and counts; it is never read further.
+  local function IsInterruptedChannelStop(interruptedBy)
+    if addonTable.Validators.IsSecretValue(interruptedBy) then
+      return true
+    end
+    return type(interruptedBy) == "string" and interruptedBy ~= ""
+  end
+
+  local function HandleHostileInterruptEvent(event, unit, interruptedBy)
+    local controller = ctx.kickTrackerController
+    if not IsMissedKickAlertEnabled() or not controller or type(controller.OnHostileInterrupt) ~= "function" then
+      return
+    end
+    if event == "UNIT_SPELLCAST_CHANNEL_STOP" and not IsInterruptedChannelStop(interruptedBy) then
+      return
+    end
+    if not IsHostileInterruptUnit(unit) then
+      return
+    end
+    controller.OnHostileInterrupt()
+  end
+
+  local function ScheduleMissedKickCheck()
+    local controller = ctx.kickTrackerController
+    if not controller or type(controller.GetPendingMissedKick) ~= "function" then
+      return
+    end
+    local pending = controller.GetPendingMissedKick()
+    if type(pending) ~= "table" then
+      return
+    end
+    if not IsMissedKickAlertContextActive() or type(timerAfter) ~= "function" then
+      controller.CancelMissedKick()
+      return
+    end
+    local seq = pending.seq
+    timerAfter(pending.window, function()
+      local current = ctx.kickTrackerController
+      if not current or current.ResolveMissedKick(seq) ~= "missed" then
+        return
+      end
+      if IsMissedKickAlertContextActive() and type(ctx.ShowMissedKickAlert) == "function" then
+        ctx.ShowMissedKickAlert()
+      end
+    end)
+  end
+
+  return {
+    HandleHostileInterruptEvent = HandleHostileInterruptEvent,
+    ScheduleMissedKickCheck = ScheduleMissedKickCheck,
+  }
+end
+
 local function InitializeFactorySecondaryKickTracker(
   ctx,
   modules,
@@ -263,6 +378,8 @@ local function InitializeFactorySecondaryKickTracker(
     end,
   })
 
+  local missedKickAlert = CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFromBridge, timerAfter)
+
   local function ScheduleObservedKickCooldownReconcile()
     if not ctx.kickTrackerController or type(ctx.kickTrackerController.ReconcileObservedCooldown) ~= "function" then
       return
@@ -346,7 +463,11 @@ local function InitializeFactorySecondaryKickTracker(
     return SyncOwnKickState(force ~= false)
   end
 
-  ctx.HandleKickTrackerEvent = function(event, unit, _, spellID)
+  ctx.HandleKickTrackerEvent = function(event, unit, _, spellID, interruptedBy)
+    if event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+      missedKickAlert.HandleHostileInterruptEvent(event, unit, interruptedBy)
+      return
+    end
     if event == "GROUP_ROSTER_UPDATE" then
       RefreshKickTrackerPolling()
       return
@@ -362,6 +483,7 @@ local function InitializeFactorySecondaryKickTracker(
         local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
         if observedKick then
           ScheduleObservedKickCooldownReconcile()
+          missedKickAlert.ScheduleMissedKickCheck()
         end
         if kickTrackerSuppressedByRaid then
           if observedKick then

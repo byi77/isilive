@@ -368,6 +368,10 @@ Bob started Bloodlust
 
 You can turn either announce off in the settings. Non-isiLive group members won't see the message — it's shared only between isiLive users.
 
+### Missed kick alert
+
+Optional (off by default: **Display -> Kick: Missed kick alert**). When your own interrupt goes into the void, isiLive shows a short red **MISSED KICK** notice in the death-alert style. After your interrupt cast it waits briefly (0.25 s, pet kicks and Solar Beam 0.6 s) for any hostile cast on a nameplate, your target, focus or a boss to be interrupted; if none is, the kick counts as missed. Only that moment counts: who interrupted is not read (it is a protected value inside keys), so a teammate's kick at the same moment counts as a hit, and isiLive would rather miss an alert than show a wrong one. Only in combat and, by default, only in a running key (**Missed kick: only in a key**); never in raids. Kicks that still do something without a cast (Avenger's Shield, Axe Toss) never alert. **Missed kick: play a sound** adds a short sound on the selected sound channel. The simulation tablet (`/isilive sim`, action E6) previews the notice and sound without a key. The windows are start values and still need in-game calibration.
+
 ### Pre-key group view
 
 When you accept a Mythic+ LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The accepted-invite notice shows dungeon, title, leader, and source rows. The dungeon row includes the key level when the level is available from the accepted context or as an exact `+N` in the verified LFG group title. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts. Raid LFG accepts stay silent because they are outside the Mythic+ target pipeline.
@@ -433,10 +437,10 @@ section to jump directly to its settings. The active section follows manual scro
 - **Beta** — current beta notice plus GitHub issue and CurseForge comment links
 - **General** — language and default layout when opening isiLive
 - **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button
-- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, time pace and time to kill, the optional instance reset button after a key, Group Finder language flags and class-bonus hints
+- **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, time pace and time to kill, the optional instance reset button after a key, the optional missed-kick alert (only in a key, sound), Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
-- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
+- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; these alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Raid** — optional raid opt-ins for the incoming-summon alert (with its 5-second repeat), the pet-stuck voice alert, and the lead-transfer sound; all off by default, isiLive otherwise stays off in raids
 - **Chat Announcements** — announce Battle Res / announce Bloodlust / announce an instance reset done through the isiLive button
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions

@@ -318,6 +318,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 235. Nach einem Key in einem Dungeon der aktiven Saison bekommt der Gruppenleiter draussen bis zu einer Stunde einen Instanz-Reset-Button bei den Leiter-Buttons; erst die Erfolgsmeldung des Clients loescht die Vormerkung.
 
+236. Nach dem eigenen Interrupt wartet isiLive ein kurzes Fenster auf irgendeine gegnerische Unterbrechung; kommt keine, zeigt es bei `missedKickAlertEnabled` im Kampf einen kurzen roten Hinweis "Kick ins Leere" und optional einen Sound. Nur der Zeitpunkt des Events zaehlt, `interruptedBy` wird nie verglichen.
+
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
@@ -3576,3 +3578,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Demo shows the instance reset button in the M layout and the demo end hides it
   - Simulation tablet C12 toggles the demo reset button and F3 and closing remove it
   - Demo reload with a persisted snapshot restores the reset setting and keeps the window lock
+
+### RULE-KICK-INS-LEERE
+- Regelnummer: 236
+- Status: aktiv
+- Zusammenfassung: Erkennt `controller.OnCast` in `game/isiLive_kick_tracker.lua` einen eigenen Interrupt (Primaerpfad ueber `GetSpellDataByID` oder Extras-Pfad), merkt sich der Controller Zeitpunkt (`GetTime`) und Fenster des Kicks; ein neuer Kick ersetzt den alten. Fenster (Startwerte, ingame zu kalibrieren, im Code als `CALIBRATE IN-GAME` markiert): 0,25 Sekunden, Pet-Kicks (`castUnit == "pet"`) 0,6 Sekunden, Solar Beam (78675) 0,6 Sekunden; eine Unterbrechung bis 0,1 Sekunden vor dem eigenen Cast-Event zaehlt ebenfalls, weil die Event-Reihenfolge innerhalb eines Server-Updates nicht dokumentiert ist. Ausgenommen sind Kicks, die auch ohne gegnerischen Zauber wirken: Avenger's Shield (31935) sowie Axe Toss (119914, Pet-Cast 89766); diese Liste ist ingame zu verifizieren. Gegnerische Unterbrechungen kommen ueber `UNIT_SPELLCAST_INTERRUPTED` und `UNIT_SPELLCAST_CHANNEL_STOP` (Signatur seit 12.0.0 `unitTarget, castGUID, spellID, interruptedBy, castBarID`, laut warcraft.wiki.gg `SecretWhenUnitSpellCastRestricted`). Beide Events sind statisch und ohne Unit-Filter in der Event-Registry (`core/isiLive_bootstrap.lua`) eingetragen, mit `combat=true` und `hidden=true`, und fallen unter den Raid-Hard-off (Regel 11); der Handler liest zuerst nur `missedKickAlertEnabled` und kehrt bei aus sofort zurueck. Gezaehlt werden nur die Unit-Tokens `target`, `focus`, `nameplateN` und `bossN`, wenn `UnitCanAttack("player", unit)` nicht lesbar `false` liefert; ein secret Unit-Token oder ein secret bzw. fehlerhaftes `UnitCanAttack` zaehlt als Unterbrechung, weil das nur einen Hinweis unterdruecken kann. Bei `UNIT_SPELLCAST_CHANNEL_STOP` zaehlt nur ein vorhandenes `interruptedBy` (secret oder nicht-leerer String); ein Kanal ohne `interruptedBy` endete regulaer. Fuer `interruptedBy` gilt: nur `Validators.IsSecretValue` und bei nicht-secret Werten `type` duerfen es beruehren; es wird nie verglichen, konvertiert oder als Schluessel benutzt, und wer unterbrochen hat, spielt keine Rolle. Nach Ablauf des Fensters (`C_Timer.After`) gilt der Kick als getroffen, wenn irgendeine gezaehlte Unterbrechung im Fenster lag, auch wenn ein Mitspieler gleichzeitig unterbrochen hat (ein verpasster Hinweis ist besser als ein falscher); sonst als "Kick ins Leere". Der Hinweis erscheint nur bei `missedKickAlertEnabled == true` (Pattern B, Default aus), ausserhalb des Raids, bei `InCombatLockdown() == true` sowohl beim Kick als auch beim Urteil und, solange `missedKickOnlyInKey ~= false` gilt (Pattern A, Default an), nur mit aktiver Challenge-Map. Er nutzt den kurzen roten Bildschirmtext der Todeswarnung (`ui/isiLive_death_alert.lua`, Text `MISSED_KICK_ALERT`) und ersetzt keine noch sichtbare Tod- oder PI-Warnung. Mit `missedKickSound == true` (Pattern B, Default aus) spielt zusaetzlich der Registry-Eintrag `missed_kick` (SoundKit `RAID_WARNING`) ueber `SoundUtils` auf `soundOutputChannel`. Die drei Schalter stehen im Anzeige-Abschnitt der Einstellungen nach dem Instanz-Reset-Schalter und werden von "Anzeige zuruecksetzen" mit zurueckgesetzt. Die Simulations-Tablet-Aktion E6 (Kategorie Alerts; E5 bleibt stillgelegt) zeigt den Hinweis ohne Key, Kampf oder Kick und spielt die Sound-Vorschau unabhaengig von `missedKickSound`; sie veraendert keine Einstellung.
+- Erforderliche Tests:
+  - Missed kick alert shows after an own kick without any hostile interrupt
+  - Missed kick alert plays its sound on the configured channel when enabled
+  - Missed kick alert stays silent when a hostile interrupt lands inside the window
+  - Missed kick alert counts a teammate interrupt inside the window as landed
+  - Missed kick alert ignores friendly interrupts and naturally ended channels
+  - Missed kick alert treats a secret interruptedBy as an interrupt without touching it
+  - Missed kick alert stays off with the setting off
+  - Missed kick alert stays off outside combat
+  - Missed kick alert only-in-key option limits the alert to running keys
+  - Missed kick alert skips excluded kicks that work without a target cast
+  - Missed kick alert does not replace a death alert still on screen
+  - Simulation tablet E6 previews the missed-kick notice and sound without a key
