@@ -32,6 +32,7 @@ local function BuildFactoryModules(tbl)
     testMode = tbl and tbl.TestMode,
     queueDebug = tbl and tbl.QueueDebug,
     runtimeLog = tbl and tbl.RuntimeLog,
+    probeLog = tbl and tbl.ProbeLog,
     rosterPanel = tbl and tbl.RosterPanel,
     spellUtils = tbl and tbl.SpellUtils,
     cdTracker = tbl and tbl.CdTracker,
@@ -187,6 +188,15 @@ local function CreateFactoryContext(addonName, tbl)
       )
     end,
   })
+
+  -- Probe mode (rule 239) writes into the same ring, past the runtimeLogEnabled
+  -- gate: its own persisted switch decides.
+  if modules.probeLog and type(modules.probeLog.Attach) == "function" then
+    modules.probeLog.Attach({
+      appendLog = ctx.runtimeLogController.AppendLog,
+      getAddonVersion = ctx.GetAddonVersionRaw,
+    })
+  end
 
   if modules.traceChatFrame and type(modules.traceChatFrame.CreateController) == "function" then
     ctx.traceChatFrameController = modules.traceChatFrame.CreateController()

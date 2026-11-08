@@ -152,6 +152,7 @@ local ADMIN_HELP_KEYS = {
   "HELP_ERRORLOG",
   "HELP_BINDCHECK",
   "HELP_PERF",
+  "HELP_PROBE",
   "HELP_TPTEST",
   "HELP_TPDEBUG",
   "HELP_SEASONDUMP",
@@ -604,6 +605,14 @@ local function TryHandleUtilityCommands(ctx, cmd)
     local perfProbe = addonTable.PerfProbe
     if type(perfProbe) == "table" then
       perfProbe.HandleCommand(ctx, cmd)
+    end
+    return true
+  end
+
+  if cmd == "probe" or cmd:find("^probe%s+") == 1 then
+    local probeLog = addonTable.ProbeLog
+    if type(probeLog) == "table" then
+      probeLog.HandleCommand(ctx, cmd)
     end
     return true
   end

@@ -1,0 +1,798 @@
+local _, addonTable = ...
+
+addonTable = addonTable or {}
+
+-- Probe mode (rule 239): opt-in, read-only in-game API checks whose results go
+-- into the runtime log ring (IsiLiveDB.runtimeLog) as `[PROBE] event=...`
+-- lines, so the open questions about the 12.x restrictions can be read back
+-- from SavedVariables instead of being typed as /run lines.
+--
+--   /isilive probe [on|off|status]   toggles without an argument
+--
+-- IsiLiveDB.probeLogEnabled is Pattern B (default off) and persists across
+-- reloads. Probe lines bypass the runtimeLogEnabled gate (that flag is reset
+-- on every ADDON_LOADED), so the mode keeps recording after a reload; the
+-- runtime log itself is left as the user set it and only adds context lines.
+--
+-- Every hook starts with IsEnabled(): with the mode off nothing else runs, no
+-- timer is scheduled and no API is read. Nothing here sends chat or addon
+-- messages. Every value coming from the client is checked with
+-- IsSecretValue before any comparison, arithmetic or string conversion; a
+-- secret value is only ever written as the word "secret".
+local ProbeLog = {}
+addonTable.ProbeLog = ProbeLog
+local IsSecretValue = addonTable.Validators.IsSecretValue
+
+-- Line budgets per run segment (a segment starts at CHALLENGE_MODE_START or at
+-- the load of the addon). The runtime ring holds 1500 entries; a full segment
+-- stays below ~500 probe lines.
+local LIMITS = {
+  meterThrottleSeconds = 10, -- per meter phase
+  meterSnapshotsPerRun = 30, -- 4 lines each (Overall/Current x DamageDone/Interrupts)
+  postKeySnapshotsPerPhase = 3,
+  postKeyWindowSeconds = 900,
+  keyEndFollowUpSeconds = 5,
+  threatDelaySeconds = 2,
+  threatPullsPerRun = 60,
+  ownCastSpellsPerRun = 40,
+  kicksPerRun = 80,
+  kickVerdictSeconds = 1,
+  kickPreCastLookbackSeconds = 2,
+  restrictionLinesPerRun = 80,
+  chatLockdownLinesPerRun = 40,
+  meterSourcesShown = 8,
+  nameplates = 40,
+}
+ProbeLog.LIMITS = LIMITS
+
+local sink = nil
+local getAddonVersion = nil
+local sessionHeaderWritten = false
+local sessionLineCount = 0
+
+local lastChatLockdown = nil
+local keyEndedAt = nil
+local lastInterruptAt = nil
+local pendingKicks = {}
+
+local function NewRunState()
+  return {
+    meterSnapshots = 0,
+    meterPhaseAt = {},
+    meterPhaseCount = {},
+    threatPulls = 0,
+    ownCastSpells = 0,
+    ownCastSeen = {},
+    kicks = 0,
+    restrictionLines = 0,
+    chatLockdownLines = 0,
+    capped = {},
+  }
+end
+local run = NewRunState()
+
+local function GetDB()
+  local db = rawget(_G, "IsiLiveDB")
+  return type(db) == "table" and db or nil
+end
+
+--- True while probe mode is on (Pattern B: IsiLiveDB.probeLogEnabled == true).
+function ProbeLog.IsEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  return type(db) == "table" and db.probeLogEnabled == true
+end
+
+local function Now()
+  local getTime = rawget(_G, "GetTime")
+  if type(getTime) ~= "function" then
+    return nil
+  end
+  local ok, now = pcall(getTime)
+  if not ok or IsSecretValue(now) or type(now) ~= "number" then
+    return nil
+  end
+  return now
+end
+
+local function TimerAfter(delay, callback)
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.After) ~= "function" then
+    return false
+  end
+  timer.After(delay, callback)
+  return true
+end
+
+local function Ms(seconds)
+  return string.format("%d", math.floor(seconds * 1000 + 0.5))
+end
+
+local function YesNo(value)
+  return value and "yes" or "no"
+end
+
+local function IsRuntimeLogOn()
+  local db = GetDB()
+  return db ~= nil and db.runtimeLogEnabled == true
+end
+
+local function Append(message)
+  if type(sink) ~= "function" then
+    return false
+  end
+  if not sessionHeaderWritten then
+    sessionHeaderWritten = true
+    local version = type(getAddonVersion) == "function" and getAddonVersion() or nil
+    sink(
+      string.format(
+        "[PROBE] event=probe_session version=%s runtimeLog=%s note=probe_lines_are_written_even_with_runtime_log_off",
+        tostring(version or "unknown"),
+        IsRuntimeLogOn() and "on" or "off"
+      )
+    )
+    sessionLineCount = sessionLineCount + 1
+  end
+  sink(message)
+  sessionLineCount = sessionLineCount + 1
+  return true
+end
+
+-- Counts one line against a per-run budget. The first refusal writes a single
+-- cap_reached line so a silent probe is never mistaken for "nothing happened".
+local function TakeBudget(counterKey, limit, probeName)
+  if run[counterKey] >= limit then
+    if not run.capped[probeName] then
+      run.capped[probeName] = true
+      Append(string.format("[PROBE] event=cap_reached probe=%s limit=%d until=next_key_start", probeName, limit))
+    end
+    return false
+  end
+  run[counterKey] = run[counterKey] + 1
+  return true
+end
+
+-- Name of an enum value, looked up in the client's Enum table at run time.
+-- Returns "secret" for a masked value and "<number>" or "?" when unnamed.
+local function DescribeEnumValue(enumName, value)
+  if IsSecretValue(value) then
+    return "secret"
+  end
+  if type(value) ~= "number" then
+    return value == nil and "nil" or "?"
+  end
+  local enum = rawget(_G, "Enum")
+  local values = type(enum) == "table" and rawget(enum, enumName) or nil
+  if type(values) == "table" then
+    for name, enumValue in pairs(values) do
+      if not IsSecretValue(enumValue) and enumValue == value then
+        return string.format("%s(%d)", tostring(name), value)
+      end
+    end
+  end
+  return string.format("unnamed(%d)", value)
+end
+
+local function ReadEnumValue(enumName, key)
+  local enum = rawget(_G, "Enum")
+  local values = type(enum) == "table" and rawget(enum, enumName) or nil
+  if type(values) ~= "table" then
+    return nil
+  end
+  local value = rawget(values, key)
+  if IsSecretValue(value) or type(value) ~= "number" then
+    return nil
+  end
+  return value
+end
+
+-- true / false when the client names a running key readably, nil otherwise.
+local function ReadActiveMapID()
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  local getMapID = type(challengeMode) == "table" and rawget(challengeMode, "GetActiveChallengeMapID") or nil
+  if type(getMapID) ~= "function" then
+    return nil
+  end
+  local ok, mapID = pcall(getMapID)
+  if not ok or IsSecretValue(mapID) or type(mapID) ~= "number" or mapID <= 0 then
+    return nil
+  end
+  return mapID
+end
+
+local function IsKeyActive()
+  return ReadActiveMapID() ~= nil
+end
+
+local function ReadInInstance()
+  local isInInstance = rawget(_G, "IsInInstance")
+  if type(isInInstance) ~= "function" then
+    return nil
+  end
+  local ok, inInstance = pcall(isInInstance)
+  if not ok or IsSecretValue(inInstance) then
+    return nil
+  end
+  return inInstance == true or inInstance == 1
+end
+
+-- Chat lockdown (C_ChatInfo.InChatMessagingLockdown, no arguments; returns
+-- isRestricted only since 12.0.5 removed the reason, warcraft.wiki.gg).
+local function ReadChatLockdown()
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  local fn = type(chatInfo) == "table" and rawget(chatInfo, "InChatMessagingLockdown") or nil
+  if type(fn) ~= "function" then
+    return "api_missing"
+  end
+  local ok, restricted, reason = pcall(fn)
+  if not ok then
+    return "error"
+  end
+  if IsSecretValue(restricted) then
+    return "secret"
+  end
+  local value = restricted == true and "yes" or (restricted == false and "no" or "nil")
+  -- A client that still answers a second value gets it logged.
+  if reason ~= nil then
+    value = value .. " reason=" .. (IsSecretValue(reason) and "secret" or tostring(reason))
+  end
+  return value
+end
+
+local function CheckChatLockdown(moment)
+  local value = ReadChatLockdown()
+  if value == lastChatLockdown then
+    return
+  end
+  local previous = lastChatLockdown or "unknown"
+  lastChatLockdown = value
+  if not TakeBudget("chatLockdownLines", LIMITS.chatLockdownLinesPerRun, "chat_lockdown") then
+    return
+  end
+  Append(
+    string.format(
+      "[PROBE] event=chat_lockdown at=%s inKey=%s value=%s prev=%s",
+      moment,
+      YesNo(IsKeyActive()),
+      value,
+      previous
+    )
+  )
+end
+
+-- One damage-meter session, described without converting a secret value.
+local function DescribeMeterSession(api, sessionType, meterType)
+  if sessionType == nil or meterType == nil then
+    return "present=no reason=enum_missing"
+  end
+  local ok, session = pcall(api.GetCombatSessionFromType, sessionType, meterType)
+  if not ok then
+    return "present=no reason=call_error"
+  end
+  if IsSecretValue(session) then
+    return "present=secret"
+  end
+  if type(session) ~= "table" then
+    return "present=no reason=" .. (session == nil and "nil_session" or "not_a_table")
+  end
+  local okSources, sources = pcall(rawget, session, "combatSources")
+  if not okSources or IsSecretValue(sources) then
+    return "present=yes sources=secret"
+  end
+  if type(sources) ~= "table" then
+    return "present=yes sources=none"
+  end
+
+  local count, secretEntries, secretNames, secretAmounts = 0, 0, 0, 0
+  local shown = {}
+  for index = 1, 40 do
+    local okEntry, source = pcall(rawget, sources, index)
+    if not okEntry then
+      break
+    end
+    if IsSecretValue(source) then
+      count = count + 1
+      secretEntries = secretEntries + 1
+    elseif type(source) ~= "table" then
+      break
+    else
+      count = count + 1
+      local okName, name = pcall(rawget, source, "name")
+      local okAmount, amount = pcall(rawget, source, "totalAmount")
+      local nameSecret = not okName or IsSecretValue(name)
+      local amountSecret = not okAmount or IsSecretValue(amount)
+      if nameSecret then
+        secretNames = secretNames + 1
+      end
+      if amountSecret then
+        secretAmounts = secretAmounts + 1
+      end
+      if not nameSecret and type(name) == "string" and name ~= "" and #shown < LIMITS.meterSourcesShown then
+        local amountText
+        if amountSecret then
+          amountText = "secret"
+        elseif type(amount) == "number" then
+          amountText = string.format("%.0f", amount)
+        else
+          amountText = "nil"
+        end
+        shown[#shown + 1] = name .. ":" .. amountText
+      end
+    end
+  end
+  return string.format(
+    "present=yes sources=%d secretEntries=%d secretNames=%d secretAmounts=%d values=%s",
+    count,
+    secretEntries,
+    secretNames,
+    secretAmounts,
+    #shown > 0 and table.concat(shown, ",") or "none"
+  )
+end
+
+local METER_SESSIONS = { "Overall", "Current" }
+local METER_TYPES = { "DamageDone", "Interrupts" }
+
+local function SnapshotMeter(phase)
+  local api = rawget(_G, "C_DamageMeter")
+  if type(api) ~= "table" or type(rawget(api, "GetCombatSessionFromType")) ~= "function" then
+    Append(string.format("[PROBE] event=meter phase=%s api=missing", phase))
+    return
+  end
+  for _, sessionName in ipairs(METER_SESSIONS) do
+    local sessionType = ReadEnumValue("DamageMeterSessionType", sessionName)
+    for _, meterName in ipairs(METER_TYPES) do
+      local meterType = ReadEnumValue("DamageMeterType", meterName)
+      Append(
+        string.format(
+          "[PROBE] event=meter phase=%s session=%s(%s) meter=%s(%s) %s",
+          phase,
+          sessionName,
+          sessionType ~= nil and tostring(sessionType) or "?",
+          meterName,
+          meterType ~= nil and tostring(meterType) or "?",
+          DescribeMeterSession(api, sessionType, meterType)
+        )
+      )
+    end
+  end
+end
+
+-- Throttled meter snapshot: one per phase per meterThrottleSeconds, at most
+-- meterSnapshotsPerRun per run segment.
+local function TryMeterSnapshot(phase, perPhaseLimit)
+  local now = Now()
+  if not now then
+    return false
+  end
+  local lastAt = run.meterPhaseAt[phase]
+  if lastAt and now - lastAt < LIMITS.meterThrottleSeconds then
+    return false
+  end
+  local phaseCount = run.meterPhaseCount[phase] or 0
+  if perPhaseLimit and phaseCount >= perPhaseLimit then
+    return false
+  end
+  if not TakeBudget("meterSnapshots", LIMITS.meterSnapshotsPerRun, "meter") then
+    return false
+  end
+  run.meterPhaseAt[phase] = now
+  run.meterPhaseCount[phase] = phaseCount + 1
+  SnapshotMeter(phase)
+  return true
+end
+
+local function IsInPostKeyWindow()
+  local now = Now()
+  return keyEndedAt ~= nil and now ~= nil and now - keyEndedAt <= LIMITS.postKeyWindowSeconds
+end
+
+local function ReadUnitBoolean(fn, ...)
+  local ok, value = pcall(fn, ...)
+  if not ok then
+    return "error"
+  end
+  if IsSecretValue(value) then
+    return "secret"
+  end
+  return value == true
+end
+
+-- Threat readability (K6): hostile nameplates, UnitThreatSituation("player", unit).
+local function SampleThreat()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local unitExists = rawget(_G, "UnitExists")
+  local unitCanAttack = rawget(_G, "UnitCanAttack")
+  local threatSituation = rawget(_G, "UnitThreatSituation")
+  if type(unitExists) ~= "function" or type(unitCanAttack) ~= "function" or type(threatSituation) ~= "function" then
+    Append("[PROBE] event=threat phase=pull_start+2s api=missing")
+    return
+  end
+  local counts = {
+    plates = 0,
+    hostile = 0,
+    hostileSecret = 0,
+    t0 = 0,
+    t1 = 0,
+    t2 = 0,
+    t3 = 0,
+    tNil = 0,
+    tSecret = 0,
+    tOther = 0,
+  }
+  for index = 1, LIMITS.nameplates do
+    local unit = "nameplate" .. index
+    if ReadUnitBoolean(unitExists, unit) == true then
+      counts.plates = counts.plates + 1
+      local canAttack = ReadUnitBoolean(unitCanAttack, "player", unit)
+      if canAttack == "secret" then
+        counts.hostileSecret = counts.hostileSecret + 1
+      end
+      if canAttack == true or canAttack == "secret" then
+        if canAttack == true then
+          counts.hostile = counts.hostile + 1
+        end
+        local ok, threat = pcall(threatSituation, "player", unit)
+        if not ok then
+          counts.tOther = counts.tOther + 1
+        elseif IsSecretValue(threat) then
+          counts.tSecret = counts.tSecret + 1
+        elseif threat == nil then
+          counts.tNil = counts.tNil + 1
+        elseif threat == 0 then
+          counts.t0 = counts.t0 + 1
+        elseif threat == 1 then
+          counts.t1 = counts.t1 + 1
+        elseif threat == 2 then
+          counts.t2 = counts.t2 + 1
+        elseif threat == 3 then
+          counts.t3 = counts.t3 + 1
+        else
+          counts.tOther = counts.tOther + 1
+        end
+      end
+    end
+  end
+  Append(
+    string.format(
+      "[PROBE] event=threat phase=pull_start+2s inKey=%s plates=%d hostile=%d hostileSecret=%d "
+        .. "threat0=%d threat1=%d threat2=%d threat3=%d threatNil=%d threatSecret=%d threatOther=%d",
+      YesNo(IsKeyActive()),
+      counts.plates,
+      counts.hostile,
+      counts.hostileSecret,
+      counts.t0,
+      counts.t1,
+      counts.t2,
+      counts.t3,
+      counts.tNil,
+      counts.tSecret,
+      counts.tOther
+    )
+  )
+end
+
+--- Wires the log sink (runtime log AppendLog) and the version reader.
+-- @param opts table {appendLog = function(message), getAddonVersion = function()}
+function ProbeLog.Attach(opts)
+  opts = type(opts) == "table" and opts or {}
+  sink = type(opts.appendLog) == "function" and opts.appendLog or nil
+  getAddonVersion = type(opts.getAddonVersion) == "function" and opts.getAddonVersion or nil
+end
+
+--- Probe lines written since the addon was loaded.
+function ProbeLog.GetSessionLineCount()
+  return sessionLineCount
+end
+
+--- Turns probe mode on or off and persists it (Pattern B).
+-- @return boolean the new state
+function ProbeLog.SetEnabled(enabled)
+  local db = GetDB()
+  if not db then
+    return false
+  end
+  local nextEnabled = enabled == true
+  if db.probeLogEnabled == true and not nextEnabled then
+    Append("[PROBE] event=probe_disabled")
+  end
+  local wasEnabled = db.probeLogEnabled == true
+  db.probeLogEnabled = nextEnabled
+  if nextEnabled and not wasEnabled then
+    Append(
+      string.format(
+        "[PROBE] event=probe_enabled inKey=%s inInstance=%s",
+        YesNo(IsKeyActive()),
+        tostring(ReadInInstance())
+      )
+    )
+  end
+  return nextEnabled
+end
+
+--- CHALLENGE_MODE_START: new run segment, budgets reset.
+function ProbeLog.OnKeyStart()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  run = NewRunState()
+  keyEndedAt = nil
+  pendingKicks = {}
+  local mapID = ReadActiveMapID()
+  Append(string.format("[PROBE] event=key_start mapID=%s note=budgets_reset", tostring(mapID or "unknown")))
+  CheckChatLockdown("key_start")
+end
+
+--- CHALLENGE_MODE_COMPLETED / CHALLENGE_MODE_RESET: meter at the key end and
+-- once more keyEndFollowUpSeconds later.
+function ProbeLog.OnKeyEnd(event)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  keyEndedAt = Now()
+  local phase = event == "CHALLENGE_MODE_RESET" and "key_reset" or "key_completed"
+  Append(string.format("[PROBE] event=key_end trigger=%s", tostring(event)))
+  CheckChatLockdown(phase)
+  TryMeterSnapshot(phase)
+  TimerAfter(LIMITS.keyEndFollowUpSeconds, function()
+    if ProbeLog.IsEnabled() then
+      TryMeterSnapshot(phase .. "+5s")
+    end
+  end)
+end
+
+--- PLAYER_REGEN_DISABLED: chat lockdown edge; threat sample 2 s into a key pull.
+function ProbeLog.OnCombatStart()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  CheckChatLockdown("combat_start")
+  if not IsKeyActive() then
+    return
+  end
+  if not TakeBudget("threatPulls", LIMITS.threatPullsPerRun, "threat") then
+    return
+  end
+  if not TimerAfter(LIMITS.threatDelaySeconds, SampleThreat) then
+    Append("[PROBE] event=threat phase=pull_start+2s api=timer_missing")
+  end
+end
+
+--- PLAYER_REGEN_ENABLED: chat lockdown edge; meter between pulls (K9).
+function ProbeLog.OnCombatEnd()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  CheckChatLockdown("combat_end")
+  if IsKeyActive() then
+    TryMeterSnapshot("between_pulls")
+  end
+end
+
+--- ADDON_RESTRICTION_STATE_CHANGED (type, state). After a key a lifted
+-- restriction also triggers a meter snapshot.
+function ProbeLog.OnRestrictionChanged(restrictionType, state)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local stateName = DescribeEnumValue("AddOnRestrictionState", state)
+  if TakeBudget("restrictionLines", LIMITS.restrictionLinesPerRun, "restriction") then
+    Append(
+      string.format(
+        "[PROBE] event=restriction type=%s state=%s inKey=%s",
+        DescribeEnumValue("AddOnRestrictionType", restrictionType),
+        stateName,
+        YesNo(IsKeyActive())
+      )
+    )
+  end
+  CheckChatLockdown("restriction_changed")
+  if stateName:find("^Inactive%(") and not IsKeyActive() and IsInPostKeyWindow() then
+    TryMeterSnapshot("post_key_restriction_lifted", LIMITS.postKeySnapshotsPerPhase)
+  end
+end
+
+--- PLAYER_ENTERING_WORLD / ZONE_CHANGED_NEW_AREA: a readable "outside any
+-- instance" after a key reads the meter again.
+function ProbeLog.OnZoneChanged()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  if ReadInInstance() ~= false or not IsInPostKeyWindow() then
+    return
+  end
+  TryMeterSnapshot("post_key_outside_instance", LIMITS.postKeySnapshotsPerPhase)
+end
+
+--- Own UNIT_SPELLCAST_SUCCEEDED (player or pet), once per spell per run:
+-- were spellID and castGUID readable?
+function ProbeLog.OnOwnCast(unit, castGUID, spellID, observedKick)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local spellSecret = IsSecretValue(spellID)
+  local unitSecret = IsSecretValue(unit)
+  local unitText = unitSecret and "secret" or tostring(unit)
+  local key
+  if spellSecret then
+    key = "secret:" .. unitText
+  elseif type(spellID) == "number" then
+    key = spellID
+  else
+    key = "nil:" .. unitText
+  end
+  if run.ownCastSeen[key] then
+    return
+  end
+  if not TakeBudget("ownCastSpells", LIMITS.ownCastSpellsPerRun, "own_cast") then
+    return
+  end
+  run.ownCastSeen[key] = true
+  local guidText
+  if IsSecretValue(castGUID) then
+    guidText = "secret"
+  elseif castGUID == nil then
+    guidText = "nil"
+  else
+    guidText = "readable"
+  end
+  Append(
+    string.format(
+      "[PROBE] event=own_cast unit=%s spellID=%s spellIDSecret=%s castGUID=%s kick=%s inKey=%s "
+        .. "note=once_per_spell_per_run",
+      unitText,
+      spellSecret and "secret" or tostring(spellID),
+      YesNo(spellSecret),
+      guidText,
+      YesNo(observedKick == true),
+      YesNo(IsKeyActive())
+    )
+  )
+end
+
+--- A hostile cast was interrupted (already filtered by the kick tracker).
+function ProbeLog.OnHostileInterrupt(event)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local now = Now()
+  if not now then
+    return
+  end
+  lastInterruptAt = now
+  for _, record in ipairs(pendingKicks) do
+    if record.firstAfter == nil and now >= record.castAt then
+      record.firstAfter = now - record.castAt
+      record.firstEvent = tostring(event)
+    end
+  end
+end
+
+local function FinishKick(record)
+  for index, pending in ipairs(pendingKicks) do
+    if pending == record then
+      table.remove(pendingKicks, index)
+      break
+    end
+  end
+  local verdict
+  if record.excluded then
+    verdict = "excluded"
+  elseif type(record.window) ~= "number" then
+    verdict = "unknown"
+  elseif record.firstAfter ~= nil and record.firstAfter <= record.window then
+    verdict = "landed"
+  else
+    verdict = "missed"
+  end
+  local firstAfterText = record.firstAfter ~= nil and Ms(record.firstAfter) or "none"
+  Append(
+    string.format(
+      "[PROBE] event=kick spellID=%s inKey=%s inCombat=%s alert=%s window_ms=%s verdict=%s "
+        .. "firstInterruptAfterMs=%s firstEvent=%s interruptBeforeCastMs=%s lookahead_ms=%s",
+      tostring(record.spellID),
+      YesNo(record.inKey),
+      YesNo(record.inCombat),
+      record.alertEnabled and "on" or "off",
+      type(record.window) == "number" and Ms(record.window) or "none",
+      verdict,
+      firstAfterText,
+      record.firstEvent or "none",
+      record.preCast ~= nil and Ms(record.preCast) or "none",
+      Ms(LIMITS.kickVerdictSeconds)
+    )
+  )
+end
+
+--- Own kick observed by the kick tracker (K3 calibration). `pending` is the
+-- tracker's armed kick ({seq, spellID, window}) or nil for an excluded spell.
+function ProbeLog.OnOwnKick(spellID, pending, alertEnabled)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local now = Now()
+  if not now then
+    return
+  end
+  if not TakeBudget("kicks", LIMITS.kicksPerRun, "kick") then
+    return
+  end
+  local inCombatLockdown = rawget(_G, "InCombatLockdown")
+  local inCombat = false
+  if type(inCombatLockdown) == "function" then
+    local ok, value = pcall(inCombatLockdown)
+    inCombat = ok and not IsSecretValue(value) and value == true
+  end
+  local record = {
+    castAt = now,
+    spellID = not IsSecretValue(spellID) and type(spellID) == "number" and spellID or "unknown",
+    excluded = type(pending) ~= "table",
+    window = type(pending) == "table" and tonumber(pending.window) or nil,
+    alertEnabled = alertEnabled == true,
+    inKey = IsKeyActive(),
+    inCombat = inCombat,
+  }
+  if lastInterruptAt ~= nil then
+    local before = now - lastInterruptAt
+    if before == 0 then
+      -- Same frame as the own cast: the event order inside a frame is not
+      -- documented, the tracker counts it as landed.
+      record.firstAfter = 0
+      record.firstEvent = "same_frame"
+      record.preCast = 0
+    elseif before > 0 and before <= LIMITS.kickPreCastLookbackSeconds then
+      record.preCast = before
+    end
+  end
+  pendingKicks[#pendingKicks + 1] = record
+  if not TimerAfter(LIMITS.kickVerdictSeconds, function()
+    FinishKick(record)
+  end) then
+    FinishKick(record)
+  end
+end
+
+local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
+local ARG_OFF = { off = true, ["0"] = true, ["false"] = true }
+
+--- /isilive probe [on|off|status]; toggles without an argument.
+function ProbeLog.HandleCommand(ctx, cmd)
+  local printFn = type(ctx.printNoLogFn) == "function" and ctx.printNoLogFn or ctx.printFn or print
+  local L = type(ctx.getL) == "function" and ctx.getL() or {}
+  local arg = tostring(cmd or ""):match("^probe%s+(%S+)") or ""
+  if arg == "status" then
+    printFn(
+      string.format(
+        L.PROBE_LOG_STATUS or "Probe mode: %s | runtime log: %s | probe lines this session: %d",
+        ProbeLog.IsEnabled() and "ON" or "OFF",
+        IsRuntimeLogOn() and "ON" or "OFF",
+        sessionLineCount
+      )
+    )
+    return
+  end
+  local nextEnabled
+  if ARG_ON[arg] then
+    nextEnabled = true
+  elseif ARG_OFF[arg] then
+    nextEnabled = false
+  elseif arg == "" then
+    nextEnabled = not ProbeLog.IsEnabled()
+  else
+    printFn(L.HELP_PROBE or "  /isilive probe [on|off|status] - Write in-game API checks to the runtime log")
+    return
+  end
+  local enabled = ProbeLog.SetEnabled(nextEnabled)
+  if enabled then
+    printFn(L.PROBE_LOG_ON or "Probe mode ON: in-game API checks are written to the runtime log.")
+    if not IsRuntimeLogOn() then
+      printFn(
+        L.PROBE_LOG_RUNTIME_OFF
+          or "The runtime log is off: only [PROBE] lines are recorded. /isilive log on adds context lines."
+      )
+    end
+  else
+    printFn(L.PROBE_LOG_OFF or "Probe mode OFF.")
+  end
+end

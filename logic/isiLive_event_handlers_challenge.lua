@@ -9,6 +9,17 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local LateRunCapture = addonTable.LateRunCapture
 
+-- Probe mode (rule 239): the module is looked up per call, so a missing module
+-- or a disabled mode costs one table read and one boolean check.
+local function ActiveProbe()
+  local probe = addonTable.ProbeLog
+  if type(probe) == "table" and probe.IsEnabled() then
+    return probe
+  end
+  return nil
+end
+ChallengeLifecycle.ActiveProbe = ActiveProbe
+
 local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
 local POST_RUN_REFRESH_RETRIES = 5
 local POST_RUN_REFRESH_RETRY_DELAY_SECONDS = 1
@@ -436,6 +447,10 @@ function ChallengeLifecycle.NotifyLateRunCapture(ctx, kind)
   end
   if IsRaidModeActive(ctx) then
     return false
+  end
+  local probe = ActiveProbe()
+  if probe then
+    probe.OnZoneChanged()
   end
   -- PLAYER_ENTERING_WORLD sends its own "world" snapshot right after this.
   return LateRunCapture.TryOutsideInstance(ctx, kind, { skipSync = kind == "world" })
@@ -877,11 +892,19 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.updateLeaderButtons()
     ctx.updateStatusLine()
     ctx.updateMPlusTeleportButton()
+    local probe = ActiveProbe()
+    if probe then
+      probe.OnKeyStart()
+    end
   end
 
   local function HandleChallengeModeCompletedOrReset(frame, event)
     if IsRaidModeActive(ctx) then
       return
+    end
+    local probe = ActiveProbe()
+    if probe then
+      probe.OnKeyEnd(event)
     end
     ctx.handleMplusTimerEvent(event)
     ctx.handleKillTrackEvent(event)
@@ -967,7 +990,14 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       HandleChallengeModeCompletedOrReset(frame, "CHALLENGE_MODE_COMPLETED")
     end,
     ADDON_RESTRICTION_STATE_CHANGED = function(_frame, restrictionType, state)
-      if IsRaidModeActive(ctx) or not LateRunCapture.IsRestrictionLiftedState(state) then
+      if IsRaidModeActive(ctx) then
+        return
+      end
+      local probe = ActiveProbe()
+      if probe then
+        probe.OnRestrictionChanged(restrictionType, state)
+      end
+      if not LateRunCapture.IsRestrictionLiftedState(state) then
         return
       end
       local typeLabel = IsSecretValue(restrictionType) and "secret" or tostring(restrictionType)
