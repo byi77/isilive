@@ -314,6 +314,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 229. Der Reload-Mirror traegt die echte Serverzeit des Speicherns: Ein undatierter oder ueber eine Stunde alter Mirror wird verworfen statt wiederhergestellt, und ein unlesbarer Name loescht den letzten guten Mirror nicht.
 
 230. Beim Roster-Update sendet der Client sein Hello vor dem Key-Snapshot, damit Empfaenger ihn noch als unbekannten Peer beantworten.
+234. Der Groessen-Griff unten rechts am Hauptfenster aendert nur `db.uiScale`: Ziehen skaliert live bei fester oberer linker Ecke, Loslassen rundet auf 0,05 und speichert einmal, Doppelklick setzt 1,0; bei Fenstersperre ist er aus, im Kampf startet kein Ziehen und ein laufendes endet bei `PLAYER_REGEN_DISABLED`.
 
 ## Regelbloecke
 
@@ -1102,6 +1103,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Commands resetui restores main frame defaults
   - ControllerWiring event handlers resolve main frame from mainUI fallback
   - UI scale change keeps the main frame at the same on-screen spot
+  - Resize grip is hidden while the window position is locked
 
 ### RULE-RUNTIME-LOG-TRACE-DIAGNOSE
 - Regelnummer: 56
@@ -2298,6 +2300,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI drag start is skipped and geometry changes are queued during combat
   - UI close button defers hiding during combat and applies after regen
   - PLAYER_REGEN_ENABLED applies pending main-frame scale and position
+  - Resize grip does not start a drag during combat lockdown
+  - Resize grip drag running into combat ends on PLAYER_REGEN_DISABLED and applies after combat
 
 ### RULE-SYNC-PI-EMPFAENGER-KLARTEXT
 - Regelnummer: 122
@@ -3528,3 +3532,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI design ADDON_LOADED applies the stored design and repaints the main frame
   - UI design settings selector stores and applies the design at once outside combat
   - UI design slash command reports, stores and validates the design
+
+### RULE-MAIN-UI-GROESSEN-GRIFF
+- Regelnummer: 234
+- Status: aktiv
+- Zusammenfassung: Unten rechts am Hauptfenster sitzt ein 12-px-Griff (Blizzard-Textur `UI-ChatIM-SizeGrabber`), der die Fensterskalierung `db.uiScale` aendert, nicht Breite oder Hoehe. Beim Ziehen gilt neue Skala = Startskala x (Startbreite + Mausweg) / Startbreite; der Mausweg kommt aus `GetCursorPosition()` geteilt durch die effektive Skalierung des Parents (`UIParent`), die Startbreite ist die Bildschirmbreite des Fensters in denselben Einheiten. Die Skala wird auf 0,5 bis 2,0 begrenzt und live per `SetScale` angezeigt; vor der ersten Aenderung wird das Fenster ohne Sprung auf `TOPLEFT` umgeankert, damit die obere linke Ecke stehen bleibt. Waehrend des Ziehens werden keine SavedVariables geschrieben; erst das Loslassen rundet auf 0,05, schreibt `db.uiScale` und die Position je einmal, wendet den Wert ueber `ApplyScale` an und aktualisiert den Settings-Slider. Ein Klick ohne Mausweg schreibt nichts und behaelt den Anker. Doppelklick setzt die Skalierung bei fester oberer linker Ecke auf 1,0. Bei gesetzter Fenstersperre (`lockMainFramePosition`, Regel 55) ist der Griff ausgeblendet, und ein laufendes Ziehen endet mit seinem Wert. Im Kampf-Lockdown (Regel 121) starten weder Ziehen noch Doppelklick-Reset; ein laufendes Ziehen endet bei `PLAYER_REGEN_DISABLED`, sein gerundeter Wert wird sofort gespeichert und, falls der Lockdown schon greift, ueber die bestehende `ApplyPendingGeometry`-Warteschlange bei `PLAYER_REGEN_ENABLED` angewendet. Waehrend des Lockdowns ruft der Griff kein `SetScale` auf.
+- Erforderliche Tests:
+  - Resize grip sits in the bottom-right corner above the content
+  - Resize grip drag right scales live, rounds on release and keeps the top-left corner
+  - Resize grip drag left shrinks and clamps to the 50 % minimum
+  - Resize grip drag right clamps to the 200 % maximum
+  - Resize grip click without mouse travel writes nothing and keeps the anchor
+  - Resize grip double-click resets to 100 % and keeps the top-left corner
+  - Resize grip is hidden while the window position is locked
+  - Resize grip does not start a drag during combat lockdown
+  - Resize grip drag running into combat ends on PLAYER_REGEN_DISABLED and applies after combat
+  - Resize grip drag still runs at PLAYER_REGEN_DISABLED before lockdown applies at once
+  - UI.RoundUiScale rounds to the slider step and clamps
+  - Frame bridge forwards settings opener to the main frame

@@ -15,6 +15,43 @@ local ApplyStateIcon = addonTable.UICommon.ApplyStateIcon
 local Colors = addonTable.UICommon.Colors
 local UNLOCKED_ICON_ALPHA = 0.5
 
+-- UI scale bounds and step; the same values as the "UI scale" settings slider
+-- and the uiScale field in core/isiLive_db_schema.lua.
+local UI_SCALE_MIN = 0.5
+local UI_SCALE_MAX = 2.0
+local UI_SCALE_STEP = 0.05
+local UI_SCALE_DEFAULT = 1.0
+
+-- Resize grip in the bottom-right corner. Kept subtle: faded until hovered or
+-- dragged, tinted with the cool title-bar colour instead of Blizzard's grey.
+-- 12 px flush in the corner fits the bottom padding of every layout: in M+
+-- the killtracker row ends exactly at the grip's top edge, in M / H / V the
+-- corner holds only frame chrome (checked with tools/wowsim in all four).
+local RESIZE_GRIP_SIZE = 12
+local RESIZE_GRIP_IDLE_ALPHA = 0.45
+local RESIZE_GRIP_ACTIVE_ALPHA = 1
+local RESIZE_GRIP_TEXTURE_UP = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up"
+local RESIZE_GRIP_TEXTURE_DOWN = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down"
+local RESIZE_GRIP_TEXTURE_HIGHLIGHT = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight"
+
+local function ClampUiScale(scale)
+  if scale < UI_SCALE_MIN then
+    return UI_SCALE_MIN
+  end
+  if scale > UI_SCALE_MAX then
+    return UI_SCALE_MAX
+  end
+  return scale
+end
+
+-- Rounds to the slider step and clamps. The string round-trip drops the float
+-- noise of steps * 0.05, so a stored 1.15 compares equal to the slider's 1.15.
+local function RoundUiScale(scale)
+  local steps = math.floor(scale / UI_SCALE_STEP + 0.5)
+  return ClampUiScale(tonumber(string.format("%.2f", steps * UI_SCALE_STEP)))
+end
+UI.RoundUiScale = RoundUiScale
+
 local function SavePosition(target)
   -- SavedVariables are restored by Blizzard before ADDON_LOADED and the main
   -- frame is :Hide()d until then, so this only ever runs once IsiLiveDB is a
@@ -381,6 +418,237 @@ local function CreateWidthController(frame, isInCombat)
   return SetWidthSafe, GetPendingWidth
 end
 
+-- Cursor x in the parent's units. GetCursorPosition reports screen pixels;
+-- dividing by the parent's effective scale (UIParent in production) puts the
+-- mouse travel into the same units as the frame's on-screen width.
+local function GetCursorXInParentUnits(parent)
+  local getCursorPosition = rawget(_G, "GetCursorPosition")
+  if type(getCursorPosition) ~= "function" then
+    return nil
+  end
+  local cursorX = tonumber((getCursorPosition()))
+  local scaleSource = parent
+  if type(scaleSource) ~= "table" or type(scaleSource.GetEffectiveScale) ~= "function" then
+    scaleSource = rawget(_G, "UIParent")
+  end
+  if not cursorX or type(scaleSource) ~= "table" or type(scaleSource.GetEffectiveScale) ~= "function" then
+    return nil
+  end
+  local effectiveScale = tonumber(scaleSource:GetEffectiveScale())
+  if not effectiveScale or effectiveScale <= 0 then
+    return nil
+  end
+  return cursorX / effectiveScale
+end
+
+local function SetGripStateTexture(button, setterName, getterName, path, tint)
+  if type(button[setterName]) ~= "function" then
+    return
+  end
+  button[setterName](button, path)
+  local texture = type(button[getterName]) == "function" and button[getterName](button) or nil
+  if tint and type(texture) == "table" and type(texture.SetVertexColor) == "function" then
+    texture:SetVertexColor(tint[1], tint[2], tint[3])
+  end
+end
+
+-- Resize grip (bottom-right corner). Dragging scales the whole window (the
+-- layouts have fixed widths, so the grip changes db.uiScale, not width or
+-- height): newScale = startScale * (startWidth + mouseTravel) / startWidth,
+-- clamped to the slider range and applied live with SetScale. The first real
+-- change re-anchors the frame to TOPLEFT so that corner stays put. Release
+-- rounds to the slider step and hands the value to deps.commitScale, the only
+-- place that writes SavedVariables. Double-click returns to 100 %.
+--
+-- The main frame is protected in combat (secure children): a drag never
+-- starts during lockdown, a running drag ends on PLAYER_REGEN_DISABLED via
+-- EndForCombat, and every mouse move re-checks lockdown before SetScale.
+local function CreateResizeGrip(frame, deps)
+  local button = CreateFrame("Button", nil, frame)
+  button:SetSize(RESIZE_GRIP_SIZE, RESIZE_GRIP_SIZE)
+  button:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+  if type(button.SetFrameStrata) == "function" then
+    button:SetFrameStrata(frame:GetFrameStrata())
+  end
+  if type(button.SetFrameLevel) == "function" then
+    button:SetFrameLevel(frame:GetFrameLevel() + 100)
+  end
+  button:EnableMouse(true)
+  if type(button.RegisterForClicks) == "function" then
+    button:RegisterForClicks("LeftButtonUp")
+  end
+  local tint = Colors and Colors.TEXT_SECTION
+  SetGripStateTexture(button, "SetNormalTexture", "GetNormalTexture", RESIZE_GRIP_TEXTURE_UP, tint)
+  SetGripStateTexture(button, "SetPushedTexture", "GetPushedTexture", RESIZE_GRIP_TEXTURE_DOWN, tint)
+  SetGripStateTexture(button, "SetHighlightTexture", "GetHighlightTexture", RESIZE_GRIP_TEXTURE_HIGHLIGHT, nil)
+
+  local session = nil
+  local locked = false
+  local hovered = false
+
+  local function UpdateAlpha()
+    if type(button.SetAlpha) == "function" then
+      button:SetAlpha((session or hovered) and RESIZE_GRIP_ACTIVE_ALPHA or RESIZE_GRIP_IDLE_ALPHA)
+    end
+  end
+
+  local function HideTooltip()
+    local tooltip = rawget(_G, "GameTooltip")
+    if not tooltip or type(tooltip.Hide) ~= "function" then
+      return
+    end
+    if type(tooltip.IsOwned) == "function" and not tooltip:IsOwned(button) then
+      return
+    end
+    tooltip:Hide()
+  end
+
+  -- Ends the drag; commits the rounded value when the scale changed.
+  local function Finish()
+    local current = session
+    if not current then
+      return false
+    end
+    session = nil
+    button:SetScript("OnUpdate", nil)
+    UpdateAlpha()
+    if current.liveScale == current.startScale then
+      return false
+    end
+    deps.commitScale(RoundUiScale(current.liveScale))
+    return true
+  end
+
+  local function OnUpdate()
+    local current = session
+    if not current then
+      button:SetScript("OnUpdate", nil)
+      return
+    end
+    if deps.isInCombat() then
+      -- Lockdown already active: no SetScale; the commit queues the value.
+      Finish()
+      return
+    end
+    local cursorX = GetCursorXInParentUnits(deps.parent)
+    if not cursorX then
+      return
+    end
+    local travel = cursorX - current.startCursorX
+    local scale = ClampUiScale(current.startScale * (current.startWidth + travel) / current.startWidth)
+    if scale == current.liveScale then
+      return
+    end
+    if not current.anchored then
+      if not deps.anchorTopLeft() then
+        return
+      end
+      current.anchored = true
+    end
+    deps.setLiveScale(scale)
+    current.liveScale = scale
+  end
+
+  local function Begin()
+    if session or locked or deps.isInCombat() then
+      return false
+    end
+    local startScale = type(frame.GetScale) == "function" and tonumber(frame:GetScale()) or nil
+    local width = type(frame.GetWidth) == "function" and tonumber(frame:GetWidth()) or nil
+    local cursorX = GetCursorXInParentUnits(deps.parent)
+    if not (startScale and startScale > 0 and width and width > 0 and cursorX) then
+      return false
+    end
+    session = {
+      startScale = startScale,
+      -- On-screen width in parent units, the same units as the mouse travel.
+      startWidth = width * startScale,
+      startCursorX = cursorX,
+      liveScale = startScale,
+      anchored = false,
+    }
+    HideTooltip()
+    button:SetScript("OnUpdate", OnUpdate)
+    UpdateAlpha()
+    return true
+  end
+
+  local function ResetToDefault()
+    Finish()
+    if locked or deps.isInCombat() then
+      return false
+    end
+    local current = type(frame.GetScale) == "function" and tonumber(frame:GetScale()) or nil
+    if current ~= UI_SCALE_DEFAULT then
+      deps.anchorTopLeft()
+    end
+    deps.commitScale(UI_SCALE_DEFAULT)
+    return true
+  end
+
+  button:SetScript("OnMouseDown", function(_, mouseButton)
+    if mouseButton == nil or mouseButton == "LeftButton" then
+      Begin()
+    end
+  end)
+  button:SetScript("OnMouseUp", function()
+    Finish()
+  end)
+  button:SetScript("OnDoubleClick", function()
+    ResetToDefault()
+  end)
+  button:SetScript("OnHide", function()
+    hovered = false
+    Finish()
+  end)
+  button:SetScript("OnEnter", function()
+    hovered = true
+    UpdateAlpha()
+    if session then
+      return
+    end
+    local tooltip = rawget(_G, "GameTooltip")
+    if tooltip and type(tooltip.SetOwner) == "function" then
+      -- Resolved per hover, so a language switch needs no rebuild.
+      local title = GetLocalizedText("TOOLTIP_RESIZE_MAIN_FRAME", "Window size")
+      local hint = GetLocalizedText("TOOLTIP_RESIZE_MAIN_FRAME_HINT", "Drag to resize. Double-click: 100%.")
+      tooltip:SetOwner(button, "ANCHOR_RIGHT")
+      tooltip:AddLine(title)
+      tooltip:AddLine(hint, 0.8, 0.8, 0.8)
+      tooltip:Show()
+    end
+  end)
+  button:SetScript("OnLeave", function()
+    hovered = false
+    UpdateAlpha()
+    HideTooltip()
+  end)
+  UpdateAlpha()
+
+  local grip = { button = button }
+
+  -- The lock owns the grip: locked hides it and ends a running drag.
+  function grip.SetLocked(isLocked)
+    locked = isLocked == true
+    if locked then
+      Finish()
+      button:Hide()
+    else
+      button:Show()
+    end
+  end
+
+  function grip.EndForCombat()
+    return Finish()
+  end
+
+  function grip.IsResizing()
+    return session ~= nil
+  end
+
+  return grip
+end
+
 function UI.CreateMainFrame(opts)
   opts = opts or {}
   local minHeight = tonumber(opts.minHeight) or 236
@@ -399,6 +667,7 @@ function UI.CreateMainFrame(opts)
   local onShownInGroup = opts.onShownInGroup or function() end
   local onShownNoGroup = opts.onShownNoGroup or function() end
   local onOpenSettings = opts.onOpenSettings or function() end
+  local onScaleCommitted = type(opts.onScaleCommitted) == "function" and opts.onScaleCommitted or nil
 
   local frame = CreateFrame("Frame", "isiLiveMainFrame", parent, "BackdropTemplate")
   frame:SetSize(755, minHeight)
@@ -412,6 +681,8 @@ function UI.CreateMainFrame(opts)
   local dragActive = false
   local lockButton = nil
   local positionChangedHandler = nil
+  -- Created further down (needs ApplyScale); SetDragLocked reaches it here.
+  local resizeGrip = nil
 
   local function NotifyPositionChanged()
     if type(positionChangedHandler) == "function" then
@@ -486,6 +757,9 @@ function UI.CreateMainFrame(opts)
     if lockButton and type(lockButton.UpdateVisual) == "function" then
       lockButton:UpdateVisual()
     end
+    if resizeGrip then
+      resizeGrip.SetLocked(dragLocked)
+    end
   end
 
   local closeButton = createCloseButton(frame, {
@@ -528,17 +802,10 @@ function UI.CreateMainFrame(opts)
   local pendingScale = nil
   local pendingResetPosition = false
 
-  local function ApplyScale(scale)
-    local newScale = tonumber(scale)
-    if not newScale or newScale <= 0 or type(frame.SetScale) ~= "function" then
-      return false
-    end
-    if isInCombat() then
-      pendingScale = newScale
-      return false
-    end
-    pendingScale = nil
-
+  -- Sets the scale and rescales the anchor offsets so the anchor point stays
+  -- put on screen. Returns true when the offsets were rewritten. Callers make
+  -- sure combat lockdown is not active.
+  local function SetScaleAroundAnchor(newScale)
     local oldScale = nil
     if type(frame.GetScale) == "function" then
       oldScale = tonumber(frame:GetScale())
@@ -551,19 +818,92 @@ function UI.CreateMainFrame(opts)
     frame:SetScale(newScale)
 
     if not (oldScale and oldScale > 0 and type(point) == "string" and tonumber(x) and tonumber(y)) then
-      return true
+      return false
     end
     if oldScale == newScale then
-      return true
+      return false
     end
 
     local factor = oldScale / newScale
     frame:ClearAllPoints()
     frame:SetPoint(point, parent, relativePoint or point, x * factor, y * factor)
-    SavePosition(frame)
-    NotifyPositionChanged()
     return true
   end
+
+  local function ApplyScale(scale)
+    local newScale = tonumber(scale)
+    if not newScale or newScale <= 0 or type(frame.SetScale) ~= "function" then
+      return false
+    end
+    if isInCombat() then
+      pendingScale = newScale
+      return false
+    end
+    pendingScale = nil
+
+    if SetScaleAroundAnchor(newScale) then
+      SavePosition(frame)
+      NotifyPositionChanged()
+    end
+    return true
+  end
+
+  -- Re-anchors the frame to TOPLEFT of the parent without moving it, so a
+  -- later scale change grows and shrinks the window away from its top-left
+  -- corner. GetLeft/GetTop are in the frame's own (scaled) units; the
+  -- parent's edges are converted into them. Fails closed (false) when the
+  -- geometry is not readable yet.
+  local function AnchorTopLeft()
+    if
+      type(frame.GetLeft) ~= "function"
+      or type(frame.GetTop) ~= "function"
+      or type(frame.GetScale) ~= "function"
+      or type(parent) ~= "table"
+      or type(parent.GetTop) ~= "function"
+    then
+      return false
+    end
+    local left = tonumber(frame:GetLeft())
+    local top = tonumber(frame:GetTop())
+    local scale = tonumber(frame:GetScale())
+    local parentTop = tonumber(parent:GetTop())
+    local parentLeft = type(parent.GetLeft) == "function" and tonumber(parent:GetLeft()) or 0
+    if not (left and top and scale and scale > 0 and parentTop and parentLeft) then
+      return false
+    end
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", parent, "TOPLEFT", left - parentLeft / scale, top - parentTop / scale)
+    return true
+  end
+
+  -- Final value of a grip drag or double-click: persisted once, applied via
+  -- ApplyScale (which queues it during combat lockdown) and handed to the
+  -- settings panel. SavePosition only reads the anchor and writes the DB, so
+  -- it is safe in combat and keeps the TOPLEFT anchor of a live drag.
+  local function CommitGripScale(scale)
+    local db = rawget(_G, "IsiLiveDB")
+    if type(db) == "table" then
+      db.uiScale = scale
+    end
+    ApplyScale(scale)
+    SavePosition(frame)
+    NotifyPositionChanged()
+    if onScaleCommitted then
+      onScaleCommitted(scale)
+    end
+  end
+
+  resizeGrip = CreateResizeGrip(frame, {
+    parent = parent,
+    isInCombat = isInCombat,
+    isLocked = function()
+      return dragLocked
+    end,
+    anchorTopLeft = AnchorTopLeft,
+    setLiveScale = SetScaleAroundAnchor,
+    commitScale = CommitGripScale,
+  })
+  resizeGrip.SetLocked(dragLocked)
 
   local function ResetPosition()
     if isInCombat() then
@@ -604,6 +944,10 @@ function UI.CreateMainFrame(opts)
     lockButton = lockButton,
     settingsButton = settingsButton,
     dragHandle = dragHandle,
+    resizeGrip = resizeGrip.button,
+    -- PLAYER_REGEN_DISABLED: ends a running grip drag before lockdown starts.
+    EndResizeForCombat = resizeGrip.EndForCombat,
+    IsResizing = resizeGrip.IsResizing,
     SetVisible = SetVisible,
     SetHeightSafe = SetHeightSafe,
     ToggleVisibility = ToggleVisibility,

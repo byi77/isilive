@@ -211,6 +211,7 @@ The window opens automatically when you join a group and closes when you leave. 
 - **× button** in the top-right corner — close it
 - **Lock icon** in the top-right — prevents dragging so the window doesn't move by accident
 - Drag the title bar to move the window. The position is remembered, and the window stops at the WoW screen edge instead of being draggable outside the game view.
+- **Resize grip** in the bottom-right corner — drag it to make the whole window bigger or smaller (50-200 %, the same value as the "UI scale" setting); the top-left corner stays where it is. Double-click the grip to go back to 100 %. The grip only shows while the window is unlocked and does nothing in combat.
 
 ### Layouts
 

@@ -947,6 +947,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if ctx.isTestMode() or ctx.isTestAllMode() then
       ctx.exitTestModeForCombat()
     end
+    -- A resize-grip drag must not run into lockdown: it ends here and its
+    -- final scale goes through ApplyScale (queued if lockdown already holds).
+    if type(ctx.endMainFrameResizeForCombat) == "function" then
+      ctx.endMainFrameResizeForCombat()
+    end
     ctx.handleKillTrackEvent("PLAYER_REGEN_DISABLED")
     ApplyCombatFade(ctx, 0)
   end
