@@ -534,6 +534,17 @@ local function InitializeFactoryFrameBridge(ctx)
         blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
       end
     end,
+    -- The resize grip already wrote IsiLiveDB.uiScale; the settings panel
+    -- only repaints, so the "UI scale" slider shows the new value.
+    onMainFrameScaleCommitted = function(scale)
+      local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
+      if logf then
+        logf("[UI] resize_grip scale=%s", tostring(scale))
+      end
+      if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
+        ctx.settingsPanel.Refresh()
+      end
+    end,
   })
 
   ctx.centerNotice = frameBridgeContext.centerNotice

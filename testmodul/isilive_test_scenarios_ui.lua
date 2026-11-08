@@ -289,6 +289,8 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
   test("Frame bridge forwards settings opener to the main frame", function()
     local forwardedOpenSettings = nil
     local openSettingsCalls = 0
+    local forwardedScaleCommitted = nil
+    local committedScales = {}
     WithGlobals({
       UIParent = {},
     }, function()
@@ -311,6 +313,7 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
         end,
         createMainFrame = function(opts)
           forwardedOpenSettings = opts.onOpenSettings
+          forwardedScaleCommitted = opts.onScaleCommitted
           return {
             frame = {
               IsShown = function()
@@ -338,6 +341,9 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
         onOpenSettings = function()
           openSettingsCalls = openSettingsCalls + 1
         end,
+        onMainFrameScaleCommitted = function(scale)
+          committedScales[#committedScales + 1] = scale
+        end,
         resolveTeleportSpellID = function()
           return nil
         end,
@@ -358,6 +364,10 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
       forwardedOpenSettings = Assert.NotNil(forwardedOpenSettings, "main frame should receive the settings opener")
       forwardedOpenSettings()
       Assert.Equal(openSettingsCalls, 1, "forwarded settings opener should call the bridge callback")
+      forwardedScaleCommitted =
+        Assert.NotNil(forwardedScaleCommitted, "main frame should receive the resize-grip commit callback")
+      forwardedScaleCommitted(1.25)
+      Assert.Equal(committedScales[1], 1.25, "resize-grip commit should reach the bridge callback")
     end)
   end)
 end

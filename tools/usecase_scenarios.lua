@@ -85,6 +85,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_travel_items.lua",
   "testmodul/isilive_test_scenarios_spell_spec_data.lua",
   "testmodul/isilive_test_scenarios_ui_branches.lua",
+  "testmodul/isilive_test_scenarios_ui_resize_grip.lua",
   "testmodul/isilive_test_scenarios_ui_settings.lua",
   "testmodul/isilive_test_scenarios_ui_settings_navigation.lua",
   "testmodul/isilive_test_scenarios_ui_settings_vip.lua",

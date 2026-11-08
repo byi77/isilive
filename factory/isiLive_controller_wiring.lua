@@ -516,6 +516,11 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       refs.mainUI.ApplyPendingGeometry()
     end
   end
+  config.endMainFrameResizeForCombat = function()
+    if type(refs.mainUI.EndResizeForCombat) == "function" then
+      refs.mainUI.EndResizeForCombat()
+    end
+  end
   config.setMainFrameHeightSafe = RequireFunction(callbacks.setMainFrameHeightSafe, "callbacks.setMainFrameHeightSafe")
   config.setMainFrameWidthSafe = RequireFunction(callbacks.setMainFrameWidthSafe, "callbacks.setMainFrameWidthSafe")
   config.tryRestoreCenterNoticeTeleportButton = function()

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Main window: resize grip in the bottom-right corner. Dragging it scales the whole window (the same `uiScale` as the "UI scale" slider, 50-200 %), live while dragging; the top-left corner stays in place. Release rounds to the slider's 5 % step and saves once, the settings slider follows. Double-click returns to 100 %. The grip is hidden while the window position is locked (the default) and does nothing in combat; a drag that runs into combat ends at combat start and its value is applied after combat. Tooltip in all five languages.
+- Code: grip in `ui/isiLive_ui_main_frame.lua` (`CreateResizeGrip`), `PLAYER_REGEN_DISABLED` ends a running drag via `mainUI.EndResizeForCombat`. New rule 234, tests in `testmodul/isilive_test_scenarios_ui_resize_grip.lua` (mocked `GetCursorPosition`, combat through the real event dispatcher), checked with wowsim in all four layouts.
+
 ## 2026-11-07 - Version 0.9.505 (patch)
 
 - Killtracker time pace badge is half transparent, so the forces fill underneath stays visible.

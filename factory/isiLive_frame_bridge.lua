@@ -58,6 +58,7 @@ function FrameBridge.CreateContext(opts)
     onShownInGroup = onShownInGroup,
     onShownNoGroup = onShownNoGroup,
     onOpenSettings = onOpenSettings,
+    onScaleCommitted = type(opts.onMainFrameScaleCommitted) == "function" and opts.onMainFrameScaleCommitted or nil,
   })
 
   local mainFrame = mainUI.frame

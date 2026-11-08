@@ -179,6 +179,7 @@ local function BuildContext(opts)
   ctx.getPendingMainFrameWidth = RequireFunction(opts.getPendingMainFrameWidth, "getPendingMainFrameWidth")
   ctx.setMainFrameWidthSafe = RequireFunction(opts.setMainFrameWidthSafe, "setMainFrameWidthSafe")
   ctx.applyPendingMainFrameGeometry = OptionalFunction(opts.applyPendingMainFrameGeometry, function() end)
+  ctx.endMainFrameResizeForCombat = OptionalFunction(opts.endMainFrameResizeForCombat, function() end)
   ctx.tryRestoreCenterNoticeTeleportButton =
     RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
 
