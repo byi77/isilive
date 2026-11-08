@@ -930,7 +930,7 @@ return function(test, ctx)
     AssertContains(
       Assert,
       helpersContent,
-      "ctx.HandleKickTrackerEvent = function(event, unit, _, spellID)",
+      "ctx.HandleKickTrackerEvent = function(event, unit, _, spellID, interruptedBy)",
       "factory kick tracking must expose a central-gate kick event handler"
     )
     AssertContains(

@@ -369,6 +369,74 @@ local function CreateInstanceResetCheckbox(canvas, yOffset, labels, config)
   )
 end
 
+local FALLBACK_MISSED_KICK_ALERT_DESC = "Shows a short red notice when your own interrupt hit nothing: no"
+  .. " hostile cast was interrupted right after it. Only in combat; a teammate's interrupt at the same moment"
+  .. " counts as a hit. Kicks that still do something without a cast (Avenger's Shield, Axe Toss) never alert."
+local FALLBACK_MISSED_KICK_ONLY_IN_KEY_DESC = "Limits the missed-kick notice to running Mythic+ keys."
+local FALLBACK_MISSED_KICK_SOUND_DESC = "Also plays a short sound with the missed-kick notice."
+
+local function CreateMissedKickAlertCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_MISSED_KICK_ALERT or "Kick: Missed kick alert",
+    function()
+      local db = config.getDB()
+      return db.missedKickAlertEnabled == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.missedKickAlertEnabled = checked
+    end,
+    "SETTINGS_MISSED_KICK_ALERT",
+    CheckboxDescriptionOptions(labels.SETTINGS_MISSED_KICK_ALERT_DESC or FALLBACK_MISSED_KICK_ALERT_DESC)
+  )
+end
+
+local function CreateMissedKickOnlyInKeyCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_MISSED_KICK_ONLY_IN_KEY or "Missed kick: only in a key",
+    function()
+      local db = config.getDB()
+      return db.missedKickOnlyInKey ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.missedKickOnlyInKey = checked
+    end,
+    "SETTINGS_MISSED_KICK_ONLY_IN_KEY",
+    CheckboxDescriptionOptions(labels.SETTINGS_MISSED_KICK_ONLY_IN_KEY_DESC or FALLBACK_MISSED_KICK_ONLY_IN_KEY_DESC)
+  )
+end
+
+local function CreateMissedKickSoundCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_MISSED_KICK_SOUND or "Missed kick: play a sound",
+    function()
+      local db = config.getDB()
+      return db.missedKickSound == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.missedKickSound = checked
+    end,
+    "SETTINGS_MISSED_KICK_SOUND",
+    CheckboxDescriptionOptions(labels.SETTINGS_MISSED_KICK_SOUND_DESC or FALLBACK_MISSED_KICK_SOUND_DESC)
+  )
+end
+
+-- Missed-kick alert (rule 236): alert, only-in-key and sound, in this order.
+local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, controls)
+  controls.missedKickAlert, yOffset = CreateMissedKickAlertCheckbox(canvas, yOffset, labels, config)
+  controls.missedKickOnlyInKey, yOffset = CreateMissedKickOnlyInKeyCheckbox(canvas, yOffset, labels, config)
+  controls.missedKickSound, yOffset = CreateMissedKickSoundCheckbox(canvas, yOffset, labels, config)
+  return yOffset
+end
+
 local DISPLAY_DEFAULTS = {
   uiScale = 1.0,
   bgAlpha = DEFAULT_BG_ALPHA,
@@ -392,6 +460,9 @@ local DISPLAY_DEFAULTS = {
   ttkImportantOnly = true,
   loadoutCheckEnabled = true,
   instanceResetButtonEnabled = false,
+  missedKickAlertEnabled = false,
+  missedKickOnlyInKey = true,
+  missedKickSound = false,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -439,6 +510,9 @@ local DISPLAY_DEFAULT_ORDER = {
   "ttkImportantOnly",
   "loadoutCheckEnabled",
   "instanceResetButtonEnabled",
+  "missedKickAlertEnabled",
+  "missedKickOnlyInKey",
+  "missedKickSound",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -896,6 +970,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.ttkImportant, yOffset = CreateTtkImportantCheckbox(canvas, yOffset, labels, config)
   controls.loadoutCheck, yOffset = CreateLoadoutCheckCheckbox(canvas, yOffset, labels, config)
   controls.instanceResetButton, yOffset = CreateInstanceResetCheckbox(canvas, yOffset, labels, config)
+  yOffset = CreateMissedKickCheckboxes(canvas, yOffset, labels, config, controls)
 
   controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
@@ -1146,6 +1221,30 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       labels.SETTINGS_INSTANCE_RESET_BUTTON_DESC or FALLBACK_INSTANCE_RESET_BUTTON_DESC
     )
     controls.instanceResetButton.check:SetChecked(db.instanceResetButtonEnabled == true)
+  end
+  if controls.missedKickAlert then
+    controls.missedKickAlert.label:SetText(labels.SETTINGS_MISSED_KICK_ALERT or "Kick: Missed kick alert")
+    SetCheckboxDescription(
+      controls.missedKickAlert,
+      labels.SETTINGS_MISSED_KICK_ALERT_DESC or FALLBACK_MISSED_KICK_ALERT_DESC
+    )
+    controls.missedKickAlert.check:SetChecked(db.missedKickAlertEnabled == true)
+  end
+  if controls.missedKickOnlyInKey then
+    controls.missedKickOnlyInKey.label:SetText(labels.SETTINGS_MISSED_KICK_ONLY_IN_KEY or "Missed kick: only in a key")
+    SetCheckboxDescription(
+      controls.missedKickOnlyInKey,
+      labels.SETTINGS_MISSED_KICK_ONLY_IN_KEY_DESC or FALLBACK_MISSED_KICK_ONLY_IN_KEY_DESC
+    )
+    controls.missedKickOnlyInKey.check:SetChecked(db.missedKickOnlyInKey ~= false)
+  end
+  if controls.missedKickSound then
+    controls.missedKickSound.label:SetText(labels.SETTINGS_MISSED_KICK_SOUND or "Missed kick: play a sound")
+    SetCheckboxDescription(
+      controls.missedKickSound,
+      labels.SETTINGS_MISSED_KICK_SOUND_DESC or FALLBACK_MISSED_KICK_SOUND_DESC
+    )
+    controls.missedKickSound.check:SetChecked(db.missedKickSound == true)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

@@ -1214,6 +1214,24 @@ local function BuildSimulationTabletActions(ctx)
         return done("SIM_ACTION_E4_DONE")
       end,
     },
+    -- E5 stays retired (the VIP DK preview moved to isiBlightfallTracker).
+    {
+      id = "E6",
+      category = "alerts",
+      status = "green",
+      titleKey = "SIM_ACTION_E6_TITLE",
+      descKey = "SIM_ACTION_E6_DESC",
+      title = "Missed kick",
+      description = "Shows the missed-kick notice and plays its sound preview.",
+      run = function()
+        -- Preview only: no kick, no key and no combat needed, and the alert
+        -- settings stay untouched (rule 236).
+        if type(ctx.ShowMissedKickAlert) == "function" then
+          ctx.ShowMissedKickAlert({ preview = true })
+        end
+        return done("SIM_ACTION_E6_DONE")
+      end,
+    },
     {
       id = "F1",
       category = "extras",

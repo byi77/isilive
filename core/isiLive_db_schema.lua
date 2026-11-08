@@ -323,6 +323,12 @@ local SCHEMA = {
   instanceResetButtonEnabled = { type = "boolean", default = false },
   instanceResetAnnounce = { type = "boolean", default = false },
 
+  -- Missed-kick alert (game/isiLive_kick_tracker.lua, rule 236). The alert and
+  -- its sound are opt-in (Pattern B); "only in a key" is Pattern A.
+  missedKickAlertEnabled = { type = "boolean", default = false },
+  missedKickOnlyInKey = { type = "boolean", default = true },
+  missedKickSound = { type = "boolean", default = false },
+
   -- Sound cues.
   soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },

@@ -131,6 +131,42 @@ local EXTRA_KICK_CD = {
   [31935] = 13, -- Avenger's Shield (Prot Paladin interrupt talent)
 }
 
+-- Missed-kick ("Kick ins Leere") evaluation windows, rule 236. After the own
+-- interrupt cast a hostile interrupt must be observed within this many
+-- seconds, otherwise the kick counts as missed.
+-- CALIBRATE IN-GAME: these are start values, not measurements. Raise a value
+-- if real landed kicks raise the alert; lower it if missed kicks slip through
+-- because an unrelated interrupt happened to land in the window.
+local MISSED_KICK_WINDOW_DEFAULT_SECONDS = 0.25
+-- Pet kicks (Warlock Spell Lock / Axe Toss) travel through the pet first.
+local MISSED_KICK_WINDOW_PET_SECONDS = 0.6
+-- Per-spell overrides for slow kicks. CALIBRATE IN-GAME.
+local MISSED_KICK_WINDOW_BY_SPELL = {
+  [78675] = 0.6, -- Solar Beam: ground effect, the interrupt applies when the beam lands
+}
+-- The order of the own UNIT_SPELLCAST_SUCCEEDED and the hostile interrupt event
+-- inside one server update is not documented, so an interrupt observed this
+-- long BEFORE the own cast also counts. CALIBRATE IN-GAME.
+local MISSED_KICK_PRE_CAST_TOLERANCE_SECONDS = 0.1
+-- Interrupt casts that still do something without a target cast (damage,
+-- stun), so an "empty" use is not a wasted kick. VERIFY IN-GAME.
+local MISSED_KICK_EXCLUDED_SPELLS = {
+  [31935] = true, -- Avenger's Shield (Prot Paladin interrupt talent): damage and silence
+  [119914] = true, -- Axe Toss (player-facing ID): stun
+  [89766] = true, -- Axe Toss (Felguard pet cast ID): stun
+}
+
+local function ResolveMissedKickWindow(spellID, castUnit)
+  local override = MISSED_KICK_WINDOW_BY_SPELL[spellID]
+  if type(override) == "number" then
+    return override
+  end
+  if castUnit == "pet" then
+    return MISSED_KICK_WINDOW_PET_SECONDS
+  end
+  return MISSED_KICK_WINDOW_DEFAULT_SECONDS
+end
+
 -- Talent spell ID → { affects = interruptSpellID, reduction = seconds | pctReduction = % }
 local CD_REDUCTION_DEFS = {
   [382297] = { affects = 2139, reduction = 5 }, -- [DE: Geistesgegenwärtig] (Mage: Counterspell 25→20)
@@ -544,6 +580,84 @@ local function CollectActiveExtras(extras, now)
   return out
 end
 
+-- Missed-kick state (rule 236): the last own kick waiting for its verdict and
+-- the time of the last observed hostile interrupt. Only timestamps are kept;
+-- who interrupted is never read or compared.
+local function CreateMissedKickState(getTime)
+  local pending = nil
+  local seq = 0
+  local lastHostileInterruptAt = nil
+  local state = { api = {} }
+
+  function state.Arm(castSpellID, trackedSpellID, castUnit)
+    if MISSED_KICK_EXCLUDED_SPELLS[castSpellID] or MISSED_KICK_EXCLUDED_SPELLS[trackedSpellID] then
+      pending = nil
+      return
+    end
+    seq = seq + 1
+    pending = {
+      seq = seq,
+      spellID = trackedSpellID,
+      castAt = getTime(),
+      window = ResolveMissedKickWindow(trackedSpellID, castUnit),
+    }
+  end
+
+  -- The kick armed by the last OnCast that still waits for its verdict, as
+  -- { seq, spellID, window } -- or nil.
+  function state.api.GetPendingMissedKick()
+    if not pending then
+      return nil
+    end
+    return { seq = pending.seq, spellID = pending.spellID, window = pending.window }
+  end
+
+  -- Drops a pending kick without a verdict (alert context not active).
+  function state.api.CancelMissedKick()
+    pending = nil
+  end
+
+  -- Records that some hostile cast was interrupted now. Only the moment
+  -- counts: by whom is never asked (interruptedBy is secret in keys).
+  function state.api.OnHostileInterrupt()
+    lastHostileInterruptAt = getTime()
+  end
+
+  -- Verdict for the pending kick `kickSeq`: "landed" when any hostile
+  -- interrupt fell into [castAt - tolerance, castAt + window], otherwise
+  -- "missed". A simultaneous teammate kick therefore also counts as landed --
+  -- a missed alert is preferred over a false one. Returns nil for a stale or
+  -- unknown seq (a newer kick replaced it) and consumes the pending kick
+  -- otherwise.
+  function state.api.ResolveMissedKick(kickSeq)
+    local current = pending
+    if not current or current.seq ~= kickSeq then
+      return nil
+    end
+    pending = nil
+    local at = lastHostileInterruptAt
+    if
+      type(at) == "number"
+      and at >= current.castAt - MISSED_KICK_PRE_CAST_TOLERANCE_SECONDS
+      and at <= current.castAt + current.window
+    then
+      return "landed"
+    end
+    return "missed"
+  end
+
+  -- Exposes GetPendingMissedKick, CancelMissedKick, OnHostileInterrupt and
+  -- ResolveMissedKick on the kick controller and returns it.
+  function state.AttachTo(controller)
+    for name, fn in pairs(state.api) do
+      controller[name] = fn
+    end
+    return controller
+  end
+
+  return state
+end
+
 function KickTracker.CreateController(opts)
   opts = opts or {}
   local getTime = type(opts.getTime) == "function" and opts.getTime or GetTime
@@ -566,6 +680,7 @@ function KickTracker.CreateController(opts)
   local cachedPlayerClass = nil
   local lastObservedKickSpellID = nil
   local lastObservedKickWasPrimary = false
+  local missedKick = CreateMissedKickState(getTime)
 
   local function ResolvePlayerClass()
     if cachedPlayerClass then
@@ -804,7 +919,7 @@ function KickTracker.CreateController(opts)
   -- For the live addon this is just a one-time read during init.
   ResolvePlayerClass()
 
-  local controller = {}
+  local controller = missedKick.AttachTo({})
 
   -- Without a watched interrupt the state is re-resolved from casts and the
   -- poll, because a pet-bound kick (Warlock) can appear mid-combat while
@@ -865,6 +980,7 @@ function KickTracker.CreateController(opts)
       SetCooldown(true, getTime() + cd)
       lastObservedKickSpellID = watchedSpellID
       lastObservedKickWasPrimary = true
+      missedKick.Arm(spellID, watchedSpellID, watchedCastUnit)
       ApplyExactActiveCooldownForPrimary()
       return true
     end
@@ -881,6 +997,7 @@ function KickTracker.CreateController(opts)
       extras[spellID] = { cd = cd, cdEnd = getTime() + cd }
       lastObservedKickSpellID = spellID
       lastObservedKickWasPrimary = false
+      missedKick.Arm(spellID, spellID, watchedCastUnit)
       ApplyExactActiveCooldownForExtra(spellID)
       if onCooldownChanged then
         onCooldownChanged(onCooldown, cooldownRemain, watchedSpellID)

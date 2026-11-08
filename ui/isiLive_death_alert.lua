@@ -22,6 +22,7 @@ local FALLBACK_TEXTS = {
   TANK = "Tank died",
   HEALER = "Healer died",
   PI = "PI received",
+  MISSED_KICK = "Missed kick",
 }
 
 local function ResolveAlertText(getL, role)
@@ -34,6 +35,8 @@ local function ResolveAlertText(getL, role)
       key = "DEATH_ALERT_HEALER"
     elseif role == "PI" then
       key = "POWER_INFUSION_ALERT"
+    elseif role == "MISSED_KICK" then
+      key = "MISSED_KICK_ALERT"
     end
     local text = L[key]
     if type(text) == "string" and text ~= "" then
@@ -185,7 +188,7 @@ function DeathAlert.CreateController(opts)
   local frame = nil
 
   local function ShowAlertKind(kind)
-    if kind ~= "TANK" and kind ~= "HEALER" and kind ~= "PI" then
+    if kind ~= "TANK" and kind ~= "HEALER" and kind ~= "PI" and kind ~= "MISSED_KICK" then
       return false
     end
     if type(createFrame) ~= "function" then
@@ -194,6 +197,17 @@ function DeathAlert.CreateController(opts)
     if not frame then
       frame = BuildAlertFrame(createFrame)
     end
+    -- The missed-kick notice (rule 236) is the least important kind: it never
+    -- replaces a death or PI alert that is still on screen.
+    if
+      kind == "MISSED_KICK"
+      and frame.alertKind ~= "MISSED_KICK"
+      and type(frame.IsShown) == "function"
+      and frame:IsShown()
+    then
+      return false
+    end
+    frame.alertKind = kind
     ApplyAlertText(frame.text, ResolveAlertText(getL, kind))
     PlayAlertAnimation(frame)
     return true
@@ -208,6 +222,10 @@ function DeathAlert.CreateController(opts)
 
   function controller.ShowPowerInfusion()
     return ShowAlertKind("PI")
+  end
+
+  function controller.ShowMissedKick()
+    return ShowAlertKind("MISSED_KICK")
   end
 
   -- Rule 168: builds the hidden alert frame ahead of time so the first alert
@@ -261,4 +279,11 @@ function DeathAlert.ShowPowerInfusion()
     controllerInstance = DeathAlert.CreateController({})
   end
   return controllerInstance.ShowPowerInfusion()
+end
+
+function DeathAlert.ShowMissedKick()
+  if not controllerInstance then
+    controllerInstance = DeathAlert.CreateController({})
+  end
+  return controllerInstance.ShowMissedKick()
 end
