@@ -3,7 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.508`.
+Current version: `0.9.509`.
+
+Version 0.9.509: the settings window has a search box: type a word and only
+the matching options stay visible (English terms like "interrupt" work in every
+language). After a key the roster tooltip also shows your missed kicks ("37 cast,
+32 landed, 5 missed"). A finished key keeps its dungeon and level on the
+killtracker bar again, the key end banner follows a language switch, and your
+kick state reaches group members after a reload again.
 
 Version 0.9.508: a new probe mode for diagnostics. `/isilive probe` (or
 Settings > Administrative > Probe mode) makes isiLive write in-game API checks
@@ -217,14 +224,15 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.508 -->
+<!-- highlights-reviewed-for: 0.9.509 -->
 
 Highlights:
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
   member (e.g. `37/32`) and the DPS column is filled again after the key.
 - **Own settings window.** `/isilive settings`, the gear button, the minimap
   button and the ESC panel open isiLive's own movable window instead of a page
-  in Blizzard's settings; Blizzard's settings search finds "isiLive".
+  in Blizzard's settings, with its own search box; Blizzard's settings search
+  finds "isiLive".
 - **New optional helpers.** A resize grip on the unlocked main window, an
   instance reset button for the group leader after a key, and a MISSED KICK
   warning when your interrupt hit nothing (the last two off by default).

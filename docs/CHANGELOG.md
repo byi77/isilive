@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-09 - Version 0.9.509 (patch)
 
 - Fix: a finished key lost its dungeon and level on the killtracker bar. Since 0.9.504 the bar no longer reads its target while the key runs, and that read was the only place that remembered the running key. Every KillTrack update now remembers it, also with a closed window, so the bar shows the dungeon and the level it ran at until you leave the instance (rule 59).
 - Fix: the key end banner kept its old language after a language switch; it now relabels at once like every other open surface (rule 231).
