@@ -71,6 +71,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_stats.lua",
   "testmodul/isilive_test_scenarios_run_late_capture.lua",
   "testmodul/isilive_test_scenarios_run_kicks.lua",
+  "testmodul/isilive_test_scenarios_run_missed_kicks.lua",
   "testmodul/isilive_test_scenarios_cd_tracker.lua",
   "testmodul/isilive_test_scenarios_kick_tracker.lua",
   "testmodul/isilive_test_scenarios_missed_kick.lua",

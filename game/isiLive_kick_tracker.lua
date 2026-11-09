@@ -595,22 +595,39 @@ end
 -- start resets it, so a reload mid-key reports "unknown" instead of a short
 -- count; a masked cast of the watched unit could have been a kick and makes
 -- the count unknown as well.
+-- The missed kicks of the run (rule 240) count every "missed" verdict that
+-- ResolveMissedKick hands out while the run count is active. A kick whose
+-- verdict can no longer come (replaced while it waited, or no timer to wait
+-- with) makes the missed count unknown for the run; it shares the masked-cast
+-- unknown state with the attempts.
 local function CreateMissedKickState(getTime)
   local pending = nil
   local seq = 0
   local lastHostileInterruptAt = nil
   local runAttempts = nil
   local runAttemptsUnknown = false
+  local runMissed = nil
+  local runMissedUnknown = false
   local state = { api = {} }
+
+  -- A pending kick still waits for its verdict; dropping it loses one
+  -- verdict of the run.
+  local function DropPending()
+    if pending and runMissed then
+      runMissedUnknown = true
+    end
+    pending = nil
+  end
 
   function state.Arm(castSpellID, trackedSpellID, castUnit)
     if MISSED_KICK_EXCLUDED_SPELLS[castSpellID] or MISSED_KICK_EXCLUDED_SPELLS[trackedSpellID] then
-      pending = nil
+      DropPending()
       return
     end
     if runAttempts then
       runAttempts = runAttempts + 1
     end
+    DropPending()
     seq = seq + 1
     pending = {
       seq = seq,
@@ -629,9 +646,24 @@ local function CreateMissedKickState(getTime)
     return { seq = pending.seq, spellID = pending.spellID, window = pending.window }
   end
 
-  -- Drops a pending kick without a verdict (alert context not active).
+  -- Drops a pending kick without a verdict (neither the alert nor the run
+  -- count wants one). It does not touch the run's missed count.
   function state.api.CancelMissedKick()
     pending = nil
+  end
+
+  --- True while a run count is active and still known (from the key start on,
+  -- rule 238/240), so the factory computes a verdict for every kick.
+  -- @return boolean
+  function state.api.IsRunKickCounting()
+    return runMissed ~= nil and not runAttemptsUnknown and not runMissedUnknown
+  end
+
+  --- Marks the run's missed count unknown (a verdict that cannot be computed).
+  function state.api.MarkRunMissedUnknown()
+    if runMissed then
+      runMissedUnknown = true
+    end
   end
 
   -- Records that some hostile cast was interrupted now. Only the moment
@@ -661,6 +693,9 @@ local function CreateMissedKickState(getTime)
     then
       return "landed"
     end
+    if runMissed then
+      runMissed = runMissed + 1
+    end
     return "missed"
   end
 
@@ -677,6 +712,8 @@ local function CreateMissedKickState(getTime)
   function state.api.ResetRunKickAttempts()
     runAttempts = 0
     runAttemptsUnknown = false
+    runMissed = 0
+    runMissedUnknown = false
   end
 
   --- Own interrupt casts since the last key start, or nil when unknown.
@@ -688,9 +725,18 @@ local function CreateMissedKickState(getTime)
     return runAttempts
   end
 
+  --- Own missed kicks since the last key start (rule 240), or nil when unknown.
+  -- @return number|nil
+  function state.api.GetRunKickMissed()
+    if runAttemptsUnknown or runMissedUnknown then
+      return nil
+    end
+    return runMissed
+  end
+
   -- Exposes GetPendingMissedKick, CancelMissedKick, OnHostileInterrupt,
-  -- ResolveMissedKick and the run-attempt accessors on the kick controller
-  -- and returns it.
+  -- ResolveMissedKick and the run-attempt and run-missed accessors on the
+  -- kick controller and returns it.
   function state.AttachTo(controller)
     for name, fn in pairs(state.api) do
       controller[name] = fn

@@ -324,6 +324,7 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, lastRun, g
       kicksCast = type(ownKicks) == "table" and ownKicks.cast or nil,
       kicksMapID = type(ownKicks) == "table" and ownKicks.mapID or nil,
       kicksLevel = type(ownKicks) == "table" and ownKicks.level or nil,
+      kicksMissed = type(ownKicks) == "table" and ownKicks.missed or nil,
       source = source,
     })
   end

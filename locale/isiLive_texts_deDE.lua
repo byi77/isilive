@@ -108,6 +108,7 @@ addonTable.TextsLocales.deDE = {
   TOOLTIP_LAST_RUN_DPS = "DPS des letzten Laufs: %s",
   TOOLTIP_LAST_RUN_KICKS = "Kicks des letzten Laufs: %d gewirkt, %d getroffen",
   TOOLTIP_LAST_RUN_KICKS_LANDED = "Kicks des letzten Laufs: %d getroffen",
+  TOOLTIP_LAST_RUN_KICKS_MISSED = "Kicks des letzten Laufs: %d gewirkt, %d getroffen, %d verfehlt",
   TOOLTIP_DEATH_COUNT_FMT = "Tode: %d",
   TOOLTIP_DEATH_BREAKDOWN_TITLE = "Tode",
   TOOLTIP_DEATH_TIME_LOST_FMT = "Zeitstrafe: +%ds",

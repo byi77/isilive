@@ -108,6 +108,7 @@ addonTable.TextsLocales.trTR = {
   TOOLTIP_LAST_RUN_DPS = "Son kosu DPS: %s",
   TOOLTIP_LAST_RUN_KICKS = "Son kosu kick: %d kullanildi, %d isabet",
   TOOLTIP_LAST_RUN_KICKS_LANDED = "Son kosu kick: %d isabet",
+  TOOLTIP_LAST_RUN_KICKS_MISSED = "Son kosu kick: %d kullanildi, %d isabet, %d iska",
   TOOLTIP_DEATH_COUNT_FMT = "Deaths: %d",
   TOOLTIP_DEATH_BREAKDOWN_TITLE = "Ölümler",
   TOOLTIP_DEATH_TIME_LOST_FMT = "Kaybedilen süre: +%ds",

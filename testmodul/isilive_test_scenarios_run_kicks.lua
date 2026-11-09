@@ -174,8 +174,9 @@ return function(test, ctx)
       local payload = LastDpsPayload(session)
       Assert.NotNil(payload, "the post-run snapshot sends the DPS bucket")
       Assert.True(
-        string.find(payload, ":KC:37:" .. MAP_ID .. ":" .. KEY_LEVEL .. "$") ~= nil,
-        "the DPS payload carries the own casts of the run as the KC suffix: " .. tostring(payload)
+        string.find(payload, ":KC:37:" .. MAP_ID .. ":" .. KEY_LEVEL .. ":KM:37$") ~= nil,
+        "the DPS payload carries the own casts of the run as the KC suffix and the missed kicks after it: "
+          .. tostring(payload)
       )
       -- An older client reads only fields 2-4 of the DPS bucket.
       local legacyParts = {}
@@ -184,6 +185,10 @@ return function(test, ctx)
       end
       Assert.Equal(legacyParts[1], "DPS", "the bucket name is unchanged")
       Assert.Equal(tonumber(legacyParts[2]), 456789, "field 2 still carries the DPS for old peers")
+      -- A 0.9.507/0.9.508 client reads the KC suffix from fields 5-8 only.
+      Assert.Equal(legacyParts[5], "KC", "field 5 still tags the cast count")
+      Assert.Equal(tonumber(legacyParts[6]), 37, "field 6 still carries the cast count")
+      Assert.Equal(tonumber(legacyParts[8]), KEY_LEVEL, "field 8 still carries the key level alone")
 
       -- The same bytes arrive from Peer1, whose landed count this client read.
       session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", payload, "PARTY", "Peer1-Realm")
@@ -194,7 +199,7 @@ return function(test, ctx)
       Assert.True(HasCellText(session, "37/23"), "the isiLive peer row shows cast/landed")
 
       -- A count for another run is not paired with this one.
-      local otherRun = payload:gsub(":KC:37:%d+:%d+$", ":KC:9:" .. MAP_ID .. ":" .. (KEY_LEVEL + 1))
+      local otherRun = payload:gsub(":KC:37:%d+:%d+:KM:%d+$", ":KC:9:" .. MAP_ID .. ":" .. (KEY_LEVEL + 1))
       session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", otherRun, "PARTY", "Peer2-Realm")
       local other = session.runtime.statsController.GetPlayerLastRunKicks("Peer2", "Realm")
       Assert.Nil(other and other.cast, "casts of a different key level are never shown for this run")

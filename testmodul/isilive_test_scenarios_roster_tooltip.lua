@@ -640,6 +640,47 @@ return function(test, ctx)
     end)
   end)
 
+  -- COMPONENT-ONLY: the tooltip line is a pure render of the stats getter; the
+  -- getter and the KM sync run end-to-end in
+  -- isilive_test_scenarios_run_missed_kicks.lua.
+  test("Roster tooltip adds the missed kicks of the last key", function()
+    WithGlobals(BuildGlobals(), function()
+      local addon = Load()
+      local L = {
+        TOOLTIP_LAST_RUN_KICKS = "Kicks last run: %d cast, %d landed",
+        TOOLTIP_LAST_RUN_KICKS_LANDED = "Kicks last run: %d landed",
+        TOOLTIP_LAST_RUN_KICKS_MISSED = "Kicks last run: %d cast, %d landed, %d missed",
+      }
+      local function Lines(runKicks)
+        local args = buildShowArgs({ name = "Alice", class = "MAGE" }, {
+          getPlayerLastRunKicks = function()
+            return runKicks
+          end,
+          getL = function()
+            return L
+          end,
+        })
+        Assert.Equal(callShow(addon, args), true)
+        local texts = {}
+        for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+          texts[#texts + 1] = line:GetText()
+        end
+        return table.concat(texts, " | ")
+      end
+      Assert.True(
+        Lines({ cast = 37, landed = 32, missed = 5 }):find("Kicks last run: 37 cast, 32 landed, 5 missed", 1, true)
+          ~= nil,
+        "a known missed count joins cast and landed on one line"
+      )
+      local withoutMissed = Lines({ cast = 37, landed = 32 })
+      Assert.True(
+        withoutMissed:find("Kicks last run: 37 cast, 32 landed", 1, true) ~= nil
+          and withoutMissed:find("missed", 1, true) == nil,
+        "an unknown missed count keeps the cast and landed line"
+      )
+    end)
+  end)
+
   test("roster_tooltip: ShowRosterInfoTooltip renders green-heart class buff details", function()
     WithGlobals(
       BuildGlobals({

@@ -1026,9 +1026,13 @@ local function BuildEventHandlersDepsFromContext(ctx)
         runKicks.ResetForKey(kind)
       end
     end,
+    -- Two values: the own casts and the own missed kicks of the run (rule 240).
     getRunKickAttempts = function()
       local runKicks = ctx.modules and ctx.modules.runKicks
-      return type(runKicks) == "table" and runKicks.GetAttempts() or nil
+      if type(runKicks) ~= "table" then
+        return nil, nil
+      end
+      return runKicks.GetAttempts()
     end,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     sendOwnKickState = ctx.sendOwnKickState,
