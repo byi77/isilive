@@ -14,6 +14,7 @@ local NAV_BUTTON_WIDTH = 126
 local NAV_BUTTON_HEIGHT = 22
 local NAV_BUTTON_GAP = 6
 local NAV_TOP = 8
+local NAV_DISABLED_ALPHA = 0.35
 local NAV_SECTIONS = {
   { key = "general", labelKey = "SETTINGS_NAV_GENERAL", fallback = "General" },
   { key = "display", labelKey = "SETTINGS_NAV_DISPLAY", fallback = "Display" },
@@ -231,6 +232,9 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
   local createButton = addonTable.UICommon and addonTable.UICommon.CreateActionButton
   local left = PADDING_X
 
+  -- Sections without a hit during a config-window search (rule 241).
+  nav.disabled = {}
+
   local function Select(key)
     for _, section in ipairs(NAV_SECTIONS) do
       local button = nav.buttons[section.key]
@@ -260,7 +264,7 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
     button._isiLiveSettingsSection = section.key
     button:SetScript("OnClick", function()
       local offset = nav.offsets[section.key]
-      if offset == nil then
+      if offset == nil or nav.disabled[section.key] then
         return
       end
       local maximum = type(scrollFrame.GetVerticalScrollRange) == "function" and scrollFrame:GetVerticalScrollRange()
@@ -286,13 +290,55 @@ local function CreateSectionNavigation(canvas, scrollFrame, getL)
   function nav.UpdateFromScroll()
     local position = type(scrollFrame.GetVerticalScroll) == "function" and tonumber(scrollFrame:GetVerticalScroll())
       or 0
-    local active = NAV_SECTIONS[1].key
+    local active = nil
     for _, section in ipairs(NAV_SECTIONS) do
-      if nav.offsets[section.key] and position >= nav.offsets[section.key] - 12 then
+      if
+        not nav.disabled[section.key]
+        and nav.offsets[section.key]
+        and (active == nil or position >= nav.offsets[section.key] - 12)
+      then
         active = section.key
       end
     end
+    -- With every section disabled (no search hit) nothing is highlighted.
+    if active == nil and next(nav.disabled) == nil then
+      active = NAV_SECTIONS[1].key
+    end
     Select(active)
+  end
+
+  -- Search: sections without a hit are disabled and dimmed; nil enables all.
+  function nav.SetSectionHits(hits)
+    for _, section in ipairs(NAV_SECTIONS) do
+      local off = type(hits) == "table" and hits[section.key] ~= true
+      nav.disabled[section.key] = off or nil
+      local button = nav.buttons[section.key]
+      if button then
+        if off and type(button.Disable) == "function" then
+          button:Disable()
+        elseif not off and type(button.Enable) == "function" then
+          button:Enable()
+        end
+        if type(button.SetAlpha) == "function" then
+          button:SetAlpha(off and NAV_DISABLED_ALPHA or 1)
+        end
+      end
+    end
+  end
+
+  -- Navigation sections with their current label and original start row.
+  function nav.GetSections()
+    local labels = getL()
+    local sections = {}
+    for _, section in ipairs(NAV_SECTIONS) do
+      local original = nav.originalOffsets and nav.originalOffsets[section.key]
+      sections[#sections + 1] = {
+        key = section.key,
+        label = labels[section.labelKey] or section.fallback,
+        startY = original and -original or nil,
+      }
+    end
+    return sections
   end
 
   nav.Refresh()
@@ -376,8 +422,9 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
   for key, offset in pairs(nav.offsets) do
     originalOffsets[key] = offset
   end
+  nav.originalOffsets = originalOffsets
   function nav.Relayout()
-    local finalYOffset = addonTable.SettingsControls.Relayout(content, nav.offsets, originalOffsets, y)
+    local finalYOffset = addonTable.SettingsControls.Relayout(content, nav.offsets, originalOffsets, y, -PADDING_TOP)
     local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))
     local contentWidth = type(content.GetWidth) == "function" and content:GetWidth() or SETTINGS_CONTENT_WIDTH
     if type(content.SetSize) == "function" then
@@ -401,13 +448,16 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
   return nav
 end
 
--- Collects every built control that carries a label, as the plug point for
--- the config-window search (stage 2): key, current label and description text
+-- Plain tables of controls inside `controls` (key prefix "<group>.").
+local NESTED_CONTROL_GROUPS = { "soundChecks" }
+
+-- Collects every built control that carries a label, as the source of the
+-- config-window search (rule 241): key, current label and description text
 -- (both follow the language) and the label region to scroll to. Sorted by key
 -- so the order is stable.
 local function CollectSearchEntries(controls)
   local entries = {}
-  for key, control in pairs(controls) do
+  local function Add(key, control)
     local label = type(control) == "table" and control.label or nil
     local text = type(label) == "table" and type(label.GetText) == "function" and label:GetText() or nil
     if type(text) == "string" and text ~= "" then
@@ -417,17 +467,136 @@ local function CollectSearchEntries(controls)
           and description:GetText()
         or nil
       entries[#entries + 1] = {
-        key = tostring(key),
+        key = key,
         label = text,
         description = type(descriptionText) == "string" and descriptionText or nil,
         region = label,
       }
     end
   end
+  for key, control in pairs(controls) do
+    Add(tostring(key), control)
+  end
+  for _, group in ipairs(NESTED_CONTROL_GROUPS) do
+    if type(controls[group]) == "table" then
+      for key, control in pairs(controls[group]) do
+        Add(group .. "." .. tostring(key), control)
+      end
+    end
+  end
   table.sort(entries, function(a, b)
     return a.key < b.key
   end)
   return entries
+end
+
+-- Search wiring of the settings panel (rule 241): the "no matches" hint,
+-- navigation state, scroll handling and panel.ApplySearch / SetSearchText /
+-- GetSearchResult. Returns Suspend() / Resume() for repaints.
+local function AttachSearch(panel, config)
+  local canvas, scrollFrame = panel.canvas, panel.scrollFrame
+  local search = nil
+  local searchResult = nil
+  -- Scroll position before a search started; restored when it is cleared.
+  local scrollBeforeSearch = nil
+
+  -- Shown instead of the options when a search finds nothing.
+  local noMatchesText = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  noMatchesText:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", PADDING_X, -PADDING_TOP)
+  noMatchesText:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -PADDING_X, -PADDING_TOP)
+  noMatchesText:SetJustifyH("LEFT")
+  if type(noMatchesText.SetWordWrap) == "function" then
+    noMatchesText:SetWordWrap(true)
+  end
+  local textDim = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+  noMatchesText:SetTextColor(textDim[1], textDim[2], textDim[3], 1)
+  noMatchesText:Hide()
+  panel.noMatchesText = noMatchesText
+
+  local function EnsureSearch()
+    if not search and panel.IsBuilt() then
+      search = addonTable.SettingsSearch.Create({
+        content = panel.content,
+        getEntries = panel.GetSearchEntries,
+        getSections = panel.navigation.GetSections,
+      })
+    end
+    return search
+  end
+
+  -- Navigation state and the "no matches" hint for the current result.
+  local function PaintSearchState()
+    local active = searchResult ~= nil and searchResult.active and searchResult.available
+    panel.navigation.SetSectionHits(active and searchResult.sectionHits or nil)
+    if active and searchResult.visibleRows == 0 then
+      local labels = config.getL()
+      local template = labels.CONFIG_SEARCH_NO_MATCHES or 'No options match "%s".'
+      noMatchesText:SetText(string.format(template, search.GetQuery()))
+      noMatchesText:Show()
+    else
+      noMatchesText:Hide()
+    end
+  end
+
+  local function ScrollTo(value)
+    if type(scrollFrame.SetVerticalScroll) ~= "function" then
+      return
+    end
+    local range = type(scrollFrame.GetVerticalScrollRange) == "function"
+        and tonumber(scrollFrame:GetVerticalScrollRange())
+      or value
+    scrollFrame:SetVerticalScroll(math.max(0, math.min(value, range or 0)))
+    panel.navigation.UpdateFromScroll()
+  end
+
+  -- Filters the built content for `text`; "" shows everything as before.
+  -- Results start at the top; clearing returns to the old position.
+  function panel.ApplySearch(text)
+    if not EnsureSearch() then
+      return nil
+    end
+    local wasActive = search.IsActive()
+    if not wasActive and type(scrollFrame.GetVerticalScroll) == "function" then
+      scrollBeforeSearch = tonumber(scrollFrame:GetVerticalScroll()) or 0
+    end
+    searchResult = search.Apply(text)
+    PaintSearchState()
+    panel.navigation.Relayout()
+    if searchResult.active then
+      ScrollTo(0)
+    elseif wasActive then
+      ScrollTo(scrollBeforeSearch or 0)
+      scrollBeforeSearch = nil
+    end
+    return searchResult
+  end
+
+  function panel.GetSearchResult()
+    return searchResult
+  end
+
+  -- Types into the window's search box and filters at once.
+  function panel.SetSearchText(text)
+    if panel.window then
+      panel.window.SetSearchText(text)
+    end
+  end
+
+  return {
+    -- Shows everything for a repaint; true when a search was active.
+    Suspend = function()
+      if search ~= nil and search.IsActive() then
+        search.Restore()
+        return true
+      end
+      return false
+    end,
+    -- Filters again with the current labels (no relayout).
+    Resume = function()
+      searchResult = search.Apply(search.GetQuery())
+      PaintSearchState()
+    end,
+  }
 end
 
 -- opts.deferBuild = true (production composition root): Create only makes
@@ -490,6 +659,8 @@ function SettingsPanel.Create(opts)
     return CollectSearchEntries(controls)
   end
 
+  local search = AttachSearch(panel, config)
+
   if not deferBuild then
     EnsureBuilt()
   end
@@ -507,7 +678,13 @@ function SettingsPanel.Create(opts)
     if not built then
       return
     end
+    -- An active search steps aside while the controls repaint (they may show
+    -- or hide their own widgets) and filters again with the new labels.
+    local searching = search.Suspend()
     RefreshSettingsControls(controls, config)
+    if searching then
+      search.Resume()
+    end
     panel.navigation.Relayout()
     panel.navigation.Refresh()
   end
@@ -522,6 +699,9 @@ function SettingsPanel.Create(opts)
     onOpen = function()
       EnsureBuilt()
       Refresh()
+    end,
+    onSearch = function(text)
+      panel.ApplySearch(text)
     end,
   })
   window.AttachCanvas(canvas)

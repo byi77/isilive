@@ -104,6 +104,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_ui_settings_descriptions.lua",
   "testmodul/isilive_test_scenarios_ui_settings_lazy.lua",
   "testmodul/isilive_test_scenarios_ui_config_window.lua",
+  "testmodul/isilive_test_scenarios_ui_config_search.lua",
   "testmodul/isilive_test_scenarios_roster_display.lua",
   "testmodul/isilive_test_scenarios_ilvl_bands.lua",
   "testmodul/isilive_test_scenarios_score_color.lua",

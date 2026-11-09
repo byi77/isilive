@@ -611,7 +611,7 @@ local function CreateDisplayPreview(canvas, yOffset, config)
     frame:ClearAllPoints()
     frame:SetPoint("TOPLEFT", canvas, "TOPLEFT", 16, y)
     return y - 86
-  end)
+  end, { kind = "preview", previewFor = { "uiScale", "bgAlpha" } })
   return { frame = frame, sample = sample, caption = caption, title = title, size = size, Refresh = Refresh }, nextY
 end
 

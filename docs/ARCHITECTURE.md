@@ -93,6 +93,12 @@ Controls neu gemessen und verankert; feste Abschnittsabstaende und
 Child-Einrueckungen bleiben erhalten. Navigationsziele, Content-Hoehe und
 Scrollbereich werden aktualisiert, die Scrollposition bei Bedarf begrenzt.
 Vor dem ersten Oeffnen bleibt das lazy gebaute Panel unangetastet.
+Jede registrierte Zeile kennt zusaetzlich die Frames und Regionen, die sie
+angelegt hat, und optional ihre Art (Ueberschrift, Trenner, Vorschau).
+`ui/isiLive_settings_search.lua` (`SettingsSearch`, Regel 241) nutzt das fuer
+die Suche im Konfigurationsfenster: nicht passende Zeilen werden versteckt
+und von `Relayout` samt Abstand uebersprungen; eine leere Suche zeigt genau
+die versteckten Objekte wieder und ergibt das urspruengliche Layout.
 
 Tooltip-Layout (Audit-Runde 4, A8): Die private Tooltip-API schreibt bei
 `SetText`/`AddLine` nur den Inhalt. `Show` fuehrt das Layout fuer die aktive

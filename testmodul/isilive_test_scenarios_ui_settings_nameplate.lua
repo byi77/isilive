@@ -235,7 +235,14 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
       Assert.Equal(overlayFrame._point[3], "RIGHT", "RIGHT preview must anchor to the preview plate edge")
       Assert.Equal(overlayFrame._point[4], 8, "zero X offset must apply the runtime anchor gap")
       Assert.Equal(overlayFrame._point[5], 0, "zero Y offset must keep the preview vertically centered")
-      Assert.Equal(overlayFrame:GetParent(), panel.content, "settings preview overlay must remain inside the panel")
+      -- Rule 241: the overlay hangs off the preview frame, so a search that
+      -- hides the preview row hides the overlay as well.
+      Assert.Equal(overlayFrame:GetParent()._isiLivePreviewRoot, true, "settings preview overlay hangs off the preview")
+      Assert.Equal(
+        overlayFrame:GetParent():GetParent(),
+        panel.content,
+        "settings preview overlay must remain inside the panel"
+      )
       Assert.True(
         overlayFrame:GetParent() ~= _G.UIParent,
         "settings preview overlay must not be reparented to UIParent"

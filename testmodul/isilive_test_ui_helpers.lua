@@ -1,5 +1,30 @@
 -- Forward-declared: font-string stubs above its definition create groups too.
 local CreateAnimationGroupStub
+local Unpack = rawget(table, "unpack") or rawget(_G, "unpack")
+
+local function RemoveChild(parent, child)
+  local children = type(parent) == "table" and rawget(parent, "_children") or nil
+  if type(children) ~= "table" then
+    return
+  end
+  for index = #children, 1, -1 do
+    if children[index] == child then
+      table.remove(children, index)
+    end
+  end
+end
+
+local function AddChild(parent, child)
+  if type(parent) ~= "table" then
+    return
+  end
+  local children = rawget(parent, "_children")
+  if type(children) ~= "table" then
+    children = {}
+    rawset(parent, "_children", children)
+  end
+  children[#children + 1] = child
+end
 
 local function CreateTextureStub()
   return {
@@ -222,7 +247,24 @@ local function ApplyFrameMethods(frame)
     return p[1], p[2], p[3], p[4], p[5]
   end
   frame.SetParent = function(self, parent)
+    RemoveChild(self._parent, self)
     self._parent = parent
+    AddChild(parent, self)
+  end
+  -- Like the client: child frames in creation order, and the frame's own
+  -- textures and font strings.
+  frame.GetChildren = function(self)
+    return Unpack(self._children or {})
+  end
+  frame.GetRegions = function(self)
+    local regions = {}
+    for _, texture in ipairs(self._textures or {}) do
+      regions[#regions + 1] = texture
+    end
+    for _, fontString in ipairs(self._fontStrings or {}) do
+      regions[#regions + 1] = fontString
+    end
+    return Unpack(regions)
   end
   frame.GetParent = function(self)
     return self._parent
@@ -327,6 +369,10 @@ local function ApplyFrameMethods(frame)
     if type(self) == "table" then
       self._textures = self._textures or {}
       table.insert(self._textures, texture)
+      texture._parent = self
+      texture.GetParent = function(region)
+        return region._parent
+      end
     end
     return texture
   end
@@ -335,6 +381,10 @@ local function ApplyFrameMethods(frame)
     if type(self) == "table" then
       self._fontStrings = self._fontStrings or {}
       table.insert(self._fontStrings, fontString)
+      fontString._parent = self
+      fontString.GetParent = function(region)
+        return region._parent
+      end
     end
     return fontString
   end
@@ -513,6 +563,7 @@ local function BuildCreateFrameStub(opts)
     end
 
     ApplyFrameMethods(frame)
+    AddChild(parent, frame)
     table.insert(createdFrames, frame)
     return frame
   end
