@@ -83,15 +83,25 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     return type(interruptedBy) == "string" and interruptedBy ~= ""
   end
 
+  -- The run's missed-kick count (rule 240) needs a verdict for every own
+  -- kick of a running key, also with the alert off. The cheap counter check
+  -- comes first; the challenge map is read only while a run count is active.
+  local function IsRunMissedCountActive(controller)
+    return controller ~= nil
+      and type(controller.IsRunKickCounting) == "function"
+      and controller.IsRunKickCounting()
+      and HasActiveChallengeFromBridge()
+  end
+
   -- Probe mode (rule 239) records the same filtered interrupts for the kick
   -- calibration, also while the alert itself is off.
   local function HandleHostileInterruptEvent(event, unit, interruptedBy)
     local controller = ctx.kickTrackerController
-    local alertOn = IsMissedKickAlertEnabled()
-      and controller ~= nil
+    local recordOn = controller ~= nil
       and type(controller.OnHostileInterrupt) == "function"
+      and (IsMissedKickAlertEnabled() or IsRunMissedCountActive(controller))
     local probe = ActiveProbe()
-    if not alertOn and not probe then
+    if not recordOn and not probe then
       return
     end
     if event == "UNIT_SPELLCAST_CHANNEL_STOP" and not IsInterruptedChannelStop(interruptedBy) then
@@ -103,7 +113,7 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     if probe then
       probe.OnHostileInterrupt(event)
     end
-    if alertOn then
+    if recordOn then
       controller.OnHostileInterrupt()
     end
   end
@@ -132,7 +142,18 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     if type(pending) ~= "table" then
       return
     end
-    if not IsMissedKickAlertContextActive() or type(timerAfter) ~= "function" then
+    -- The alert needs its context at the kick and at the verdict; the run
+    -- count (rule 240) only needs a running key at the kick.
+    local alertAtKick = IsMissedKickAlertContextActive()
+    local countAtKick = IsRunMissedCountActive(controller)
+    if type(timerAfter) ~= "function" then
+      if countAtKick then
+        controller.MarkRunMissedUnknown()
+      end
+      controller.CancelMissedKick()
+      return
+    end
+    if not alertAtKick and not countAtKick then
       controller.CancelMissedKick()
       return
     end
@@ -142,7 +163,7 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
       if not current or current.ResolveMissedKick(seq) ~= "missed" then
         return
       end
-      if IsMissedKickAlertContextActive() and type(ctx.ShowMissedKickAlert) == "function" then
+      if alertAtKick and IsMissedKickAlertContextActive() and type(ctx.ShowMissedKickAlert) == "function" then
         ctx.ShowMissedKickAlert()
       end
     end)
@@ -172,8 +193,10 @@ local function InstallRunKickHooks(ctx, modules)
         stats.MarkRunStarted()
       end
     end,
+    -- Returns the own casts and the own missed kicks (rule 240) of the run.
     GetAttempts = function()
-      return ctx.kickTrackerController.GetRunKickAttempts()
+      local controller = ctx.kickTrackerController
+      return controller.GetRunKickAttempts(), controller.GetRunKickMissed()
     end,
   }
 end

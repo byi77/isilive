@@ -401,7 +401,8 @@ function Stats.CreateController(opts)
   -- captureOpts (optional): overallOnly restricts the capture to the Overall
   -- session (late capture after the key), phase and trigger only label the
   -- trace line ("initial", "retry", "late"), kicksCast is the own interrupt
-  -- cast count of the run (nil when unknown).
+  -- cast count of the run and kicksMissed the own missed kicks of it (rule
+  -- 240); each is nil when unknown.
   function controller.RecordRun(mapID, level, onTime, rosterOverride, captureOpts)
     if not mapID then
       return false
@@ -424,7 +425,7 @@ function Stats.CreateController(opts)
       -- capture after the key shows up as phase=late with its trigger.
       logRuntimeTracef(
         "[STATS] record_run phase=%s trigger=%s mapID=%s level=%s session=%s sessionType=%s sources=%d "
-          .. "matched=%d masked=%d kicks=%s kicksCast=%s playerKey=%s rosterKeys=%s sourceKeys=%s",
+          .. "matched=%d masked=%d kicks=%s kicksCast=%s kicksMissed=%s playerKey=%s rosterKeys=%s sourceKeys=%s",
         tostring(captureOpts.phase or "initial"),
         tostring(captureOpts.trigger or "-"),
         tostring(mapID),
@@ -436,6 +437,7 @@ function Stats.CreateController(opts)
         diagnostics.maskedCount,
         tostring(diagnostics.kicksState),
         tostring(captureOpts.kicksCast),
+        tostring(captureOpts.kicksMissed),
         tostring(localPlayerKey),
         FormatKeysForTrace(diagnostics.rosterKeys),
         FormatKeysForTrace(diagnostics.sourceKeys)
@@ -457,6 +459,10 @@ function Stats.CreateController(opts)
     local kicksCast = tonumber(captureOpts.kicksCast)
     if ownEntry and kicksCast and kicksCast >= 0 then
       ownEntry.kicksCast = math.floor(kicksCast)
+      local kicksMissed = tonumber(captureOpts.kicksMissed)
+      if kicksMissed and kicksMissed >= 0 and kicksMissed <= ownEntry.kicksCast then
+        ownEntry.kicksMissed = math.floor(kicksMissed)
+      end
     end
 
     sessionPlayerLastRuns = runSnapshot
@@ -513,8 +519,9 @@ function Stats.CreateController(opts)
   -- landed comes from the damage meter; cast is the member's own count --
   -- the local player's from the kick tracker, a peer's from its KC sync when
   -- it names the same map and key level. A cast count below the landed one
-  -- is incomplete and dropped.
-  -- @return table|nil {landed:number, cast:number|nil}
+  -- is incomplete and dropped. missed (rule 240) comes from the same source
+  -- as cast and only stands next to it, never above it.
+  -- @return table|nil {landed:number, cast:number|nil, missed:number|nil}
   function controller.GetPlayerLastRunKicks(name, realm)
     if runKicksSuperseded then
       return nil
@@ -525,6 +532,7 @@ function Stats.CreateController(opts)
       return nil
     end
     local cast = ReadCount(info.kicksCast)
+    local missed = cast and ReadCount(info.kicksMissed) or nil
     if cast == nil and getPeerRunKicksCast then
       local peer = getPeerRunKicksCast(name, realm)
       if
@@ -533,12 +541,16 @@ function Stats.CreateController(opts)
         and tonumber(peer.level) == tonumber(info.level)
       then
         cast = ReadCount(peer.cast)
+        missed = cast and ReadCount(peer.missed) or nil
       end
     end
     if cast and cast < landed then
       cast = nil
     end
-    return { landed = landed, cast = cast }
+    if not cast or (missed and missed > cast) then
+      missed = nil
+    end
+    return { landed = landed, cast = cast, missed = missed }
   end
 
   --- True when some member has run kicks to show. Costs no API call, so the
@@ -558,8 +570,9 @@ function Stats.CreateController(opts)
     return own ~= nil and ReadCount(own.kicksLanded) ~= nil
   end
 
-  --- Own interrupt casts of the last captured run for the KC sync suffix, or nil.
-  -- @return table|nil {cast, mapID, level}
+  --- Own interrupt casts (and missed kicks, rule 240) of the last captured run
+  -- for the KC/KM sync suffix, or nil.
+  -- @return table|nil {cast, mapID, level, missed}
   function controller.GetOwnRunKicks()
     EnsureInitialized()
     local info = localPlayerKey and GetPlayerLastRunInfo(localPlayerKey) or nil
@@ -568,7 +581,11 @@ function Stats.CreateController(opts)
     if not cast or not mapID then
       return nil
     end
-    return { cast = cast, mapID = mapID, level = tonumber(info.level) or 0 }
+    local missed = ReadCount(info.kicksMissed)
+    if missed and missed > cast then
+      missed = nil
+    end
+    return { cast = cast, mapID = mapID, level = tonumber(info.level) or 0, missed = missed }
   end
 
   --- Hides the run kicks of the previous key while a new key runs (called at

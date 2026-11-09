@@ -77,4 +77,38 @@ return function(test, ctx)
       Assert.True(CountKickMessages(session) >= 1, "the first poll after the lockdown sends the kick state")
     end, Prepare)
   end)
+
+  -- The event-handler config dropped sendOwnKickState until 2026-11-09, so
+  -- PLAYER_ENTERING_WORLD called a no-op. The own kick state must reach the
+  -- addon-message API through the real dispatcher, and the lockdown gate of
+  -- rule 50 still holds for this path.
+  test("Player entering world sends the own kick state through the real wiring", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      session.messages = {}
+      session.Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.True(CountKickMessages(session) >= 1, "PLAYER_ENTERING_WORLD sends the own kick state to the group")
+      local payload = nil
+      for _, message in ipairs(session.messages) do
+        if message.prefix == "ISILIVE" and string.find(message.payload, "^KICK:") then
+          payload = message.payload
+        end
+      end
+      Assert.NotNil(payload, "the kick state goes out on the isiLive prefix")
+    end, Prepare)
+  end)
+
+  test("Player entering world sends no kick state while addon chat is locked down", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      session.runtime.runtimeLogController.SetEnabled(true)
+      session.lockdown = true
+      session.messages = {}
+      session.Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(CountKickMessages(session), 0, "nothing is dispatched while addon chat is locked down")
+      Assert.True(CountLog(session, "sent=lockdown") >= 1, "the skipped send is traced as lockdown")
+
+      session.lockdown = false
+      session.Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.True(CountKickMessages(session) >= 1, "the next PLAYER_ENTERING_WORLD after the lockdown sends again")
+    end, Prepare)
+  end)
 end

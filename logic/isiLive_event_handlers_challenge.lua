@@ -145,15 +145,22 @@ local TryRecordCompletedRun
 local IsRaidModeActive
 
 -- Own interrupt casts of the run that just ended (rule 238), or nil.
+-- Own casts and own missed kicks (rule 240) of the run; missed is only kept
+-- next to a known cast count and never above it.
 local function ReadRunKickAttempts(ctx)
   if type(ctx.getRunKickAttempts) ~= "function" then
-    return nil
+    return nil, nil
   end
-  local attempts = tonumber(ctx.getRunKickAttempts())
+  local rawAttempts, rawMissed = ctx.getRunKickAttempts()
+  local attempts = tonumber(rawAttempts)
   if not attempts or attempts < 0 then
-    return nil
+    return nil, nil
   end
-  return attempts
+  local missed = tonumber(rawMissed)
+  if not missed or missed < 0 or missed > attempts then
+    missed = nil
+  end
+  return attempts, missed
 end
 
 local function GetPendingPostChallengeRefresh(ctx)
@@ -362,6 +369,7 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
   local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
     phase = isRetry and "retry" or "initial",
     kicksCast = runInfo.kicksCast,
+    kicksMissed = runInfo.kicksMissed,
   }) ~= false
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
@@ -477,7 +485,7 @@ function ChallengeLifecycle.TryRecordAbandonedRun(ctx, outcome)
     ShowKeyEndBanner(ctx, outcome)
   end
   ctx.activeChallengeRunIdentity = nil
-  identity.kicksCast = ReadRunKickAttempts(ctx)
+  identity.kicksCast, identity.kicksMissed = ReadRunKickAttempts(ctx)
   if type(ctx.logRuntimeTracef) == "function" then
     ctx.logRuntimeTracef(
       "[RC] challenge_mode_abandoned mapID=%s level=%s",
@@ -924,7 +932,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.handleLFGDetectEvent(event)
     local runInfo = ResolveCompletedRunInfo()
     if runInfo then
-      runInfo.kicksCast = ReadRunKickAttempts(ctx)
+      runInfo.kicksCast, runInfo.kicksMissed = ReadRunKickAttempts(ctx)
     end
     local identity = ctx.activeChallengeRunIdentity
     if event == "CHALLENGE_MODE_RESET" then

@@ -965,10 +965,20 @@ local function ShowRosterInfoTooltip(
       local formattedDps = FormatCompactTooltipNumber(lastRunDps) or tostring(math.floor(lastRunDps + 0.5))
       tooltip:AddLine(string.format(label, formattedDps), 0.4, 0.8, 1)
     end
-    -- Run kicks (rule 238): own casts and landed interrupts of the last run.
+    -- Run kicks (rule 238): own casts and landed interrupts of the last run,
+    -- plus the own missed kicks when that client counted them (rule 240).
     if lastRunKicks then
       local landed = math.floor(lastRunKicks.landed)
-      if type(lastRunKicks.cast) == "number" then
+      if type(lastRunKicks.cast) == "number" and type(lastRunKicks.missed) == "number" then
+        local label = type(L.TOOLTIP_LAST_RUN_KICKS_MISSED) == "string" and L.TOOLTIP_LAST_RUN_KICKS_MISSED
+          or "Kicks last run: %d cast, %d landed, %d missed"
+        tooltip:AddLine(
+          string.format(label, math.floor(lastRunKicks.cast), landed, math.floor(lastRunKicks.missed)),
+          0.4,
+          0.8,
+          1
+        )
+      elseif type(lastRunKicks.cast) == "number" then
         local label = type(L.TOOLTIP_LAST_RUN_KICKS) == "string" and L.TOOLTIP_LAST_RUN_KICKS
           or "Kicks last run: %d cast, %d landed"
         tooltip:AddLine(string.format(label, math.floor(lastRunKicks.cast), landed), 0.4, 0.8, 1)

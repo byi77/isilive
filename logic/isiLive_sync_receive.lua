@@ -17,7 +17,8 @@ local function NormalizePayloadNameKey(Sync, name, sender)
 end
 
 -- Stores a DPS payload plus its optional "KC" suffix: the sender's own
--- interrupt casts of the run (rule 238). The KC self-echo is skipped; the
+-- interrupt casts of the run (rule 238), optionally followed by "KM" with the
+-- sender's own missed kicks (rule 240). The KC self-echo is skipped; the
 -- local count lives in the own run snapshot. Returns true when either
 -- stored value changed.
 local function ApplyDpsPayload(Sync, parts, sender, dps, capturedAt, isSelf)
@@ -25,7 +26,8 @@ local function ApplyDpsPayload(Sync, parts, sender, dps, capturedAt, isSelf)
   if parts[5] ~= "KC" or isSelf then
     return dpsUpdated
   end
-  return Sync.SetPlayerRunKicksCast(sender, nil, parts[6], parts[7], parts[8]) == true or dpsUpdated
+  local missed = parts[9] == "KM" and parts[10] or nil
+  return Sync.SetPlayerRunKicksCast(sender, nil, parts[6], parts[7], parts[8], missed) == true or dpsUpdated
 end
 
 local function IsIsiLiveReceiveChannelAllowed(message, channel)

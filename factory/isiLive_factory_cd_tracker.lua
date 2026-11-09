@@ -702,6 +702,11 @@ local function InitializeFactorySecondaryCdTracker(
   if type(killTrack) == "table" then
     if type(killTrack.OnUpdate) == "function" then
       killTrack.OnUpdate(function()
+        -- Before the render: the finished key keeps its dungeon on the bar
+        -- only if the running key was recorded, also with a hidden window.
+        if type(ctx.TrackKillTrackRunningKey) == "function" then
+          ctx.TrackKillTrackRunningKey()
+        end
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
           ctx.rosterPanelController.RefreshKillTrackRow()
         end

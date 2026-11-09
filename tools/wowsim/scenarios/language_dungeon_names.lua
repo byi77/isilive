@@ -100,17 +100,25 @@ return {
     sim.EnterDungeon(250)
     sim.StartKey({ mapID = 250, level = 12, bosses = { "Boss" } })
     sim.Wait(2)
+    -- Since 0.9.504 the running key leaves the bar to forces and the time pace
+    -- badge (user decision 2026-11-06): no dungeon name in either language.
     sim.Step("Key running, addon German")
-    sim.ExpectText("^Tempel von Sethraliss$", "running key on the bar in German")
+    sim.Expect(#sim.FindText("Tempel von Sethraliss") == 0, "running key shows no dungeon name on the bar")
     SwitchLanguage(sim, "enUS")
     sim.Step("Key running, switched to English")
-    sim.ExpectText("^Temple of Sethraliss$", "running key on the bar follows the switch")
+    sim.Expect(#sim.FindText("Temple of Sethraliss") == 0, "running key shows no dungeon name after the switch")
     sim.Expect(#sim.FindText("Tempel von Sethraliss") == 0, "no German name left during the key")
     sim.CompleteKey()
     sim.Wait(2)
+    sim.ExpectText("^Key timed$", "key end banner in English")
     SwitchLanguage(sim, "deDE")
+    -- The finished key keeps its dungeon and the level it ran at, although the
+    -- bar never read the target while the key was running.
     sim.Step("Key finished, switched to German")
     sim.ExpectText("^Tempel von Sethraliss$", "finished key on the bar follows the switch")
+    sim.ExpectText("^%+12$", "finished key keeps the level it ran at")
+    sim.ExpectText("^Key in der Zeit$", "key end banner follows the switch")
+    sim.Expect(#sim.FindText("^Key timed$") == 0, "no English banner text left")
     sim.Expect(#sim.FindText("Temple of Sethraliss") == 0, "no English name left after the key")
   end,
 }

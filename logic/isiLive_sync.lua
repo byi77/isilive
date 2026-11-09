@@ -626,6 +626,25 @@ local function NormalizeRunKicksSuffix(cast, mapID, level)
   return string.format(":KC:%d:%d:%d", numericCast, numericMapID, numericLevel), numericCast, numericMapID, numericLevel
 end
 
+-- The own missed kicks of the run (rule 240) follow the KC suffix as
+-- ":KM:<missed>" (fields 9-10, inside the 10-field split). Clients up to
+-- 0.9.508 read fields 5-8 only and ignore it. Returns the suffix and the
+-- number, or "" when there is no KC suffix or the count is out of bounds
+-- (negative, fractional or above the cast count).
+local function NormalizeRunKicksMissedSuffix(missed, numericCast)
+  local numericMissed = ToFiniteNumber(missed)
+  if
+    not numericCast
+    or not numericMissed
+    or numericMissed < 0
+    or numericMissed > numericCast
+    or numericMissed ~= math.floor(numericMissed)
+  then
+    return "", nil
+  end
+  return string.format(":KM:%d", numericMissed), numericMissed
+end
+
 local function NormalizePositiveLocID(value)
   local numeric = ToFiniteNumber(value)
   if not numeric or numeric <= 0 then
@@ -1113,15 +1132,18 @@ function Sync.GetPlayerDpsInfo(name, realm)
   return dpsInfoByPlayerKey[key]
 end
 
---- Stores a peer's own interrupt casts of its last run (KC suffix, rule 238).
--- Out-of-bounds or incomplete values are rejected and leave the entry as it was.
+--- Stores a peer's own interrupt casts of its last run (KC suffix, rule 238)
+-- and its own missed kicks (KM suffix, rule 240).
+-- Out-of-bounds or incomplete casts are rejected and leave the entry as it
+-- was; an invalid or missing missed count is stored as unknown (nil).
 -- @param name string Sender name.
 -- @param realm string|nil Sender realm.
 -- @param cast number Own interrupt casts of the run.
 -- @param mapID number Challenge map ID of the run.
 -- @param level number Key level of the run.
+-- @param missed number|nil Own missed kicks of the run.
 -- @return boolean true if the stored value changed.
-function Sync.SetPlayerRunKicksCast(name, realm, cast, mapID, level)
+function Sync.SetPlayerRunKicksCast(name, realm, cast, mapID, level, missed)
   local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
     return false
@@ -1130,23 +1152,26 @@ function Sync.SetPlayerRunKicksCast(name, realm, cast, mapID, level)
   if suffix == "" then
     return false
   end
+  local _, numericMissed = NormalizeRunKicksMissedSuffix(missed, numericCast)
   local previous = runKicksCastByPlayerKey[key]
   if
     previous
     and previous.cast == numericCast
     and previous.mapID == numericMapID
     and previous.level == numericLevel
+    and previous.missed == numericMissed
   then
     return false
   end
-  runKicksCastByPlayerKey[key] = { cast = numericCast, mapID = numericMapID, level = numericLevel }
+  runKicksCastByPlayerKey[key] =
+    { cast = numericCast, mapID = numericMapID, level = numericLevel, missed = numericMissed }
   return true
 end
 
 --- Returns a peer's synced interrupt casts of its last run, or nil.
 -- @param name string Player name.
 -- @param realm string|nil Realm name.
--- @return table|nil {cast, mapID, level}
+-- @return table|nil {cast, mapID, level, missed}
 function Sync.GetPlayerRunKicksCast(name, realm)
   local key = Sync.NormalizePlayerKey(name, realm)
   if StringUtils.IsBlank(key) then
@@ -1786,11 +1811,13 @@ function Sync.SendStats(opts)
 end
 
 --- Broadcasts the local player's last-run DPS to the group, plus the own
--- interrupt casts of that run as the tagged KC suffix when known (rule 238).
+-- interrupt casts of that run as the tagged KC suffix when known (rule 238)
+-- and the own missed kicks as the KM suffix after it (rule 240).
 -- Deduplicated and rate-limited by ISILIVE_STATS_COOLDOWN (5 s).
 -- @param opts table {dps:number, capturedAt:number, source:string,
 --   kicksCast:number|nil, kicksMapID:number|nil, kicksLevel:number|nil,
---   isVisible:boolean, allowHidden:boolean, force:boolean, onlyIfChanged:boolean}
+--   kicksMissed:number|nil, isVisible:boolean, allowHidden:boolean,
+--   force:boolean, onlyIfChanged:boolean}
 function Sync.SendDps(opts)
   opts = opts or {}
   local channel = ResolveSendChannel(opts)
@@ -1799,7 +1826,8 @@ function Sync.SendDps(opts)
   end
 
   local payload, numericDps = NormalizeDpsPayload(opts.dps, opts.capturedAt, opts.source)
-  local kicksSuffix = NormalizeRunKicksSuffix(opts.kicksCast, opts.kicksMapID, opts.kicksLevel)
+  local kicksSuffix, numericCast = NormalizeRunKicksSuffix(opts.kicksCast, opts.kicksMapID, opts.kicksLevel)
+  kicksSuffix = kicksSuffix .. NormalizeRunKicksMissedSuffix(opts.kicksMissed, numericCast)
   payload = payload .. kicksSuffix
   local dedupePayload = string.format("DPS:%d%s", tonumber(numericDps) or 0, kicksSuffix)
   local blocked, now =

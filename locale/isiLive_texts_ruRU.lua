@@ -108,6 +108,7 @@ addonTable.TextsLocales.ruRU = {
   TOOLTIP_LAST_RUN_DPS = "ДПС в последнем забеге: %s",
   TOOLTIP_LAST_RUN_KICKS = "Кики в последнем забеге: %d применено, %d успешно",
   TOOLTIP_LAST_RUN_KICKS_LANDED = "Кики в последнем забеге: %d успешно",
+  TOOLTIP_LAST_RUN_KICKS_MISSED = "Кики в последнем забеге: %d применено, %d успешно, %d мимо",
   TOOLTIP_DEATH_COUNT_FMT = "Deaths: %d",
   TOOLTIP_DEATH_BREAKDOWN_TITLE = "Смерти",
   TOOLTIP_DEATH_TIME_LOST_FMT = "Потеряно времени: +%dс",
