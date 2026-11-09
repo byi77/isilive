@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix: a finished key lost its dungeon and level on the killtracker bar. Since 0.9.504 the bar no longer reads its target while the key runs, and that read was the only place that remembered the running key. Every KillTrack update now remembers it, also with a closed window, so the bar shows the dungeon and the level it ran at until you leave the instance (rule 59).
+- Fix: the key end banner kept its old language after a language switch; it now relabels at once like every other open surface (rule 231).
+- Code: wowsim scenario `language_dungeon_names` expects no dungeon name on the bar during a running key (user decision 2026-11-06) and checks the finished key and the banner after a language switch. New test file `testmodul/isilive_test_scenarios_killtrack_finished_run.lua`.
+
 ## 2026-11-08 - Version 0.9.508 (patch)
 
 - Feature: probe mode for diagnostics (rule 239, user request). `/isilive probe` (on/off/status, toggles without an argument) or Administrative -> `Probe mode` records read-only in-game API checks as `[PROBE] event=...` lines in the runtime log (`IsiLiveDB.runtimeLog`) instead of manual `/run` lines: damage meter readability (Overall/Current x DamageDone/Interrupts; between pulls, at the key end and 5 s later, after the key outside the instance or on a lifted restriction), nameplate threat readability 2 s into each key pull, readability of the own cast's spell ID and cast GUID (once per spell and key), missed-kick calibration for every own kick (verdict, ms to the first hostile interrupt, an interrupt shortly before the cast; also with the alert off), chat lockdown transitions and every addon restriction change with enum names. Default off (Pattern B), persists across reloads, writes even while the runtime log is off, never sends anything to chat. Per-key budgets and a 10 s meter throttle keep it far below the 1500-entry ring; a reached budget writes one `cap_reached` line. Off costs one boolean check per hook, no timers.

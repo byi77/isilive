@@ -1089,6 +1089,9 @@ local function UpdateKillTrackRow(row, deps)
     end
   end
   RenderTimeOverlay(row)
+  if RI.RelabelKillTrackRunEnd then
+    RI.RelabelKillTrackRunEnd(row)
+  end
 end
 
 RI.CreateKillTrackRow = CreateKillTrackRow

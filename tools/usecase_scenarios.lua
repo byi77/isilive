@@ -60,6 +60,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_mob_tooltip.lua",
   "testmodul/isilive_test_scenarios_mob_nameplate.lua",
   "testmodul/isilive_test_scenarios_killtrack.lua",
+  "testmodul/isilive_test_scenarios_killtrack_finished_run.lua",
   "testmodul/isilive_test_scenarios_forces_pace.lua",
   "testmodul/isilive_test_scenarios_time_pace.lua",
   "testmodul/isilive_test_scenarios_ttk.lua",

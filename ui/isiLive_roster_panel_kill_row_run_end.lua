@@ -166,6 +166,19 @@ end
 
 local ClearKillTrackRunEnd
 
+local function SetRunEndLabel(row, style)
+  RI.KillRowSetReadableText(row.killTrackRunEndText, RI.KillRowLocalizedText(style.textKey, style.fallback))
+end
+
+--- Re-reads the outcome text of a shown banner, so a language switch reaches
+-- it at once like every other open surface.
+local function RelabelKillTrackRunEnd(row)
+  local motion = row and row._runEndMotion
+  if motion and row.killTrackRunEndText then
+    SetRunEndLabel(row, motion.style)
+  end
+end
+
 --- Shows the key end banner for "timed", "late", "abandoned" or "left" until
 -- ClearKillTrackRunEnd or the limit. A hidden row picks it up when it opens;
 -- unknown outcomes do nothing.
@@ -177,7 +190,7 @@ local function PlayKillTrackRunEnd(row, outcome)
 
   local color = (UICommon.Colors and UICommon.Colors[style.colorKey]) or style.color
   row.killTrackRunEndWash:SetVertexColor(color[1], color[2], color[3])
-  RI.KillRowSetReadableText(row.killTrackRunEndText, RI.KillRowLocalizedText(style.textKey, style.fallback))
+  SetRunEndLabel(row, style)
 
   local motion = { style = style, elapsed = 0 }
   local banner = row.killTrackRunEnd
@@ -231,3 +244,4 @@ end
 RI.CreateRunEndBanner = CreateRunEndBanner
 RI.PlayKillTrackRunEnd = PlayKillTrackRunEnd
 RI.ClearKillTrackRunEnd = ClearKillTrackRunEnd
+RI.RelabelKillTrackRunEnd = RelabelKillTrackRunEnd

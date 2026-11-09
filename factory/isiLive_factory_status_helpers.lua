@@ -264,24 +264,40 @@ local function InitializeKillTrackTargetHelpers(ctx, modules)
     ctx.enteredTargetDungeon = { mapID = tonumber(mapID), name = info.name, level = info.level }
   end
 
+  -- Records the running key for the bar after it ends. The bar itself no
+  -- longer reads its target while forces data is active (0.9.504), so the
+  -- KillTrack update subscriber calls this as well, independent of renders.
+  -- Returns true while a key runs, plus its bar target when the name resolves.
+  local function TrackRunningKey(activeMapID)
+    if not (activeMapID and IsForcesDataActive()) then
+      return false, nil
+    end
+    -- The key runs: the remembered entry target must not outlive it, and
+    -- the run is kept for the bar after the key ends.
+    ctx.enteredTargetDungeon = nil
+    local name = ResolveMapName(activeMapID)
+    if not name then
+      finishedRun = nil
+      return true, nil
+    end
+    local level = ReadRunningKeyLevel()
+    if not level and type(finishedRun) == "table" and finishedRun.mapID == activeMapID then
+      level = finishedRun.level
+    end
+    finishedRun = { mapID = activeMapID, level = level }
+    return true, { name = name, level = level }
+  end
+
+  ctx.TrackKillTrackRunningKey = function()
+    TrackRunningKey(ctx.GetActiveChallengeMapID()) -- secret-value-ok: protected wrapper
+  end
+
   ctx.GetKillTrackTargetDungeonInfo = function()
     local entered = ctx.enteredTargetDungeon
     local activeMapID = ctx.GetActiveChallengeMapID() -- secret-value-ok: protected wrapper
-    if activeMapID and IsForcesDataActive() then
-      -- The key runs: the remembered entry target must not outlive it, and
-      -- the run is kept for the bar after the key ends.
-      ctx.enteredTargetDungeon = nil
-      local name = ResolveMapName(activeMapID)
-      if name then
-        local level = ReadRunningKeyLevel()
-        if not level and type(finishedRun) == "table" and finishedRun.mapID == activeMapID then
-          level = finishedRun.level
-        end
-        finishedRun = { mapID = activeMapID, level = level }
-        return { name = name, level = level }
-      end
-      finishedRun = nil
-      return nil
+    local running, runningInfo = TrackRunningKey(activeMapID)
+    if running then
+      return runningInfo
     end
     if type(finishedRun) == "table" then
       if addonTable.Validators.IsPlayerInChallengeMapInstance(finishedRun.mapID) then
