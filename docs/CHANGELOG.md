@@ -4,6 +4,7 @@
 
 - Fix: a finished key lost its dungeon and level on the killtracker bar. Since 0.9.504 the bar no longer reads its target while the key runs, and that read was the only place that remembered the running key. Every KillTrack update now remembers it, also with a closed window, so the bar shows the dungeon and the level it ran at until you leave the instance (rule 59).
 - Fix: the key end banner kept its old language after a language switch; it now relabels at once like every other open surface (rule 231).
+- Fix: entering the world (login, reload, zoning) and the reply to a joining isiLive peer now really send your own kick state. The event handlers received an empty stand-in instead of the sender because the wiring dropped it; peers had to wait for the next cooldown change or the 15 s heartbeat. The send keeps the dedup, trace and chat-lockdown gates of rule 50.
 - Code: wowsim scenario `language_dungeon_names` expects no dungeon name on the bar during a running key (user decision 2026-11-06) and checks the finished key and the banner after a language switch. New test file `testmodul/isilive_test_scenarios_killtrack_finished_run.lua`.
 
 ## 2026-11-08 - Version 0.9.508 (patch)

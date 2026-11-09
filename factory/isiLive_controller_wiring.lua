@@ -666,6 +666,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return false
     end
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
+  -- Own kick state for PLAYER_ENTERING_WORLD and the peer-state fan-out. It
+  -- goes through Sync.SendKick, which keeps the dedup, trace and lockdown
+  -- gates of rule 50. Without this line the handlers fell back to a no-op.
+  config.sendOwnKickState = type(deps.sendOwnKickState) == "function" and deps.sendOwnKickState or nil
   config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
   -- Run kicks (rule 238): the key start resets the own cast count and hides
   -- the previous run's kicks; the key end reads the count for the snapshot.
