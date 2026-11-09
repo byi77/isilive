@@ -423,7 +423,9 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     preview.name:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1, 1 }))
   end
 
-  local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
+  -- Child of the preview, so hiding the preview row (config-window search)
+  -- also hides the overlay that UpdatePreview shows on every option change.
+  local previewOverlayFrame = CreateFrame("Frame", nil, preview)
   previewOverlayFrame._isiLiveSettingsPreviewOverlay = true
   preview.overlay = previewOverlayFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   if type(preview.overlay.SetTextColor) == "function" then
@@ -512,7 +514,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     preview:ClearAllPoints()
     preview:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 160, y - 8)
     return y - math.max(LINE_HEIGHT + 16, addonTable.SettingsControls.MeasureWrappedTextHeight(previewLabel, 0, 12))
-  end)
+  end, { kind = "preview" })
 
   return yOffset
 end

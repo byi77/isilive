@@ -3,7 +3,7 @@ addonTable = addonTable or {}
 
 -- isiLive's own configuration window (rule 237). It hosts the settings canvas
 -- built by ui/isiLive_settings.lua instead of Blizzard's Settings panel, so
--- the window can carry its own search later (stage 2). Blizzard only keeps a
+-- the window can carry its own search (stage 2, rule 241). Blizzard only keeps a
 -- small vertical-layout stub category: Blizzard's settings search walks the
 -- initializers of vertical layouts only (SettingsPanelMixin:
 -- FindInitializersMatchingSearchText, 12.1.5), so a canvas category is never
@@ -33,6 +33,13 @@ ConfigWindow.LOGO_TEXTURE = "Interface\\Icons\\INV_Misc_GroupLooking"
 -- Plain-text search tags for Blizzard's settings search. The category name
 -- carries a color code, which a plain substring search never matches.
 ConfigWindow.STUB_SEARCH_TAGS = { "isiLive", "isi Live" }
+-- Search box in the title band (rule 241), left of the close button.
+ConfigWindow.SEARCH_WIDTH = 220
+ConfigWindow.SEARCH_HEIGHT = 19
+ConfigWindow.SEARCH_RIGHT_INSET = 32
+ConfigWindow.SEARCH_MAX_LETTERS = 64
+-- Delay between the last keystroke and the filter pass.
+ConfigWindow.SEARCH_DEBOUNCE_SECONDS = 0.15
 
 local BRAND_TITLE = "isi|cff1e90ffLive|r"
 local VALID_ANCHOR_POINTS = {
@@ -86,13 +93,197 @@ local function RegisterEscapeClose(frameName)
   return true
 end
 
+local function ShowTooltip(owner, title, body)
+  local tooltip = rawget(_G, "GameTooltip")
+  if type(tooltip) ~= "table" or type(tooltip.SetOwner) ~= "function" then
+    return
+  end
+  tooltip:SetOwner(owner, "ANCHOR_BOTTOM")
+  if type(tooltip.AddLine) == "function" then
+    tooltip:AddLine(title)
+    tooltip:AddLine(body, 0.8, 0.8, 0.8, true)
+  end
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+end
+
+local function HideTooltip()
+  local tooltip = rawget(_G, "GameTooltip")
+  if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
+    tooltip:Hide()
+  end
+end
+
+-- Search box (rule 241) in the title band of `window`; adds
+-- window.SetSearchText / GetSearchText / UpdateSearchPlaceholder /
+-- EndSearch. onSearch(text) receives the debounced text.
+local function AttachSearchBox(window, getL, onSearch)
+  -- A plain EditBox without template, painted with the
+  -- design-aware FLAT_BUTTON backdrop; above the drag handle so it takes the
+  -- clicks in the title band. It never takes focus on its own: a focused box
+  -- swallows the movement keys.
+  local frame, dragHandle = window.frame, window.dragHandle
+  local searchBox = CreateFrame("EditBox", nil, frame, "BackdropTemplate")
+  searchBox:SetSize(ConfigWindow.SEARCH_WIDTH, ConfigWindow.SEARCH_HEIGHT)
+  searchBox:SetPoint(
+    "TOPRIGHT",
+    frame,
+    "TOPRIGHT",
+    -ConfigWindow.SEARCH_RIGHT_INSET,
+    -math.floor((ConfigWindow.TITLE_HEIGHT - ConfigWindow.SEARCH_HEIGHT) / 2) - 1
+  )
+  if type(searchBox.SetFrameLevel) == "function" and type(dragHandle.GetFrameLevel) == "function" then
+    searchBox:SetFrameLevel((tonumber(dragHandle:GetFrameLevel()) or 1) + 2)
+  end
+  if type(searchBox.SetAutoFocus) == "function" then
+    searchBox:SetAutoFocus(false)
+  end
+  if type(searchBox.SetFontObject) == "function" then
+    searchBox:SetFontObject("GameFontHighlightSmall")
+  end
+  if type(searchBox.SetTextInsets) == "function" then
+    searchBox:SetTextInsets(6, 6, 0, 0)
+  end
+  if type(searchBox.SetMaxLetters) == "function" then
+    searchBox:SetMaxLetters(ConfigWindow.SEARCH_MAX_LETTERS)
+  end
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(searchBox, "FLAT_BUTTON")
+  end
+  local placeholder = searchBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  placeholder:SetPoint("LEFT", searchBox, "LEFT", 6, 0)
+  placeholder:SetPoint("RIGHT", searchBox, "RIGHT", -6, 0)
+  placeholder:SetJustifyH("LEFT")
+  if type(UICommon.PaintToken) == "function" then
+    UICommon.PaintToken(placeholder, "SetTextColor", "TEXT_DIM")
+  end
+  window.searchBox = searchBox
+  window.searchPlaceholder = placeholder
+
+  local appliedSearch = ""
+  local searchGeneration = 0
+  local suppressTextChanged = false
+
+  local function ReadSearchText()
+    local text = searchBox:GetText()
+    return type(text) == "string" and text or ""
+  end
+
+  local function UpdatePlaceholder()
+    local focused = type(searchBox.HasFocus) == "function" and searchBox:HasFocus() == true
+    if ReadSearchText() == "" and not focused then
+      placeholder:Show()
+    else
+      placeholder:Hide()
+    end
+  end
+
+  local function FlushSearch()
+    searchGeneration = searchGeneration + 1
+    local text = ReadSearchText()
+    if text == appliedSearch then
+      return
+    end
+    appliedSearch = text
+    onSearch(text)
+  end
+
+  -- Debounced: only the last keystroke of a burst filters, and only while
+  -- the window is open.
+  local function ScheduleSearch()
+    searchGeneration = searchGeneration + 1
+    local generation = searchGeneration
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) ~= "table" or type(timer.After) ~= "function" then
+      FlushSearch()
+      return
+    end
+    timer.After(ConfigWindow.SEARCH_DEBOUNCE_SECONDS, function()
+      if generation ~= searchGeneration or not window.IsOpen() then
+        return
+      end
+      FlushSearch()
+    end)
+  end
+
+  -- Sets the search text and filters at once (no debounce).
+  function window.SetSearchText(text)
+    local value = text
+    if type(value) ~= "string" then
+      value = ""
+    end
+    suppressTextChanged = true
+    searchBox:SetText(value)
+    suppressTextChanged = false
+    UpdatePlaceholder()
+    FlushSearch()
+  end
+
+  -- The text the last filter pass used ("" = no search).
+  function window.GetSearchText()
+    return appliedSearch
+  end
+
+  searchBox:SetScript("OnTextChanged", function()
+    UpdatePlaceholder()
+    if suppressTextChanged then
+      return
+    end
+    ScheduleSearch()
+  end)
+  -- ESC in the box: the first clears the search, the next one (empty box)
+  -- closes the window. Without focus ESC reaches UISpecialFrames and closes
+  -- the window directly; closing clears the search as well.
+  searchBox:SetScript("OnEscapePressed", function(self)
+    if ReadSearchText() ~= "" then
+      window.SetSearchText("")
+      return
+    end
+    self:ClearFocus()
+    window.Close()
+  end)
+  searchBox:SetScript("OnEnterPressed", function(self)
+    FlushSearch()
+    self:ClearFocus()
+  end)
+  searchBox:SetScript("OnEditFocusGained", UpdatePlaceholder)
+  searchBox:SetScript("OnEditFocusLost", UpdatePlaceholder)
+  searchBox:SetScript("OnEnter", function(self)
+    ShowTooltip(
+      self,
+      ResolveText(getL, "CONFIG_SEARCH_TOOLTIP_TITLE", "Search options"),
+      ResolveText(
+        getL,
+        "CONFIG_SEARCH_TOOLTIP_BODY",
+        "Matches names, descriptions and keywords; all words must match. ESC clears the search."
+      )
+    )
+  end)
+  searchBox:SetScript("OnLeave", HideTooltip)
+
+  window.UpdateSearchPlaceholder = UpdatePlaceholder
+
+  -- Closing ends the search: the next open shows every option again.
+  function window.EndSearch()
+    if type(searchBox.ClearFocus) == "function" then
+      searchBox:ClearFocus()
+    end
+    if ReadSearchText() ~= "" or appliedSearch ~= "" then
+      window.SetSearchText("")
+    end
+  end
+end
+
 -- opts.getL, opts.getDB, opts.onOpen (called after every open; the settings
--- panel builds and repaints there), opts.parent (default UIParent).
+-- panel builds and repaints there), opts.onSearch(text) (search text after
+-- the debounce, "" when the search is cleared), opts.parent (default UIParent).
 function ConfigWindow.Create(opts)
   opts = opts or {}
   local getL = opts.getL
   local getDB = opts.getDB
   local onOpen = type(opts.onOpen) == "function" and opts.onOpen or function() end
+  local onSearch = type(opts.onSearch) == "function" and opts.onSearch or function() end
   local parent = opts.parent or rawget(_G, "UIParent")
 
   local frame = CreateFrame("Frame", ConfigWindow.FRAME_NAME, parent, "BackdropTemplate")
@@ -187,8 +378,6 @@ function ConfigWindow.Create(opts)
     SavePosition()
   end
   dragHandle:SetScript("OnDragStop", EndDrag)
-  -- A window hidden mid-drag (ESC) still stores where it was dropped.
-  frame:SetScript("OnHide", EndDrag)
   window.dragHandle = dragHandle
 
   local closeButton = nil
@@ -208,6 +397,15 @@ function ConfigWindow.Create(opts)
 
   window.escapeRegistered = RegisterEscapeClose(ConfigWindow.FRAME_NAME)
 
+  AttachSearchBox(window, getL, onSearch)
+
+  -- Closing (button, ESC, /il settings) ends the search. A window hidden
+  -- mid-drag still stores its drop point.
+  frame:SetScript("OnHide", function()
+    EndDrag()
+    window.EndSearch()
+  end)
+
   -- Docks the settings canvas below the title band.
   function window.AttachCanvas(canvas)
     if type(canvas) ~= "table" then
@@ -223,8 +421,16 @@ function ConfigWindow.Create(opts)
   end
 
   function window.RefreshTexts()
-    local titleText = ResolveText(getL, "CONFIG_WINDOW_TITLE", "Configuration")
+    -- One label read per repaint for both texts.
+    local labels = type(getL) == "function" and getL() or nil
+    local function Labels()
+      return labels
+    end
+    local titleText = ResolveText(Labels, "CONFIG_WINDOW_TITLE", "Configuration")
+    local placeholderText = ResolveText(Labels, "CONFIG_SEARCH_PLACEHOLDER", "Search options...")
     subtitle:SetText(titleText)
+    window.searchPlaceholder:SetText(placeholderText)
+    window.UpdateSearchPlaceholder()
   end
 
   function window.IsOpen()

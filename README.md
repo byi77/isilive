@@ -481,6 +481,15 @@ it, and it also opens during combat. Everything takes effect immediately.
 The fixed two-row section navigation stays visible while you scroll; select a
 section to jump directly to its settings. The active section follows manual scrolling.
 
+The search box in the title bar filters the window as you type: only the
+matching options stay, each under its section heading, and the gaps close up.
+It looks at option names, descriptions and English keywords, so `interrupt`,
+`hearthstone` or `teleport` work in every language; several words must all
+match, and case and accents do not matter. Sections without a hit are greyed
+out in the navigation, and "No options match" tells you when nothing fits.
+ESC in the search box clears the search, a second ESC closes the window;
+closing the window always clears the search.
+
 - **Beta** — current beta notice plus GitHub issue and CurseForge comment links
 - **General** — language and default layout when opening isiLive
 - **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button

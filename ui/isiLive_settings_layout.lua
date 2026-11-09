@@ -9,27 +9,90 @@ local HEADER_HEIGHT = 24
 local HEADER_LINE_GAP = 6
 local SETTINGS_CONTENT_WIDTH = 700
 
+-- Claims every child frame and region of `parent` that no earlier row has
+-- claimed. Controls create their widgets right before they register their
+-- row, so the new objects belong to that row; the config-window search
+-- (ui/isiLive_settings_search.lua) hides and shows rows through this list.
+-- Returns nil when the parent cannot list its children (test doubles).
+local function ClaimNewRegions(parent)
+  if type(parent.GetChildren) ~= "function" or type(parent.GetRegions) ~= "function" then
+    return nil
+  end
+  local claimed = parent._isiLiveClaimedRegions
+  if not claimed then
+    claimed = {}
+    parent._isiLiveClaimedRegions = claimed
+  end
+  local owned = {}
+  for _, list in ipairs({ { parent:GetChildren() }, { parent:GetRegions() } }) do
+    for _, object in ipairs(list) do
+      if not claimed[object] then
+        claimed[object] = true
+        owned[#owned + 1] = object
+      end
+    end
+  end
+  return owned
+end
+
 -- Keep the original row boundaries so refreshes preserve explicit section gaps
 -- while measuring the current text on the existing widgets.
-function SettingsLayout.RegisterLayout(parent, yOffset, layout)
+-- meta (optional): { kind = "header", text = <font string> } for section
+-- headers, { kind = "separator" } for child separators, { kind = "preview",
+-- previewFor = { <control key>, ... } } for live previews (without
+-- previewFor a preview belongs to every control of its section block).
+function SettingsLayout.RegisterLayout(parent, yOffset, layout, meta)
   parent._isiLiveSettingsRows = parent._isiLiveSettingsRows or {}
   local nextY = layout(yOffset)
-  table.insert(parent._isiLiveSettingsRows, { startY = yOffset, endY = nextY, layout = layout })
+  local row = { startY = yOffset, endY = nextY, layout = layout, regions = ClaimNewRegions(parent) }
+  if type(meta) == "table" then
+    row.kind = meta.kind
+    row.text = meta.text
+    row.previewFor = meta.previewFor
+  end
+  table.insert(parent._isiLiveSettingsRows, row)
   return nextY
 end
 
-function SettingsLayout.Relayout(parent, offsets, originalOffsets, finalY)
-  local shift = 0
-  for _, row in ipairs(parent._isiLiveSettingsRows or {}) do
+-- Re-runs every row layout below the previous row, keeping the original gap
+-- in front of each row. A row with `searchHidden` (config-window search,
+-- rule 241) is skipped together with the gap in front of it, so the rows below
+-- close up; when the first rows are hidden, the first shown row starts at
+-- `topY` (default: the original start of the first row). Without hidden rows
+-- every row lands exactly where the original pass put it.
+function SettingsLayout.Relayout(parent, offsets, originalOffsets, finalY, topY)
+  local rows = parent._isiLiveSettingsRows or {}
+  local cursor = nil
+  local previousEndY = nil
+  local skippedLeading = false
+  for _, row in ipairs(rows) do
+    local gap = previousEndY and (previousEndY - row.startY) or 0
+    local y
+    if cursor then
+      y = cursor - gap
+    elseif skippedLeading then
+      y = tonumber(topY) or rows[1].startY
+    else
+      y = row.startY
+    end
     for key, offset in pairs(originalOffsets) do
       if -offset == row.startY then
-        offsets[key] = offset - shift
+        offsets[key] = -y
       end
     end
-    local nextY = row.layout(row.startY + shift)
-    shift = nextY - row.endY
+    if row.searchHidden then
+      if not cursor then
+        skippedLeading = true
+      end
+    else
+      cursor = row.layout(y)
+    end
+    previousEndY = row.endY
   end
-  return finalY + shift
+  if not cursor or not previousEndY then
+    return tonumber(topY) or finalY
+  end
+  return cursor - (previousEndY - finalY)
 end
 
 local function Position(region, parent, x, y)
@@ -76,7 +139,7 @@ function SettingsLayout.CreateSectionHeader(parent, yOffset, text)
     Position(line, parent, PADDING_X, y - HEADER_HEIGHT)
     line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, y - HEADER_HEIGHT)
     return y - HEADER_HEIGHT - HEADER_LINE_GAP
-  end)
+  end, { kind = "header", text = header })
   return header, nextY
 end
 
@@ -94,7 +157,7 @@ function SettingsLayout.CreateChildSeparator(parent, yOffset)
     Position(line, parent, left, y - 5)
     line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", right, y - 5)
     return y - 14
-  end)
+  end, { kind = "separator" })
   return line, nextY
 end
 

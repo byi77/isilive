@@ -304,9 +304,9 @@ return function(test, ctx)
       Assert.False(panel.IsBuilt(), "addon init must not build the settings sections")
       Assert.Nil(panel.navigation, "addon init must not build the section navigation")
       Assert.True(
-        createFrames <= 7,
-        "settings init may only create the window, its drag band and close button, canvas, scroll, content "
-          .. "and item-event frames (got "
+        createFrames <= 8,
+        "settings init may only create the window, its drag band, search box and close button, canvas, scroll, "
+          .. "content and item-event frames (got "
           .. tostring(createFrames)
           .. ")"
       )

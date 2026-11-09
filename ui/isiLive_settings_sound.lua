@@ -792,7 +792,7 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
       separator:SetPoint("TOPLEFT", canvas, "TOPLEFT", VIP_SEPARATOR_OFFSET_X, y - 5)
       separator:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -VIP_SEPARATOR_OFFSET_X, y - 5)
       return y - 14
-    end)
+    end, { kind = "separator" })
   end
 
   local function CreateVipDkChildSoundCheckbox(controlKey, labelKey, fallbackLabel, dbKey, applyFnName)

@@ -111,6 +111,7 @@ local FILE_PATHS = {
   ["isiLive_settings_reset.lua"] = "ui/isiLive_settings_reset.lua",
   ["isiLive_settings_hearthstone.lua"] = "ui/isiLive_settings_hearthstone.lua",
   ["isiLive_settings_layout.lua"] = "ui/isiLive_settings_layout.lua",
+  ["isiLive_settings_search.lua"] = "ui/isiLive_settings_search.lua",
   ["isiLive_settings_controls.lua"] = "ui/isiLive_settings_controls.lua",
   ["isiLive_settings_nameplates.lua"] = "ui/isiLive_settings_nameplates.lua",
   ["isiLive_settings_behavior.lua"] = "ui/isiLive_settings_behavior.lua",
@@ -358,6 +359,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_settings_general.lua",
     "isiLive_settings_sections.lua",
     "isiLive_config_window.lua",
+    "isiLive_settings_search.lua",
   },
   -- SettingsSections re-exports the General / ESC-menu sections at load.
   ["isiLive_settings_sections.lua"] = {
