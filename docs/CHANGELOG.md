@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-11 - Version 0.9.510 (patch)
+
+- Fix: Hunters showed no Bloodlust (BL) in the LFG group bonus, the applicant badge and the roster tooltip whenever their specialization was unknown -- LFG search results usually carry no spec ID and roster rows have none before the inspect. BL was tied to the three Hunter spec IDs; every Hunter spec brings it (pet Primal Rage, Marksmanship Harrier's Cry), so it now belongs to the Hunter class profile (rule 68). Only Augmentation keeps a spec-level bonus (Ebon Might).
+- Tests: Hunter without a spec ID must list BL in the bonus suffix, the roster tooltip and the major applicant badge; the spec bonus class gate now holds only Augmentation.
+
 ## 2026-11-09 - Version 0.9.509 (patch)
 
 - Fix: a finished key lost its dungeon and level on the killtracker bar. Since 0.9.504 the bar no longer reads its target while the key runs, and that read was the only place that remembered the running key. Every KillTrack update now remembers it, also with a closed window, so the bar shows the dungeon and the level it ran at until you leave the instance (rule 59).

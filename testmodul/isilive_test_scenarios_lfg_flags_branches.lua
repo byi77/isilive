@@ -1470,6 +1470,15 @@ return function(test, ctx)
       Assert.Equal(badge, "++", "Marksmanship Hunter Bloodlust must produce the major utility badge")
       badge = addon._LFGFlagsInternal.BuildApplicantBonusBadge("HUNTER", 255, { dealsPhysicalDamage = true })
       Assert.Equal(badge, "++", "Survival Hunter Bloodlust must produce the major utility badge")
+      badge = addon._LFGFlagsInternal.BuildApplicantBonusBadge("HUNTER", nil, { dealsPhysicalDamage = true })
+      Assert.Equal(badge, "++", "Hunter without a known spec must still provide Bloodlust")
+      local suffix = StripColors(addon._LFGFlagsInternal.BuildBonusSuffix("HUNTER", nil, nil))
+      Assert.True(suffix:find("BL", 1, true) ~= nil, "Hunter suffix without spec ID must list BL")
+      local tooltipLine = addon._LFGFlagsInternal.BuildRosterBonusTooltipLine("HUNTER", nil)
+      Assert.True(
+        type(tooltipLine) == "string" and StripColors(tooltipLine):find("BL", 1, true) ~= nil,
+        "roster tooltip must list Hunter BL before the spec is inspected"
+      )
       badge = addon._LFGFlagsInternal.BuildApplicantBonusBadge("DRUID", nil, { dealsMagicDamage = true })
       Assert.Equal(badge, "++", "Druid battle resurrection must produce the major utility badge")
     end)

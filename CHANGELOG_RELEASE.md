@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.509`.
+Current version: `0.9.510`.
+
+Version 0.9.510: Hunters show their Bloodlust (BL) again in the LFG group
+bonus and the roster tooltip, also when their specialization is not known yet
+(search results, roster before inspect).
 
 Version 0.9.509: the settings window has a search box: type a word and only
 the matching options stay visible (English terms like "interrupt" work in every
@@ -224,7 +228,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.509 -->
+<!-- highlights-reviewed-for: 0.9.510 -->
 
 Highlights:
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per

@@ -88,6 +88,10 @@ local CLASS_BONUSES = {
   },
   HUNTER = {
     { textKey = "LFG_BONUS_DMG", kind = "universal" },
+    -- Every Hunter spec brings Bloodlust (pet Primal Rage, or Harrier's Cry for
+    -- Marksmanship), so it lives on the class: LFG search results and roster
+    -- rows often carry no spec ID, and a spec-gated entry silently vanished.
+    { textKey = "LFG_BONUS_BL", kind = "utility" },
   },
   MAGE = {
     { textKey = "LFG_BONUS_INT", kind = "intellect" },
@@ -121,15 +125,6 @@ local CLASS_BONUSES = {
 }
 
 local SPEC_BONUSES = {
-  [253] = {
-    { textKey = "LFG_BONUS_BL", kind = "utility" },
-  },
-  [254] = {
-    { textKey = "LFG_BONUS_BL", kind = "utility" },
-  },
-  [255] = {
-    { textKey = "LFG_BONUS_BL", kind = "utility" },
-  },
   [AUGMENTATION_EVOKER_SPEC_ID] = {
     { textKey = "LFG_BONUS_EBON_MIGHT", kind = "universal" },
   },

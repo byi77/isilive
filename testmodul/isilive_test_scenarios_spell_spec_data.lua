@@ -79,7 +79,9 @@ local FORMER_PRIMARY_BY_CLASS = {
   WARLOCK = "intellect",
   WARRIOR = "strength",
 }
-local FORMER_SPEC_CLASS_TOKENS = { [253] = "HUNTER", [254] = "HUNTER", [255] = "HUNTER", [1473] = "EVOKER" }
+-- Hunter Bloodlust moved to the class profile, so only Augmentation keeps a
+-- spec-level bonus (and therefore a spec class gate).
+local FORMER_SPEC_CLASS_TOKENS = { [1473] = "EVOKER" }
 
 local function ToSet(list)
   local set = {}
