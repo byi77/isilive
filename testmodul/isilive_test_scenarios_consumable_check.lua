@@ -72,12 +72,12 @@ return function(test, ctx)
       Assert.Equal(cards[1].options.title, "isiLive - Consumables", "the consumables card")
       Assert.Equal(FieldText(cards[1]), "Weapon oil (main hand): missing !", "the missing oil is a warning row")
 
-      session.weapon = { true, 5 * 60000, 0, 7495, true, 45 * 60000, 0, 7495 }
+      session.weapon = { true, 35 * 60000, 0, 7495, true, 45 * 60000, 0, 7495 }
       ReadyCheck(session)
       Assert.Equal(
         FieldText(cards[2]),
-        "Weapon oil (main hand): 5 min left ! | Weapon oil (off hand): 45 min left",
-        "an oil ending within 10 minutes is flagged, the other one listed"
+        "Weapon oil (main hand): 35 min left ! | Weapon oil (off hand): 45 min left",
+        "an oil ending within 40 minutes is flagged, one with 45 minutes is only listed"
       )
 
       session.weapon = { true, 50 * 60000, 0, 7495, false, nil, 0, nil }

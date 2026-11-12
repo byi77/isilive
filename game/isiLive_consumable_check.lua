@@ -15,7 +15,9 @@ addonTable = addonTable or {}
 local ConsumableCheck = {}
 addonTable.ConsumableCheck = ConsumableCheck
 
-local LOW_MINUTES = 10
+-- User decision 2026-11-12: warn while there is still time to renew it
+-- before a key, not only in its last minutes.
+local LOW_MINUTES = 40
 local CARD_SECONDS = 25
 local CATEGORIES = {
   { key = "food", label = "CONSUMABLE_FOOD", fallback = "Food:" },

@@ -484,7 +484,7 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     "Ready check: consumable check",
     "SETTINGS_CONSUMABLE_CHECK_DESC",
     "On a ready check, shows a card when your food, flask, augment rune or weapon oil"
-      .. " is missing or ends within 10 minutes.",
+      .. " is missing or ends within 40 minutes.",
     labels
   )
   controls.aggroSound, yOffset = CreatePatternBCheckbox(
