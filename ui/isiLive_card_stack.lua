@@ -383,6 +383,31 @@ local function MoveChildrenToStackStrata(frame, previousStrata)
   end
 end
 
+-- The card and all its children rise above the stack's background by the
+-- same amount, so their order inside the card stays as it was.
+local function ShiftFrameLevels(frame, delta)
+  local level = tonumber(CallMethod(frame, "GetFrameLevel"))
+  if level then
+    CallMethod(frame, "SetFrameLevel", level + delta)
+  end
+  if type(frame.GetChildren) ~= "function" then
+    return
+  end
+  for _, child in ipairs({ frame:GetChildren() }) do
+    if type(child) == "table" then
+      ShiftFrameLevels(child, delta)
+    end
+  end
+end
+
+local function RaiseAboveContainer(frame, container)
+  local containerLevel = tonumber(CallMethod(container, "GetFrameLevel"))
+  local level = tonumber(CallMethod(frame, "GetFrameLevel"))
+  if containerLevel and level and level <= containerLevel then
+    ShiftFrameLevels(frame, containerLevel + 1 - level)
+  end
+end
+
 local function NewStack(parent)
   return {
     parent = parent,
@@ -447,6 +472,7 @@ function CardStack.Register(kind, frame, opts)
   CallMethod(frame, "SetParent", container)
   CallMethod(frame, "SetFrameStrata", CardStack.FRAME_STRATA)
   MoveChildrenToStackStrata(frame, previousStrata)
+  RaiseAboveContainer(frame, container)
   CallMethod(frame, "Hide")
   AttachDrag(stack, frame)
   if type(frame.HookScript) == "function" then

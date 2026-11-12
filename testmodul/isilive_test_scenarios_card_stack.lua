@@ -132,6 +132,14 @@ return function(test, ctx)
       local container = addon.CardStack.GetContainer()
       Assert.NotNil(container._backdropColor, "the stack paints the one card surface")
       Assert.Nil(notice.frame._backdropColor, "a section paints no surface of its own")
+      Assert.True(
+        notice.frame:GetFrameLevel() > container:GetFrameLevel(),
+        "a card built before the stack still renders above the stack's background"
+      )
+      Assert.True(
+        notice.closeButton:GetFrameLevel() > notice.frame:GetFrameLevel(),
+        "the card's own children keep their order above the card"
+      )
       Assert.Nil(portal.frame._backdropColor, "a section paints no surface of its own")
       Assert.True(notice.brandText:IsShown(), "the lead section carries the brand mark")
       Assert.True(notice.headerBand:IsShown(), "the lead section carries the header band")
