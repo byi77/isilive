@@ -59,6 +59,22 @@ local function IsWhisperSenderInParty(Sync, senderKey)
   return false
 end
 
+-- True when a whispered message comes from outside the party; logs the
+-- rejection at deep level.
+local function IsRejectedWhisper(Sync, channel, sender, senderKey, isDeepActive, logDeep)
+  if channel ~= "WHISPER" or IsWhisperSenderInParty(Sync, senderKey) then
+    return false
+  end
+  if isDeepActive() then
+    logDeep("message_rejected", "sender=%s reason=whisper-not-in-party", tostring(sender))
+  end
+  return true
+end
+
+local function AlwaysActive()
+  return true
+end
+
 addonTable.SyncReceiveFactory = function(deps)
   local Sync = deps.Sync
   local ISILIVE_SYNC_PREFIX = deps.ISILIVE_SYNC_PREFIX
@@ -73,9 +89,6 @@ addonTable.SyncReceiveFactory = function(deps)
   local SyncLogDeep = deps.SyncLogDeep
   -- Every received message logs twice; these gates skip building the
   -- tostring() arguments while recording is off.
-  local function AlwaysActive()
-    return true
-  end
   local IsSyncLogActive = type(deps.IsSyncLogActive) == "function" and deps.IsSyncLogActive or AlwaysActive
   local IsSyncLogDeepActive = type(deps.IsSyncLogDeepActive) == "function" and deps.IsSyncLogDeepActive or AlwaysActive
   local FormatBytes = deps.FormatBytes
@@ -215,10 +228,7 @@ addonTable.SyncReceiveFactory = function(deps)
     end
 
     local senderKey = Sync.NormalizePlayerKey(sender)
-    if channel == "WHISPER" and not IsWhisperSenderInParty(Sync, senderKey) then
-      if IsSyncLogDeepActive() then
-        SyncLogDeep("message_rejected", "sender=%s reason=whisper-not-in-party", tostring(sender))
-      end
+    if IsRejectedWhisper(Sync, channel, sender, senderKey, IsSyncLogDeepActive, SyncLogDeep) then
       return nil
     end
     local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
