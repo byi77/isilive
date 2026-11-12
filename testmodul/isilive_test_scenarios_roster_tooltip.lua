@@ -672,6 +672,12 @@ return function(test, ctx)
           ~= nil,
         "a known missed count joins cast and landed on one line"
       )
+      L.TOOLTIP_LIVE_KICKS_LANDED = "Kicks this key: %d landed"
+      local live = Lines({ landed = 4, live = true })
+      Assert.True(
+        live:find("Kicks this key: 4 landed", 1, true) ~= nil and live:find("last run", 1, true) == nil,
+        "a running key's live count gets its own line (rule 245)"
+      )
       local withoutMissed = Lines({ cast = 37, landed = 32 })
       Assert.True(
         withoutMissed:find("Kicks last run: 37 cast, 32 landed", 1, true) ~= nil

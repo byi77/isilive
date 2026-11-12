@@ -327,6 +327,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 242. Alle isiLive-Karten (Center-Notice, Portal-Navigator, Talent-/Beute-Check) sind Abschnitte eines Karten-Stapels in der Bildmitte, der wie eine Karte wirkt (ein Rahmen, ein Kopf, Haarlinien zwischen den Abschnitten, Reihenfolge nach Prioritaet und Erscheinen, gleiche Art ersetzt in place, Ziehen bewegt den ganzen Stapel); Karten und Fenster erscheinen und verschwinden ueber `UICommon.ShowAnimated`/`HideAnimated` (unterbrechbar, Maus sofort aus, im Kampf bei geschuetzten Frames nur Alpha).
 243. Das Hauptfenster ist ein Element von Blizzards Bearbeitungsmodus (eingebettete LibEditMode, Name `isiLive`, Setting `editModeIntegration`, Pattern A): Der Bearbeitungsmodus zeigt es auch ohne Gruppe und im Raid als Platzhalter und schliesst es danach wieder, Ziehen dort gilt trotz Fenstersperre, der Einstell-Dialog bietet Layout, Skalierung, Hintergrund, Sperre und Positions-Reset; jedes Bearbeitungsmodus-Layout behaelt eigene Position, Skalierung und Layout, im Kampf wartet ein Layoutwechsel bis zum Kampfende.
 244. Mit `aggroAlertEnabled` (Pattern B) zeigt isiLive Nicht-Tanks im laufenden Key einen kurzen `AGGRO`-Kurzalarm (optional mit Ton `aggroAlertSound`, Pattern B), wenn `UnitThreatSituation("player")` mindestens eine halbe Sekunde lang 2 oder 3 meldet; hoechstens einmal pro Pull, nie im Raid, nie fuer eine Tank-Spezialisierung, nicht solange der Gruppen-Tank tot ist, und nie ueber einem Tod- oder PI-Alarm.
+245. Waehrend eines Keys zeigt der Roster-Tooltip mit `liveRunKicksEnabled` (Pattern A) die getroffenen Kicks jedes Mitglieds im laufenden Key (`Kicks in diesem Key: N getroffen`), gelesen aus der Interrupts-Overall-Session des Damage-Meters bei jedem Pull-Ende und Pull-Start; die Kick-Spalte zeigt im Key weiter den Cooldown.
 
 ## Regelbloecke
 
@@ -3774,3 +3775,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Aggro alert shows once per pull after half a second of aggro for a non-tank in a key
   - Aggro alert stays quiet for a short tap, for tanks, while the tank is dead and when off
   - Aggro alert never replaces a death alert that is still on screen
+
+### RULE-LIVE-KICKS-IM-KEY
+- Regelnummer: 245
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-12 (K9 nach dem Probe-Key vom selben Tag: die Interrupts-Session des Damage-Meters ist im laufenden Key zwischen den Pulls mit Namen und Werten lesbar). `factory/isiLive_factory_live_kicks.lua` (`FactoryLiveKicks.Install`, aus `FactoryEditMode.InstallLate` nach allen Fenstern) legt ein eigenes Event-Frame fuer `PLAYER_REGEN_ENABLED` und `PLAYER_REGEN_DISABLED` an; laeuft ein Key (`GetActiveChallengeMapID` lesbar und > 0) und ist `liveRunKicksEnabled ~= false` (Pattern A, Display-Abschnitt bei den Kurzalarmen), ruft es `Stats.CaptureLiveKicks` ohne Timer auf. Das liest mit demselben Leser wie Regel 238 (`ReadLandedInterrupts`) die Overall-Session, die beim Keystart zurueckgesetzt wird, und nur nach `MarkRunStarted`; eine maskierte oder unlesbare Liste behaelt den letzten Stand, der Keystart loescht ihn. `GetPlayerLastRunKicks` liefert waehrend des Keys statt `nil` `{ landed = n, live = true }` (ein Mitglied, das in einer lesbaren Liste fehlt, hat 0), solange ein Stand gelesen ist und das Setting an ist; der Roster-Tooltip zeigt dafuer `TOOLTIP_LIVE_KICKS_LANDED` (`Kicks in diesem Key: %d getroffen`) statt der Zeilen des letzten Runs. Die Kick-Spalte bleibt im Key beim Cooldown (Regel 238, `AreRunKicksBlocked`); nach dem Key ersetzt die Erfassung des Runs den Live-Stand.
+- Erforderliche Tests:
+  - Live kicks read the running key's landed kicks after every pull
+  - Live kicks stay off when the setting is off
+  - Roster tooltip adds the missed kicks of the last key

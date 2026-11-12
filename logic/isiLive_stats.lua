@@ -370,6 +370,10 @@ function Stats.CreateController(opts)
   -- Run kicks belong to the last run only (rule 238): a key start hides them
   -- until that key is captured. DPS keeps its last-captured value.
   local runKicksSuperseded = false
+  -- Live kicks of the running key (rule 245, K9): landed interrupts per
+  -- normalized player key from the Overall session (reset at the key start),
+  -- read between pulls; nil until the first readable read of this key.
+  local liveKicks = nil
 
   local function PersistOwnRun(selfRun)
     local db = rawget(_G, "IsiLiveDB")
@@ -524,7 +528,13 @@ function Stats.CreateController(opts)
   -- @return table|nil {landed:number, cast:number|nil, missed:number|nil}
   function controller.GetPlayerLastRunKicks(name, realm)
     if runKicksSuperseded then
-      return nil
+      -- While a key runs: its live landed kicks instead (rule 245), marked live.
+      local db = rawget(_G, "IsiLiveDB")
+      local key = liveKicks and NormalizeName(name, realm) or nil
+      if not key or (type(db) == "table" and db.liveRunKicksEnabled == false) then
+        return nil
+      end
+      return { landed = liveKicks[key] or 0, live = true }
     end
     local info = GetPlayerLastRunInfo(name, realm)
     local landed = info and ReadCount(info.kicksLanded) or nil
@@ -592,6 +602,21 @@ function Stats.CreateController(opts)
   -- CHALLENGE_MODE_START); the next captured run shows its own.
   function controller.MarkRunStarted()
     runKicksSuperseded = true
+    liveKicks = nil
+  end
+
+  --- Reads the landed interrupts of the running key from the Overall session
+  -- (rule 245). Only while a key runs (after MarkRunStarted); a masked or
+  -- unreadable list keeps the previous read. Returns true when it read.
+  function controller.CaptureLiveKicks()
+    if not runKicksSuperseded then
+      return false
+    end
+    local counts = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL)
+    if counts then
+      liveKicks = counts
+    end
+    return counts ~= nil
   end
 
   -- Runs the real capture against the live damage meter and current roster

@@ -181,6 +181,7 @@ local FILE_PATHS = {
   ["isiLive_factory_kick_tracker.lua"] = "factory/isiLive_factory_kick_tracker.lua",
   ["isiLive_factory_minimap.lua"] = "factory/isiLive_factory_minimap.lua",
   ["isiLive_factory_edit_mode.lua"] = "factory/isiLive_factory_edit_mode.lua",
+  ["isiLive_factory_live_kicks.lua"] = "factory/isiLive_factory_live_kicks.lua",
   ["isiLive_factory.lua"] = "factory/isiLive_factory.lua",
 }
 
@@ -299,6 +300,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_minimap.lua",
     "isiLive_edit_mode.lua",
     "isiLive_factory_edit_mode.lua",
+    "isiLive_factory_live_kicks.lua",
   },
   ["isiLive_factory_controllers.lua"] = {
     "isiLive_factory_kick_tracker.lua",

@@ -191,5 +191,6 @@ factory/isiLive_factory_secondary.lua
 factory/isiLive_factory_controllers.lua
 factory/isiLive_factory_minimap.lua
 factory/isiLive_factory_edit_mode.lua
+factory/isiLive_factory_live_kicks.lua
 factory/isiLive_factory.lua
 isiLive.lua

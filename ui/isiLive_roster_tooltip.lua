@@ -969,7 +969,12 @@ local function ShowRosterInfoTooltip(
     -- plus the own missed kicks when that client counted them (rule 240).
     if lastRunKicks then
       local landed = math.floor(lastRunKicks.landed)
-      if type(lastRunKicks.cast) == "number" and type(lastRunKicks.missed) == "number" then
+      if lastRunKicks.live == true then
+        -- Rule 245: the running key's landed kicks, read between pulls.
+        local label = type(L.TOOLTIP_LIVE_KICKS_LANDED) == "string" and L.TOOLTIP_LIVE_KICKS_LANDED
+          or "Kicks this key: %d landed"
+        tooltip:AddLine(string.format(label, landed), 0.4, 0.8, 1)
+      elseif type(lastRunKicks.cast) == "number" and type(lastRunKicks.missed) == "number" then
         local label = type(L.TOOLTIP_LAST_RUN_KICKS_MISSED) == "string" and L.TOOLTIP_LAST_RUN_KICKS_MISSED
           or "Kicks last run: %d cast, %d landed, %d missed"
         tooltip:AddLine(

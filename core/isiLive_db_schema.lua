@@ -357,6 +357,8 @@ local SCHEMA = {
   -- Aggro alert for non-tanks (rule 244), both Pattern B.
   aggroAlertEnabled = { type = "boolean", default = false },
   aggroAlertSound = { type = "boolean", default = false },
+  -- Live kicks of the running key in the roster tooltip (rule 245), Pattern A.
+  liveRunKicksEnabled = { type = "boolean", default = true },
 
   -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
   -- unlike runtimeLogEnabled, kept across reloads.

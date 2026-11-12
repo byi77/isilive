@@ -432,6 +432,9 @@ end
 local FALLBACK_AGGRO_ALERT_DESC = "Shows a short AGGRO notice when a mob turns on you in a running key"
   .. " and stays on you for half a second. Never for tanks, not while the tank is dead, at most once per pull."
 local FALLBACK_AGGRO_SOUND_DESC = "Also plays a short sound with the aggro alert."
+local FALLBACK_LIVE_KICKS = "Kicks: live count during a key"
+local FALLBACK_LIVE_KICKS_DESC = "The roster tooltip shows each member's landed kicks of the running key,"
+  .. " updated after every pull."
 
 -- A Pattern B checkbox for one db field.
 local function CreatePatternBCheckbox(canvas, yOffset, config, field, labelKey, label, descKey, desc, labels)
@@ -459,6 +462,19 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     FALLBACK_AGGRO_ALERT_DESC,
     labels
   )
+  controls.liveRunKicks, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_LIVE_KICKS or FALLBACK_LIVE_KICKS,
+    function()
+      return config.getDB().liveRunKicksEnabled ~= false
+    end,
+    function(checked)
+      config.getDB().liveRunKicksEnabled = checked
+    end,
+    "SETTINGS_LIVE_KICKS",
+    CheckboxDescriptionOptions(labels.SETTINGS_LIVE_KICKS_DESC or FALLBACK_LIVE_KICKS_DESC)
+  )
   controls.aggroSound, yOffset = CreatePatternBCheckbox(
     canvas,
     yOffset,
@@ -474,6 +490,11 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
 end
 
 local function RefreshAggroControls(controls, labels, db)
+  if controls.liveRunKicks then
+    controls.liveRunKicks.label:SetText(labels.SETTINGS_LIVE_KICKS or FALLBACK_LIVE_KICKS)
+    SetCheckboxDescription(controls.liveRunKicks, labels.SETTINGS_LIVE_KICKS_DESC or FALLBACK_LIVE_KICKS_DESC)
+    controls.liveRunKicks.check:SetChecked(db.liveRunKicksEnabled ~= false)
+  end
   for _, entry in ipairs({
     {
       controls.aggroAlert,
@@ -529,6 +550,7 @@ local DISPLAY_DEFAULTS = {
   missedKickSound = false,
   aggroAlertEnabled = false,
   aggroAlertSound = false,
+  liveRunKicksEnabled = true,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -581,6 +603,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "missedKickSound",
   "aggroAlertEnabled",
   "aggroAlertSound",
+  "liveRunKicksEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",

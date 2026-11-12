@@ -71,6 +71,7 @@ SettingsSearch.CONTROL_TAGS = {
   missedKickSound = { "interrupt", "kick", "sound" },
   aggroAlertEnabled = { "aggro", "threat", "alert" },
   aggroAlertSound = { "aggro", "threat", "sound" },
+  liveRunKicksEnabled = { "interrupt", "kick", "tooltip" },
   lfgFlags = { "lfg", "group finder", "flag", "language" },
   lfgGroupBonuses = { "lfg", "group finder", "buff" },
   tooltipFlags = { "tooltip", "flag", "language" },

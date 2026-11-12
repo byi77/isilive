@@ -899,6 +899,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_factory_minimap.lua",
     "isiLive_edit_mode.lua",
     "isiLive_factory_edit_mode.lua",
+    "isiLive_factory_live_kicks.lua",
     "isiLive_factory.lua",
   }
 end

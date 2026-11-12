@@ -75,3 +75,14 @@ function FactoryEditMode.Install(ctx)
     end,
   })
 end
+
+--- Features installed after every window exists: the Edit Mode integration
+--- (ctx.editModeController) and the live kicks between pulls (rule 245,
+--- ctx.liveKicksFrame, factory/isiLive_factory_live_kicks.lua).
+function FactoryEditMode.InstallLate(ctx)
+  ctx.editModeController = FactoryEditMode.Install(ctx)
+  local liveKicks = addonTable.FactoryLiveKicks
+  if type(liveKicks) == "table" and type(liveKicks.Install) == "function" then
+    ctx.liveKicksFrame = liveKicks.Install(ctx)
+  end
+end

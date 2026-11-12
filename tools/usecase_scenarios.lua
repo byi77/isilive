@@ -30,6 +30,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_ui_show_hide_motion.lua",
   "testmodul/isilive_test_scenarios_aggro_alert.lua",
   "testmodul/isilive_test_scenarios_card_stack.lua",
+  "testmodul/isilive_test_scenarios_live_kicks.lua",
   "testmodul/isilive_test_scenarios_edit_mode.lua",
   "testmodul/isilive_test_scenarios_ui_fonts.lua",
   "testmodul/isilive_test_scenarios_stats_box.lua",
