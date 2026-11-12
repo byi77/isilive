@@ -69,6 +69,26 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 --   trackedFromStart: run began with CHALLENGE_MODE_START in this session
 --   seeded: the first resolved boss list has been seen
 --   learnable: no boss was already dead when tracking began
+---@class IsiLiveTimePaceRun
+---@field trackedFromStart boolean
+---@field seasonID number|nil
+---@field mapID number|nil
+---@field keyLevel number|nil
+---@field seeded boolean
+---@field learnable boolean
+---@field progress number
+---@field sampleProgress number
+---@field kills number
+---@field times number[]
+---@field samples number[]
+---@field recentMark number
+---@field recentTimes number[]
+---@field recentSamples number[]
+
+-- Typed non-optional on purpose: an optional type would flag every field read
+-- in the sample helpers, which only run while a run exists. The two resets
+-- that clear it suppress the resulting cast warning on their own line.
+---@type IsiLiveTimePaceRun
 local run = nil
 
 local function IsPositiveInteger(value)
@@ -134,6 +154,7 @@ local function ReadTimer()
   return data
 end
 
+---@return IsiLiveTimePaceRun
 local function NewRun(trackedFromStart)
   return {
     trackedFromStart = trackedFromStart == true,
@@ -242,7 +263,7 @@ end
 
 -- Drops the current run without learning (CHALLENGE_MODE_RESET).
 function TimePace.DiscardRun()
-  run = nil
+  run = nil ---@diagnostic disable-line: cast-local-type
   ClearPause()
 end
 
@@ -388,7 +409,7 @@ end
 -- when the run was stored.
 function TimePace.CommitRun()
   local finished = run
-  run = nil
+  run = nil ---@diagnostic disable-line: cast-local-type
   ClearPause()
   if type(finished) ~= "table" or not finished.trackedFromStart or not finished.learnable or not finished.seeded then
     return false
