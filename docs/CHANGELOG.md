@@ -3634,7 +3634,7 @@ identical.
   request is dispatched before the visible own-key group chat line, preventing
   the local chat post from getting ahead of peer cooldown/reply coordination.
 - Documented the live-log diagnosis: receiver handling was already healthy
-  when Bircan triggered the share, while the failing local/Aby clicks only
+  when another peer triggered the share, while the failing local clicks only
   proved local dispatch acceptance and own chat output, with no observed
   `SHAREKEYS` self-echo or peer reply in the captured logs.
 - Added button-level Share Keys trace output and deterministic coverage for the
@@ -4146,7 +4146,7 @@ deterministic Unicode coverage for Share Keys sender handling.
 ### Share Keys
 
 - Added regression coverage proving `SHAREKEYS` requests from UTF-8 sender names
-  such as `Kürshad-Blackmoore` and Cyrillic `Name-Realm` pairs trigger the same
+  such as `Körvash-Blackmoore` and Cyrillic `Name-Realm` pairs trigger the same
   response path as ASCII senders.
 - Added matching self-echo coverage so non-ASCII local player names still
   suppress their own echoed `SHAREKEYS` payload without guessing aliases.
@@ -7184,7 +7184,7 @@ Switching specs (e.g. Druid Balance → Guardian, Death Knight Unholy → Blood)
 
 ### Role-marker click home-realm strip
 
-Clicking the tank/healer role icon on your own row produced "Das könnt Ihr im Moment nicht tun" when no other unit was targeted, and silently marked the previously-selected unit when one was. Repro: solo Tank on home realm, click own row's role icon — the macro `/target Pinto-Twisting Nether\n/tm 6\n/targetlasttarget` fails to acquire Pinto because `/target` cannot resolve a local-realm unit when the realm suffix is included.
+Clicking the tank/healer role icon on your own row produced "Das könnt Ihr im Moment nicht tun" when no other unit was targeted, and silently marked the previously-selected unit when one was. Repro: solo Tank on home realm, click own row's role icon — the macro `/target Pella-Twisting Nether\n/tm 6\n/targetlasttarget` fails to acquire Pella because `/target` cannot resolve a local-realm unit when the realm suffix is included.
 
 - **Root cause**: [game/isiLive_units.lua](../game/isiLive_units.lua) fills `info.realm` with `GetRealmName()` for the local player when `UnitFullName` returns a blank realm — needed for sync-key stability — but that string then leaked into the role-marker `/target` macro via the shared `BuildQualifiedName` helper. WoW's `/target` slash command does not acquire local-realm units when the realm suffix is present, especially when the realm name contains spaces ("Twisting Nether").
 - **New helper** `StringUtils.BuildSlashTargetName(name, realm, homeRealm?)` ([core/isiLive_string_utils.lua](../core/isiLive_string_utils.lua)) — strips the realm suffix when it matches the home realm, falling back to the WoW global `GetRealmName()` when no `homeRealm` arg is passed so callers don't have to thread it through.

@@ -123,13 +123,13 @@ return function(test, ctx)
   test("StringUtils.BuildSlashTargetName strips realm suffix when it matches the home realm", function()
     local addon = LoadAddonModules({ "isiLive_string_utils.lua" })
     Assert.Equal(
-      addon.StringUtils.BuildSlashTargetName("Pinto", "Stormrage", "Stormrage"),
-      "Pinto",
+      addon.StringUtils.BuildSlashTargetName("Pella", "Stormrage", "Stormrage"),
+      "Pella",
       "matching home realm must drop the suffix so /target acquires the local-realm unit"
     )
     Assert.Equal(
-      addon.StringUtils.BuildSlashTargetName("Pinto", "Twisting Nether", "Twisting Nether"),
-      "Pinto",
+      addon.StringUtils.BuildSlashTargetName("Pella", "Twisting Nether", "Twisting Nether"),
+      "Pella",
       "matching home realm with a space must still strip cleanly"
     )
   end)
@@ -164,8 +164,8 @@ return function(test, ctx)
       return "Stormrage"
     end)
     Assert.Equal(
-      addon.StringUtils.BuildSlashTargetName("Pinto", "Stormrage"),
-      "Pinto",
+      addon.StringUtils.BuildSlashTargetName("Pella", "Stormrage"),
+      "Pella",
       "must consult GetRealmName when caller does not pass homeRealm explicitly"
     )
     Assert.Equal(

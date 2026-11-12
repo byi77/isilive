@@ -62,8 +62,8 @@ end
 
 --- Builds a slash-target form (`name` or `name-realm`) for use in macros like
 --- `/target` and `/whisper`. Strips the realm suffix when it matches the local
---- player's home realm — `/target Pinto-Twisting Nether` does not acquire the
---- local-realm Pinto, but `/target Pinto` does. The home realm is resolved via
+--- player's home realm — `/target Pella-Twisting Nether` does not acquire the
+--- local-realm Pella, but `/target Pella` does. The home realm is resolved via
 --- the optional `homeRealm` arg, falling back to the WoW global `GetRealmName()`
 --- so callers don't have to thread it through.
 --- @param name string|nil

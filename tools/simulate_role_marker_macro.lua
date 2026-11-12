@@ -658,9 +658,9 @@ Harness.WithGlobals({
   -- ----------------------------------------------------------------------
   -- Scenario 6b: home-realm strip. Units.GetUnitNameAndRealm fills realm with
   -- GetRealmName() for the local player when UnitFullName returns blank, so
-  -- info.realm always carries the home realm string. /target Pinto-Stormrage
-  -- (or worse, /target Pinto-Twisting Nether with a space) does NOT acquire
-  -- the local-realm Pinto, but /target Pinto does. The macro builder must
+  -- info.realm always carries the home realm string. /target Pella-Stormrage
+  -- (or worse, /target Pella-Twisting Nether with a space) does NOT acquire
+  -- the local-realm Pella, but /target Pella does. The macro builder must
   -- strip the realm suffix when info.realm matches GetRealmName().
   -- ----------------------------------------------------------------------
   print("\n========== Scenario 6b: home-realm matches => strip realm suffix ==========")
@@ -668,15 +668,15 @@ Harness.WithGlobals({
     local memberRows = BuildMemberRows()
     local state, markButton = BuildState(memberRows, addon)
     RI.RenderRosterImpl(state, {
-      player = { name = "Pinto", realm = "Stormrage", class = "WARRIOR", role = "TANK" },
+      player = { name = "Pella", realm = "Stormrage", class = "WARRIOR", role = "TANK" },
       party1 = { name = "Cross", realm = "Tichondrius", class = "PRIEST", role = "HEALER" },
     })
     Check(
-      markButton:GetAttribute("macrotext1") == Macro({ { "Pinto", 6 }, { "Cross-Tichondrius", 4 } }),
+      markButton:GetAttribute("macrotext1") == Macro({ { "Pella", 6 }, { "Cross-Tichondrius", 4 } }),
       "home-realm tank drops '-Stormrage', cross-realm healer keeps '-Tichondrius'"
     )
     Check(
-      markButton:GetAttribute("macrotext2") == Macro({ { "Pinto", 0 }, { "Cross-Tichondrius", 0 } }),
+      markButton:GetAttribute("macrotext2") == Macro({ { "Pella", 0 }, { "Cross-Tichondrius", 0 } }),
       "the clear macro uses the same stripped names"
     )
   end

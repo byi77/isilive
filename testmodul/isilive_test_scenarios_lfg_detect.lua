@@ -974,7 +974,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [42] = { activityID = 514, name = "+12 Relaxed", leaderName = "Pinto-Realm" },
+          [42] = { activityID = 514, name = "+12 Relaxed", leaderName = "Pella-Realm" },
         }, nil),
       },
     })
@@ -997,7 +997,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       )
       Assert.Equal(
         addon.LFGDetect.GetActiveInviteLeader(),
-        "Pinto-Realm",
+        "Pella-Realm",
         "delisting of the accepted listing after join must not null out activeInviteLeader"
       )
       Assert.Equal(
@@ -1222,20 +1222,20 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     "LFGDetect PARTY_LEADER_CHANGED after the roster update keeps the identity while the listing leader leads",
     function()
       local cases = {
-        { label = "cross-realm leader", listing = "Sagehd-Ravencrest", name = "Sagehd", realm = "Ravencrest" },
-        { label = "realm with a space", listing = "Sagehd-ArgentDawn", name = "Sagehd", realm = "Argent Dawn" },
+        { label = "cross-realm leader", listing = "Sylvan-Ravencrest", name = "Sylvan", realm = "Ravencrest" },
+        { label = "realm with a space", listing = "Sylvan-ArgentDawn", name = "Sylvan", realm = "Argent Dawn" },
         {
           label = "same-realm listing",
-          listing = "Sagehd",
-          name = "Sagehd",
+          listing = "Sylvan",
+          name = "Sylvan",
           realm = "Ravencrest",
           localRealm = "Ravencrest",
         },
-        { label = "bare listing and bare leader", listing = "Sagehd", name = "Sagehd" },
+        { label = "bare listing and bare leader", listing = "Sylvan", name = "Sylvan" },
         {
           label = "listing realm equals the local realm of a bare leader",
-          listing = "Sagehd-ArgentDawn",
-          name = "Sagehd",
+          listing = "Sylvan-ArgentDawn",
+          name = "Sylvan",
           localRealm = "Argent Dawn",
         },
       }
@@ -1272,17 +1272,17 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect PARTY_LEADER_CHANGED after the roster update clears the identity for a different leader", function()
     local cases = {
       { label = "other player", unit = "party2", name = "Newlead", realm = "Ravencrest" },
-      { label = "same name, other realm", unit = "party1", name = "Sagehd", realm = "Blackrock" },
+      { label = "same name, other realm", unit = "party1", name = "Sylvan", realm = "Blackrock" },
       { label = "player took the lead", unit = "player", name = "Isiplayer", realm = "Blackrock" },
-      { label = "same name on the local realm", unit = "party2", name = "Sagehd", localRealm = "Blackrock" },
-      { label = "same name, local realm unknown", unit = "party2", name = "Sagehd" },
+      { label = "same name on the local realm", unit = "party2", name = "Sylvan", localRealm = "Blackrock" },
+      { label = "same name, local realm unknown", unit = "party2", name = "Sylvan" },
     }
     for _, case in ipairs(cases) do
       local globals, fire = BuildLFGDetectEnv({
         IsInGroup = function()
           return true
         end,
-        globals = BuildLeaderGlobals(case.unit, case.name, case.realm, "Sagehd-Ravencrest", case.localRealm),
+        globals = BuildLeaderGlobals(case.unit, case.name, case.realm, "Sylvan-Ravencrest", case.localRealm),
       })
       WithGlobals(globals, function()
         local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
@@ -1312,7 +1312,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
           IsInGroup = function()
             return true
           end,
-          globals = BuildLeaderGlobals("party2", "Sagehd", case.realm, "Sagehd", case.localRealm),
+          globals = BuildLeaderGlobals("party2", "Sylvan", case.realm, "Sylvan", case.localRealm),
         })
         WithGlobals(globals, function()
           local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
@@ -1331,7 +1331,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect relisting on another dungeon drops the accepted listing identity", function()
     local activeEntry = nil
     local lfgList = BuildC_LFGList({
-      [778] = { activityID = 514, name = "+15 go", leaderName = "Sagehd" },
+      [778] = { activityID = 514, name = "+15 go", leaderName = "Sylvan" },
     }, nil)
     lfgList.GetActiveEntryInfo = function()
       return activeEntry
@@ -1349,11 +1349,11 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       fire("GROUP_ROSTER_UPDATE")
       Assert.Equal(addon.LFGDetect.GetActiveInviteTitleLevel(), 15, "setup: the accept captures the title level")
 
-      activeEntry = { activityID = 514, name = "+15 go", leaderName = "Sagehd" }
+      activeEntry = { activityID = 514, name = "+15 go", leaderName = "Sylvan" }
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
       Assert.Equal(addon.LFGDetect.GetActiveInviteTitleLevel(), 15, "the same dungeon keeps the listing identity")
 
-      activeEntry = { activityID = 504, name = "+15 go", leaderName = "Sagehd" }
+      activeEntry = { activityID = 504, name = "+15 go", leaderName = "Sylvan" }
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 250, "the relisted dungeon must become the target")
       Assert.Nil(addon.LFGDetect.GetActiveInviteTitleLevel(), "the old title level must not move to the new dungeon")

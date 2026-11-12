@@ -72,9 +72,7 @@ Vor jedem Release-Tag gilt zusaetzlich: erst `main` pushen, dann den gruenen `Lu
 ## 2.1) Agenten-Delegation
 
 Wenn Hilfsagenten fuer Recherche, Review, Tests oder kleine Patches genutzt
-werden, gilt zusaetzlich `docs/AGENTEN_WORKFLOW.md`.
-
-Kurzfassung:
+werden, gelten diese Regeln:
 - Agenten bleiben strikt dirigiert und arbeiten nur in klar begrenzten
   Aufgaben.
 - Keine Agentenaufgabe darf den No-Guess-Vertrag aufweichen.
@@ -785,7 +783,7 @@ beschriebenen eindeutigen Assertions ab.
 
 ## Sechsfach-Audit und anschliessende Korrekturen (2026-10-05)
 
-`docs/SIX_LOOP_AUDIT_2026-10-05.md` dokumentiert sechs vollstaendige Testlaeufe
+Ein internes Audit dokumentiert sechs vollstaendige Testlaeufe
 auf 0.9.413 sowie zwei durch gezielte Zusatzproben nachgewiesene Luecken.
 Die anschliessend ergaenzten Regressionen scheitern am bisherigen Code mit
 100.000 Byte-Formatierungen bei ausgeschaltetem Logging beziehungsweise

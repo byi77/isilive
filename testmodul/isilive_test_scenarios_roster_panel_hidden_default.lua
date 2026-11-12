@@ -42,9 +42,9 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
 
       local roster = {
         player = { name = "Player", role = "DAMAGER" },
-        party1 = { name = "Bircan", role = "DAMAGER" },
-        party2 = { name = "Zidane", role = "DAMAGER" },
-        party3 = { name = "Kurshad", role = "DAMAGER" },
+        party1 = { name = "Brimor", role = "DAMAGER" },
+        party2 = { name = "Zorvan", role = "DAMAGER" },
+        party3 = { name = "Korvash", role = "DAMAGER" },
         ["ghost:OldTank-Realm"] = { name = "OldTank", role = "TANK", isGhost = true },
         ["ghost:OldHeal-Realm"] = { name = "OldHeal", role = "HEALER", isGhost = true },
       }
@@ -99,9 +99,9 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
 
       Assert.Equal(#visibleRowNames, 5, "roster should still render only five visible rows")
       Assert.True(visibleRowNames[1]:find("Player", 1, true) ~= nil, "player should stay visible before ghosts")
-      Assert.True(visibleRowNames[2]:find("Bircan", 1, true) ~= nil, "first active party member should stay visible")
-      Assert.True(visibleRowNames[3]:find("Zidane", 1, true) ~= nil, "second active party member should stay visible")
-      Assert.True(visibleRowNames[4]:find("Kurshad", 1, true) ~= nil, "active members must not be pushed out by ghosts")
+      Assert.True(visibleRowNames[2]:find("Brimor", 1, true) ~= nil, "first active party member should stay visible")
+      Assert.True(visibleRowNames[3]:find("Zorvan", 1, true) ~= nil, "second active party member should stay visible")
+      Assert.True(visibleRowNames[4]:find("Korvash", 1, true) ~= nil, "active members must not be pushed out by ghosts")
       Assert.True(
         visibleRowNames[5]:find("OldTank", 1, true) ~= nil,
         "a persisted ghost may consume only leftover row budget"

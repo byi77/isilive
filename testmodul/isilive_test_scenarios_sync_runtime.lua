@@ -107,11 +107,11 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
         table.insert(lines, builder())
       end)
 
-      addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:17:123:hello", "Kürshad-Blackmoore", "Me", "Realm")
+      addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:17:123:hello", "Körvash-Blackmoore", "Me", "Realm")
 
       local sawPayload = false
-      local expectedPayload = "[SYNC] message_payload sender=Kürshad-Blackmoore"
-        .. " senderBytes=4B-C3-BC-72-73-68-61-64-2D-42-6C-61-63-6B-6D-6F-6F-72-65"
+      local expectedPayload = "[SYNC] message_payload sender=Körvash-Blackmoore"
+        .. " senderBytes=4B-C3-B6-72-76-61-73-68-2D-42-6C-61-63-6B-6D-6F-6F-72-65"
         .. " bucket=KEY raw=KEY:2649:17:123:hello"
       for _, line in ipairs(lines) do
         if line == expectedPayload then

@@ -65,6 +65,12 @@ tools/cache/
 TODO.md
 AGENTS.md
 CLAUDE.md
+# Internal docs — hardlinked from isilive-workspace/isilive-project-private
+docs/AGENTEN_WORKFLOW.md
+docs/AUDIT_RUNDE_5.md
+docs/AUDIT_RUNDE_6.md
+docs/SIX_LOOP_AUDIT_2026-10-05.md
+docs/UI_MODERNISIERUNG_TODO.md
 
 # wowsim output (tools/wowsim/wowsim.lua)
 tools/wowsim/out/

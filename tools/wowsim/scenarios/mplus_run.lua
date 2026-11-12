@@ -6,7 +6,7 @@
 --   Isiplayer  (focus client, Fire Mage)         - isiLive, simulated
 --   Velindra   (Restoration Druid, healer)       - isiLive, simulated (2nd client,
 --              so BR / sync travel as real addon-message bytes)
---   Zidane     (Elemental Shaman)                - isiLive, simulated (casts Bloodlust)
+--   Zorvan     (Elemental Shaman)                - isiLive, simulated (casts Bloodlust)
 --   Stormbreaker (Protection Warrior, tank)      - LibKeystone only (e.g. RaiderIO)
 --   Ravencast  (Shadow Priest)                   - no addon
 local KR = 249 -- King's Rest
@@ -49,7 +49,7 @@ return {
         simulate = true,
       },
       {
-        name = "Zidane",
+        name = "Zorvan",
         realm = "Thrall",
         class = "SHAMAN",
         specID = 262,
@@ -75,7 +75,7 @@ return {
     sim.Login()
     sim.Step("Login (solo)")
 
-    sim.JoinGroup("Stormbreaker", "Velindra", "Zidane", "Ravencast")
+    sim.JoinGroup("Stormbreaker", "Velindra", "Zorvan", "Ravencast")
     sim.Wait(1)
     sim.Step("Group formed")
     sim.Wait(8)
@@ -83,7 +83,7 @@ return {
     sim.ExpectText("Stormbreaker", "tank listed in roster")
     sim.ExpectText("Velindra", "healer listed in roster")
 
-    sim.ReadyCheck("Isiplayer", { Stormbreaker = true, Velindra = true, Zidane = true, Ravencast = true })
+    sim.ReadyCheck("Isiplayer", { Stormbreaker = true, Velindra = true, Zorvan = true, Ravencast = true })
     sim.Wait(1)
     sim.Step("Ready check")
     sim.FinishReadyCheck()
@@ -102,10 +102,10 @@ return {
     sim.Wait(5)
     sim.Cast("Isiplayer", 2139) -- Counterspell
     sim.Wait(1)
-    sim.Cast("Zidane", 57994) -- Wind Shear
+    sim.Cast("Zorvan", 57994) -- Wind Shear
     sim.Wait(1)
     sim.Step("First pull: kicks")
-    sim.Cast("Zidane", 2825) -- Bloodlust
+    sim.Cast("Zorvan", 2825) -- Bloodlust
     sim.Wait(2)
     sim.Step("Bloodlust")
     sim.KillForces(85)

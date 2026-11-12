@@ -433,7 +433,7 @@ local function RegisterKeySyncPresenceTests(test, Assert, WithGlobals, LoadAddon
   end)
 
   test("KeySync ResolveActiveKeyOwnerUnit refuses a non-player lone match in a multi-member group", function()
-    -- Real-world case: Pinto accepts "+13 Relaxed Grube von Saron" (POS).
+    -- Real-world case: Pella accepts "+13 Relaxed Grube von Saron" (POS).
     -- Listing owner Larilan holds POS +13 but his key has not synced yet.
     -- Vladax (another member) happens to have his own POS +14 key, which
     -- LibKeystone-style cross-addon mirroring makes locally visible. Without
@@ -443,7 +443,7 @@ local function RegisterKeySyncPresenceTests(test, Assert, WithGlobals, LoadAddon
     local sync = BuildMockSync()
     local ctrl = BuildController(LoadAddonModules, sync)
     local roster = {
-      player = { name = "Pinto", realm = "R", keyMapID = 247, keyLevel = 15 },
+      player = { name = "Pella", realm = "R", keyMapID = 247, keyLevel = 15 },
       party1 = { name = "Larilan", realm = "R", keyMapID = nil, keyLevel = nil },
       party2 = { name = "Vladax", realm = "R", keyMapID = 200, keyLevel = 14 },
       party3 = { name = "P3", realm = "R", keyMapID = nil, keyLevel = nil },
@@ -1371,7 +1371,7 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
     sync.SetPlayerKeyInfo("Kørshad-Blackmoore", nil, 239, 17)
 
     local roster = {
-      party1 = { name = "Kürshad", realm = "Blackmoore" },
+      party1 = { name = "Körvash", realm = "Blackmoore" },
     }
 
     local info = roster.party1

@@ -101,19 +101,19 @@ return function(test, ctx)
   test("BuildDeathSummaryTooltipLines sorts tracked Mythic+ deaths by player name", function()
     local RI = LoadAddonModules({ "isiLive_roster_panel.lua" })._RosterInternal
     local lines = RI.BuildDeathSummaryTooltipLines({
-      { name = "Pinto", count = 5 },
+      { name = "Pella", count = 5 },
       { name = "Abi", count = 3 },
-      { name = "Bircan", count = 6 },
+      { name = "Brimor", count = 6 },
       { name = "Ignored", count = 0 },
     })
 
     Assert.Equal(#lines, 3, "zero-count entries must not render")
     Assert.Equal(lines[1].name, "Abi", "death tooltip should sort alphabetically by player")
     Assert.Equal(lines[1].count, 3, "Abi count")
-    Assert.Equal(lines[2].name, "Bircan", "second player")
-    Assert.Equal(lines[2].count, 6, "Bircan count")
-    Assert.Equal(lines[3].name, "Pinto", "third player")
-    Assert.Equal(lines[3].count, 5, "Pinto count")
+    Assert.Equal(lines[2].name, "Brimor", "second player")
+    Assert.Equal(lines[2].count, 6, "Brimor count")
+    Assert.Equal(lines[3].name, "Pella", "third player")
+    Assert.Equal(lines[3].count, 5, "Pella count")
   end)
 
   test("BuildDeathTimeLostTooltipLine moves death penalty into the skull tooltip", function()

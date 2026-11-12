@@ -2145,7 +2145,7 @@ return function(test, ctx)
   )
 
   test("LI.ApplyApplicantFlagToMemberFrame renders applicant language flag beside the name", function()
-    local applicantName = "Natire-Aegwynn"
+    local applicantName = "Nerith-Aegwynn"
     local globals = BonusGlobals({
       C_LFGList = {
         GetApplicantMemberInfo = function()
@@ -2199,7 +2199,7 @@ return function(test, ctx)
     local globals = BonusGlobals({
       C_LFGList = {
         GetApplicantMemberInfo = function()
-          return "Natire-Aegwynn",
+          return "Nerith-Aegwynn",
             "PALADIN",
             "Paladin",
             80,

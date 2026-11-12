@@ -341,9 +341,9 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
       local umlautResult =
-        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Kürshad-Blackmoore", "Pinto", "Malfurion")
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Körvash-Blackmoore", "Pella", "Malfurion")
       local cyrillicResult =
-        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Кирилл-Гордунни", "Pinto", "Malfurion")
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Кирилл-Гордунни", "Pella", "Malfurion")
 
       Assert.NotNil(umlautResult, "UTF-8 umlaut SHAREKEYS sender must return a result")
       Assert.True(umlautResult.shouldShareKeys, "UTF-8 umlaut sender must trigger share-keys response")
@@ -371,7 +371,7 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
       local umlautResult =
-        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Kürshad-Blackmoore", "Kürshad", "Blackmoore")
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Körvash-Blackmoore", "Körvash", "Blackmoore")
       local cyrillicResult = addon.Sync.ProcessAddonMessage(
         "ISILIVE",
         "SHAREKEYS",

@@ -19,8 +19,8 @@
 local KINGS_REST_MAP_ID = 249
 local KINGS_REST_ACTIVITY_ID = 514
 local KINGS_REST_PORTAL_SPELL_ID = 1286831
-local LISTING_LEADER = "Sagehd-Ravencrest"
-local PARTY_NAMES = { "Sagehd", "Tankone", "Healone", "Dpsone" }
+local LISTING_LEADER = "Sylvan-Ravencrest"
+local PARTY_NAMES = { "Sylvan", "Tankone", "Healone", "Dpsone" }
 
 local function InstallLfgList(sim, status)
   local lfgList = sim.Env().C_LFGList
@@ -139,7 +139,7 @@ return {
         rating = 3310,
         key = { mapID = 584, level = 13 },
       },
-      { name = "Sagehd", realm = "Ravencrest", class = "HUNTER", specID = 253, role = "DAMAGER", addon = "none" },
+      { name = "Sylvan", realm = "Ravencrest", class = "HUNTER", specID = 253, role = "DAMAGER", addon = "none" },
       { name = "Tankone", class = "WARRIOR", specID = 73, role = "TANK", addon = "none" },
       { name = "Healone", class = "PRIEST", specID = 257, role = "HEALER", addon = "none" },
       { name = "Dpsone", class = "MAGE", specID = 63, role = "DAMAGER", addon = "none" },
@@ -150,7 +150,7 @@ return {
     sim.Slash("/il log on")
     -- The listing leader leads the group the player joins. Set while solo,
     -- before any LFG state exists.
-    sim.SetLeader("Sagehd")
+    sim.SetLeader("Sylvan")
     sim.Wait(2)
 
     RunInviteCycle(sim, "Parallel applications", { 101, 102, 103 }, 102, false)

@@ -1370,7 +1370,7 @@ return function(test, ctx)
       local show = addon._FactoryInternal.ShowJoinedTargetNotice
       addon.LFGDetect = {
         GetActiveInviteLeader = function()
-          return "Bircan-Rexxar"
+          return "Brimor-Rexxar"
         end,
         GetActiveInviteGroupName = function()
           return "+10"
@@ -1412,7 +1412,7 @@ return function(test, ctx)
       Assert.Equal(call.showOptions.fields[2].value, "+10", "raw LFG title must still be visible")
       Assert.Equal(
         call.showOptions.fields[3].value,
-        "Bircan-Rexxar",
+        "Brimor-Rexxar",
         "leader row must still render after the title row"
       )
     end

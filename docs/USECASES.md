@@ -65,7 +65,8 @@ Nameplate-Pooling, Wipe und Completion ueber echte Factory-/Frame-Dispatcher.
 Phasenbudgets begrenzen geschuetzte Aufrufe, Frame-Erzeugungen, Render- und
 API-Arbeit; normale Laeufe pruefen zusaetzlich Retained-Heap nach GC.
 Usecases und beide CI-Einstiege nutzen denselben Runner. Umfang, Baseline,
-Grenzen und Findings: `docs/AUDIT_RUNDE_5.md`. Ingame-Messungen bleiben offen.
+Grenzen und Findings sind in den internen Audit-Notizen dokumentiert.
+Ingame-Messungen bleiben offen.
 
 Audit-Runde 4, D5/E6/E8 (0.9.426): `ExitTestMode` kehrt bei
 Kampf-Lockdown vor jedem State- oder UI-Callback zurueck; Demo-Flags, Roster,

@@ -36,7 +36,7 @@ local NAVIGATOR = {
 }
 
 local TARGET_ANNOUNCE = { enUS = "Target Dungeon: ", deDE = "Ziel%-Dungeon: " }
-local PARTY_NAMES = { "Sagehd", "Tankone", "Healone", "Dpsone" }
+local PARTY_NAMES = { "Sylvan", "Tankone", "Healone", "Dpsone" }
 
 local function Locale(sim)
   local tag = sim.Env().GetLocale()
@@ -113,7 +113,7 @@ local function InstallLfgList(sim, dungeon, locale, status)
     return {
       searchResultID = searchResultID,
       activityIDs = { dungeon.activityID },
-      leaderName = "Sagehd-Ravencrest",
+      leaderName = "Sylvan-Ravencrest",
       name = "|Kt635|k",
       numMembers = 4,
     }
@@ -226,7 +226,7 @@ return {
     locale = "deDE",
     party = {
       { name = "Isiplayer", class = "MAGE", specID = 63, role = "DAMAGER", ilvl = 330, rating = 3310 },
-      { name = "Sagehd", realm = "Ravencrest", class = "HUNTER", specID = 253, role = "DAMAGER", addon = "none" },
+      { name = "Sylvan", realm = "Ravencrest", class = "HUNTER", specID = 253, role = "DAMAGER", addon = "none" },
       { name = "Tankone", class = "WARRIOR", specID = 73, role = "TANK", addon = "none" },
       { name = "Healone", class = "PRIEST", specID = 257, role = "HEALER", addon = "none" },
       { name = "Dpsone", class = "MAGE", specID = 63, role = "DAMAGER", addon = "none" },
@@ -240,7 +240,7 @@ return {
     end
     sim.Login()
     sim.Slash("/il log on")
-    sim.SetLeader("Sagehd")
+    sim.SetLeader("Sylvan")
     sim.Fire("SPELLS_CHANGED")
     sim.Wait(3)
     local locale = Locale(sim)
