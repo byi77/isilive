@@ -1027,6 +1027,10 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       MarkReadyCheckInitiatorReady(ctx, initiatorName)
       LogReadyCheckTrace(ctx, "READY_CHECK", nil, nil, string.format("reset=1 initiator=%s", tostring(initiatorName)))
       RefreshReadyCheckUI(ctx)
+      local probe = ActiveProbe()
+      if probe then
+        probe.OnReadyCheck()
+      end
     end,
     READY_CHECK_CONFIRM = function(_self, unit, status)
       if IsRaidModeActive(ctx) then

@@ -97,8 +97,37 @@ local function Prepare(opts)
     end
     globals.UnitThreatSituation = function(_, unit)
       session.calls.threat = session.calls.threat + 1
+      if unit == nil then
+        return session.selfThreat
+      end
       local plate = session.plates[unit]
       return plate and plate.threat or nil
+    end
+    -- Own buffs and weapon enchants for the ready-check probe (K4).
+    session.auras = {}
+    session.weapon = { false, nil, 0, nil, false, nil, 0, nil }
+    globals.C_UnitAuras = globals.C_UnitAuras or {}
+    globals.C_UnitAuras.GetAuraDataByIndex = function(unit, index, filter)
+      session.calls.auras = (session.calls.auras or 0) + 1
+      if unit ~= "player" or filter ~= "HELPFUL" then
+        return nil
+      end
+      return session.auras[index]
+    end
+    globals.C_UnitAuras.GetPlayerAuraBySpellID = function(spellId)
+      for _, aura in ipairs(session.auras) do
+        if type(aura) == "table" and aura.spellId == spellId then
+          return aura
+        end
+      end
+      return nil
+    end
+    globals.GetWeaponEnchantInfo = function()
+      session.calls.weapon = (session.calls.weapon or 0) + 1
+      return unpack(session.weapon, 1, 8)
+    end
+    globals.InCombatLockdown = function()
+      return session.combat == true
     end
   end
 end
@@ -152,12 +181,15 @@ return function(test, ctx)
       session.Advance(3)
       EndPull(session)
       session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 2)
+      session.Dispatch("READY_CHECK", "Tester")
       session.active = false
       session.Dispatch("CHALLENGE_MODE_COMPLETED")
       session.Advance(10)
       local _, total = ProbeLines(session)
       Assert.Equal(total, 0, "probe mode off writes no [PROBE] line")
       Assert.Equal(session.calls.threat, 0, "probe mode off never reads threat")
+      Assert.Equal(session.calls.auras or 0, 0, "probe mode off never reads own auras")
+      Assert.Equal(session.calls.weapon or 0, 0, "probe mode off never reads weapon enchants")
       Assert.False(session.globals.IsiLiveDB.probeLogEnabled, "the switch stays off (Pattern B)")
     end, Prepare({ probe = false }))
   end)
@@ -265,6 +297,7 @@ return function(test, ctx)
       session.plates.nameplate2 = { hostile = true, threat = 0 }
       session.plates.nameplate3 = { hostile = secret, threat = secret }
       session.plates.nameplate4 = { hostile = false, threat = 1 }
+      session.selfThreat = 2
       Pull(session)
       session.Advance(1)
       Assert.Equal(select(2, ProbeLines(session, "event=threat")), 0, "the sample waits two seconds")
@@ -273,12 +306,76 @@ return function(test, ctx)
       Assert.NotNil(line, "one threat line per pull")
       Assert.NotNil(
         tostring(line):find(
-          "inKey=yes plates=4 hostile=2 hostileSecret=1 threat0=1 threat1=0 threat2=0 threat3=1 "
+          "inKey=yes self=2 plates=4 hostile=2 hostileSecret=1 threat0=1 threat1=0 threat2=0 threat3=1 "
             .. "threatNil=0 threatSecret=1 threatOther=0",
           1,
           true
         ),
         "hostile plates and secret answers are counted: " .. tostring(line)
+      )
+    end, function(globals, session)
+      Prepare()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe mode logs the one-argument own threat as secret without converting it", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.selfThreat = secret
+      Pull(session)
+      session.Advance(2.5)
+      local line = FindLine(ProbeLines(session, "event=threat"), "event=threat")
+      Assert.NotNil(line, "one threat line per pull")
+      Assert.NotNil(tostring(line):find("self=secret plates=0", 1, true), "a masked own threat: " .. tostring(line))
+    end, function(globals, session)
+      Prepare()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe mode logs own buff and weapon enchant readability on a ready check", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.auras = {
+        { spellId = 1234, expirationTime = 100 },
+        { spellId = secret, expirationTime = secret },
+        secret,
+      }
+      session.weapon = { true, 3600000, 0, 7495, false, nil, 0, nil }
+      session.Dispatch("READY_CHECK", "Tester")
+      local line = FindLine(ProbeLines(session, "event=ready_check"), "event=ready_check")
+      Assert.NotNil(line, "one line per ready check")
+      Assert.NotNil(
+        tostring(line):find(
+          "inKey=yes inInstance=true inCombat=no auras=3 auraSecret=1 spellIdSecret=1 expirationSecret=1 "
+            .. "auraErrors=0 bySpellID=readable mh=yes mhMin=60 mhEnchant=7495 oh=no ohMin=nil ohEnchant=nil",
+          1,
+          true
+        ),
+        "buffs, masked fields and weapon slots are described: " .. tostring(line)
+      )
+
+      session.auras = {}
+      session.weapon = { secret, secret, 0, secret, false, nil, 0, nil }
+      session.Dispatch("READY_CHECK", "Tester")
+      local lines = ProbeLines(session, "event=ready_check")
+      local last = tostring(lines[#lines])
+      Assert.NotNil(
+        last:find(
+          "auras=0 auraSecret=0 spellIdSecret=0 expirationSecret=0 auraErrors=0 bySpellID=no_candidate",
+          1,
+          true
+        ),
+        "no buffs leave nothing to look up: " .. last
+      )
+      Assert.NotNil(
+        last:find("mh=secret mhMin=secret mhEnchant=secret", 1, true),
+        "a masked weapon slot is written as secret: " .. last
       )
     end, function(globals, session)
       Prepare()(globals, session)

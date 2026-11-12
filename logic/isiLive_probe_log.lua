@@ -42,6 +42,8 @@ local LIMITS = {
   chatLockdownLinesPerRun = 40,
   meterSourcesShown = 8,
   nameplates = 40,
+  readyChecksPerRun = 20,
+  playerAuras = 40,
 }
 ProbeLog.LIMITS = LIMITS
 
@@ -66,6 +68,7 @@ local function NewRunState()
     kicks = 0,
     restrictionLines = 0,
     chatLockdownLines = 0,
+    readyChecks = 0,
     capped = {},
   }
 end
@@ -397,7 +400,23 @@ local function ReadUnitBoolean(fn, ...)
   return value == true
 end
 
--- Threat readability (K6): hostile nameplates, UnitThreatSituation("player", unit).
+-- A threat status (0..3) as text: the number, "nil", "secret" or "error".
+local function DescribeThreat(ok, threat)
+  if not ok then
+    return "error"
+  end
+  if IsSecretValue(threat) then
+    return "secret"
+  end
+  if type(threat) == "number" then
+    return string.format("%d", threat)
+  end
+  return threat == nil and "nil" or "?"
+end
+
+-- Threat readability (K6): hostile nameplates, UnitThreatSituation("player", unit),
+-- plus the one-argument UnitThreatSituation("player") (highest own status
+-- over all enemies), the cheaper source an aggro warning would use.
 local function SampleThreat()
   if not ProbeLog.IsEnabled() then
     return
@@ -454,11 +473,13 @@ local function SampleThreat()
       end
     end
   end
+  local selfThreat = DescribeThreat(pcall(threatSituation, "player"))
   Append(
     string.format(
-      "[PROBE] event=threat phase=pull_start+2s inKey=%s plates=%d hostile=%d hostileSecret=%d "
+      "[PROBE] event=threat phase=pull_start+2s inKey=%s self=%s plates=%d hostile=%d hostileSecret=%d "
         .. "threat0=%d threat1=%d threat2=%d threat3=%d threatNil=%d threatSecret=%d threatOther=%d",
       YesNo(IsKeyActive()),
+      selfThreat,
       counts.plates,
       counts.hostile,
       counts.hostileSecret,
@@ -469,6 +490,135 @@ local function SampleThreat()
       counts.tNil,
       counts.tSecret,
       counts.tOther
+    )
+  )
+end
+
+-- Own buffs (K4): how many the client lists and how many of them, or of
+-- their spell IDs and expiration times, are masked. Also whether
+-- GetPlayerAuraBySpellID answers readably for the first readable spell ID,
+-- the call a consumable check would make with a season ID list.
+local function SampleOwnAuras()
+  local unitAuras = rawget(_G, "C_UnitAuras")
+  local byIndex = type(unitAuras) == "table" and rawget(unitAuras, "GetAuraDataByIndex") or nil
+  if type(byIndex) ~= "function" then
+    return "auras=api_missing"
+  end
+  local counts = { auras = 0, auraSecret = 0, spellIdSecret = 0, expirationSecret = 0, errors = 0 }
+  local candidate = nil
+  for index = 1, LIMITS.playerAuras do
+    local ok, aura = pcall(byIndex, "player", index, "HELPFUL")
+    if not ok then
+      counts.errors = counts.errors + 1
+      break
+    end
+    if IsSecretValue(aura) then
+      counts.auras = counts.auras + 1
+      counts.auraSecret = counts.auraSecret + 1
+    elseif type(aura) ~= "table" then
+      break
+    else
+      counts.auras = counts.auras + 1
+      local spellId = aura.spellId
+      if IsSecretValue(spellId) then
+        counts.spellIdSecret = counts.spellIdSecret + 1
+      elseif candidate == nil and type(spellId) == "number" then
+        candidate = spellId
+      end
+      if IsSecretValue(aura.expirationTime) then
+        counts.expirationSecret = counts.expirationSecret + 1
+      end
+    end
+  end
+  local bySpellId = "no_candidate"
+  local bySpellFn = type(unitAuras) == "table" and rawget(unitAuras, "GetPlayerAuraBySpellID") or nil
+  if type(bySpellFn) ~= "function" then
+    bySpellId = "api_missing"
+  elseif candidate ~= nil then
+    local ok, aura = pcall(bySpellFn, candidate)
+    if not ok then
+      bySpellId = "error"
+    elseif IsSecretValue(aura) then
+      bySpellId = "secret"
+    else
+      bySpellId = type(aura) == "table" and "readable" or "nil"
+    end
+  end
+  return string.format(
+    "auras=%d auraSecret=%d spellIdSecret=%d expirationSecret=%d auraErrors=%d bySpellID=%s",
+    counts.auras,
+    counts.auraSecret,
+    counts.spellIdSecret,
+    counts.expirationSecret,
+    counts.errors,
+    bySpellId
+  )
+end
+
+-- One weapon slot of GetWeaponEnchantInfo: has / minutes left / enchant ID.
+local function DescribeWeaponSlot(prefix, has, expirationMs, enchantId)
+  local hasText
+  if IsSecretValue(has) then
+    hasText = "secret"
+  else
+    hasText = YesNo(has == true or has == 1)
+  end
+  local minutes = "nil"
+  if IsSecretValue(expirationMs) then
+    minutes = "secret"
+  elseif type(expirationMs) == "number" then
+    minutes = string.format("%d", math.floor(expirationMs / 60000))
+  end
+  local enchant = "nil"
+  if IsSecretValue(enchantId) then
+    enchant = "secret"
+  elseif type(enchantId) == "number" then
+    enchant = string.format("%d", enchantId)
+  end
+  return string.format("%s=%s %sMin=%s %sEnchant=%s", prefix, hasText, prefix, minutes, prefix, enchant)
+end
+
+-- Weapon oil (K4): GetWeaponEnchantInfo needs no season ID list.
+local function SampleWeaponEnchants()
+  local getInfo = rawget(_G, "GetWeaponEnchantInfo")
+  if type(getInfo) ~= "function" then
+    return "weapon=api_missing"
+  end
+  local ok, hasMain, mainExp, _, mainId, hasOff, offExp, _, offId = pcall(getInfo)
+  if not ok then
+    return "weapon=error"
+  end
+  return DescribeWeaponSlot("mh", hasMain, mainExp, mainId) .. " " .. DescribeWeaponSlot("oh", hasOff, offExp, offId)
+end
+
+local function ReadInCombat()
+  local inCombat = rawget(_G, "InCombatLockdown")
+  if type(inCombat) ~= "function" then
+    return "nil"
+  end
+  local ok, value = pcall(inCombat)
+  if not ok or IsSecretValue(value) then
+    return "secret"
+  end
+  return YesNo(value == true)
+end
+
+--- READY_CHECK: readability of the own buffs and weapon enchants (K4).
+function ProbeLog.OnReadyCheck()
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  if not TakeBudget("readyChecks", LIMITS.readyChecksPerRun, "ready_check") then
+    return
+  end
+  Append(
+    string.format(
+      "[PROBE] event=ready_check inKey=%s inInstance=%s inCombat=%s %s %s",
+      YesNo(IsKeyActive()),
+      tostring(ReadInInstance()),
+      ReadInCombat(),
+      SampleOwnAuras(),
+      SampleWeaponEnchants()
     )
   )
 end
