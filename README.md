@@ -453,7 +453,10 @@ What is recorded (never sent to chat or to other players):
   restriction lifts. Only counts and readable names/values; protected values
   are written as `secret`.
 - `event=threat` — 2 s into each key pull: how many hostile nameplates
-  answer `UnitThreatSituation` readably, per threat level, nil or secret.
+  answer `UnitThreatSituation` readably, per threat level, nil or secret, plus
+  your own overall threat status (`self=`).
+- `event=ready_check` — on each ready check: how many of your own buffs, their
+  spell IDs or expiration times are masked, and both weapon enchant slots.
 - `event=own_cast` — whether the spell ID and cast GUID of your own casts are
   readable (once per spell per key).
 - `event=kick` — for every own interrupt: the missed-kick verdict, the time to
@@ -468,6 +471,22 @@ Each probe has a per-key line budget (for example 30 meter snapshots,
 60 threat samples, 80 kicks) and the meter is read at most once per 10 s per
 moment; a reached budget writes one `event=cap_reached` line. With probe mode
 off nothing is read and no timer is started.
+
+`/isilive probe report` reads every `[PROBE]` line still in the runtime log
+and prints one verdict per open question into your chat window (only for you,
+also while probe mode is off): damage meter between pulls (K9), at the key end
+and later after leaving (K11), nameplate and own threat in the key plus masked
+`UnitCanAttack` answers (K6), own buffs and weapon enchant at the ready check
+(K4), whether your interrupt spell IDs are readable, whether the chat lockdown
+was seen in a key, kick timing with landed/missed counts and min/median/max ms
+to the first hostile interrupt (K3), and the restriction changes seen. Each
+verdict is `yes` (only readable answers), `no` (only masked answers),
+`partly` (both) or `unknown` (no data), with the counts behind it, for example:
+
+```
+K9 damage meter between pulls readable: partly (3 snapshots, 1 secret)
+K3 kick timing: 4 kicks, 1 landed, 2 missed, 0 excluded; ms to the first hostile interrupt min/median/max 100/100/400 (2 timed)
+```
 
 ## Settings
 

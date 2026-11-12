@@ -8,6 +8,7 @@ addonTable = addonTable or {}
 -- from SavedVariables instead of being typed as /run lines.
 --
 --   /isilive probe [on|off|status]   toggles without an argument
+--   /isilive probe report            one verdict line per question (ProbeReport)
 --
 -- IsiLiveDB.probeLogEnabled is Pattern B (default off) and persists across
 -- reloads. Probe lines bypass the runtimeLogEnabled gate (that flag is reset
@@ -48,6 +49,7 @@ local LIMITS = {
 ProbeLog.LIMITS = LIMITS
 
 local sink = nil
+local readLog = nil
 local getAddonVersion = nil
 local sessionHeaderWritten = false
 local sessionLineCount = 0
@@ -623,11 +625,14 @@ function ProbeLog.OnReadyCheck()
   )
 end
 
---- Wires the log sink (runtime log AppendLog) and the version reader.
--- @param opts table {appendLog = function(message), getAddonVersion = function()}
+--- Wires the log sink (runtime log AppendLog), the ring reader for the
+-- report and the version reader.
+-- @param opts table {appendLog = function(message), readLog = function(needle): table,
+--   getAddonVersion = function()}
 function ProbeLog.Attach(opts)
   opts = type(opts) == "table" and opts or {}
   sink = type(opts.appendLog) == "function" and opts.appendLog or nil
+  readLog = type(opts.readLog) == "function" and opts.readLog or nil
   getAddonVersion = type(opts.getAddonVersion) == "function" and opts.getAddonVersion or nil
 end
 
@@ -906,11 +911,29 @@ end
 local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
 local ARG_OFF = { off = true, ["0"] = true, ["false"] = true }
 
---- /isilive probe [on|off|status]; toggles without an argument.
+-- /isilive probe report: reads the [PROBE] lines of the whole ring (also
+-- with probe mode off) and prints one verdict line per question. Printed
+-- without logging, so the report never lands in the ring it reads.
+local function PrintReport(printFn, L)
+  local report = addonTable.ProbeReport
+  if type(report) ~= "table" or type(report.BuildLines) ~= "function" then
+    return
+  end
+  local entries = type(readLog) == "function" and readLog("[PROBE] ") or {}
+  for _, line in ipairs(report.BuildLines(entries, L)) do
+    printFn(line)
+  end
+end
+
+--- /isilive probe [on|off|status|report]; toggles without an argument.
 function ProbeLog.HandleCommand(ctx, cmd)
   local printFn = type(ctx.printNoLogFn) == "function" and ctx.printNoLogFn or ctx.printFn or print
   local L = type(ctx.getL) == "function" and ctx.getL() or {}
   local arg = tostring(cmd or ""):match("^probe%s+(%S+)") or ""
+  if arg == "report" then
+    PrintReport(printFn, L)
+    return
+  end
   if arg == "status" then
     printFn(
       string.format(
@@ -930,7 +953,9 @@ function ProbeLog.HandleCommand(ctx, cmd)
   elseif arg == "" then
     nextEnabled = not ProbeLog.IsEnabled()
   else
-    printFn(L.HELP_PROBE or "  /isilive probe [on|off|status] - Write in-game API checks to the runtime log")
+    printFn(
+      L.HELP_PROBE or "  /isilive probe [on|off|status|report] - Probe mode: in-game API checks into the runtime log"
+    )
     return
   end
   local enabled = ProbeLog.SetEnabled(nextEnabled)

@@ -276,6 +276,22 @@ function RuntimeLog.CreateController(opts)
     return result, #filtered
   end
 
+  -- Every retained entry that contains `needle` (plain, case-sensitive),
+  -- oldest first. Unlike GetLogTailFiltered there is no 100-line cap: the
+  -- probe report (rule 239) reads the whole ring.
+  function controller.GetLinesContaining(needle)
+    local needleText = tostring(needle or "")
+    local all = logBuffer.GetTail(GetStorage(), maxEntries, maxEntries, maxEntries)
+    local matches = {}
+    for _, line in ipairs(all) do
+      local text = tostring(line)
+      if needleText == "" or text:find(needleText, 1, true) then
+        matches[#matches + 1] = text
+      end
+    end
+    return matches
+  end
+
   function controller.ClearLog()
     local wipeFn = rawget(_G, "wipe")
     local storage = GetStorage()

@@ -587,6 +587,300 @@ return function(test, ctx)
     end, Prepare({ probe = false }))
   end)
 
+  -- Probe report (rule 239): every flow below writes its lines through the
+  -- real ProbeLog hooks (real dispatcher, real kick tracker, real runtime log
+  -- ring) and reads the verdicts back through the real slash command.
+  local function Report(session)
+    session.printed = {}
+    session.globals.SlashCmdList.ISILIVE("probe report")
+    return session.printed
+  end
+
+  local function AssertReportLine(printed, expected, label)
+    Assert.NotNil(FindLine(printed, expected), label .. ": " .. table.concat(printed, " || "))
+  end
+
+  local function AssertNoStringifiedSecret(printed)
+    for _, line in ipairs(printed) do
+      Assert.Nil(tostring(line):find("table:", 1, true), "no secret is ever stringified: " .. tostring(line))
+    end
+  end
+
+  test("Probe report gives yes verdicts from readable probe lines", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.plates.nameplate1 = { hostile = true, threat = 3 }
+      session.selfThreat = 2
+      session.lockdown = true
+      Pull(session)
+      Kick(session)
+      session.Advance(0.1)
+      HostileInterrupt(session)
+      session.Advance(2.5)
+      session.lockdown = false
+      EndPull(session)
+      session.auras = { { spellId = 1234, expirationTime = 100 } }
+      session.weapon = { true, 3600000, 0, 7495, false, nil, 0, nil }
+      session.Dispatch("READY_CHECK", "Tester")
+      session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 2)
+      session.Advance(11)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      session.Advance(20)
+      session.inInstance = false
+      session.Dispatch("ZONE_CHANGED_NEW_AREA")
+
+      local printed = Report(session)
+      AssertReportLine(printed, "key starts in the runtime log):", "header")
+      AssertReportLine(printed, "1 key starts", "one key start in the ring")
+      AssertReportLine(
+        printed,
+        "K9 damage meter between pulls readable: yes (1 snapshots, 0 secret)",
+        "readable meter between pulls"
+      )
+      AssertReportLine(
+        printed,
+        "K11 damage meter after the key: at the key end yes (2 snapshots, 0 secret), later yes (1 snapshots, 0 secret)",
+        "key end, +5 s and the outside snapshot"
+      )
+      AssertReportLine(
+        printed,
+        "K6 threat in the key: per nameplate yes (1 readable, 0 secret), own threat yes (1 readable, 0 secret), "
+          .. "UnitCanAttack secret: 0",
+        "readable threat"
+      )
+      AssertReportLine(
+        printed,
+        "K4 ready check: own buffs yes (1 readable, 0 secret), weapon enchant yes (1 readable, 0 secret)",
+        "readable ready check"
+      )
+      AssertReportLine(
+        printed,
+        "Own interrupt spell IDs readable: yes (1 kick spells readable, 0 own casts with a secret spell ID)",
+        "readable kick spell ID"
+      )
+      AssertReportLine(
+        printed,
+        "Chat lockdown seen in the key: yes (3 readings in the key, 0 secret)",
+        "key start no, pull yes, pull end no"
+      )
+      AssertReportLine(
+        printed,
+        "K3 kick timing: 1 kicks, 1 landed, 0 missed, 0 excluded; ms to the first hostile interrupt "
+          .. "min/median/max 100/100/100 (1 timed)",
+        "landed kick timing"
+      )
+      AssertReportLine(
+        printed,
+        "Restriction changes seen: yes (1 changes, 0 secret; types: ChallengeMode)",
+        "restriction change"
+      )
+      Assert.Nil(FindLine(printed, "Probe budgets reached"), "no budget was reached")
+      Assert.Equal(
+        select(2, ProbeLines(session, "Probe report")),
+        0,
+        "the report is printed without being written into the ring it reads"
+      )
+    end, Prepare())
+  end)
+
+  test("Probe report gives no verdicts from masked probe lines", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.plates.nameplate1 = { hostile = secret, threat = secret }
+      session.selfThreat = secret
+      Pull(session)
+      Deliver(session, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", secret)
+      session.Advance(2.5)
+      EndPull(session)
+      session.auras = { secret }
+      session.weapon = { secret, secret, 0, secret, false, nil, 0, nil }
+      session.Dispatch("READY_CHECK", "Tester")
+      session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", secret, secret)
+      session.Advance(11)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      session.Advance(20)
+      session.inInstance = false
+      session.Dispatch("ZONE_CHANGED_NEW_AREA")
+
+      local printed = Report(session)
+      AssertReportLine(
+        printed,
+        "K9 damage meter between pulls readable: no (1 snapshots, 1 secret)",
+        "masked meter between pulls"
+      )
+      AssertReportLine(
+        printed,
+        "K11 damage meter after the key: at the key end no (2 snapshots, 2 secret), later no (1 snapshots, 1 secret)",
+        "masked meter after the key"
+      )
+      AssertReportLine(
+        printed,
+        "K6 threat in the key: per nameplate no (0 readable, 1 secret), own threat no (0 readable, 1 secret), "
+          .. "UnitCanAttack secret: 1",
+        "masked threat"
+      )
+      AssertReportLine(
+        printed,
+        "K4 ready check: own buffs no (0 readable, 1 secret), weapon enchant no (0 readable, 1 secret)",
+        "masked ready check"
+      )
+      AssertReportLine(
+        printed,
+        "Own interrupt spell IDs readable: no (0 kick spells readable, 1 own casts with a secret spell ID)",
+        "every own cast masked"
+      )
+      AssertReportLine(
+        printed,
+        "Chat lockdown seen in the key: unknown (1 readings in the key, 1 secret)",
+        "a masked lockdown answers nothing"
+      )
+      AssertReportLine(printed, "K3 kick timing: unknown (no kick lines)", "no kick")
+      AssertReportLine(
+        printed,
+        "Restriction changes seen: yes (1 changes, 1 secret; types: -)",
+        "a masked restriction change is seen but unnamed"
+      )
+      AssertNoStringifiedSecret(printed)
+    end, function(globals, session)
+      Prepare({
+        meter = function()
+          return secret
+        end,
+      })(globals, session)
+      session.lockdown = secret
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe report says unknown without probe data", function()
+    Stress.WithParty(ctx, FixtureWithSchema, function(session)
+      local printed = Report(session)
+      Assert.Equal(#printed, 1, "one line without probe data")
+      AssertReportLine(printed, "Probe report: no [PROBE] lines in the runtime log.", "empty ring")
+      Assert.False(session.globals.IsiLiveDB.probeLogEnabled == true, "the report does not switch probe mode on")
+
+      session.globals.SlashCmdList.ISILIVE("probe on")
+      printed = Report(session)
+      AssertReportLine(printed, "Probe report (2 probe lines, 0 key starts in the runtime log):", "header")
+      AssertReportLine(printed, "between pulls readable: unknown (0 snapshots, 0 secret)", "no meter data")
+      AssertReportLine(
+        printed,
+        "at the key end unknown (0 snapshots, 0 secret), later unknown (0 snapshots, 0 secret)",
+        "no meter data after a key"
+      )
+      AssertReportLine(printed, "per nameplate unknown (0 readable, 0 secret), own threat unknown", "no threat")
+      AssertReportLine(printed, "own buffs unknown (0 readable, 0 secret), weapon enchant unknown", "no ready check")
+      AssertReportLine(printed, "Own interrupt spell IDs readable: unknown (0 kick spells", "no own cast")
+      AssertReportLine(printed, "Chat lockdown seen in the key: unknown (0 readings", "no lockdown reading")
+      AssertReportLine(printed, "K3 kick timing: unknown (no kick lines)", "no kick")
+      AssertReportLine(printed, "Restriction changes seen: unknown (0 changes, 0 secret; types: -)", "no change")
+
+      session.runtime.SetLanguage("deDE")
+      printed = Report(session)
+      AssertReportLine(printed, "Probe-Bericht (2 Probe-Zeilen, 0 Key-Starts im Laufzeit-Log):", "German header")
+      AssertReportLine(
+        printed,
+        "K9 Schadensmesser zwischen Pulls lesbar: unbekannt (0 Schnappschüsse, 0 secret)",
+        "German verdict"
+      )
+    end, Prepare({ probe = false }))
+  end)
+
+  test("Probe report mixes readable and masked answers and tolerates broken lines", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.plates.nameplate1 = { hostile = true, threat = 3 }
+      session.plates.nameplate2 = { hostile = secret, threat = secret }
+      session.selfThreat = 1
+      Pull(session)
+      Kick(session)
+      session.Advance(0.1)
+      HostileInterrupt(session)
+      session.Advance(2.5)
+      EndPull(session)
+
+      session.meterSecret = true
+      session.selfThreat = secret
+      session.Advance(30)
+      Pull(session)
+      Kick(session)
+      session.Advance(2.5)
+      EndPull(session)
+
+      session.Advance(30)
+      HostileInterrupt(session)
+      session.Advance(0.03)
+      Kick(session)
+      session.Advance(0.4)
+      HostileInterrupt(session)
+      session.Advance(1)
+
+      local limits = session.addon.ProbeLog.LIMITS
+      for index = 1, limits.restrictionLinesPerRun + 1 do
+        session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", index % 2 == 0 and 0 or 2, 2)
+      end
+
+      -- HAND-WRITTEN: the current writer cannot produce an older or a
+      -- truncated line, so these four are appended as literals through the
+      -- real ring: a threat line from before the `self=` field, a meter and a
+      -- kick line without fields, and a probe tag without an event.
+      local runtimeLog = session.runtime.runtimeLogController
+      runtimeLog.AppendLog(
+        "[PROBE] event=threat phase=pull_start+2s inKey=yes plates=1 hostile=1 hostileSecret=0 threat0=0 "
+          .. "threat1=0 threat2=0 threat3=1 threatNil=0 threatSecret=0 threatOther=0"
+      )
+      runtimeLog.AppendLog("[PROBE] event=meter phase=between_pulls")
+      runtimeLog.AppendLog("[PROBE] event=kick")
+      runtimeLog.AppendLog("[PROBE] event= broken")
+
+      local printed = Report(session)
+      AssertReportLine(
+        printed,
+        "K9 damage meter between pulls readable: partly (3 snapshots, 1 secret)",
+        "one readable, one masked and one empty snapshot"
+      )
+      AssertReportLine(
+        printed,
+        "K6 threat in the key: per nameplate partly (3 readable, 2 secret), own threat partly (1 readable, 1 secret), "
+          .. "UnitCanAttack secret: 2",
+        "two samples with a readable and a masked plate plus the old line without self="
+      )
+      AssertReportLine(
+        printed,
+        "Own interrupt spell IDs readable: yes (1 kick spells readable, 0 own casts with a secret spell ID)",
+        "the kick spell is logged once per run"
+      )
+      AssertReportLine(
+        printed,
+        "K3 kick timing: 4 kicks, 1 landed, 2 missed, 0 excluded; ms to the first hostile interrupt "
+          .. "min/median/max 100/100/400 (2 timed)",
+        "lower median of the logged timings; the empty kick line counts without a verdict"
+      )
+      AssertReportLine(
+        printed,
+        "Restriction changes seen: yes (80 changes, 0 secret; types: ChallengeMode, Combat)",
+        "restriction lines up to the budget"
+      )
+      AssertReportLine(printed, "Probe budgets reached: restriction x1", "the cap_reached line is reported")
+      AssertNoStringifiedSecret(printed)
+    end, function(globals, session)
+      Prepare({
+        meter = function(sessionType, meterType)
+          if session.meterSecret then
+            return secret
+          end
+          return ReadableMeter(sessionType, meterType)
+        end,
+      })(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
   test("DBSchema declares probeLogEnabled as a default-off boolean", function()
     ctx.with_globals({}, function()
       local addon = ctx.load_modules({ "isiLive_db_schema.lua" })
