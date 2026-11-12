@@ -85,4 +85,21 @@ function FactoryEditMode.InstallLate(ctx)
   if type(liveKicks) == "table" and type(liveKicks.Install) == "function" then
     ctx.liveKicksFrame = liveKicks.Install(ctx)
   end
+  -- Ready-check consumable check (rule 246): its card goes through the shared
+  -- center notice of the card stack.
+  local consumableCheck = addonTable.ConsumableCheck
+  if type(consumableCheck) == "table" and type(consumableCheck.Install) == "function" then
+    ctx.consumableCheckFrame = consumableCheck.Install({
+      showCard = function(options, seconds)
+        if type(ctx.ShowCenterNotice) == "function" then
+          ctx.ShowCenterNotice(nil, seconds, nil, nil, options)
+        end
+      end,
+      getText = function(key, fallback)
+        local L = type(ctx.GetL) == "function" and ctx.GetL() or nil
+        local text = type(L) == "table" and L[key] or nil
+        return type(text) == "string" and text or fallback
+      end,
+    })
+  end
 end

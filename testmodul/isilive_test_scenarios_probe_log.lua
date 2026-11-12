@@ -359,6 +359,10 @@ return function(test, ctx)
         ),
         "buffs, masked fields and weapon slots are described: " .. tostring(line)
       )
+      Assert.NotNil(
+        tostring(line):find("spellIDs=1234", 1, true),
+        "the readable own buff IDs are listed for the consumable season data: " .. tostring(line)
+      )
 
       session.auras = {}
       session.weapon = { secret, secret, 0, secret, false, nil, 0, nil }

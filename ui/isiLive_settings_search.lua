@@ -72,6 +72,7 @@ SettingsSearch.CONTROL_TAGS = {
   aggroAlertEnabled = { "aggro", "threat", "alert" },
   aggroAlertSound = { "aggro", "threat", "sound" },
   liveRunKicksEnabled = { "interrupt", "kick", "tooltip" },
+  consumableCheckEnabled = { "consumable", "food", "flask", "rune", "weapon oil", "ready check" },
   lfgFlags = { "lfg", "group finder", "flag", "language" },
   lfgGroupBonuses = { "lfg", "group finder", "buff" },
   tooltipFlags = { "tooltip", "flag", "language" },

@@ -508,6 +508,9 @@ local function SampleOwnAuras()
   end
   local counts = { auras = 0, auraSecret = 0, spellIdSecret = 0, expirationSecret = 0, errors = 0 }
   local candidate = nil
+  -- Readable spell IDs of the own buffs: the season IDs of food, flask and
+  -- augment rune for the consumable check (rule 246) come from here.
+  local spellIds = {}
   for index = 1, LIMITS.playerAuras do
     local ok, aura = pcall(byIndex, "player", index, "HELPFUL")
     if not ok then
@@ -524,8 +527,9 @@ local function SampleOwnAuras()
       local spellId = aura.spellId
       if IsSecretValue(spellId) then
         counts.spellIdSecret = counts.spellIdSecret + 1
-      elseif candidate == nil and type(spellId) == "number" then
-        candidate = spellId
+      elseif type(spellId) == "number" then
+        candidate = candidate or spellId
+        spellIds[#spellIds + 1] = string.format("%d", spellId)
       end
       if IsSecretValue(aura.expirationTime) then
         counts.expirationSecret = counts.expirationSecret + 1
@@ -554,7 +558,8 @@ local function SampleOwnAuras()
     counts.expirationSecret,
     counts.errors,
     bySpellId
-  )
+  ),
+    #spellIds > 0 and table.concat(spellIds, ",") or "none"
 end
 
 -- One weapon slot of GetWeaponEnchantInfo: has / minutes left / enchant ID.
@@ -613,14 +618,16 @@ function ProbeLog.OnReadyCheck()
   if not TakeBudget("readyChecks", LIMITS.readyChecksPerRun, "ready_check") then
     return
   end
+  local auraSummary, spellIds = SampleOwnAuras()
   Append(
     string.format(
-      "[PROBE] event=ready_check inKey=%s inInstance=%s inCombat=%s %s %s",
+      "[PROBE] event=ready_check inKey=%s inInstance=%s inCombat=%s %s %s spellIDs=%s",
       YesNo(IsKeyActive()),
       tostring(ReadInInstance()),
       ReadInCombat(),
-      SampleOwnAuras(),
-      SampleWeaponEnchants()
+      auraSummary,
+      SampleWeaponEnchants(),
+      spellIds or "none"
     )
   )
 end

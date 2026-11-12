@@ -64,6 +64,7 @@ data/isiLive_mplus_forces.lua
 data/isiLive_forces_seed.lua
 data/isiLive_time_seed.lua
 data/isiLive_travel_items.lua
+data/isiLive_consumables.lua
 game/isiLive_lfg_entry_resolver.lua
 game/isiLive_lfg_detect.lua
 ui/isiLive_ui_motion.lua
@@ -115,6 +116,7 @@ game/isiLive_forces_pace.lua
 game/isiLive_time_pace.lua
 game/isiLive_ttk.lua
 game/isiLive_aggro_alert.lua
+game/isiLive_consumable_check.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_combat_events.lua

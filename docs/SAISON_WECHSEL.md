@@ -61,6 +61,16 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] Fehlen verifizierte Forces-Daten, die MDT-abhaengigen Anzeigen fail-closed
   lassen und keine Ersatzwerte erzeugen.
 
+## 3b. Verbrauchsgueter-Check (Regel 246, optional)
+
+`data/isiLive_consumables.lua` fuehrt pro Season (`seasons[seasonID]`) die Aura-Spell-IDs
+von Essen (`food`), Flask (`flask`) und Augment-Rune (`augmentRune`). Leere Listen werden
+nicht geprueft, das Waffenoel braucht keine IDs. Die IDs nur aus dem Live-Client
+uebernehmen: mit `/isilive probe on` schreibt jeder Ready-Check die Spell-IDs der
+eigenen Buffs (`[PROBE] event=ready_check ... spellIDs=...`); einen Ready-Check mit
+Essen, Flask und Rune aufnehmen und die IDs den Kategorien zuordnen (Tooltip im Spiel).
+Nie aus fremden Addons oder Datenbanken uebernehmen.
+
 ## 4. Aktivierung
 
 - [ ] `lua tools/inspect_season_readiness.lua` ausfuehren und alle gemeldeten

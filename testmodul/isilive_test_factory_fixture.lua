@@ -63,6 +63,17 @@ local function BuildFrameStub()
   function explicit:IsEventRegistered(event)
     return self._registeredEvents[event] == true
   end
+  -- Text metrics are numbers in the client; the chaining catch-all below
+  -- would hand layout code a table (rich center notice cards measure them).
+  function explicit:GetStringHeight()
+    return 14
+  end
+  function explicit:GetStringWidth()
+    return 0
+  end
+  function explicit:GetUnboundedStringWidth()
+    return 0
+  end
   function explicit:SetPoint(...)
     self._points[#self._points + 1] = { ... }
   end
@@ -813,6 +824,8 @@ local function GetAllIsiLiveFiles()
     "isiLive_mplus_timer.lua",
     "isiLive_ttk.lua",
     "isiLive_aggro_alert.lua",
+    "isiLive_consumables.lua",
+    "isiLive_consumable_check.lua",
     "isiLive_kick_tracker.lua",
     "isiLive_lfg_detect.lua",
     "isiLive_combat_events.lua",

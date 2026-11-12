@@ -475,6 +475,18 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     "SETTINGS_LIVE_KICKS",
     CheckboxDescriptionOptions(labels.SETTINGS_LIVE_KICKS_DESC or FALLBACK_LIVE_KICKS_DESC)
   )
+  controls.consumableCheck, yOffset = CreatePatternBCheckbox(
+    canvas,
+    yOffset,
+    config,
+    "consumableCheckEnabled",
+    "SETTINGS_CONSUMABLE_CHECK",
+    "Ready check: consumable check",
+    "SETTINGS_CONSUMABLE_CHECK_DESC",
+    "On a ready check, shows a card when your weapon oil (and, with season data, food, flask"
+      .. " or augment rune) is missing or ends within 10 minutes.",
+    labels
+  )
   controls.aggroSound, yOffset = CreatePatternBCheckbox(
     canvas,
     yOffset,
@@ -511,6 +523,14 @@ local function RefreshAggroControls(controls, labels, db)
       "Aggro: play a sound",
       "SETTINGS_AGGRO_SOUND_DESC",
       FALLBACK_AGGRO_SOUND_DESC,
+    },
+    {
+      controls.consumableCheck,
+      "consumableCheckEnabled",
+      "SETTINGS_CONSUMABLE_CHECK",
+      "Ready check: consumable check",
+      "SETTINGS_CONSUMABLE_CHECK_DESC",
+      "",
     },
   }) do
     local control = entry[1]
@@ -551,6 +571,7 @@ local DISPLAY_DEFAULTS = {
   aggroAlertEnabled = false,
   aggroAlertSound = false,
   liveRunKicksEnabled = true,
+  consumableCheckEnabled = false,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -604,6 +625,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "aggroAlertEnabled",
   "aggroAlertSound",
   "liveRunKicksEnabled",
+  "consumableCheckEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",

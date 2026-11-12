@@ -359,6 +359,8 @@ local SCHEMA = {
   aggroAlertSound = { type = "boolean", default = false },
   -- Live kicks of the running key in the roster tooltip (rule 245), Pattern A.
   liveRunKicksEnabled = { type = "boolean", default = true },
+  -- Ready-check consumable check (rule 246), Pattern B.
+  consumableCheckEnabled = { type = "boolean", default = false },
 
   -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
   -- unlike runtimeLogEnabled, kept across reloads.
