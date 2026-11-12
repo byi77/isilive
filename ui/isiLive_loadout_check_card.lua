@@ -13,17 +13,28 @@ local UICommon = assert(addonTable.UICommon, "isiLive: UICommon missing")
 local Colors = UICommon.Colors
 
 local CARD_WIDTH = 444
-local PADDING = 14
+-- Same insets and type scale as the rich center notice (rule 242: the cards
+-- of the stack share one card header and the label/value grid).
+local PADDING = 20
+local PADDING_Y = 12
+local HEADER_FONT_DELTA = 10
+local BODY_FONT_DELTA = 5
+local LABEL_COLUMN_WIDTH = 144
+local COLUMN_GAP = 6
 local OPTION_WIDTH = 134
-local OPTION_HEIGHT = 22
+local OPTION_HEIGHT = 24
 local OPTION_GAP = 6
 -- In the card stack the card takes the stack width; the option buttons
--- fill the rows of that width (at least this many per row).
+-- fill the value column of that width (at least this many per row).
 local MIN_OPTIONS_PER_ROW = 3
-local LINE_HEIGHT = 16
+local ROW_PAD_Y = 5
 local CONFIRM_WIDTH = 180
 local CONFIRM_HEIGHT = 26
 local TARGET_MARKER = "» "
+-- Button labels in the body size of the card; a label that would be clipped
+-- in its button falls back to the small font instead of showing "...".
+local BUTTON_FONT = "GameFontHighlight"
+local BUTTON_FONT_FALLBACK = "GameFontNormalSmall"
 
 local STATUS_COLORS = {
   ok = Colors.SUCCESS_GREEN_BAR,
@@ -60,31 +71,72 @@ local function SetColor(fontString, color)
   end
 end
 
+local function SetColorTexture(texture, color)
+  if type(color) == "table" then
+    texture:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
+  end
+end
+
 local function SetReadable(fontString, text)
   UICommon.SetReadableText(fontString, text or "")
 end
 
-local function CreateLine(parent, fontObject, color)
+local function IncreaseFontSize(fontString, delta)
+  local common = addonTable.NoticeCommon
+  if type(common) == "table" and type(common.IncreaseFontSize) == "function" then
+    common.IncreaseFontSize(fontString, delta)
+  end
+end
+
+local function CreateLine(parent, fontObject, color, fontDelta)
   local line = parent:CreateFontString(nil, "OVERLAY", fontObject)
   line:SetJustifyH("LEFT")
   line:SetWordWrap(false)
   line:SetWidth(CARD_WIDTH - 2 * PADDING)
+  if fontDelta then
+    IncreaseFontSize(line, fontDelta)
+  end
   SetColor(line, color)
   return line
 end
 
-local function OptionsPerRow(width)
-  local fit = math.floor((width - 2 * PADDING + OPTION_GAP) / (OPTION_WIDTH + OPTION_GAP))
+local function CreateHairline(frame, color)
+  local line = frame:CreateTexture(nil, "ARTWORK")
+  line:SetHeight(1)
+  SetColorTexture(line, color)
+  line:Hide()
+  return line
+end
+
+-- Option buttons fill the value column, right of the label column. The
+-- label column is as wide as on the invite card and grows with the longest
+-- section label of the current language ("Spécialisation de butin").
+local function ValueColumnX(frame)
+  return PADDING + (frame._labelColumnWidth or LABEL_COLUMN_WIDTH) + COLUMN_GAP
+end
+
+local function OptionsPerRow(frame, width)
+  local fit = math.floor((width - ValueColumnX(frame) - PADDING + OPTION_GAP) / (OPTION_WIDTH + OPTION_GAP))
   return math.max(MIN_OPTIONS_PER_ROW, fit)
 end
 
+local function MeasureText(fontString, text)
+  SetReadable(fontString, text)
+  local measure = fontString.GetUnboundedStringWidth or fontString.GetStringWidth
+  local width = nil
+  if type(measure) == "function" then
+    local ok, value = pcall(measure, fontString)
+    width = ok and tonumber(value) or nil
+  end
+  return width or 0
+end
+
+local function ResolveLabelColumnWidth(frame, talentLabel, lootLabel)
+  local widest = math.max(MeasureText(frame.talentHeader, talentLabel), MeasureText(frame.lootHeader, lootLabel))
+  return math.max(LABEL_COLUMN_WIDTH, math.ceil(widest) + 4)
+end
+
 local TEXT_LINE_KEYS = {
-  "eyebrow",
-  "title",
-  "talentHeader",
-  "talentStatus",
-  "lootHeader",
-  "lootStatus",
   "hint",
   "combatHint",
 }
@@ -162,17 +214,28 @@ local function BuildFrame()
   frame:SetScript("OnDragStart", frame.StartMoving)
   frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
   frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
+  UICommon.ApplyNoticeKind(frame, "info")
   frame:Hide()
 
-  frame.eyebrow = CreateLine(frame, "GameFontNormalSmall", Colors.CYAN_EYEBROW)
-  frame.title = CreateLine(frame, UICommon.Theme.typography.title, Colors.TEXT_HEADING)
-  frame.talentHeader = CreateLine(frame, "GameFontNormal", Colors.TEXT_SECTION)
-  frame.talentStatus = CreateLine(frame, "GameFontHighlightSmall")
-  frame.lootHeader = CreateLine(frame, "GameFontNormal", Colors.TEXT_SECTION)
-  frame.lootStatus = CreateLine(frame, "GameFontHighlightSmall")
-  frame.hint = CreateLine(frame, "GameFontHighlightSmall", Colors.TEXT_SUPPORTING)
+  -- Card header shared with the center notice and the portal navigator:
+  -- kind chip with the eyebrow, brand mark, headline, hairline.
+  frame.eyebrow = CreateLine(frame, "GameFontNormalSmall", Colors.CYAN_EYEBROW, math.floor(HEADER_FONT_DELTA / 3))
+  frame.title = CreateLine(frame, "GameFontNormalLarge", Colors.TEXT_HEADING, HEADER_FONT_DELTA)
+  frame.titleSeparator = CreateHairline(frame, Colors.BORDER_NOTICE or { 0.24, 0.55, 0.82, 0.58 })
+  local richLayout = addonTable.NoticeRichLayout
+  if type(richLayout) == "table" and type(richLayout.CreateHeaderElements) == "function" then
+    frame.header = richLayout.CreateHeaderElements(frame)
+  end
+
+  -- Body on the label/value grid of the invite card.
+  frame.talentHeader = CreateLine(frame, "GameFontNormal", Colors.TEXT_SUPPORTING, BODY_FONT_DELTA)
+  frame.talentStatus = CreateLine(frame, "GameFontNormal", nil, BODY_FONT_DELTA)
+  frame.lootHeader = CreateLine(frame, "GameFontNormal", Colors.TEXT_SUPPORTING, BODY_FONT_DELTA)
+  frame.lootStatus = CreateLine(frame, "GameFontNormal", nil, BODY_FONT_DELTA)
+  frame.lootDivider = CreateHairline(frame, Colors.NOTICE_ROW_DIVIDER or { 0.58, 0.65, 0.74, 0.14 })
+  frame.hint = CreateLine(frame, "GameFontHighlight", Colors.TEXT_SUPPORTING, 2)
   frame.hint:SetWordWrap(true)
-  frame.combatHint = CreateLine(frame, "GameFontHighlightSmall", Colors.ORANGE_WARNING_LABEL)
+  frame.combatHint = CreateLine(frame, "GameFontHighlight", Colors.ORANGE_WARNING_LABEL, 2)
 
   frame.closeButton = UICommon.CreateCloseButton(frame, {
     point = { "TOPRIGHT", frame, "TOPRIGHT", -6, -6 },
@@ -182,6 +245,7 @@ local function BuildFrame()
     width = CONFIRM_WIDTH,
     height = CONFIRM_HEIGHT,
     role = "primary",
+    fontObject = BUTTON_FONT,
   })
 
   frame.talentButtons = {}
@@ -189,10 +253,23 @@ local function BuildFrame()
   return frame
 end
 
+local function SetButtonLabel(fontString, text)
+  if type(fontString.SetFontObject) == "function" then
+    fontString:SetFontObject(BUTTON_FONT)
+  end
+  SetReadable(fontString, text)
+  if type(fontString.IsTruncated) == "function" and fontString:IsTruncated() == true then
+    if type(fontString.SetFontObject) == "function" then
+      fontString:SetFontObject(BUTTON_FONT_FALLBACK)
+    end
+  end
+end
+
 local function GetOptionButton(frame, pool, index)
   local button = pool[index]
   if not button then
-    button = UICommon.CreateActionButton(frame, { width = OPTION_WIDTH, height = OPTION_HEIGHT })
+    button =
+      UICommon.CreateActionButton(frame, { width = OPTION_WIDTH, height = OPTION_HEIGHT, fontObject = BUTTON_FONT })
     if button._flatLabel then
       button._flatLabel:SetWidth(OPTION_WIDTH - 8)
       button._flatLabel:SetWordWrap(false)
@@ -215,13 +292,13 @@ local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, a
       y = y - OPTION_HEIGHT - OPTION_GAP
     end
     button:ClearAllPoints()
-    button:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING + column * (OPTION_WIDTH + OPTION_GAP), y)
+    button:SetPoint("TOPLEFT", frame, "TOPLEFT", ValueColumnX(frame) + column * (OPTION_WIDTH + OPTION_GAP), y)
     local label = labelFor(option)
     if option.target then
       label = TARGET_MARKER .. label
     end
     if button._flatLabel then
-      SetReadable(button._flatLabel, label)
+      SetButtonLabel(button._flatLabel, label)
     end
     -- The active option is marked as selected, not by the primary role: the
     -- Modern design draws primary like secondary, which hid the active choice.
@@ -242,41 +319,118 @@ local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, a
   return y - OPTION_HEIGHT - OPTION_GAP
 end
 
+local function FontHeight(fontString)
+  local height = tonumber(fontString:GetStringHeight())
+  if height and height > 0 then
+    return height
+  end
+  local _, size = fontString:GetFont()
+  return tonumber(size) or 14
+end
+
+-- Header through the shared notice header (chip, brand, headline, hairline);
+-- returns the y offset below it. Without the notice layout module the card
+-- falls back to a plain eyebrow and headline. A mismatch turns the kind (chip,
+-- rail, top accent) to the warning colour.
+local function RenderHeader(frame, model, width)
+  local hasMismatch = model.talents.status == "mismatch" or model.loot.status == "mismatch"
+  UICommon.ApplyNoticeKind(frame, hasMismatch and "warning" or "info")
+  local title = Text("LOADOUT_CHECK_TITLE", "Talents & loot check")
+  local richLayout = addonTable.NoticeRichLayout
+  if frame.header and type(richLayout) == "table" and type(richLayout.ApplyHeader) == "function" then
+    frame.headerState = frame.headerState
+      or {
+        frame = frame,
+        config = { paddingX = PADDING, paddingY = PADDING_Y },
+        eyebrowText = frame.eyebrow,
+        titleText = frame.title,
+        titleSeparator = frame.titleSeparator,
+        headerBand = frame.header.headerBand,
+        kindChip = frame.header.kindChip,
+        brandText = frame.header.brandText,
+      }
+    local below =
+      richLayout.ApplyHeader(frame.headerState, { eyebrow = model.dungeonName, title = title }, width - 2 * PADDING)
+    return -below
+  end
+  local y = -PADDING_Y
+  for _, entry in ipairs({ { frame.eyebrow, model.dungeonName or "" }, { frame.title, title } }) do
+    entry[1]:ClearAllPoints()
+    entry[1]:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y)
+    entry[1]:SetWidth(width - 2 * PADDING)
+    SetReadable(entry[1], entry[2])
+    entry[1]:Show()
+    y = y - FontHeight(entry[1]) - 4
+  end
+  return y - 6
+end
+
+-- One section on the label/value grid: label left, status right of it; the
+-- option buttons follow below the status in the value column. Returns the y
+-- below the row.
+local function RenderSectionRow(frame, label, status, texts, statusColor, y, width)
+  local valueX = ValueColumnX(frame)
+  y = y - ROW_PAD_Y
+  label:ClearAllPoints()
+  label:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y)
+  label:SetWidth(frame._labelColumnWidth or LABEL_COLUMN_WIDTH)
+  SetReadable(label, texts.label)
+  label:Show()
+  status:ClearAllPoints()
+  status:SetPoint("TOPLEFT", frame, "TOPLEFT", valueX, y)
+  status:SetWidth(math.max(40, width - valueX - PADDING))
+  SetColor(status, statusColor)
+  SetReadable(status, texts.status)
+  status:Show()
+  return y - math.max(FontHeight(label), FontHeight(status)) - 6
+end
+
 local function Render(frame, model, controller, width)
   activeController = controller
   width = tonumber(width) or CARD_WIDTH
   frame:SetWidth(width)
-  frame._optionsPerRow = OptionsPerRow(width)
+  local talentLabel = Text("LOADOUT_CHECK_TALENTS", "Talents")
+  local lootLabel = Text("LOADOUT_CHECK_LOOT", "Loot specialization")
+  -- Measured unclipped before the column width is applied.
+  frame.talentHeader:SetWidth(0)
+  frame.lootHeader:SetWidth(0)
+  frame._labelColumnWidth = ResolveLabelColumnWidth(frame, talentLabel, lootLabel)
+  frame._optionsPerRow = OptionsPerRow(frame, width)
   for _, key in ipairs(TEXT_LINE_KEYS) do
     frame[key]:SetWidth(width - 2 * PADDING)
   end
-  local y = -PADDING
-  local function Place(line, text, height)
+  local y = RenderHeader(frame, model, width)
+  local function Place(line, text)
     line:ClearAllPoints()
     line:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y)
     SetReadable(line, text)
     line:Show()
-    y = y - (height or LINE_HEIGHT)
+    y = y - FontHeight(line) - 4
   end
 
-  Place(frame.eyebrow, model.dungeonName or "")
-  Place(frame.title, Text("LOADOUT_CHECK_TITLE", "Talents & loot check"), LINE_HEIGHT + 8)
-
-  Place(frame.talentHeader, Text("LOADOUT_CHECK_TALENTS", "Talents"))
   -- The active loadout name stands out in the target gold, as on the invite card.
   local talentColorKey = StatusColorKey(model.talents, model.remembers)
-  SetColor(frame.talentStatus, talentColorKey == "current" and Colors.GOLD_TARGET_TEXT or STATUS_COLORS[talentColorKey])
-  Place(frame.talentStatus, TalentStatusText(model.talents, model.remembers), LINE_HEIGHT + 4)
+  y = RenderSectionRow(frame, frame.talentHeader, frame.talentStatus, {
+    label = talentLabel,
+    status = TalentStatusText(model.talents, model.remembers),
+  }, talentColorKey == "current" and Colors.GOLD_TARGET_TEXT or STATUS_COLORS[talentColorKey], y, width)
   y = LayoutOptions(frame, frame.talentButtons, model.talents.options, y, function(option)
     return option.name
   end, function(option)
     controller.SelectLoadout(option.id)
   end, model.inCombat and "combat" or (model.talents.status == "pending" and "cooldown" or nil))
-  y = y - 4
 
-  Place(frame.lootHeader, Text("LOADOUT_CHECK_LOOT", "Loot specialization"))
-  SetColor(frame.lootStatus, STATUS_COLORS[StatusColorKey(model.loot, model.remembers)])
-  Place(frame.lootStatus, LootStatusText(model.loot, model.remembers), LINE_HEIGHT + 4)
+  -- Hairline between the two sections, as between the invite card's fields.
+  frame.lootDivider:ClearAllPoints()
+  frame.lootDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y)
+  frame.lootDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PADDING, y)
+  frame.lootDivider:Show()
+  y = y - 1
+
+  y = RenderSectionRow(frame, frame.lootHeader, frame.lootStatus, {
+    label = lootLabel,
+    status = LootStatusText(model.loot, model.remembers),
+  }, STATUS_COLORS[StatusColorKey(model.loot, model.remembers)], y, width)
   y = LayoutOptions(frame, frame.lootButtons, model.loot.options, y, LootOptionLabel, function(option)
     controller.SelectLootSpec(option.id)
   end, model.inCombat and "combat" or nil)
@@ -298,7 +452,7 @@ local function Render(frame, model, controller, width)
     frame.hint:SetPoint("TOPLEFT", frame, "TOPLEFT", PADDING, y - 2)
     SetReadable(frame.hint, hint)
     frame.hint:Show()
-    local hintHeight = tonumber(frame.hint:GetStringHeight()) or LINE_HEIGHT
+    local hintHeight = FontHeight(frame.hint)
     y = y - 2 - hintHeight - 10
   else
     frame.hint:Hide()
@@ -308,7 +462,7 @@ local function Render(frame, model, controller, width)
   frame.confirmButton:ClearAllPoints()
   frame.confirmButton:SetPoint("TOP", frame, "TOP", 0, y)
   if frame.confirmButton._flatLabel then
-    SetReadable(frame.confirmButton._flatLabel, ConfirmLabel(model))
+    SetButtonLabel(frame.confirmButton._flatLabel, ConfirmLabel(model))
   end
   -- Confirming mid-switch would remember the old loadout.
   frame.confirmButton:SetAvailabilityState(model.talents.status == "pending" and "cooldown" or "available")
@@ -339,6 +493,12 @@ function LoadoutCheckCard.Create()
     if type(cardStack) == "table" and type(cardStack.Register) == "function" then
       section = cardStack.Register("loadout", frame, {
         preferredWidth = CARD_WIDTH,
+        onRoleChanged = function(isLead)
+          local richLayout = addonTable.NoticeRichLayout
+          if frame.headerState and type(richLayout) == "table" and type(richLayout.ApplyHeaderRole) == "function" then
+            richLayout.ApplyHeaderRole(frame.headerState, isLead)
+          end
+        end,
         relayout = function(width)
           if lastModel and lastController then
             Render(frame, lastModel, lastController, width)

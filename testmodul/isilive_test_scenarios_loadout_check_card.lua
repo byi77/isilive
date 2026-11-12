@@ -90,6 +90,8 @@ local function RegisterLoadoutCheckCardTests(test, Assert, WithGlobals, LoadAddo
     WithGlobals({ CreateFrame = createFrame, UIParent = {} }, function()
       local addon = LoadAddonModules({
         "isiLive_ui_common.lua",
+        "isiLive_notice_common.lua",
+        "isiLive_notice_rich_layout.lua",
         "isiLive_loadout_check_card.lua",
         "isiLive_loadout_check.lua",
       })
@@ -210,6 +212,52 @@ local function RegisterLoadoutCheckCardTests(test, Assert, WithGlobals, LoadAddo
         Assert.True(IsGold(FindButton(createdFrames, "M+ Single")), design .. ": the new loadout is highlighted")
         Assert.False(IsGold(FindButton(createdFrames, "M+ AoE")), design .. ": the old loadout loses the highlight")
       end
+    end)
+  end)
+
+  test("LoadoutCheckCard opens with the shared card header and the field grid of the invite card", function()
+    WithCard(function(addon, card, createdFrames)
+      local controller = BuildController()
+      local mismatch = addon.LoadoutCheck.BuildModel(BuildLive(), { configID = 102, lootSpecID = 0 })
+      mismatch.dungeonName = "Floodgate"
+      mismatch.remembers = true
+      card:Show(mismatch, controller)
+      local frame = createdFrames[1]
+      Assert.NotNil(frame.header, "the card builds the shared header elements")
+      Assert.False(frame.header.kindChip.hidden, "the kind chip carries the eyebrow")
+      Assert.True(frame.header.brandText:IsShown(), "the brand mark sits on the lead card")
+      Assert.False(frame.titleSeparator.hidden, "a hairline closes the header")
+      Assert.Equal(frame.eyebrow:GetText(), "Floodgate", "the dungeon is the eyebrow")
+      Assert.Equal(frame.title:GetText(), "Talents & loot check", "the headline names the check")
+      Assert.Equal(frame._isiLiveNoticeKind, "warning", "a mismatch turns the card header to the warning kind")
+      local _, titleSize = frame.title:GetFont()
+      local _, labelSize = frame.talentHeader:GetFont()
+      local _, statusSize = frame.talentStatus:GetFont()
+      Assert.True(titleSize > labelSize, "the headline is the largest text, as on the invite card")
+      Assert.Equal(labelSize, statusSize, "label and status share the field size of the invite card")
+      local _, _, _, labelX = frame.talentHeader:GetPoint()
+      local _, _, _, statusX = frame.talentStatus:GetPoint()
+      Assert.True(statusX > labelX + 100, "the status stands in the value column right of its label")
+
+      local fine = addon.LoadoutCheck.BuildModel(BuildLive(), { configID = 101, lootSpecID = FIRE_MAGE })
+      fine.remembers = true
+      card:Show(fine, controller)
+      Assert.Equal(frame._isiLiveNoticeKind, "info", "an all-OK check keeps the calm info kind")
+
+      -- A long label of another language widens the label column instead of
+      -- being clipped under the status.
+      local longLabel = "Spécialisation de butin"
+      controller.GetText = function(key, fallback)
+        return key == "LOADOUT_CHECK_LOOT" and longLabel or fallback
+      end
+      card:Show(fine, controller)
+      local _, _, _, longLabelX = frame.lootHeader:GetPoint()
+      local _, _, _, longStatusX = frame.lootStatus:GetPoint()
+      Assert.True(
+        longStatusX - longLabelX >= frame.lootHeader:GetStringWidth(),
+        "the status starts right of the whole long label"
+      )
+      Assert.True(frame.lootHeader._width >= frame.lootHeader:GetStringWidth(), "the long label is not clipped")
     end)
   end)
 

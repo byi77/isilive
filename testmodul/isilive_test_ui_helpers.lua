@@ -44,6 +44,9 @@ local function CreateTextureStub()
       self._points = self._points or {}
       table.insert(self._points, { ... })
     end,
+    ClearAllPoints = function(self)
+      self._points = {}
+    end,
     SetColorTexture = function(self, ...)
       self._color = { ... }
     end,
