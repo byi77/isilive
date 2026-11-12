@@ -168,6 +168,13 @@ local function InitializeFactoryPrimaryControllers(ctx)
       return type(runtimeLog.IsLevelEnabled) == "function" and runtimeLog.IsLevelEnabled("normal")
     end)
   end
+  -- Time pace: the [TIMEPACE] estimate trace while the runtime log is on.
+  local timePace = addonTable.TimePace
+  if type(timePace) == "table" and type(timePace.SetTraceLogger) == "function" and runtimeLog then
+    timePace.SetTraceLogger(runtimeLog.Trace, function()
+      return type(runtimeLog.IsLevelEnabled) == "function" and runtimeLog.IsLevelEnabled("normal")
+    end)
+  end
   ctx.keySyncController = initResult.keySyncController
   ctx.MarkIsiLiveUser = initResult.markIsiLiveUser
   ctx.UnitHasIsiLive = initResult.unitHasIsiLive

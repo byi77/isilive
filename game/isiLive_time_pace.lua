@@ -32,6 +32,12 @@ addonTable = addonTable or {}
 -- freezes the answer at the pull and ResumeStatus releases it once the
 -- kills of the pull are counted. Learning keeps the real timer throughout.
 --
+-- Trace: while the runtime log is on, a `[TIMEPACE]` line records every
+-- estimate (whole / rolling / curve / reference), the progress split and the
+-- shown verdict at pull start, pull end, boss kill, verdict change and run
+-- end, never per tick. It only reads; the shown answer is the same with the
+-- trace on or off.
+--
 -- KillTrack owns every scenario read and hands this module the same
 -- validated snapshots it gives ForcesPace. Elapsed time, time limit and key
 -- level come from MplusTimer. The only Blizzard call made here is
@@ -59,6 +65,9 @@ local PACE_MIN_ELAPSED = 60
 -- Rolling tempo: the window it looks back over and the history it needs.
 local ROLLING_WINDOW = 240
 local ROLLING_MIN_COVERAGE = 120
+-- A forecast within this many seconds of the limit, either side, is "tight":
+-- the forecast is not precise enough to call it on time or late.
+local TIGHT_SECONDS = 30
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 local IsSecretValue = addonTable.Validators.IsSecretValue
@@ -79,6 +88,8 @@ local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
 ---@field progress number
 ---@field sampleProgress number
 ---@field kills number
+---@field forces number|nil forces percent of the last resolved snapshot
+---@field bossTotal number|nil boss count of the last resolved snapshot
 ---@field times number[]
 ---@field samples number[]
 ---@field recentMark number
@@ -184,6 +195,13 @@ local function ClearPause()
   paused.status = nil
 end
 
+-- [TIMEPACE] trace sink (SetTraceLogger) and the verdict of the answer shown
+-- last, so a change of the shown word is traced once. TraceStatus is
+-- assigned below ComputeStatus, which it reads.
+local traceFn, traceActive = nil, nil
+local lastVerdict = "none"
+local TraceStatus
+
 -- Progress from one snapshot, or nil when forces or bosses are unresolved.
 local function ComputeProgress(snapshot)
   if snapshot.percentResolved ~= true or not IsFiniteNumber(snapshot.percent) then
@@ -198,8 +216,9 @@ local function ComputeProgress(snapshot)
       kills = kills + 1
     end
   end
-  local forces = math.max(0, math.min(snapshot.percent, 100)) / 100
-  return FORCES_WEIGHT * forces + BOSS_WEIGHT * (kills / #snapshot.bosses), kills
+  local percent = math.max(0, math.min(snapshot.percent, 100))
+  local total = #snapshot.bosses
+  return FORCES_WEIGHT * percent / 100 + BOSS_WEIGHT * (kills / total), kills, percent, total
 end
 
 local function AppendSample(elapsed, progress)
@@ -256,15 +275,47 @@ local function RecordProgress(progress, kills)
   end
 end
 
+local function IsTraceOn()
+  return traceFn ~= nil and (traceActive == nil or traceActive() == true)
+end
+
+-- One line for a run boundary: start, discard or end with the learn result.
+local function TraceRunEvent(reason, target, stored)
+  if not IsTraceOn() then
+    return
+  end
+  traceFn(function()
+    if type(target) ~= "table" then
+      return string.format("[TIMEPACE] reason=%s run=none", reason)
+    end
+    return string.format(
+      "[TIMEPACE] reason=%s mapID=%s key=%s tracked=%s learnable=%s seeded=%s samples=%d stored=%s",
+      reason,
+      tostring(target.mapID),
+      tostring(target.keyLevel),
+      tostring(target.trackedFromStart),
+      tostring(target.learnable),
+      tostring(target.seeded),
+      #target.times,
+      tostring(stored)
+    )
+  end)
+end
+
 function TimePace.BeginRun()
   run = NewRun(true)
   ClearPause()
+  lastVerdict = "none"
+  TraceRunEvent("run_start", run, nil)
 end
 
 -- Drops the current run without learning (CHALLENGE_MODE_RESET).
 function TimePace.DiscardRun()
+  local dropped = run
   run = nil ---@diagnostic disable-line: cast-local-type
   ClearPause()
+  lastVerdict = "none"
+  TraceRunEvent("run_discard", dropped, false)
 end
 
 -- Feeds one validated scenario snapshot from KillTrack.
@@ -297,11 +348,17 @@ function TimePace.Observe(snapshot)
     end
   end
 
-  local progress, kills = ComputeProgress(snapshot)
+  local progress, kills, percent, total = ComputeProgress(snapshot)
   if progress == nil then
     return
   end
+  local bossDied = kills > run.kills
+  run.forces = percent
+  run.bossTotal = total
   RecordProgress(progress, kills)
+  if bossDied then
+    TraceStatus("boss")
+  end
 end
 
 local function ReadCompletionInfo()
@@ -407,10 +464,7 @@ end
 -- tracked from its start, with no boss dead before tracking began, is
 -- stored; per dungeon and key level the slowest such run wins. Returns true
 -- when the run was stored.
-function TimePace.CommitRun()
-  local finished = run
-  run = nil ---@diagnostic disable-line: cast-local-type
-  ClearPause()
+local function StoreFinishedRun(finished)
   if type(finished) ~= "table" or not finished.trackedFromStart or not finished.learnable or not finished.seeded then
     return false
   end
@@ -451,6 +505,16 @@ function TimePace.CommitRun()
   levels[finished.keyLevel] = entry
   EnforceLevelCap(levels, finished.keyLevel)
   return true
+end
+
+function TimePace.CommitRun()
+  local finished = run
+  run = nil ---@diagnostic disable-line: cast-local-type
+  ClearPause()
+  lastVerdict = "none"
+  local stored = StoreFinishedRun(finished)
+  TraceRunEvent("run_end", finished, stored)
+  return stored
 end
 
 -- Reference time at `progress`: linear between the two samples around it.
@@ -557,6 +621,103 @@ local function ComputeStatus(mapID)
   return { mode = "projection", projected = EstimateFinish(mapID, elapsed, progress), timeLimit = timer.timeLimit }
 end
 
+-- Shown state of a forecast `delta` seconds past the limit (negative =
+-- ahead): "tight" within TIGHT_SECONDS either side, in whole seconds, so a
+-- forecast exactly on the limit is tight; otherwise "ontime" or "late".
+function TimePace.ClassifyDelta(delta)
+  local seconds = math.floor(math.abs(delta) + 0.5)
+  if seconds <= TIGHT_SECONDS then
+    return "tight"
+  elseif delta < 0 then
+    return "ontime"
+  end
+  return "late"
+end
+
+-- Forecast minus time limit of a status, or nil.
+local function StatusDelta(status)
+  if type(status) ~= "table" then
+    return nil
+  end
+  local delta = nil
+  if status.mode == "reference" then
+    delta = status.delta
+  elseif status.mode == "projection" and IsFiniteNumber(status.projected) and IsFiniteNumber(status.timeLimit) then
+    delta = status.projected - status.timeLimit
+  end
+  return IsFiniteNumber(delta) and delta or nil
+end
+
+local function VerdictOf(status)
+  local delta = StatusDelta(status)
+  return delta and TimePace.ClassifyDelta(delta) or "none"
+end
+
+local function FormatSeconds(value)
+  return IsFiniteNumber(value) and string.format("%.0f", value) or "nil"
+end
+
+-- Builds the [TIMEPACE] line for the live answer. Every projection estimate
+-- is written in both modes, so a log shows which one jumps.
+local function BuildTraceLine(reason, status)
+  local timer = ReadTimer()
+  local elapsed = timer and timer.timer or nil
+  local progress = run.progress
+  local whole, rolling, curve = nil, nil, nil
+  if IsFiniteNumber(elapsed) and IsFiniteNumber(progress) and progress > 0 then
+    whole = elapsed / progress
+    rolling = EstimateRollingFinish(elapsed, progress)
+    curve = IsPositiveInteger(run.mapID) and EstimateCurveFinish(run.mapID, elapsed, progress) or nil
+  end
+  local delta = StatusDelta(status)
+  local limit = timer and timer.timeLimit or nil
+  return string.format(
+    "[TIMEPACE] reason=%s mode=%s verdict=%s gap=%s forecast=%s limit=%s elapsed=%s progress=%s "
+      .. "forces=%s bosses=%s/%s whole=%s rolling=%s curve=%s paused=%s key=%s learn=%s",
+    reason,
+    type(status) == "table" and tostring(status.mode) or "none",
+    VerdictOf(status),
+    delta and string.format("%+.0f", delta) or "nil",
+    (delta and IsFiniteNumber(limit)) and FormatSeconds(limit + delta) or "nil",
+    FormatSeconds(limit),
+    FormatSeconds(elapsed),
+    IsFiniteNumber(progress) and string.format("%.4f", progress) or "nil",
+    IsFiniteNumber(run.forces) and string.format("%.1f", run.forces) or "nil",
+    tostring(run.kills),
+    tostring(run.bossTotal),
+    FormatSeconds(whole),
+    FormatSeconds(rolling),
+    FormatSeconds(curve),
+    tostring(paused.active),
+    tostring(run.keyLevel),
+    tostring(run.learnable)
+  )
+end
+
+-- Traces the live answer. Outside a pause it is also the shown one, whose
+-- verdict then becomes the baseline for the next change.
+TraceStatus = function(reason)
+  if not IsTraceOn() or type(run) ~= "table" or not IsPositiveInteger(run.mapID) then
+    return
+  end
+  local status = ComputeStatus(run.mapID)
+  if not paused.active then
+    lastVerdict = VerdictOf(status)
+  end
+  traceFn(function()
+    return BuildTraceLine(reason, status)
+  end)
+end
+
+--- Sets the runtime-log sink for the [TIMEPACE] trace.
+-- @param fn function|nil Receives a lazy builder function (RuntimeLog.Trace). nil disables it.
+-- @param isActive function|nil When it returns false nothing is built.
+function TimePace.SetTraceLogger(fn, isActive)
+  traceFn = type(fn) == "function" and fn or nil
+  traceActive = type(isActive) == "function" and isActive or nil
+  lastVerdict = "none"
+end
+
 -- Pace answer for the current run on `mapID`, or nil:
 --   { mode = "reference", delta = s, keyLevel = n }   (delta < 0 = ahead)
 --   { mode = "projection", projected = s, timeLimit = s }
@@ -568,7 +729,11 @@ function TimePace.GetStatus(mapID)
   if paused.active then
     return paused.status
   end
-  return ComputeStatus(mapID)
+  local status = ComputeStatus(mapID)
+  if IsTraceOn() and VerdictOf(status) ~= lastVerdict then
+    TraceStatus("verdict")
+  end
+  return status
 end
 
 -- Freezes the shown answer at the start of a fight (PLAYER_REGEN_DISABLED).
@@ -579,6 +744,8 @@ function TimePace.PauseStatus()
   if type(run) ~= "table" or not IsPositiveInteger(run.mapID) then
     return
   end
+  -- Traced before freezing: the frozen answer is the live one at the pull.
+  TraceStatus("pull_start")
   local status = ComputeStatus(run.mapID)
   if status then
     status.paused = true
@@ -589,7 +756,11 @@ end
 
 -- Releases the frozen answer once the fight's kills are counted.
 function TimePace.ResumeStatus()
+  local wasPaused = paused.active
   ClearPause()
+  if wasPaused then
+    TraceStatus("pull_end")
+  end
 end
 
 function TimePace.IsStatusPaused()

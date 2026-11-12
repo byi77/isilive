@@ -843,6 +843,94 @@ local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
+local function RegisterTraceTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function Reasons(lines)
+    local reasons = {}
+    for _, line in ipairs(lines) do
+      reasons[#reasons + 1] = line:match("reason=(%S+)")
+    end
+    return table.concat(reasons, ",")
+  end
+
+  test("TimePace traces pulls, boss kills, verdict changes and run ends, never per tick", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      local lines = {}
+      addon.TimePace.SetTraceLogger(function(build)
+        lines[#lines + 1] = build()
+      end)
+      StartRun(addon, env)
+      -- progress = 0.5 * 0.3 + 0.5 / 3 = 0.31667 -> whole 600 / 0.31667 = 1894.7 s,
+      -- rolling needs 120 s of history: the projection is the whole-run estimate.
+      Advance(addon, env, 600, 90, 1)
+      addon.KillTrack.GetData()
+      addon.KillTrack.GetData()
+      Assert.Equal(Reasons(lines), "run_start,boss", "a boss kill traces once; repeated reads add nothing")
+      local boss = lines[2]
+      Assert.True(boss:find("mode=projection", 1, true) ~= nil, "the mode is logged")
+      Assert.True(boss:find("verdict=late gap=+95 forecast=1895 limit=1800", 1, true) ~= nil, "verdict and gap")
+      Assert.True(boss:find("forces=30.0 bosses=1/3", 1, true) ~= nil, "the progress split is logged")
+      Assert.True(boss:find("whole=1895 rolling=nil curve=nil", 1, true) ~= nil, "every estimate is logged")
+
+      -- whole 760 / 0.56667 = 1341 s, rolling over 160 s = 1037 s: the mean
+      -- of the two is on time, so the next read traces the verdict change.
+      Advance(addon, env, 760, 240, 1)
+      addon.KillTrack.GetData()
+      Assert.Equal(Reasons(lines), "run_start,boss,verdict", "the change of the shown word is traced once")
+      Assert.True(lines[3]:find("verdict=ontime", 1, true) ~= nil, "the new verdict is logged")
+      Assert.True(lines[3]:find("rolling=1037", 1, true) ~= nil, "the rolling estimate joins once it has history")
+
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      Advance(addon, env, 820, 270, 2)
+      addon.KillTrack.GetData()
+      Dispatch(addon, "PLAYER_REGEN_ENABLED")
+      RunTimers(env)
+      addon.KillTrack.GetData()
+      Assert.Equal(
+        Reasons(lines),
+        "run_start,boss,verdict,pull_start,boss,pull_end",
+        "pull start, boss kill in the pull and pull end"
+      )
+      Assert.True(lines[4]:find("paused=false", 1, true) ~= nil, "the pull start logs the answer it freezes")
+      Assert.True(lines[5]:find("paused=true", 1, true) ~= nil, "a boss kill inside the pull is marked paused")
+
+      Dispatch(addon, "CHALLENGE_MODE_RESET")
+      Assert.True(lines[#lines]:find("reason=run_discard", 1, true) ~= nil, "a reset traces the dropped run")
+      Assert.True(lines[#lines]:find("stored=false", 1, true) ~= nil, "a dropped run is never stored")
+
+      PlayRun(addon, env, 1500)
+      Assert.True(lines[#lines]:find("reason=run_end", 1, true) ~= nil, "the end of a key is traced")
+      Assert.True(lines[#lines]:find("stored=true", 1, true) ~= nil, "with the learn result")
+    end)
+  end)
+
+  test("TimePace writes no trace and shows the same answer while the runtime log is off", function()
+    local function Play(logOn)
+      local env = BuildEnv()
+      local lines, status = {}, nil
+      WithGlobals(env.globals, function()
+        local addon = Load(LoadAddonModules)
+        addon.TimePace.SetTraceLogger(function(build)
+          lines[#lines + 1] = build()
+        end, function()
+          return logOn
+        end)
+        StartRun(addon, env)
+        Advance(addon, env, 600, 90, 1)
+        Advance(addon, env, 760, 240, 1)
+        status = addon.KillTrack.GetData().timePace
+      end)
+      return lines, status
+    end
+    local offLines, offStatus = Play(false)
+    local onLines, onStatus = Play(true)
+    Assert.Equal(#offLines, 0, "nothing is built while the log is off")
+    Assert.True(#onLines > 0, "the same run traces with the log on")
+    Assert.Equal(offStatus.projected, onStatus.projected, "the trace never changes the answer")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -854,4 +942,5 @@ return function(test, ctx)
   RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTraceTests(test, Assert, WithGlobals, LoadAddonModules)
 end

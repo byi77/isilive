@@ -47,9 +47,6 @@ local TIME_PACE_FONT_SIZE = 12
 local TIME_PACE_RIGHT_INSET = 2
 local TIME_PACE_BADGE_HEIGHT = 16
 local TIME_PACE_BADGE_PAD = 4
--- A forecast within this many seconds of the limit, either side, is "tight":
--- the forecast is not precise enough to call it on time or late.
-local TIME_PACE_TIGHT_SECONDS = 30
 -- Pause sign in front of the text while a fight freezes the value: two bars.
 local TIME_PACE_PAUSE_BAR_WIDTH = 2
 local TIME_PACE_PAUSE_BAR_HEIGHT = 10
@@ -64,18 +61,12 @@ local TIME_PACE_FORMATS = {
 }
 
 -- Forecast minus time limit as badge text and state. The margin is shown in
--- whole seconds without a sign; the word carries the direction. Whole
--- seconds decide the state, so a forecast exactly on the limit is "tight".
-local function FormatTimeDelta(delta)
+-- whole seconds without a sign; the word carries the direction. The state
+-- ("ontime", "tight" or "late") comes from TimePace.ClassifyDelta, so the
+-- [TIMEPACE] trace logs the same verdict the badge shows.
+local function FormatTimeDelta(pace, delta)
   local seconds = math.floor(math.abs(delta) + 0.5)
-  local state
-  if seconds <= TIME_PACE_TIGHT_SECONDS then
-    state = "tight"
-  elseif delta < 0 then
-    state = "ontime"
-  else
-    state = "late"
-  end
+  local state = pace.ClassifyDelta(delta)
   local format = TIME_PACE_FORMATS[state]
   return string.format(LocalizedText(format.key, format.fallback), FormatMplusTime(seconds)), state
 end
@@ -94,19 +85,22 @@ local function BuildTimePaceText(data)
   if type(pace) ~= "table" or type(pace.IsEnabled) ~= "function" or pace.IsEnabled() ~= true then
     return nil
   end
+  if type(pace.ClassifyDelta) ~= "function" then
+    return nil
+  end
   local text, paceState
   if status.mode == "reference" then
     local delta = status.delta
     if type(delta) ~= "number" or delta ~= delta then
       return nil
     end
-    text, paceState = FormatTimeDelta(delta)
+    text, paceState = FormatTimeDelta(pace, delta)
   elseif status.mode == "projection" then
     local projected, limit = status.projected, status.timeLimit
     if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
       return nil
     end
-    text, paceState = FormatTimeDelta(projected - limit)
+    text, paceState = FormatTimeDelta(pace, projected - limit)
   else
     return nil
   end

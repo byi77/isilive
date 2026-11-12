@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Diagnostics: time pace trace (rule 208). With the runtime log on, `[TIMEPACE]` lines record mode, shown verdict, gap, forecast, elapsed time, progress (forces and bosses) and every finish estimate (whole run, rolling tempo, time curve) at pull start, pull end, boss kill and each change of the shown word, plus run start, reset and run end with the learn result -- never per tick. Groundwork for smoothing the badge; the shown answer does not change.
+- Code: the badge state (`ontime` / `tight` / `late`, 30 s band) moved from `ui/isiLive_roster_panel_kill_row_time_pace.lua` into `TimePace.ClassifyDelta`, so the trace logs the same verdict the badge shows; `TimePace.SetTraceLogger` is wired in `factory/isiLive_factory_primary.lua`. Two new tests in `testmodul/isilive_test_scenarios_time_pace.lua`.
+
 ## 2026-11-11 - Version 0.9.510 (patch)
 
 - Fix: Hunters showed no Bloodlust (BL) in the LFG group bonus, the applicant badge and the roster tooltip whenever their specialization was unknown -- LFG search results usually carry no spec ID and roster rows have none before the inspect. BL was tied to the three Hunter spec IDs; every Hunter spec brings it (pet Primal Rage, Marksmanship Harrier's Cry), so it now belongs to the Hunter class profile (rule 68). Only Augmentation keeps a spec-level bonus (Ebon Might).

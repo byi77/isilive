@@ -474,6 +474,8 @@ Pruefen ohne Key, an der Trainingspuppe:
 2. Steht im Panel „Auswertung: nein“ oder bleibt die Zahl leer: `IsiLiveDB.ttkDebug` in den SavedVariables lesen. Das Protokoll laeuft immer (auch bei ausgeschaltetem Runtime-Log), haelt die letzten 60 Zustandswechsel und nennt einmal pro Kampf den fehlgeschlagenen Schritt der Curve-Auswertung (anlegen, fuellen, auswerten).
 3. Danach einen Key: `[TTK]`-Zeilen im Runtime-Log bzw. `ttkDebug` muessen `evaluated=true` zeigen.
 
+Springt das Zeit-Tempo-Badge im Key, mit `/isilive log on` einen Key aufnehmen und die `[TIMEPACE]`-Zeilen lesen: `whole`, `rolling` und `curve` zeigen, welche Schaetzung springt, `mode` ob die eigene Referenz (ohne Daempfung) oder der Median gilt, `reason=verdict` jeden Wechsel des angezeigten Worts.
+
 Zeit-Tempo (Regel 208) und Forces-Tempo (Regel 145) lernen je `seasonID`. In einer neuen Season starten beide automatisch leer: das Zeit-Tempo zeigt bis zum ersten getimten Run je Dungeon und Keystufe die Prognose, das Forces-Tempo zeigt bis zum ersten vollstaendigen Run keinen Zielstrich. Es ist nichts manuell zu migrieren oder zu loeschen; alte Seasons bleiben bis zur Obergrenze von 20 Season-Eintraegen im Speicher und werden nicht mehr gelesen.
 
 ## 4) Dinge, die bewusst so gebaut sind und nicht versehentlich rueckgaengig gemacht werden duerfen
