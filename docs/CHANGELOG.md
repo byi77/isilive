@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-12 - Version 0.9.511 (patch)
 
 - Feature: consumable check on a ready check (rule 246, K4 stage 1, display only). With *Ready check: consumable check* on (Display, default off), a ready check outside combat and outside raids checks your weapon oil (main hand; the off hand only when it carries an enchant) and shows a card in the card stack for 25 seconds when something is missing or ends within 10 minutes. Food, flask and augment rune are checked as soon as the season data in `data/isiLive_consumables.lua` has their buff IDs; those come from the live client only -- probe mode now writes the spell IDs of your own buffs on every ready check (`spellIDs=`). New `game/isiLive_consumable_check.lua`, texts in all five languages, tests in `testmodul/isilive_test_scenarios_consumable_check.lua`; the factory test fixture now answers text metrics with numbers.
 - Feature: live kicks during a key (rule 245, K9). The roster tooltip now shows each member's landed kicks of the running key (`Kicks this key: 4 landed`), read from the damage meter's Overall interrupts session at every pull end and pull start -- the probe key of 2026-11-12 found it readable between pulls. The kick column keeps showing the cooldown during the key; after the key the run capture of rule 238 takes over. Setting *Kicks: live count during a key* (Display, on by default). New `factory/isiLive_factory_live_kicks.lua`, `Stats.CaptureLiveKicks`, texts in all five languages, tests in `testmodul/isilive_test_scenarios_live_kicks.lua`.

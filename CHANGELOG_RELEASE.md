@@ -3,7 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.510`.
+Current version: `0.9.511`.
+
+Version 0.9.511: isiLive's main window is part of Blizzard's Edit Mode (Esc >
+Edit Mode): move it there, change layout, scale and opacity in its dialog, and
+every Edit Mode layout keeps its own position. All isiLive cards now stack at
+the screen center as one card with one header and fade in and out; windows
+fade too. New optional helpers: an AGGRO alert for non-tanks in a key, live
+kick counts of the running key in the roster tooltip (on by default) and a
+consumable check on ready checks (weapon oil). The kick column no longer cuts
+`24/21` to `24...`, and a /reload inside a key fills the roster again.
 
 Version 0.9.510: Hunters show their Bloodlust (BL) again in the LFG group
 bonus and the roster tooltip, also when their specialization is not known yet
@@ -228,25 +237,23 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.510 -->
+<!-- highlights-reviewed-for: 0.9.511 -->
 
 Highlights:
+- **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
+  Mode like any Blizzard frame, set layout, scale, opacity and the lock in its
+  dialog; every Edit Mode layout keeps its own position, scale and layout. On
+  by default, one switch under Settings > Behavior.
+- **One card stack.** The accepted-invite card, the talent and loot check and
+  the portal navigator stack at the screen center as one card with one header,
+  slide in and fade out; the main window and the settings window fade too.
+- **New optional helpers.** An AGGRO alert when a mob turns on you as a
+  non-tank in a key, live kick counts of the running key in the roster tooltip
+  (on by default) and a consumable check on ready checks that flags missing or
+  expiring weapon oil.
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
-  member (e.g. `37/32`) and the DPS column is filled again after the key.
-- **Own settings window.** `/isilive settings`, the gear button, the minimap
-  button and the ESC panel open isiLive's own movable window instead of a page
-  in Blizzard's settings, with its own search box; Blizzard's settings search
-  finds "isiLive".
-- **New optional helpers.** A resize grip on the unlocked main window, an
-  instance reset button for the group leader after a key, and a MISSED KICK
-  warning when your interrupt hit nothing (the last two off by default).
-- **Clear on-time badge.** The killtracker bar says in one word whether the
-  key makes it: ON TIME, CLOSE or TOO SLOW, with the margin to the time
-  limit. During a fight it turns grey with a pause sign while the value waits
-  for the pull's kills.
-- **New Modern design, now the default.** Calm graphite surfaces, rounded
-  windows, cards and buttons with a soft shadow, round Battle Res and Bloodlust
-  icons, readable portal tiles, a timer that leads with the elapsed time and a
-  glassy forces bar. Everyone is switched to Modern once; Classic stays
-  available under Settings > General > Design or `/isilive design classic`, and
-  the switch applies at once outside combat.
+  member (e.g. `37/32`, no longer cut to `24...`) and the DPS column is filled
+  again after the key.
+- **Own settings window with search.** `/isilive settings`, the gear button,
+  the minimap button and the ESC panel open isiLive's own window with a search
+  box; Blizzard's settings search finds "isiLive".
