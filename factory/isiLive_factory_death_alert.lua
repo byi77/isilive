@@ -151,6 +151,36 @@ local function InitializeFactoryDeathAlertControllers(ctx)
   -- style plus the optional sound. Context and setting gates run in the
   -- kick tracker before this is called. `opts.preview` (simulation tablet)
   -- plays the sound as a preview, independent of its setting.
+  -- Aggro alert (rule 244): the AGGRO kind of the death alert plus the
+  -- optional sound; context and setting gates run in game/isiLive_aggro_alert.lua.
+  ctx.ShowAggroAlert = function(opts)
+    local shown = false
+    if type(deathAlert) == "table" and type(deathAlert.ShowAggro) == "function" then
+      shown = deathAlert.ShowAggro() == true
+    end
+    local soundUtils = addonTable.SoundUtils
+    local db = rawget(_G, "IsiLiveDB")
+    local preview = type(opts) == "table" and opts.preview == true
+    if type(soundUtils) == "table" then
+      if preview and type(soundUtils.PlayPreviewKey) == "function" then
+        soundUtils.PlayPreviewKey("aggro")
+      elseif not preview and type(db) == "table" and db.aggroAlertSound == true then
+        if type(soundUtils.PlayKey) == "function" then
+          soundUtils.PlayKey("aggro")
+        end
+      end
+    end
+    return shown
+  end
+  local aggroAlert = addonTable.AggroAlert
+  if type(aggroAlert) == "table" and type(aggroAlert.Install) == "function" then
+    aggroAlert.Install({
+      show = function()
+        ctx.ShowAggroAlert()
+      end,
+    })
+  end
+
   ctx.ShowMissedKickAlert = function(opts)
     local shown = false
     if type(deathAlert) == "table" and type(deathAlert.ShowMissedKick) == "function" then

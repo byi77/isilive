@@ -354,6 +354,9 @@ local SCHEMA = {
   missedKickAlertEnabled = { type = "boolean", default = false },
   missedKickOnlyInKey = { type = "boolean", default = true },
   missedKickSound = { type = "boolean", default = false },
+  -- Aggro alert for non-tanks (rule 244), both Pattern B.
+  aggroAlertEnabled = { type = "boolean", default = false },
+  aggroAlertSound = { type = "boolean", default = false },
 
   -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
   -- unlike runtimeLogEnabled, kept across reloads.

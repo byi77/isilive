@@ -114,6 +114,7 @@ game/isiLive_mplus_timer.lua
 game/isiLive_forces_pace.lua
 game/isiLive_time_pace.lua
 game/isiLive_ttk.lua
+game/isiLive_aggro_alert.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_combat_events.lua

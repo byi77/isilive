@@ -812,6 +812,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_units.lua",
     "isiLive_mplus_timer.lua",
     "isiLive_ttk.lua",
+    "isiLive_aggro_alert.lua",
     "isiLive_kick_tracker.lua",
     "isiLive_lfg_detect.lua",
     "isiLive_combat_events.lua",

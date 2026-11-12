@@ -23,7 +23,12 @@ local FALLBACK_TEXTS = {
   HEALER = "Healer died",
   PI = "PI received",
   MISSED_KICK = "Missed kick",
+  AGGRO = "AGGRO",
 }
+
+-- Importance of the alert kinds: a lower rank never replaces a higher one
+-- that is still on screen.
+local ALERT_RANK = { TANK = 3, HEALER = 3, PI = 3, AGGRO = 2, MISSED_KICK = 1 }
 
 local function ResolveAlertText(getL, role)
   local L = type(getL) == "function" and getL() or nil
@@ -37,6 +42,8 @@ local function ResolveAlertText(getL, role)
       key = "POWER_INFUSION_ALERT"
     elseif role == "MISSED_KICK" then
       key = "MISSED_KICK_ALERT"
+    elseif role == "AGGRO" then
+      key = "AGGRO_ALERT"
     end
     local text = L[key]
     if type(text) == "string" and text ~= "" then
@@ -188,7 +195,7 @@ function DeathAlert.CreateController(opts)
   local frame = nil
 
   local function ShowAlertKind(kind)
-    if kind ~= "TANK" and kind ~= "HEALER" and kind ~= "PI" and kind ~= "MISSED_KICK" then
+    if not ALERT_RANK[kind] then
       return false
     end
     if type(createFrame) ~= "function" then
@@ -197,11 +204,12 @@ function DeathAlert.CreateController(opts)
     if not frame then
       frame = BuildAlertFrame(createFrame)
     end
-    -- The missed-kick notice (rule 236) is the least important kind: it never
-    -- replaces a death or PI alert that is still on screen.
+    -- A less important kind never replaces a more important alert that is
+    -- still on screen: deaths and PI > aggro (rule 244) > missed kick (rule 236).
     if
-      kind == "MISSED_KICK"
-      and frame.alertKind ~= "MISSED_KICK"
+      frame.alertKind ~= kind
+      and ALERT_RANK[frame.alertKind]
+      and ALERT_RANK[kind] < ALERT_RANK[frame.alertKind]
       and type(frame.IsShown) == "function"
       and frame:IsShown()
     then
@@ -226,6 +234,10 @@ function DeathAlert.CreateController(opts)
 
   function controller.ShowMissedKick()
     return ShowAlertKind("MISSED_KICK")
+  end
+
+  function controller.ShowAggro()
+    return ShowAlertKind("AGGRO")
   end
 
   -- Rule 168: builds the hidden alert frame ahead of time so the first alert
@@ -286,4 +298,11 @@ function DeathAlert.ShowMissedKick()
     controllerInstance = DeathAlert.CreateController({})
   end
   return controllerInstance.ShowMissedKick()
+end
+
+function DeathAlert.ShowAggro()
+  if not controllerInstance then
+    controllerInstance = DeathAlert.CreateController({})
+  end
+  return controllerInstance.ShowAggro()
 end

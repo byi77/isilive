@@ -175,6 +175,16 @@ local SoundRegistry = {
     -- SettingsOrder: its toggle (missedKickSound, Pattern B) sits next to the
     -- missed-kick alert in the display settings. VERIFY IN-GAME that the cue
     -- is distinct enough from the client's own raid warnings.
+    aggro = {
+      soundKit = "ALARM_CLOCK_WARNING_3",
+      labelKey = "SETTINGS_AGGRO_SOUND",
+      descKey = "SETTINGS_AGGRO_SOUND_DESC",
+      labelFallback = "Aggro: play a sound",
+      descFallback = "Also plays a short sound with the aggro alert.",
+      settingKey = "aggroAlertSound",
+      defaultEnabled = false,
+      defaultChannel = "Master",
+    },
     missed_kick = {
       soundKit = "RAID_WARNING",
       labelKey = "SETTINGS_MISSED_KICK_SOUND",

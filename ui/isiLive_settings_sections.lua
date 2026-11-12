@@ -429,12 +429,76 @@ local function CreateMissedKickSoundCheckbox(canvas, yOffset, labels, config)
   )
 end
 
--- Missed-kick alert (rule 236): alert, only-in-key and sound, in this order.
+local FALLBACK_AGGRO_ALERT_DESC = "Shows a short AGGRO notice when a mob turns on you in a running key"
+  .. " and stays on you for half a second. Never for tanks, not while the tank is dead, at most once per pull."
+local FALLBACK_AGGRO_SOUND_DESC = "Also plays a short sound with the aggro alert."
+
+-- A Pattern B checkbox for one db field.
+local function CreatePatternBCheckbox(canvas, yOffset, config, field, labelKey, label, descKey, desc, labels)
+  return CreateSettingsCheckbox(canvas, yOffset, labels[labelKey] or label, function()
+    return config.getDB()[field] == true
+  end, function(checked)
+    config.getDB()[field] = checked
+  end, labelKey, CheckboxDescriptionOptions(labels[descKey] or desc))
+end
+
+-- Short alerts: missed kick (rule 236: alert, only-in-key, sound) and aggro
+-- (rule 244: alert, sound), in this order.
 local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, controls)
   controls.missedKickAlert, yOffset = CreateMissedKickAlertCheckbox(canvas, yOffset, labels, config)
   controls.missedKickOnlyInKey, yOffset = CreateMissedKickOnlyInKeyCheckbox(canvas, yOffset, labels, config)
   controls.missedKickSound, yOffset = CreateMissedKickSoundCheckbox(canvas, yOffset, labels, config)
+  controls.aggroAlert, yOffset = CreatePatternBCheckbox(
+    canvas,
+    yOffset,
+    config,
+    "aggroAlertEnabled",
+    "SETTINGS_AGGRO_ALERT",
+    "Aggro alert (not for tanks)",
+    "SETTINGS_AGGRO_ALERT_DESC",
+    FALLBACK_AGGRO_ALERT_DESC,
+    labels
+  )
+  controls.aggroSound, yOffset = CreatePatternBCheckbox(
+    canvas,
+    yOffset,
+    config,
+    "aggroAlertSound",
+    "SETTINGS_AGGRO_SOUND",
+    "Aggro: play a sound",
+    "SETTINGS_AGGRO_SOUND_DESC",
+    FALLBACK_AGGRO_SOUND_DESC,
+    labels
+  )
   return yOffset
+end
+
+local function RefreshAggroControls(controls, labels, db)
+  for _, entry in ipairs({
+    {
+      controls.aggroAlert,
+      "aggroAlertEnabled",
+      "SETTINGS_AGGRO_ALERT",
+      "Aggro alert (not for tanks)",
+      "SETTINGS_AGGRO_ALERT_DESC",
+      FALLBACK_AGGRO_ALERT_DESC,
+    },
+    {
+      controls.aggroSound,
+      "aggroAlertSound",
+      "SETTINGS_AGGRO_SOUND",
+      "Aggro: play a sound",
+      "SETTINGS_AGGRO_SOUND_DESC",
+      FALLBACK_AGGRO_SOUND_DESC,
+    },
+  }) do
+    local control = entry[1]
+    if control then
+      control.label:SetText(labels[entry[3]] or entry[4])
+      SetCheckboxDescription(control, labels[entry[5]] or entry[6])
+      control.check:SetChecked(db[entry[2]] == true)
+    end
+  end
 end
 
 local DISPLAY_DEFAULTS = {
@@ -463,6 +527,8 @@ local DISPLAY_DEFAULTS = {
   missedKickAlertEnabled = false,
   missedKickOnlyInKey = true,
   missedKickSound = false,
+  aggroAlertEnabled = false,
+  aggroAlertSound = false,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -513,6 +579,8 @@ local DISPLAY_DEFAULT_ORDER = {
   "missedKickAlertEnabled",
   "missedKickOnlyInKey",
   "missedKickSound",
+  "aggroAlertEnabled",
+  "aggroAlertSound",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -1246,6 +1314,7 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     )
     controls.missedKickSound.check:SetChecked(db.missedKickSound == true)
   end
+  RefreshAggroControls(controls, labels, db)
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")
     SetControlDescription(
