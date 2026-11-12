@@ -95,11 +95,32 @@ local function Snapshot(session)
   }
 end
 
+-- Lua keeps interned strings in one hash table that doubles once it is full.
+-- A doubling inside a phase showed up as exactly 128 KiB "retained" heap
+-- (2026-11-12: a handful of new string constants in game/isiLive_time_pace.lua
+-- moved the threshold into four-kick-peers), although nothing leaked. Strings
+-- kept alive for the whole run grow the table well past the addon's own use,
+-- so no phase crosses a doubling; they are alive before and after every
+-- phase and therefore neutral for its retained figure.
+local STRING_HEADROOM = 150000
+local stringHeadroom = nil
+
+local function EnsureStringHeadroom()
+  if stringHeadroom then
+    return
+  end
+  stringHeadroom = {}
+  for index = 1, STRING_HEADROOM do
+    stringHeadroom[index] = "isilive_regression_headroom_" .. index
+  end
+end
+
 local function Phase(session, label, callback, budgets)
   local before = Snapshot(session)
   local memoryEnabled = not package.loaded.luacov
   local beforeHeap, peakHeap, retained
   if memoryEnabled then
+    EnsureStringHeadroom()
     collectgarbage("collect")
     beforeHeap = collectgarbage("count")
     collectgarbage("stop")
@@ -217,6 +238,8 @@ function Regression.Run(ctx, mode, beforeWorkload)
     end
     local initialHeap
     if not package.loaded.luacov then
+      -- Before the lifecycle baseline, so the headroom never counts as retained.
+      EnsureStringHeadroom()
       collectgarbage("collect")
       initialHeap = collectgarbage("count")
     end
