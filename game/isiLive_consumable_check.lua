@@ -1,15 +1,17 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
--- Ready-check consumable check, stage 1: display only (rule 246, K4). On a
--- ready check outside combat and outside raids the own weapon oil (main and
--- off hand, GetWeaponEnchantInfo, no ID list needed) and -- once the season
--- data in data/isiLive_consumables.lua has IDs -- food, flask and augment
--- rune (C_UnitAuras.GetPlayerAuraBySpellID) are checked. The probe key of
--- 2026-11-12 found all of it readable at a ready check in the dungeon before
--- the key start. When something is missing or ends within LOW_MINUTES, a
--- card in the shared card stack lists every checked item for CARD_SECONDS.
--- Masked or unreadable values never count as missing. Setting
+-- Consumable check on dungeon entry, stage 1: display only (rule 246, K4).
+-- When the player enters a dungeon (a party instance, user decision
+-- 2026-11-12: entry, not the ready check) outside combat, outside raids and
+-- outside a running key, the own weapon oil (main and off hand,
+-- GetWeaponEnchantInfo, no ID list needed) and food, flask and augment rune
+-- (C_UnitAuras.GetPlayerAuraBySpellID with the buff set of
+-- data/isiLive_consumables.lua) are checked ENTRY_DELAY_SECONDS after the
+-- loading screen. The probe key of 2026-11-12 found all of it readable in the
+-- dungeon before the key start. When something is missing or ends within
+-- LOW_MINUTES, a card in the shared card stack lists every checked item for
+-- CARD_SECONDS. Masked or unreadable values never count as missing. Setting
 -- consumableCheckEnabled (Pattern B). Own event frame, installed after every
 -- window exists (FactoryEditMode.InstallLate).
 local ConsumableCheck = {}
@@ -19,6 +21,8 @@ addonTable.ConsumableCheck = ConsumableCheck
 -- before a key, not only in its last minutes.
 local LOW_MINUTES = 40
 local CARD_SECONDS = 25
+-- The loading screen has just ended: give auras and the card stack a moment.
+local ENTRY_DELAY_SECONDS = 2
 local CATEGORIES = {
   { key = "food", label = "CONSUMABLE_FOOD", fallback = "Food:" },
   { key = "flask", label = "CONSUMABLE_FLASK", fallback = "Flask:" },
@@ -154,15 +158,54 @@ local function NeedsAttention(rows)
   return false
 end
 
+local function IsKeyRunning()
+  local challengeMode = rawget(_G, "C_ChallengeMode")
+  local getMapID = type(challengeMode) == "table" and challengeMode.GetActiveChallengeMapID or nil
+  if type(getMapID) ~= "function" then
+    return false
+  end
+  local ok, mapID = pcall(getMapID)
+  if not ok or IsSecretValue(mapID) then
+    return false
+  end
+  return type(mapID) == "number" and mapID > 0
+end
+
+-- In combat, in a raid or inside a running key (a run back after a wipe is
+-- no fresh entry) there is nothing to prepare any more.
 local function Blocked()
   local inCombat = rawget(_G, "InCombatLockdown")
   if type(inCombat) == "function" and Plain(inCombat()) == true then
+    return true
+  end
+  if IsKeyRunning() then
     return true
   end
   local runtimeMode = addonTable.RuntimeMode
   return type(runtimeMode) == "table"
     and type(runtimeMode.IsRaidContext) == "function"
     and runtimeMode.IsRaidContext() == true
+end
+
+-- Dungeon name for the card's eyebrow (client language), or nil.
+local function InstanceName()
+  local getInfo = rawget(_G, "GetInstanceInfo")
+  if type(getInfo) ~= "function" then
+    return nil
+  end
+  local ok, name = pcall(getInfo)
+  name = ok and Plain(name) or nil
+  return type(name) == "string" and name ~= "" and name or nil
+end
+
+-- True while the player is inside a party instance (a dungeon).
+local function IsInDungeon()
+  local isInInstance = rawget(_G, "IsInInstance")
+  if type(isInInstance) ~= "function" then
+    return false
+  end
+  local ok, inInstance, instanceType = pcall(isInInstance)
+  return ok and Plain(inInstance) == true and Plain(instanceType) == "party"
 end
 
 -- Card payload for the shared center notice (rich layout).
@@ -181,15 +224,15 @@ local function BuildCard(rows, getText)
     fields[#fields + 1] = { label = getText(row.labelKey, row.fallback), value = value, warning = status ~= "ok" }
   end
   return {
-    eyebrow = getText("CONSUMABLE_CHECK_EYEBROW", "Ready check"),
+    eyebrow = InstanceName() or getText("CONSUMABLE_CHECK_EYEBROW", "Dungeon entry"),
     title = getText("CONSUMABLE_CHECK_TITLE", "isiLive - Consumables"),
     fields = fields,
   }
 end
 
---- Runs the check for a ready check; shows the card when something needs
---- attention. Returns the rows when it checked, or nil.
-function ConsumableCheck.OnReadyCheck(showCard, getText)
+--- Runs the check; shows the card when something needs attention. Returns
+--- the rows when it checked, or nil.
+function ConsumableCheck.Run(showCard, getText)
   if not ConsumableCheck.IsEnabled() or Blocked() then
     return nil
   end
@@ -200,7 +243,9 @@ function ConsumableCheck.OnReadyCheck(showCard, getText)
   return rows
 end
 
---- Event frame for READY_CHECK. opts.showCard(options, seconds),
+--- Event frame for PLAYER_ENTERING_WORLD: the step from outside into a
+--- dungeon runs the check after ENTRY_DELAY_SECONDS (a login or /reload
+--- inside a dungeon counts as an entry too). opts.showCard(options, seconds),
 --- opts.getText(key, fallback).
 function ConsumableCheck.Install(opts)
   opts = type(opts) == "table" and opts or {}
@@ -211,10 +256,24 @@ function ConsumableCheck.Install(opts)
   local getText = type(opts.getText) == "function" and opts.getText or function(_, fallback)
     return fallback
   end
+  local wasInDungeon = false
   local frame = createFrame("Frame")
   frame:SetScript("OnEvent", function()
-    ConsumableCheck.OnReadyCheck(opts.showCard, getText)
+    local inDungeon = IsInDungeon()
+    local entered = inDungeon and not wasInDungeon
+    wasInDungeon = inDungeon
+    if not entered or not ConsumableCheck.IsEnabled() then
+      return
+    end
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(ENTRY_DELAY_SECONDS, function()
+        if IsInDungeon() then
+          ConsumableCheck.Run(opts.showCard, getText)
+        end
+      end)
+    end
   end)
-  frame:RegisterEvent("READY_CHECK")
+  frame:RegisterEvent("PLAYER_ENTERING_WORLD")
   return frame
 end

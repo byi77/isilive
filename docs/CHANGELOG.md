@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Feature: the ready-check consumable check (rule 246) now also checks food, flask and augment rune in every Midnight season: food through the "Well Fed" and "Hearty Well Fed" buffs, a flask through the buff of any of the four Midnight flasks (regular or fleeting), and the Void-Touched Augment Rune. A missing one gets its own warning row on the card. Everything that ends within 40 minutes (was 10) is flagged too, so there is still time to renew it before the key. Data in `data/isiLive_consumables.lua`, one set per expansion: a season finds its set by name (`midnight_s2` -> `midnight`), so a new season needs no update, and a test fails for a season of the manifest without a set.
+- Change: the consumable check (rule 246) now runs when you enter a dungeon instead of on a ready check -- outside combat and outside a running key (a run back after a wipe does not trigger it), with the dungeon's name on the card. The setting is now *Dungeon entry: consumable check*.
+- Feature: the consumable check (rule 246) now also checks food, flask and augment rune in every Midnight season: food through the "Well Fed" and "Hearty Well Fed" buffs, a flask through the buff of any of the four Midnight flasks (regular or fleeting), and the Void-Touched Augment Rune. A missing one gets its own warning row on the card. Everything that ends within 40 minutes (was 10) is flagged too, so there is still time to renew it before the key. Data in `data/isiLive_consumables.lua`, one set per expansion: a season finds its set by name (`midnight_s2` -> `midnight`), so a new season needs no update, and a test fails for a season of the manifest without a set.
 
 ## 2026-11-12 - Version 0.9.511 (patch)
 

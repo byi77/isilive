@@ -481,9 +481,9 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     config,
     "consumableCheckEnabled",
     "SETTINGS_CONSUMABLE_CHECK",
-    "Ready check: consumable check",
+    "Dungeon entry: consumable check",
     "SETTINGS_CONSUMABLE_CHECK_DESC",
-    "On a ready check, shows a card when your food, flask, augment rune or weapon oil"
+    "When you enter a dungeon, shows a card when your food, flask, augment rune or weapon oil"
       .. " is missing or ends within 40 minutes.",
     labels
   )
@@ -528,7 +528,7 @@ local function RefreshAggroControls(controls, labels, db)
       controls.consumableCheck,
       "consumableCheckEnabled",
       "SETTINGS_CONSUMABLE_CHECK",
-      "Ready check: consumable check",
+      "Dungeon entry: consumable check",
       "SETTINGS_CONSUMABLE_CHECK_DESC",
       "",
     },
