@@ -7,7 +7,7 @@ addonTable = addonTable or {}
 -- learned route that fits the run (game/isiLive_forces_pace.lua).
 --
 -- Median enemy-forces percentage at each boss kill of timed +12 to
--- +18 keys from public Warcraft Logs reports, as of 2026-11-05. Do not fill
+-- +18 keys from public Warcraft Logs reports, as of 2026-11-12. Do not fill
 -- this table from another addon: external route tables are not ours to
 -- redistribute.
 --
@@ -19,8 +19,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 27.5, 72.7, 100, 100 },
-          leanScore = 300.2,
+          checkpoints = { 27.3, 72.7, 100, 100 },
+          leanScore = 300,
         },
       },
     },
@@ -28,8 +28,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 22.9, 65.4, 81.5, 100 },
-          leanScore = 269.8,
+          checkpoints = { 22.9, 64.9, 81.5, 100 },
+          leanScore = 269.3,
         },
       },
     },
@@ -37,8 +37,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 31.8, 75.7, 100 },
-          leanScore = 207.5,
+          checkpoints = { 32.3, 75.7, 100 },
+          leanScore = 208,
         },
       },
     },
@@ -46,8 +46,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 42.1, 53.9, 66.9, 100 },
-          leanScore = 262.9,
+          checkpoints = { 42.1, 53.1, 69.2, 100 },
+          leanScore = 264.4,
         },
       },
     },
@@ -55,8 +55,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 35.5, 59.2, 100 },
-          leanScore = 194.7,
+          checkpoints = { 35.5, 61.2, 100 },
+          leanScore = 196.7,
         },
       },
     },
@@ -64,7 +64,7 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 22.2, 74.1, 100 },
+          checkpoints = { 21.8, 74.5, 100 },
           leanScore = 196.3,
         },
       },
@@ -73,8 +73,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3-4"] = {
           order = { 1, 2, 3, 4 },
-          checkpoints = { 36.3, 40.3, 75.1, 100 },
-          leanScore = 251.7,
+          checkpoints = { 36.3, 40.3, 77.4, 100 },
+          leanScore = 254,
         },
       },
     },
@@ -82,8 +82,8 @@ addonTable.ForcesSeed = {
       routes = {
         ["1-2-3"] = {
           order = { 1, 2, 3 },
-          checkpoints = { 44.4, 64.1, 100 },
-          leanScore = 208.5,
+          checkpoints = { 43.8, 64.6, 100 },
+          leanScore = 208.4,
         },
       },
     },
