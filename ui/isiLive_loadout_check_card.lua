@@ -11,6 +11,9 @@ addonTable.LoadoutCheckCard = LoadoutCheckCard
 
 local UICommon = assert(addonTable.UICommon, "isiLive: UICommon missing")
 local Colors = UICommon.Colors
+local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue or function()
+  return false
+end
 
 local CARD_WIDTH = 444
 -- Same insets and type scale as the rich center notice (rule 242: the cards
@@ -123,12 +126,14 @@ end
 local function MeasureText(fontString, text)
   SetReadable(fontString, text)
   local measure = fontString.GetUnboundedStringWidth or fontString.GetStringWidth
-  local width = nil
-  if type(measure) == "function" then
-    local ok, value = pcall(measure, fontString)
-    width = ok and tonumber(value) or nil
+  if type(measure) ~= "function" then
+    return 0
   end
-  return width or 0
+  local ok, value = pcall(measure, fontString)
+  if not ok or IsSecretValue(value) then
+    return 0
+  end
+  return tonumber(value) or 0
 end
 
 local function ResolveLabelColumnWidth(frame, talentLabel, lootLabel)

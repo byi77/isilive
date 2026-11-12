@@ -256,6 +256,71 @@ return function(test, ctx)
     end, { shown = true })
   end)
 
+  test("Edit Mode factory wiring hands the dialog the settings panel's setters", function()
+    local db = { lockMainFramePosition = true }
+    local globals = Globals(db, { value = false })
+    globals.InCombatLockdown = function()
+      return false
+    end
+    ctx.with_globals(globals, function()
+      local addon = ctx.load_modules({ "isiLive_edit_mode.lua", "isiLive_factory_edit_mode.lua" })
+      local lib = NewLib()
+      addon.LibEditMode = lib
+      local frame = NewFrame(true)
+      local calls = {}
+      local mainUI = NewMainUI(frame)
+      function mainUI.GetDragLocked()
+        return db.lockMainFramePosition
+      end
+      function mainUI.SetDragLocked(locked)
+        calls[#calls + 1] = "lock=" .. tostring(locked)
+      end
+      local layout = "compact_main_horizontal"
+      addon.UICommon = {
+        ApplyBgAlpha = function(_, value)
+          calls[#calls + 1] = "alpha=" .. tostring(value)
+        end,
+      }
+      local runtime = {
+        mainUI = mainUI,
+        mainFrame = frame,
+        rosterPanelController = {
+          GetLayoutMode = function()
+            return layout
+          end,
+          SetLayoutMode = function(mode)
+            layout = mode
+          end,
+        },
+        settingsPanel = {
+          Refresh = function()
+            calls[#calls + 1] = "refresh"
+          end,
+        },
+        GetL = function()
+          return { EDIT_MODE_LAYOUT = "Anordnung" }
+        end,
+      }
+      addon.FactoryEditMode.InstallLate(runtime)
+      Assert.NotNil(runtime.editModeController, "the late install wires the Edit Mode controller")
+      local settings = lib.settings
+      Assert.Equal(settings[1].name, "Anordnung", "dialog texts follow the isiLive language")
+      Assert.Equal(settings[1].get(), "compact_main_horizontal", "the dropdown reads the roster layout")
+      settings[1].set("Modern", "compact_vertical")
+      Assert.Equal(layout, "compact_vertical", "the dropdown switches the roster layout")
+      settings[3].set("Modern", 0.3)
+      Assert.True(settings[4].get(), "the lock checkbox reads the window lock")
+      settings[4].set("Modern", false)
+      Assert.False(db.lockMainFramePosition, "unlocking persists the lock setting")
+      Assert.Equal(
+        table.concat(calls, ","),
+        "refresh,alpha=0.3,refresh,lock=false,refresh",
+        "background and lock go through the shared setters and refresh the settings panel"
+      )
+      Assert.Nil(addon.FactoryEditMode.Install({}), "no main window: nothing is installed")
+    end)
+  end)
+
   test("Edit Mode integration switched off keeps isiLive as before", function()
     Setup(function(env)
       local db = env.db
