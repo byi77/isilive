@@ -2097,7 +2097,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UICommon semantic design system exposes shared modern surface and spacing roles
   - UICommon background opacity repaints semantic title and run surfaces
   - UICommon notice chrome creates a shared top accent and semantic role
-  - Center notice close button hides center notice directly
+  - Center notice close button fades the card out and then hides it
   - CreateCdTrackerRow renders M+ grade badges and wide timer fields
   - CreateKillTrackRow uses readable section color for its run label
   - TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled
@@ -2401,9 +2401,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - UICommon notice entrance fades a hidden card fully in and yields to a refresh
   - Center notice rich warning field renders red and blinks
-  - PortalNavigator fades in when it appears and stays quiet while already visible
+  - PortalNavigator fades in with the card stack and stays quiet while already visible
   - PortalNavigator hides itself when right-clicked
-  - Center notice close button hides center notice directly
+  - Center notice close button fades the card out and then hides it
 
 ### RULE-ROSTER-INAKTIVE-ZEILEN-ABGEDUNKELT
 - Regelnummer: 129

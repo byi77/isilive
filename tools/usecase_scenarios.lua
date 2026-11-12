@@ -27,6 +27,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_teleport_ui.lua",
   "testmodul/isilive_test_scenarios_ui_common.lua",
   "testmodul/isilive_test_scenarios_ui_motion_tooltip.lua",
+  "testmodul/isilive_test_scenarios_card_stack.lua",
   "testmodul/isilive_test_scenarios_ui_fonts.lua",
   "testmodul/isilive_test_scenarios_stats_box.lua",
   "testmodul/isilive_test_scenarios_simulation_tablet.lua",

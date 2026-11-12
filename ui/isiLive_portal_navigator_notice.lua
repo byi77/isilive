@@ -81,19 +81,9 @@ local function CreateFrameRoot(config, deps)
     self:StopMovingOrSizing()
   end)
 
-  local colors = deps.colors
+  -- No surface of its own: the navigator is a section of the shared card
+  -- stack, which paints the one NOTICE background and border (rule 242).
   local UICommon = addonTable and addonTable.UICommon
-  if not (type(UICommon) == "table" and UICommon.ApplyBackdrop and UICommon.ApplyBackdrop(frame, "NOTICE")) then
-    if type(frame.CreateTexture) == "function" then
-      local bg = frame:CreateTexture(nil, "BACKGROUND")
-      bg:SetAllPoints()
-      local base = colors.SURFACE_MAIN_FRAME or { 0.035, 0.045, 0.065 }
-      bg:SetColorTexture(base[1], base[2], base[3], config.backgroundAlpha)
-    end
-  elseif type(frame.SetBackdropColor) == "function" then
-    local base = colors.SURFACE_NOTICE or { 0.035, 0.05, 0.075, 0.90 }
-    frame:SetBackdropColor(base[1], base[2], base[3], config.backgroundAlpha)
-  end
   if type(UICommon) == "table" and type(UICommon.CreateNoticeChrome) == "function" then
     frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
   end
@@ -258,7 +248,7 @@ local function ApplyLayout(state, layout)
   state.deps.applyHeader(
     state,
     { eyebrow = layout.eyebrow, title = title },
-    state.config.width - (state.config.paddingX * 2)
+    (state.width or state.config.width) - (state.config.paddingX * 2)
   )
 
   local entryMap = {}
@@ -297,27 +287,43 @@ local function ApplyLayout(state, layout)
   return true
 end
 
-local function BuildController(state)
-  local function ResetToConfiguredPosition()
-    state.frame:ClearAllPoints()
-    state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, state.config.yOffset)
+local function IsActive(state)
+  if state.section then
+    return state.section.IsActive()
   end
+  return state.frame:IsShown() == true
+end
 
-  local function SetVisible(visible)
+local function SetNavigatorVisible(state, visible)
+  if state.section then
+    -- The stack owns position (screen center, not persistent) and motion.
     if visible then
-      if not state.frame:IsShown() then
-        ResetToConfiguredPosition()
-        state.frame:Show()
-        local UICommon = addonTable and addonTable.UICommon
-        if type(UICommon) == "table" and type(UICommon.PlayNoticeEntrance) == "function" then
-          UICommon.PlayNoticeEntrance(state.frame)
-        end
+      state.section.Show()
+    else
+      state.section.Hide()
+    end
+    return
+  end
+  if visible then
+    if not state.frame:IsShown() then
+      state.frame:ClearAllPoints()
+      state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, state.config.yOffset)
+      state.frame:Show()
+      local UICommon = addonTable and addonTable.UICommon
+      if type(UICommon) == "table" and type(UICommon.PlayNoticeEntrance) == "function" then
+        UICommon.PlayNoticeEntrance(state.frame)
       end
-      return
     end
-    if state.frame:IsShown() then
-      state.frame:Hide()
-    end
+    return
+  end
+  if state.frame:IsShown() then
+    state.frame:Hide()
+  end
+end
+
+local function BuildController(state)
+  local function SetVisible(visible)
+    SetNavigatorVisible(state, visible)
   end
 
   local function Show(layout)
@@ -325,7 +331,8 @@ local function BuildController(state)
       SetVisible(false)
       return false
     end
-    local wasShown = state.frame:IsShown()
+    state.lastLayout = layout
+    local wasShown = IsActive(state)
     SetVisible(true)
     local UICommon = addonTable and addonTable.UICommon
     if wasShown and type(UICommon) == "table" and type(UICommon.PlayNoticeTransition) == "function" then
@@ -336,7 +343,11 @@ local function BuildController(state)
 
   -- New texts for the open card, without an entrance or transition.
   local function Relabel(layout)
-    return ApplyLayout(state, layout)
+    local applied = ApplyLayout(state, layout)
+    if applied then
+      state.lastLayout = layout
+    end
+    return applied
   end
 
   return {
@@ -394,7 +405,7 @@ function PortalNavigatorNotice.Create(opts, deps)
   }
 
   local function Hide()
-    state.frame:Hide()
+    SetNavigatorVisible(state, false)
   end
 
   frame:SetScript("OnMouseUp", function(_, button)
@@ -405,5 +416,23 @@ function PortalNavigatorNotice.Create(opts, deps)
   closeButton:SetScript("OnClick", Hide)
 
   ClearEntries(state)
+  local cardStack = addonTable.CardStack
+  if type(cardStack) == "table" and type(cardStack.Register) == "function" then
+    state.section = cardStack.Register("portal", frame, {
+      preferredWidth = config.width,
+      relayout = function(width)
+        -- The crescent is anchored to the edges; only the header follows.
+        state.width = width
+        if state.lastLayout then
+          ApplyLayout(state, state.lastLayout)
+        end
+      end,
+      onRoleChanged = function(isLead)
+        if type(deps.applyHeaderRole) == "function" then
+          deps.applyHeaderRole(state, isLead)
+        end
+      end,
+    })
+  end
   return BuildController(state)
 end

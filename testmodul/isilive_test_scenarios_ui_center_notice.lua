@@ -1,3 +1,5 @@
+local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
+
 local function CreateTextureStub()
   return {
     hidden = false,
@@ -102,10 +104,39 @@ local function CreateFontStringStub(fontObject)
   }
 end
 
+-- Every animation group the stubs build; FinishAnimations plays the running
+-- ones to their end (OnFinished), like the client does after the duration.
+local animationGroups = {}
+
+local function FinishAnimations()
+  for _ = 1, 10 do
+    local finishedAny = false
+    for _, group in ipairs(animationGroups) do
+      if group._playing then
+        group._playing = false
+        finishedAny = true
+        local onFinished = group._scripts.OnFinished
+        if onFinished then
+          onFinished(group)
+        end
+      end
+    end
+    if not finishedAny then
+      return
+    end
+  end
+end
+
 local function CreateAnimationGroupStub()
   local group = {
     _playing = false,
+    _scripts = {},
   }
+  animationGroups[#animationGroups + 1] = group
+  group.SetScript = function(self, name, fn)
+    self._scripts[name] = fn
+  end
+  group.SetToFinalAlpha = function() end
   group.SetLooping = function(_self, _mode) end
   group.CreateAnimation = function(_self, _kind)
     return {
@@ -116,6 +147,7 @@ local function CreateAnimationGroupStub()
       SetFromAlpha = function(_anim, _value) end,
       SetToAlpha = function(_anim, _value) end,
       SetTarget = function(_anim, _target) end,
+      SetOffset = function(_anim, _x, _y) end,
     }
   end
   group.IsPlaying = function(self)
@@ -250,6 +282,31 @@ local function ApplyFrameMethods(frame)
   end
   frame.IsShown = function(self)
     return self._shown == true
+  end
+  frame.GetParent = function(self)
+    return self._parent
+  end
+  frame.SetParent = function(self, parent)
+    local previous = self._parent
+    if type(previous) == "table" and type(previous._children) == "table" then
+      for index, child in ipairs(previous._children) do
+        if child == self then
+          table.remove(previous._children, index)
+          break
+        end
+      end
+    end
+    self._parent = parent
+    if type(parent) == "table" then
+      parent._children = parent._children or {}
+      table.insert(parent._children, self)
+    end
+  end
+  frame.GetChildren = function(self)
+    return Unpack(self._children or {})
+  end
+  frame.IsMouseEnabled = function(self)
+    return self._mouseEnabled == true
   end
   frame.StartMoving = function(self)
     self._startMovingCalls = (self._startMovingCalls or 0) + 1
@@ -436,6 +493,10 @@ local function BuildCreateFrameStub(opts)
     end
 
     ApplyFrameMethods(frame)
+    if type(parent) == "table" then
+      parent._children = parent._children or {}
+      table.insert(parent._children, frame)
+    end
     table.insert(createdFrames, frame)
     return frame
   end
@@ -445,7 +506,7 @@ end
 
 local RegisterCenterNoticeTeleportTooltipTests
 local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Center notice close button hides center notice directly", function()
+  test("Center notice close button fades the card out and then hides it", function()
     local now = 0
 
     WithGlobals({
@@ -477,7 +538,14 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       onClick = Assert.NotNil(onClick, "center notice close button should define OnClick handler")
       onClick(centerNotice.closeButton, "LeftButton")
 
+      -- The only card: the whole stack fades out (`fast`), then hides it.
+      local container = addon.CardStack.GetContainer()
+      Assert.True(addon.UICommon.IsHiding(container), "closing the last card must fade the card stack out")
+      Assert.False(container._mouseEnabled == true, "a fading card stack must not catch clicks any more")
+      FinishAnimations()
       Assert.False(centerNotice.frame:IsShown(), "center notice close button should hide notice frame")
+      Assert.False(container:IsShown(), "the empty card stack must hide after its fade-out")
+      Assert.Equal(container:GetAlpha(), 1, "a hidden stack keeps full alpha for the next plain Show")
     end)
   end)
 
@@ -508,8 +576,9 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       local onClick = centerNotice.closeButton._scripts and centerNotice.closeButton._scripts.OnClick or nil
       onClick = Assert.NotNil(onClick, "center notice close button should define OnClick handler")
       onClick(centerNotice.closeButton, "LeftButton")
+      FinishAnimations()
 
-      Assert.False(centerNotice.frame:IsShown(), "center notice close in combat should hide notice frame immediately")
+      Assert.False(centerNotice.frame:IsShown(), "center notice close in combat should hide notice frame without delay")
     end)
   end)
 
@@ -922,7 +991,7 @@ RegisterCenterNoticeTeleportTooltipTests = function(test, Assert, WithGlobals, L
 end
 
 local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)
-  test("Center notice drag stays non-persistent and resets to center on next open", function()
+  test("Center notice drag moves the card stack and resets to center on next open", function()
     local now = 0
 
     WithGlobals({
@@ -952,18 +1021,27 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       onDragStart(centerNotice.frame)
       onDragStop(centerNotice.frame)
 
-      Assert.Equal(centerNotice.frame._startMovingCalls, 1, "center notice drag start should call StartMoving")
-      Assert.Equal(centerNotice.frame._stopMovingCalls, 1, "center notice drag stop should call StopMovingOrSizing")
+      -- Dragging a card moves the whole stack, never the card alone.
+      local container = addon.CardStack.GetContainer()
+      Assert.Equal(container._startMovingCalls, 1, "center notice drag start should move the card stack")
+      Assert.Equal(container._stopMovingCalls, 1, "center notice drag stop should stop the card stack")
+      Assert.Equal(centerNotice.frame._startMovingCalls, 0, "the card itself must not move out of the stack")
       Assert.Nil(IsiLiveDB.centerNoticePosition, "center notice drag must not persist position in DB")
+      container:SetPoint("TOP", UIParent, "CENTER", 40, 80)
 
       centerNotice.SetVisible(false)
+      FinishAnimations()
       centerNotice.Show("Reopen test", 20, nil, nil, {})
 
-      local point, _, relativePoint, x, y = centerNotice.frame:GetPoint()
-      Assert.Equal(point, "CENTER", "reopened center notice should use CENTER point")
-      Assert.Equal(relativePoint, "CENTER", "reopened center notice should use CENTER relativePoint")
-      Assert.Equal(x, 0, "reopened center notice should reset x offset")
-      Assert.Equal(y, 0, "reopened center notice should reset y offset")
+      local point, relativeTo, relativePoint, x, y = container:GetPoint()
+      Assert.Equal(point, "TOP", "reopened card stack should hang from its top edge")
+      Assert.Equal(relativeTo, UIParent, "reopened card stack should anchor to UIParent")
+      Assert.Equal(relativePoint, "CENTER", "reopened card stack should use the screen center")
+      Assert.Equal(x, 0, "reopened card stack should reset x offset")
+      Assert.Equal(y, addon.CardStack.TOP_OFFSET, "reopened card stack should reset y offset")
+      local cardPoint, cardRelativeTo = centerNotice.frame:GetPoint()
+      Assert.Equal(cardPoint, "TOPLEFT", "the card sits inside the stack")
+      Assert.Equal(cardRelativeTo, container, "the card anchors to the card stack")
     end)
   end)
 
@@ -988,6 +1066,9 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         end,
       })
 
+      local container = addon.CardStack.GetContainer()
+      Assert.True(container._clampedToScreen, "the card stack must be clamped to the WoW screen")
+      Assert.Equal(container._clampRectInsets[1], 0, "card stack clamp insets must stay at the edge")
       Assert.True(centerNotice.frame._clampedToScreen, "center notice must be clamped to the WoW screen")
       Assert.Equal(centerNotice.frame._clampRectInsets[1], 0, "center notice left clamp inset must stay at the edge")
       Assert.Equal(centerNotice.frame._clampRectInsets[2], 0, "center notice right clamp inset must stay at the edge")
@@ -1010,7 +1091,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
     end)
   end)
 
-  test("Notice center windows can inherit the M+ UI frame layer", function()
+  test("Cards move with their children onto the card stack strata", function()
     WithGlobals({
       UIParent = {},
       CreateFrame = BuildCreateFrameStub(),
@@ -1032,20 +1113,31 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         frameLevel = 12,
       })
 
-      Assert.Equal(centerNotice.frame:GetFrameStrata(), "MEDIUM", "center notice must use the supplied M+ UI strata")
-      Assert.Equal(centerNotice.frame:GetFrameLevel(), 12, "center notice must use the supplied M+ UI frame level")
+      -- One card, one layer: every card and every child that sat on the
+      -- card's old strata (teleport tile, close button) moves to the stack's
+      -- strata, otherwise it would render below the stack's background.
+      local stackStrata = addon.CardStack.FRAME_STRATA
+      local container = addon.CardStack.GetContainer()
+      Assert.Equal(container:GetFrameStrata(), stackStrata, "the card stack uses its own strata")
+      Assert.Equal(centerNotice.frame:GetParent(), container, "the center notice is a section of the card stack")
+      Assert.Equal(centerNotice.frame:GetFrameStrata(), stackStrata, "center notice must use the card stack strata")
       Assert.Equal(
         centerNotice.teleportButton:GetFrameStrata(),
-        "MEDIUM",
-        "center notice teleport button must stay on the center notice strata"
+        stackStrata,
+        "center notice teleport button must follow the card onto the stack strata"
       )
       Assert.Equal(
         centerNotice.teleportButton:GetFrameLevel(),
         22,
-        "center notice teleport button may only rise by frame level inside the M+ UI strata"
+        "center notice teleport button may only rise by frame level inside the card"
       )
-      Assert.Equal(portalNotice.frame:GetFrameStrata(), "MEDIUM", "portal navigator must use the supplied M+ UI strata")
-      Assert.Equal(portalNotice.frame:GetFrameLevel(), 12, "portal navigator must use the supplied M+ UI frame level")
+      Assert.Equal(
+        centerNotice.closeButton:GetFrameStrata(),
+        stackStrata,
+        "the close button must follow the card onto the stack strata"
+      )
+      Assert.Equal(portalNotice.frame:GetParent(), container, "the portal navigator is a section of the card stack")
+      Assert.Equal(portalNotice.frame:GetFrameStrata(), stackStrata, "portal navigator must use the card stack strata")
     end)
   end)
 
@@ -1063,12 +1155,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         end,
       })
 
-      local framePoint, frameRelativeTo, frameRelativePoint, frameX, frameY = portalNotice.frame:GetPoint()
-      Assert.Equal(framePoint, "CENTER", "portal navigator frame should stay centered on the horizontal axis")
-      Assert.Equal(frameRelativeTo, UIParent, "portal navigator frame should anchor to UIParent")
-      Assert.Equal(frameRelativePoint, "CENTER", "portal navigator frame should keep center relative point")
-      Assert.Equal(frameX, 0, "portal navigator frame should not drift horizontally")
-      Assert.Equal(frameY, 190, "portal navigator frame should keep the compact notice near the top center")
+      local container = addon.CardStack.GetContainer()
       -- 220 was the old free value and clipped the outer slots as soon as a season
       -- left them empty (Season 2). The height is derived from the slot anchors now.
       Assert.Equal(
@@ -1077,11 +1164,13 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         "portal navigator height must follow the deepest slot anchor"
       )
       Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
-      local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
-      Assert.Equal(bgR, 0.035, "portal navigator background should use the shared notice red channel")
-      Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
-      Assert.Equal(bgB, 0.075, "portal navigator background should use the shared notice blue channel")
-      Assert.Equal(bgA, 0.62, "portal navigator background should render at the configured alpha")
+      -- The surface belongs to the card stack (one background for all cards).
+      Assert.Nil(portalNotice.frame:GetBackdropColor(), "the navigator section paints no background of its own")
+      local bgR, bgG, bgB, bgA = container:GetBackdropColor()
+      Assert.Equal(bgR, 0.035, "card stack background should use the shared notice red channel")
+      Assert.Equal(bgG, 0.05, "card stack background should use the shared notice green channel")
+      Assert.Equal(bgB, 0.075, "card stack background should use the shared notice blue channel")
+      Assert.Equal(bgA, 0.9, "card stack background should use the shared notice alpha")
       Assert.Equal(
         portalNotice.frame._isiLiveSurfaceRole,
         "notice",
@@ -1094,11 +1183,17 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       portalNotice.SetVisible(true)
       local reopenedFramePoint, reopenedFrameRelativeTo, reopenedFrameRelativePoint, reopenedFrameX, reopenedFrameY =
         portalNotice.frame:GetPoint()
-      Assert.Equal(reopenedFramePoint, "CENTER", "portal navigator should reopen on the horizontal center")
-      Assert.Equal(reopenedFrameRelativeTo, UIParent, "portal navigator should still anchor to UIParent when reopened")
-      Assert.Equal(reopenedFrameRelativePoint, "CENTER", "portal navigator should reopen with center relative point")
+      Assert.Equal(reopenedFramePoint, "TOPLEFT", "portal navigator should open as the stack's first section")
+      Assert.Equal(reopenedFrameRelativeTo, container, "portal navigator should anchor to the card stack")
+      Assert.Equal(reopenedFrameRelativePoint, "TOPLEFT", "portal navigator should hang from the stack's top-left")
       Assert.Equal(reopenedFrameX, 0, "portal navigator should not drift horizontally when reopened")
-      Assert.Equal(reopenedFrameY, 190, "portal navigator should reopen at the configured top offset")
+      Assert.Equal(reopenedFrameY, 0, "portal navigator should start at the top of the stack")
+      local stackPoint, stackRelativeTo, stackRelativePoint, stackX, stackY = container:GetPoint()
+      Assert.Equal(stackPoint, "TOP", "card stack hangs from its top edge")
+      Assert.Equal(stackRelativeTo, UIParent, "card stack anchors to UIParent")
+      Assert.Equal(stackRelativePoint, "CENTER", "card stack sits at the screen center")
+      Assert.Equal(stackX, 0, "card stack stays on the horizontal center")
+      Assert.Equal(stackY, addon.CardStack.TOP_OFFSET, "card stack uses its default top offset")
 
       local shown = portalNotice.Show({
         eyebrow = "Portal - Navigation",

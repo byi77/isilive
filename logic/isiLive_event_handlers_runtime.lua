@@ -293,6 +293,17 @@ local function ApplyCombatFade(ctx, targetAlpha)
   end
 end
 
+-- End of combat for the UI motion: show/hide that waited for it (rule 242:
+-- a protected frame faded out in combat gets its real Hide() now), then the
+-- main frame's combat fade back to full alpha.
+local function ApplyRegenUiMotion(ctx)
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ApplyDeferredShowHide) == "function" then
+    uiCommon.ApplyDeferredShowHide()
+  end
+  ApplyCombatFade(ctx, 1)
+end
+
 -- Centralized SavedVariables sanitizer + Lua-error capture install. Called
 -- from HandleAddonLoadedEvent, AFTER WoW restored IsiLiveDB but BEFORE any
 -- live module reads from it. Schema details: core/isiLive_db_schema.lua.
@@ -1042,7 +1053,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.handleBloodlustButtonWarningEvent("PLAYER_REGEN_ENABLED")
     ctx.handleVipDkAssistEvent("PLAYER_REGEN_ENABLED")
     ctx.handleKillTrackEvent("PLAYER_REGEN_ENABLED")
-    ApplyCombatFade(ctx, 1)
+    ApplyRegenUiMotion(ctx)
     if IsRaidModeActive(ctx) then
       return
     end

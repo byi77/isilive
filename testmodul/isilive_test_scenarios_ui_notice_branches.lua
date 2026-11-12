@@ -116,6 +116,28 @@ local function CreateFontStringStub()
   return fs
 end
 
+-- Every animation group the stubs build; FinishAnimations plays the running
+-- ones to their end (OnFinished), like the client does after the duration.
+local animationGroups = {}
+
+local function FinishAnimations()
+  for _ = 1, 10 do
+    local finishedAny = false
+    for _, group in ipairs(animationGroups) do
+      if group._playing then
+        group._playing = false
+        finishedAny = true
+        if group._onFinished then
+          group._onFinished(group)
+        end
+      end
+    end
+    if not finishedAny then
+      return
+    end
+  end
+end
+
 local function CreateFrameStub(_frameType, _name, parent, _template)
   local frame = {
     _scripts = {},
@@ -196,6 +218,14 @@ local function CreateFrameStub(_frameType, _name, parent, _template)
   end
   function frame:CreateAnimationGroup()
     local group = { _playing = false }
+    animationGroups[#animationGroups + 1] = group
+    self._groups = self._groups or {}
+    self._groups[#self._groups + 1] = group
+    function group:SetScript(name, fn)
+      if name == "OnFinished" then
+        self._onFinished = fn
+      end
+    end
     function group:CreateAnimation()
       return {
         SetFromAlpha = function() end,
@@ -282,11 +312,12 @@ local function RegisterPortalNavigatorBranchTests(test, Assert, WithGlobals, Loa
       local onMouseUp = portal.frame:GetScript("OnMouseUp")
       onMouseUp = RequireValue(onMouseUp, "portal navigator frame should define OnMouseUp")
       onMouseUp(portal.frame, "RightButton")
+      FinishAnimations()
       Assert.False(portal.frame:IsShown(), "portal navigator hides on RightButton mouse-up")
     end)
   end)
 
-  test("PortalNavigator fades in when it appears and stays quiet while already visible", function()
+  test("PortalNavigator fades in with the card stack and stays quiet while already visible", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
       CreateFrame = CreateFrameStub,
@@ -300,14 +331,19 @@ local function RegisterPortalNavigatorBranchTests(test, Assert, WithGlobals, Loa
       Assert.False(portal.frame:IsShown(), "portal navigator starts hidden")
 
       portal.SetVisible(true)
-      local entrance = RequireValue(portal.frame._isiLiveNoticeEntrance, "appearing must start the entrance")
+      -- The first card of the stack: the stack itself fades in from 0.
+      local container = addon.CardStack.GetContainer()
+      local entrance = RequireValue(container._groups and container._groups[1], "appearing must start the entrance")
       Assert.True(entrance:IsPlaying(), "a newly shown portal navigator should fade in")
+      Assert.Equal(container:GetAlpha(), 0, "the entrance starts from transparent")
 
-      entrance:Stop()
+      FinishAnimations()
+      Assert.Equal(container:GetAlpha(), 1, "the entrance ends fully visible")
       portal.SetVisible(true)
       Assert.False(entrance:IsPlaying(), "an already visible portal navigator must not fade in again")
 
       portal.SetVisible(false)
+      FinishAnimations()
       portal.SetVisible(true)
       Assert.True(entrance:IsPlaying(), "showing the portal navigator again must fade in again")
     end)
@@ -349,6 +385,7 @@ local function RegisterPortalNavigatorBranchTests(test, Assert, WithGlobals, Loa
       local onClick = closeButton:GetScript("OnClick")
       onClick = RequireValue(onClick, "portal navigator close button should define OnClick")
       onClick(closeButton)
+      FinishAnimations()
       Assert.False(portal.frame:IsShown(), "portal navigator close button hides the frame")
     end)
   end)
@@ -683,7 +720,9 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         "warning",
         "warning notice should expose the alert icon"
       )
-      Assert.True(centerNotice.frame._isiLiveNoticeEntrance:IsPlaying(), "newly shown notice should fade in")
+      local container = _G.__isilive_last_loaded_addon.CardStack.GetContainer()
+      local entrance = RequireValue(container._groups and container._groups[1], "a new card must start an entrance")
+      Assert.True(entrance:IsPlaying(), "newly shown notice should fade in with the card stack")
       Assert.Nil(
         centerNotice.frame._isiLiveNoticeTransition,
         "a first appearance must use the entrance, not the refresh transition"
@@ -699,9 +738,9 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         centerNotice.frame._isiLiveNoticeTransition:IsPlaying(),
         "a category change on a visible notice should use the quieter refresh transition"
       )
-      Assert.False(
-        centerNotice.frame._isiLiveNoticeEntrance:IsPlaying(),
-        "the refresh transition must replace a still running entrance"
+      Assert.Nil(
+        centerNotice.frame._isiLiveNoticeEntrance,
+        "a card in the stack never runs its own entrance next to the stack's"
       )
       centerNotice.Show(nil, 12, nil, nil, {
         title = "isiLive - Dungeon entered",
@@ -871,6 +910,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       centerNotice.Show("Visible", 12)
       Assert.Equal(type(centerNotice.frame:GetScript("OnUpdate")), "function", "shown notice must animate")
       centerNotice.SetVisible(false)
+      FinishAnimations()
       Assert.Nil(centerNotice.frame:GetScript("OnUpdate"), "hidden notice must remove OnUpdate polling")
       centerNotice.SetVisible(true)
       Assert.Equal(type(centerNotice.frame:GetScript("OnUpdate")), "function", "shown notice must restore OnUpdate")
@@ -1088,6 +1128,8 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.True(centerNotice.teleportButton:IsShown(), "setup: rich teleport button is visible")
 
       centerNotice.SetVisible(false)
+      Assert.True(centerNotice.teleportButton:IsShown(), "the portal tile fades out with its card")
+      FinishAnimations()
 
       Assert.False(centerNotice.frame:IsShown(), "center notice frame must hide")
       Assert.False(centerNotice.teleportButton:IsShown(), "rich teleport button must not float after hiding the frame")
