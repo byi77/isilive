@@ -37,6 +37,28 @@ local function IsIsiLiveReceiveChannelAllowed(message, channel)
   return channel == "WHISPER" and type(message) == "string" and message:find("^ACK:") ~= nil
 end
 
+local PARTY_UNITS = { "party1", "party2", "party3", "party4" }
+
+-- A whispered ACK answers our own HELLO, so it always comes from a current
+-- party member. Anyone else can whisper "ACK:" too; without this check every
+-- stranger's whisper would land in the per-session peer tables. Fails closed:
+-- an unreadable (secret) party name drops the ACK, which only loses the
+-- version that the same peer's HELLO already carries.
+local function IsWhisperSenderInParty(Sync, senderKey)
+  local units = addonTable.Units
+  local getNameAndRealm = type(units) == "table" and units.GetUnitNameAndRealm or nil
+  if type(getNameAndRealm) ~= "function" or not senderKey then
+    return false
+  end
+  for _, unit in ipairs(PARTY_UNITS) do
+    local name, realm = getNameAndRealm(unit)
+    if name and Sync.NormalizePlayerKey(name, realm) == senderKey then
+      return true
+    end
+  end
+  return false
+end
+
 addonTable.SyncReceiveFactory = function(deps)
   local Sync = deps.Sync
   local ISILIVE_SYNC_PREFIX = deps.ISILIVE_SYNC_PREFIX
@@ -193,6 +215,12 @@ addonTable.SyncReceiveFactory = function(deps)
     end
 
     local senderKey = Sync.NormalizePlayerKey(sender)
+    if channel == "WHISPER" and not IsWhisperSenderInParty(Sync, senderKey) then
+      if IsSyncLogDeepActive() then
+        SyncLogDeep("message_rejected", "sender=%s reason=whisper-not-in-party", tostring(sender))
+      end
+      return nil
+    end
     local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
     local isHelloMessage = message:find("^HELLO:") ~= nil
     local isAckMessage = message:find("^ACK:") ~= nil

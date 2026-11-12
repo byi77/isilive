@@ -84,7 +84,7 @@ jobs:
           mkdir -p dist package/isiLive
           while IFS= read -r -d '' file; do
             case "${file}" in
-              .github/*|.githooks/*|.vscode/*|.claude/*|.gitattributes|.editorconfig|.luacheckrc|.stylua.toml|.styluaignore|.luarocks/*|.luacov|.gitignore|.pkgmeta|docs/*|README.md|AGENTS.md|CLAUDE.md|TODO.md|tools/*|testmodul/*|luacheck_output.txt|isiLive.png|isiLive_*.png|isiLive_*.gif|isiLive_*.mp4)
+              .github/*|.githooks/*|.vscode/*|.claude/*|.gitattributes|.editorconfig|.luacheckrc|.stylua.toml|.styluaignore|.luarocks/*|.luacov|.gitignore|.pkgmeta|docs/*|README.md|SECURITY.md|AGENTS.md|CLAUDE.md|TODO.md|tools/*|testmodul/*|luacheck_output.txt|isiLive.png|isiLive_*.png|isiLive_*.gif|isiLive_*.mp4)
                 continue
                 ;;
             esac

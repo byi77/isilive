@@ -18,9 +18,56 @@ return function(test, ctx)
       local raidHello =
         addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:1.0", "Peer-Realm", "MyPlayer", "Realm", "RAID")
       Assert.Nil(raidHello, "ISILIVE group protocol must not be accepted from raid channel")
+      addon.Units = {
+        GetUnitNameAndRealm = function(unit)
+          if unit == "party1" then
+            return "Peer", "Realm"
+          end
+          return nil, nil
+        end,
+      }
       local whisperedAck =
         addon.Sync.ProcessAddonMessage("ISILIVE", "ACK:1.0", "Peer-Realm", "MyPlayer", "Realm", "WHISPER")
       Assert.NotNil(whisperedAck, "the explicit HELLO acknowledgement remains whisper-compatible")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage drops whispered ACKs from players outside the party", function()
+    WithGlobals({
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      addon.Units = {
+        GetUnitNameAndRealm = function(unit)
+          if unit == "party1" then
+            return "Peer", "Realm"
+          end
+          return nil, nil
+        end,
+      }
+      local strangerAck =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "ACK:1.0", "Stranger-Realm", "MyPlayer", "Realm", "WHISPER")
+      Assert.Nil(strangerAck, "a whispered ACK from outside the party must be dropped")
+      Assert.Nil(addon.Sync.GetPlayerHelloInfo("Stranger", "Realm"), "a stranger ACK must not create a peer entry")
+
+      local sameNameOtherRealm =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "ACK:1.0", "Peer-Elsewhere", "MyPlayer", "Realm", "WHISPER")
+      Assert.Nil(sameNameOtherRealm, "the party check must compare name and realm")
+
+      addon.Units = {
+        GetUnitNameAndRealm = function()
+          return nil, nil
+        end,
+      }
+      local unreadableParty =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "ACK:1.0", "Peer-Realm", "MyPlayer", "Realm", "WHISPER")
+      Assert.Nil(unreadableParty, "unreadable party names must fail closed")
+
+      local partyHello =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:1.0", "Stranger-Realm", "MyPlayer", "Realm", "PARTY")
+      Assert.NotNil(partyHello, "group channels stay unaffected by the whisper party check")
     end)
   end)
 

@@ -18,6 +18,7 @@ ignore:
   - .gitignore
   - docs
   - README.md
+  - SECURITY.md
   - AGENTS.md
   - CLAUDE.md
   - TODO.md
