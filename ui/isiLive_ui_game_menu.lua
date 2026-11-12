@@ -380,9 +380,25 @@ local function AttachPanelUIOnShow(state)
     end
     if type(state.onShowRefresh) == "function" then
       state.onShowRefresh(state)
-      return
+    else
+      ApplyPanelUISecureState(state)
     end
-    ApplyPanelUISecureState(state)
+    -- Window motion (rule 242): the panel fades in with the ESC menu and
+    -- hides with Blizzard's menu at once. The panel holds secure buttons, so
+    -- it stays still in combat (no animation on a protected frame there).
+    local uiCommon = addonTable.UICommon
+    local panelFrame = state.panelFrame
+    local inCombat = rawget(_G, "InCombatLockdown")
+    if
+      not (type(inCombat) == "function" and inCombat())
+      and type(uiCommon) == "table"
+      and type(uiCommon.PlayWindowEntrance) == "function"
+      and type(panelFrame) == "table"
+      and type(panelFrame.IsShown) == "function"
+      and panelFrame:IsShown()
+    then
+      uiCommon.PlayWindowEntrance(panelFrame)
+    end
   end)
 end
 
