@@ -483,8 +483,7 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     "SETTINGS_CONSUMABLE_CHECK",
     "Dungeon entry: consumable check",
     "SETTINGS_CONSUMABLE_CHECK_DESC",
-    "When you enter a dungeon, shows a card when your food, flask, augment rune or weapon oil"
-      .. " is missing or ends within 40 minutes.",
+    "When you enter a dungeon, shows a card when your flask or weapon oil" .. " is missing or ends within 40 minutes.",
     labels
   )
   controls.aggroSound, yOffset = CreatePatternBCheckbox(

@@ -120,8 +120,9 @@ return function(test, ctx)
       Assert.Nil(data.ResolveSet("unknown_s1"), "an expansion without a set has none")
       local midnight = data.sets.midnight
       Assert.Equal(#midnight.food, 2, "Well Fed and Hearty Well Fed")
-      Assert.Equal(#midnight.flask, 4, "one buff per Midnight flask stat")
-      Assert.Equal(#midnight.augmentRune, 1, "the Midnight augment rune")
+      Assert.Equal(#midnight.flask, 5, "one buff per Midnight flask")
+      Assert.Equal(#midnight.augmentRune, 2, "both Midnight augment runes")
+      Assert.True(midnight.disabled.food and midnight.disabled.augmentRune, "food and rune are off for now")
 
       local active = data.ResolveSet(session.addon.SeasonData.GetActiveSeasonID())
       session.auras[active.food[1]] = { spellId = active.food[1], expirationTime = 0 }
@@ -133,6 +134,10 @@ return function(test, ctx)
       session.auras[active.flask[3]] = nil
       EnterDungeon(session)
       Assert.True(FieldText(cards[1]):find("Flask: missing !", 1, true) ~= nil, "a missing flask is flagged")
+      Assert.True(
+        FieldText(cards[1]):find("Food", 1, true) == nil and FieldText(cards[1]):find("rune", 1, true) == nil,
+        "switched-off categories get no row"
+      )
     end, Prepare({ mainMs = 60 * 60000 }))
   end)
 

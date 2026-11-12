@@ -64,8 +64,10 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 ## 3b. Verbrauchsgueter-Check (Regel 246, optional)
 
 `data/isiLive_consumables.lua` fuehrt je Erweiterung einen Satz (`sets.<name>`) mit den
-Aura-Spell-IDs von Essen (`food`, die allgemeinen "Well Fed"-Buffs), Flask (`flask`, ein
-Buff je Wert) und Augment-Rune (`augmentRune`). Eine Season findet ihren Satz am Namen
+Aura-Spell-IDs von Essen (`food`: nur Referenz-Buffs fuer den Namen "Well Fed" bzw. "Hearty
+Well Fed", jedes Gericht hat eine eigene ID), Flask (`flask`, ein Buff je Flask) und
+Augment-Rune (`augmentRune`). `disabled` schaltet eine Kategorie ab, ohne die Daten zu
+verlieren (Stand 2026-11-12: Essen und Rune aus). Eine Season findet ihren Satz am Namen
 (`midnight_s3` -> `midnight`): eine **neue Season** derselben Erweiterung braucht hier
 nichts. Eine **neue Erweiterung** braucht einen neuen Satz (Name = Season-ID ohne `_s<Zahl>`);
 bis dahin schlaegt der Test "Consumable check finds a buff set for every season of the

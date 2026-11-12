@@ -140,8 +140,9 @@ function ConsumableCheck.Evaluate()
     rows[#rows + 1] = { labelKey = "CONSUMABLE_WEAPON_OFF", fallback = "Weapon oil (off hand):", result = off }
   end
   local season = SeasonData()
+  local disabled = type(season) == "table" and type(season.disabled) == "table" and season.disabled or {}
   for _, category in ipairs(CATEGORIES) do
-    local result = type(season) == "table" and ReadAuraList(season[category.key]) or nil
+    local result = type(season) == "table" and not disabled[category.key] and ReadAuraList(season[category.key]) or nil
     if result then
       rows[#rows + 1] = { labelKey = category.label, fallback = category.fallback, result = result }
     end

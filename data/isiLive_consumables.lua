@@ -16,27 +16,36 @@ addonTable = addonTable or {}
 -- until it exists.
 --
 -- Each list holds the buff the player carries, not the item: the regular
--- and the fleeting flask of a stat share one buff, and food is checked
--- through the generic "Well Fed" buffs instead of one ID per dish. Check the
--- IDs in the live client after a patch: probe mode writes the spell IDs of
--- the own buffs on every ready check (`[PROBE] event=ready_check ...
--- spellIDs=...`). Maintenance step in docs/SAISON_WECHSEL.md.
+-- and the fleeting flask of a stat share one buff. Food is different: every
+-- dish has a buff ID of its own, all named "Well Fed" or "Hearty Well Fed",
+-- so the food list only names reference buffs for that name (name match:
+-- still to be built). `disabled` switches a category off without dropping
+-- its data. Check the IDs in the live client after a patch: probe mode
+-- writes the spell IDs of the own buffs on every ready check
+-- (`[PROBE] event=ready_check ... spellIDs=...`). Maintenance step in
+-- docs/SAISON_WECHSEL.md.
 local ConsumableData = {
   sets = {
     midnight = {
+      -- Name references only (see above); the dish buffs differ per dish.
       food = {
-        455369, -- Well Fed
-        462187, -- Hearty Well Fed
+        1232491, -- Well Fed
+        1233724, -- Hearty Well Fed
       },
       flask = {
         1235108, -- Flask of the Magisters (mastery)
         1235110, -- Flask of the Blood Knights (haste)
         1235111, -- Flask of the Shattered Sun (critical strike)
         1235057, -- Flask of Thalassian Resistance (versatility)
+        1250533, -- Freightrunner's Flask
       },
       augmentRune = {
         1264426, -- Void-Touched Augment Rune
+        1295329, -- Tidesworn Augment Rune
       },
+      -- User decision 2026-11-12: food (needs the name match) and rune stay
+      -- off until they are confirmed in the live client.
+      disabled = { food = true, augmentRune = true },
     },
   },
   -- seasonID -> set name, only for seasons whose ID does not name the set.
