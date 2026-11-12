@@ -141,6 +141,21 @@ local function ResolveLabelColumnWidth(frame, talentLabel, lootLabel)
   return math.max(LABEL_COLUMN_WIDTH, math.ceil(widest) + 4)
 end
 
+-- Measures the section labels of the current language into the label column
+-- and returns the width the card needs: label column plus at least
+-- MIN_OPTIONS_PER_ROW option buttons. Alone (no wider card in the stack) the
+-- card takes this width, otherwise the buttons ran past its right edge.
+local function PrepareColumns(frame)
+  local talentLabel = Text("LOADOUT_CHECK_TALENTS", "Talents")
+  local lootLabel = Text("LOADOUT_CHECK_LOOT", "Loot specialization")
+  -- Measured unclipped before the column width is applied.
+  frame.talentHeader:SetWidth(0)
+  frame.lootHeader:SetWidth(0)
+  frame._labelColumnWidth = ResolveLabelColumnWidth(frame, talentLabel, lootLabel)
+  local optionsWidth = MIN_OPTIONS_PER_ROW * OPTION_WIDTH + (MIN_OPTIONS_PER_ROW - 1) * OPTION_GAP
+  return math.max(CARD_WIDTH, ValueColumnX(frame) + optionsWidth + PADDING), talentLabel, lootLabel
+end
+
 local TEXT_LINE_KEYS = {
   "hint",
   "combatHint",
@@ -392,14 +407,9 @@ end
 
 local function Render(frame, model, controller, width)
   activeController = controller
-  width = tonumber(width) or CARD_WIDTH
+  local requiredWidth, talentLabel, lootLabel = PrepareColumns(frame)
+  width = math.max(tonumber(width) or CARD_WIDTH, requiredWidth)
   frame:SetWidth(width)
-  local talentLabel = Text("LOADOUT_CHECK_TALENTS", "Talents")
-  local lootLabel = Text("LOADOUT_CHECK_LOOT", "Loot specialization")
-  -- Measured unclipped before the column width is applied.
-  frame.talentHeader:SetWidth(0)
-  frame.lootHeader:SetWidth(0)
-  frame._labelColumnWidth = ResolveLabelColumnWidth(frame, talentLabel, lootLabel)
   frame._optionsPerRow = OptionsPerRow(frame, width)
   for _, key in ipairs(TEXT_LINE_KEYS) do
     frame[key]:SetWidth(width - 2 * PADDING)
@@ -520,6 +530,12 @@ function LoadoutCheckCard.Create()
     EnsureFrame()
     lastModel, lastController = model, controller
     if section then
+      -- Report the needed width before asking the stack for the shared one.
+      activeController = controller
+      local requiredWidth = PrepareColumns(frame)
+      if type(section.SetPreferredWidth) == "function" then
+        section.SetPreferredWidth(requiredWidth)
+      end
       Render(frame, model, controller, section.GetWidth())
       section.Show()
     else
