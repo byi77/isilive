@@ -63,13 +63,18 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 
 ## 3b. Verbrauchsgueter-Check (Regel 246, optional)
 
-`data/isiLive_consumables.lua` fuehrt pro Season (`seasons[seasonID]`) die Aura-Spell-IDs
-von Essen (`food`), Flask (`flask`) und Augment-Rune (`augmentRune`). Leere Listen werden
-nicht geprueft, das Waffenoel braucht keine IDs. Die IDs nur aus dem Live-Client
-uebernehmen: mit `/isilive probe on` schreibt jeder Ready-Check die Spell-IDs der
-eigenen Buffs (`[PROBE] event=ready_check ... spellIDs=...`); einen Ready-Check mit
-Essen, Flask und Rune aufnehmen und die IDs den Kategorien zuordnen (Tooltip im Spiel).
-Nie aus fremden Addons oder Datenbanken uebernehmen.
+`data/isiLive_consumables.lua` fuehrt je Erweiterung einen Satz (`sets.<name>`) mit den
+Aura-Spell-IDs von Essen (`food`, die allgemeinen "Well Fed"-Buffs), Flask (`flask`, ein
+Buff je Wert) und Augment-Rune (`augmentRune`). Eine Season findet ihren Satz am Namen
+(`midnight_s3` -> `midnight`): eine **neue Season** derselben Erweiterung braucht hier
+nichts. Eine **neue Erweiterung** braucht einen neuen Satz (Name = Season-ID ohne `_s<Zahl>`);
+bis dahin schlaegt der Test "Consumable check finds a buff set for every season of the
+manifest" fehl. Eine Season-ID, die nicht dem Muster folgt, bekommt einen Eintrag in
+`seasonSets`. Neue Rangstufen oder Varianten derselben Erweiterung (andere Flask-Buffs, neue
+Rune) einfach im Satz ergaenzen. Leere Listen werden nicht geprueft, das Waffenoel braucht keine IDs. Pruefen im
+Live-Client: mit `/isilive probe on` schreibt jeder Ready-Check die Spell-IDs der eigenen
+Buffs (`[PROBE] event=ready_check ... spellIDs=...`); einen Ready-Check mit Essen, Flask und
+Rune aufnehmen und mit den Listen vergleichen.
 
 ## 4. Aktivierung
 

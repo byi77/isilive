@@ -107,15 +107,19 @@ local function ReadAuraList(ids)
   return Judge(false)
 end
 
+-- Buff set of the active season (data/isiLive_consumables.lua resolves the
+-- season to its expansion's set), or nil.
 local function SeasonData()
   local data = addonTable.ConsumableData
-  local seasons = type(data) == "table" and data.seasons or nil
   local seasonModule = addonTable.SeasonData
   local seasonID = type(seasonModule) == "table"
       and type(seasonModule.GetActiveSeasonID) == "function"
       and seasonModule.GetActiveSeasonID()
     or nil
-  return type(seasons) == "table" and seasonID ~= nil and seasons[seasonID] or nil
+  if type(data) ~= "table" or type(data.ResolveSet) ~= "function" then
+    return nil
+  end
+  return data.ResolveSet(seasonID)
 end
 
 --- Checked items in display order: { labelKey, fallback, result } with

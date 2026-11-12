@@ -63,6 +63,8 @@ return function(test, ctx)
 
   test("Consumable check shows a card on a ready check when weapon oil is missing or ends soon", function()
     Stress.WithParty(ctx, FixtureWithSchema, function(session)
+      -- Weapon oil only: no season buff lists in this flow.
+      session.addon.ConsumableData.sets = {}
       local cards = RecordCards(session)
       ReadyCheck(session)
       Assert.Equal(#cards, 1, "a missing main-hand oil shows one card")
@@ -84,10 +86,42 @@ return function(test, ctx)
     end, Prepare())
   end)
 
+  test("Consumable check finds a buff set for every season of the manifest", function()
+    Stress.WithParty(ctx, FixtureWithSchema, function(session)
+      local data = session.addon.ConsumableData
+      local seasons = session.addon.SeasonData.GetAvailableSeasonIDs()
+      Assert.True(#seasons > 0, "the manifest lists seasons")
+      for _, seasonID in ipairs(seasons) do
+        Assert.NotNil(
+          data.ResolveSet(seasonID),
+          "a buff set for " .. tostring(seasonID) .. " (new expansion: add a set)"
+        )
+      end
+      Assert.Equal(data.ResolveSet("midnight_s7"), data.sets.midnight, "a later season of the expansion needs no entry")
+      Assert.Nil(data.ResolveSet("unknown_s1"), "an expansion without a set has none")
+      local midnight = data.sets.midnight
+      Assert.Equal(#midnight.food, 2, "Well Fed and Hearty Well Fed")
+      Assert.Equal(#midnight.flask, 4, "one buff per Midnight flask stat")
+      Assert.Equal(#midnight.augmentRune, 1, "the Midnight augment rune")
+
+      local active = data.ResolveSet(session.addon.SeasonData.GetActiveSeasonID())
+      session.auras[active.food[1]] = { spellId = active.food[1], expirationTime = 0 }
+      session.auras[active.flask[3]] = { spellId = active.flask[3], expirationTime = 0 }
+      session.auras[active.augmentRune[1]] = { spellId = active.augmentRune[1], expirationTime = 0 }
+      local cards = RecordCards(session)
+      ReadyCheck(session)
+      Assert.Equal(#cards, 0, "food, any flask, rune and oil present: no card")
+      session.auras[active.flask[3]] = nil
+      ReadyCheck(session)
+      Assert.True(FieldText(cards[1]):find("Flask: missing !", 1, true) ~= nil, "a missing flask is flagged")
+    end, Prepare({ mainMs = 60 * 60000 }))
+  end)
+
   test("Consumable check uses the season's buff IDs and stays quiet in combat or when off", function()
     Stress.WithParty(ctx, FixtureWithSchema, function(session)
       local seasonID = session.addon.SeasonData.GetActiveSeasonID()
-      session.addon.ConsumableData.seasons[seasonID] = { food = { FOOD_ID } }
+      session.addon.ConsumableData.sets.test = { food = { FOOD_ID } }
+      session.addon.ConsumableData.seasonSets[seasonID] = "test"
       local cards = RecordCards(session)
       ReadyCheck(session)
       Assert.Equal(FieldText(cards[1]), "Weapon oil (main hand): 60 min left | Food: missing !", "food without buff")

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Feature: the ready-check consumable check (rule 246) now also checks food, flask and augment rune in every Midnight season: food through the "Well Fed" and "Hearty Well Fed" buffs, a flask through the buff of any of the four Midnight flasks (regular or fleeting), and the Void-Touched Augment Rune. A missing one gets its own warning row on the card. Data in `data/isiLive_consumables.lua`, one set per expansion: a season finds its set by name (`midnight_s2` -> `midnight`), so a new season needs no update, and a test fails for a season of the manifest without a set.
+
 ## 2026-11-12 - Version 0.9.511 (patch)
 
 - Feature: consumable check on a ready check (rule 246, K4 stage 1, display only). With *Ready check: consumable check* on (Display, default off), a ready check outside combat and outside raids checks your weapon oil (main hand; the off hand only when it carries an enchant) and shows a card in the card stack for 25 seconds when something is missing or ends within 10 minutes. Food, flask and augment rune are checked as soon as the season data in `data/isiLive_consumables.lua` has their buff IDs; those come from the live client only -- probe mode now writes the spell IDs of your own buffs on every ready check (`spellIDs=`). New `game/isiLive_consumable_check.lua`, texts in all five languages, tests in `testmodul/isilive_test_scenarios_consumable_check.lua`; the factory test fixture now answers text metrics with numbers.
