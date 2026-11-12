@@ -3,7 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.511`.
+Current version: `0.9.512`.
+
+Version 0.9.512: the time pace badge is calm: ON TIME, CLOSE and TOO SLOW
+only change after a pull or a boss kill and only with a clear margin, and the
+word holds during the last boss. The consumable check now runs when you enter a dungeon
+(not on the ready check) and checks your flask as well as your weapon oil. It
+also warns about anything that ends within 40 minutes, so you can still renew
+it before the key. Food and augment rune follow later. Off by default:
+Settings > Display > Dungeon entry: consumable check.
 
 Version 0.9.511: isiLive's main window is part of Blizzard's Edit Mode (Esc >
 Edit Mode): move it there, change layout, scale and opacity in its dialog, and
@@ -237,7 +245,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.511 -->
+<!-- highlights-reviewed-for: 0.9.512 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
@@ -249,8 +257,8 @@ Highlights:
   slide in and fade out; the main window and the settings window fade too.
 - **New optional helpers.** An AGGRO alert when a mob turns on you as a
   non-tank in a key, live kick counts of the running key in the roster tooltip
-  (on by default) and a consumable check on ready checks that flags missing or
-  expiring weapon oil.
+  (on by default) and a consumable check on dungeon entry that flags a
+  missing flask or weapon oil, or one ending within 40 minutes.
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
   member (e.g. `37/32`, no longer cut to `24...`) and the DPS column is filled
   again after the key.

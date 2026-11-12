@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2026-11-12 - Version 0.9.512 (patch)
 
+- Feature: the time pace badge no longer flips between ON TIME, CLOSE and TOO SLOW from pack to pack (rule 208, C3). The word is judged only when a pull ends or a boss dies, and only changes once the forecast is 30 seconds past the boundary it crosses (ON TIME -> CLOSE from 0 s, -> TOO SLOW from +60 s, back to ON TIME from -60 s); in between only the seconds count on. With the forces done and only the last boss left, the word holds until that boss dies. Calibrated on a logged +14 whose forecast moved by up to ~4 minutes between two pulls. The `[TIMEPACE]` trace also writes the shown word (`shown=`).
 - Change: the consumable check (rule 246) now runs when you enter a dungeon instead of on a ready check -- outside combat and outside a running key (a run back after a wipe does not trigger it), with the dungeon's name on the card. The setting is now *Dungeon entry: consumable check*.
-- Feature: the consumable check (rule 246) now also checks food, flask and augment rune in every Midnight season: food through the "Well Fed" and "Hearty Well Fed" buffs, a flask through the buff of any of the four Midnight flasks (regular or fleeting), and the Void-Touched Augment Rune. A missing one gets its own warning row on the card. Everything that ends within 40 minutes (was 10) is flagged too, so there is still time to renew it before the key. Data in `data/isiLive_consumables.lua`, one set per expansion: a season finds its set by name (`midnight_s2` -> `midnight`), so a new season needs no update, and a test fails for a season of the manifest without a set.
+- Feature: the consumable check (rule 246) now also checks the flask in every Midnight season (any of the five Midnight flasks, regular or fleeting). Food and augment rune are prepared but switched off: each Midnight dish gives a buff of its own (all named "Well Fed" or "Hearty Well Fed"), so food needs a match by buff name, and both still have to be confirmed in the live client. Data in `data/isiLive_consumables.lua`, one set per expansion: a season finds its set by name (`midnight_s2` -> `midnight`), so a new season needs no update, and a test fails for a season of the manifest without a set. Anything that ends within 40 minutes (was 10) is flagged, so there is still time to renew it before the key.
 
 ## 2026-11-12 - Version 0.9.511 (patch)
 
