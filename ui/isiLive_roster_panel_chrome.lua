@@ -56,10 +56,12 @@ local ILVL_COL_WIDTH = 32
 local RIO_COL_WIDTH = 84
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
--- The kick cell only ever holds "-", "OK" or a two-digit cooldown ("25s"), so the
--- extra width the RIO column needs is taken from here instead of pushing the
--- whole column block into the management buttons on the right.
-local KICK_COL_WIDTH = 32
+-- The kick cell holds "-", "OK", a two-digit cooldown ("25s") or, after a key,
+-- the run kicks "cast/landed" (rule 238, up to "37/32"). 32 px clipped that pair
+-- to "24..." in game; 44 px end the column at 492 px, the right content edge of
+-- the 500 px M+ frame (8 px margin), and stay far left of the management
+-- buttons of the full layout.
+local KICK_COL_WIDTH = 44
 local KICK_COL_X = DPS_COL_X + DPS_COL_WIDTH + 4
 local HEADER_MIN_FONT_SIZE = 8
 local HEADER_WIDTH_PADDING = 2

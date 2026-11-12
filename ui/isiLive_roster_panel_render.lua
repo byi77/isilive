@@ -75,7 +75,7 @@ local RIO_COL_WIDTH = RI.RIO_COL_WIDTH or 84
 local DPS_COL_X = RI.DPS_COL_X or (RIO_COL_X + RIO_COL_WIDTH + 2)
 local DPS_COL_WIDTH = RI.DPS_COL_WIDTH or 40
 local KICK_COL_X = RI.KICK_COL_X or (DPS_COL_X + DPS_COL_WIDTH + 4)
-local KICK_COL_WIDTH = RI.KICK_COL_WIDTH or 32
+local KICK_COL_WIDTH = RI.KICK_COL_WIDTH or 44
 local KICK_HOVER_WIDTH = KICK_COL_WIDTH
 -- Matches the 12 px language flag height in the realm column.
 local ROLE_ICON_SIZE = 12
@@ -711,6 +711,11 @@ local function SetKickCellText(cell, info, getL, runKicks)
   end
   if type(runKicks) == "table" and type(runKicks.landed) == "number" then
     SetReadableText(cell, FormatRunKicksText(runKicks))
+    -- A larger font can still clip the pair: show the landed kicks alone
+    -- instead of a cut-off "24...".
+    if type(cell.IsTruncated) == "function" and cell:IsTruncated() == true then
+      SetReadableText(cell, tostring(math.floor(runKicks.landed)))
+    end
     return
   end
   if type(info) ~= "table" or info.syncHasKick == false then

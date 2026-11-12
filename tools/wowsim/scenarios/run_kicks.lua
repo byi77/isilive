@@ -82,6 +82,19 @@ local function InstallMeter(sim, name)
   env.C_DamageMeter = BuildMeter(name)
 end
 
+-- True when a visible FontString showing exactly `text` fits its column.
+-- The kick column clipped "37/32" to "37..." at 32 px (rule 238).
+local function ExpectNotTruncated(sim, text, message)
+  local engine = sim.Client().engine
+  for _, obj in ipairs(engine.all) do
+    if obj._type == "FontString" and obj._text == text and obj:IsVisible() then
+      sim.Expect(obj:IsTruncated() ~= true, message)
+      return
+    end
+  end
+  sim.Expect(false, message .. " (text '" .. text .. "' found)")
+end
+
 return {
   name = "run_kicks",
   description = "Run kicks (cast/landed) in the kick column after a key, in the M and M+ layouts",
@@ -138,11 +151,14 @@ return {
     sim.ExpectText("^12/10$", "the isiLive peer's synced cast count pairs with the landed kicks")
     sim.ExpectText("^20$", "a member without isiLive shows the landed count only")
     sim.ExpectText("^0$", "the healer without kicks shows 0 landed")
+    ExpectNotTruncated(sim, "37/32", "the run kicks fit the kick column (M layout)")
+    ExpectNotTruncated(sim, "12/10", "the peer's run kicks fit the kick column (M layout)")
 
     ClickLayout(sim, "M+")
     sim.Wait(1)
     sim.Step("Run end, M+ layout")
     sim.ExpectText("^37/32$", "M+ shows the run kicks as well")
+    ExpectNotTruncated(sim, "37/32", "the run kicks fit the kick column (M+ layout)")
 
     ClickLayout(sim, "H")
     sim.Wait(1)
