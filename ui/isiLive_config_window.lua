@@ -433,14 +433,34 @@ function ConfigWindow.Create(opts)
     window.UpdateSearchPlaceholder()
   end
 
+  -- Window motion (rule 242): fade in and out over `fast`; a window that
+  -- fades out already counts as closed. ESC through UISpecialFrames still
+  -- hides it at once (Blizzard calls Hide directly).
+  local function Motion()
+    local uiCommon = addonTable.UICommon
+    if type(uiCommon) == "table" and type(uiCommon.ShowAnimated) == "function" then
+      return uiCommon
+    end
+    return nil
+  end
+
   function window.IsOpen()
-    return frame:IsShown() == true
+    local motion = Motion()
+    return frame:IsShown() == true and not (motion and motion.IsHiding(frame))
   end
 
   function window.Open()
-    ApplyStoredPosition()
+    local wasOpen = window.IsOpen()
+    if not frame:IsShown() then
+      ApplyStoredPosition()
+    end
     window.RefreshTexts()
-    frame:Show()
+    local motion = Motion()
+    if motion and not wasOpen then
+      motion.ShowAnimated(frame, "window")
+    else
+      frame:Show()
+    end
     if type(frame.Raise) == "function" then
       frame:Raise()
     end
@@ -452,7 +472,12 @@ function ConfigWindow.Create(opts)
     if not window.IsOpen() then
       return false
     end
-    frame:Hide()
+    local motion = Motion()
+    if motion then
+      motion.HideAnimated(frame, "window")
+    else
+      frame:Hide()
+    end
     return true
   end
 

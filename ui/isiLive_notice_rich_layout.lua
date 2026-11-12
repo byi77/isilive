@@ -267,6 +267,7 @@ end
 -- field/teleport-header fragments from a previous rich render.
 local function HideRichCenterNoticeElements(state)
   state.warningFieldRows = nil
+  state.headerActive = false
   for _, key in ipairs({ "headerBand", "kindChip", "brandText" }) do
     if state[key] then
       state[key]:Hide()
@@ -353,10 +354,18 @@ local function ApplyRichHeader(state, payload, innerWidth)
     state.kindChip:Show()
   end
 
+  -- In a card stack only the lead section shows the brand mark and the
+  -- header band: several stacked cards read as one card with one header.
+  local isLead = frame._isiLiveCardLead ~= false
+  state.headerActive = true
   if state.brandText then
     state.brandText:ClearAllPoints()
     state.brandText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -HEADER_CLOSE_RESERVE, -ChipTextY(state.brandText, cursorY))
-    state.brandText:Show()
+    if isLead then
+      state.brandText:Show()
+    else
+      state.brandText:Hide()
+    end
   end
   cursorY = cursorY + HEADER_CHIP_HEIGHT + HEADER_TITLE_GAP
 
@@ -375,7 +384,11 @@ local function ApplyRichHeader(state, payload, innerWidth)
     state.headerBand:ClearAllPoints()
     state.headerBand:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     state.headerBand:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -1, -cursorY)
-    state.headerBand:Show()
+    if isLead then
+      state.headerBand:Show()
+    else
+      state.headerBand:Hide()
+    end
   end
   if state.titleSeparator then
     state.titleSeparator:ClearAllPoints()
@@ -534,6 +547,24 @@ function NoticeRichLayout.CreateHeaderElements(frame)
   }
 end
 NoticeRichLayout.ApplyHeader = ApplyRichHeader
+
+-- Card stack role change after the header was laid out: brand mark and
+-- header band belong to the lead section only (rule 242).
+function NoticeRichLayout.ApplyHeaderRole(state, isLead)
+  if type(state) ~= "table" or not state.headerActive then
+    return
+  end
+  for _, key in ipairs({ "brandText", "headerBand" }) do
+    local region = state[key]
+    if region then
+      if isLead then
+        region:Show()
+      else
+        region:Hide()
+      end
+    end
+  end
+end
 
 function NoticeRichLayout.Create(deps)
   return {

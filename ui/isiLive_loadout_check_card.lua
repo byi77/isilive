@@ -17,7 +17,9 @@ local PADDING = 14
 local OPTION_WIDTH = 134
 local OPTION_HEIGHT = 22
 local OPTION_GAP = 6
-local OPTIONS_PER_ROW = 3
+-- In the card stack the card takes the stack width; the option buttons
+-- fill the rows of that width (at least this many per row).
+local MIN_OPTIONS_PER_ROW = 3
 local LINE_HEIGHT = 16
 local CONFIRM_WIDTH = 180
 local CONFIRM_HEIGHT = 26
@@ -70,6 +72,22 @@ local function CreateLine(parent, fontObject, color)
   SetColor(line, color)
   return line
 end
+
+local function OptionsPerRow(width)
+  local fit = math.floor((width - 2 * PADDING + OPTION_GAP) / (OPTION_WIDTH + OPTION_GAP))
+  return math.max(MIN_OPTIONS_PER_ROW, fit)
+end
+
+local TEXT_LINE_KEYS = {
+  "eyebrow",
+  "title",
+  "talentHeader",
+  "talentStatus",
+  "lootHeader",
+  "lootStatus",
+  "hint",
+  "combatHint",
+}
 
 local function LootOptionLabel(option)
   if option.isCurrentSpec then
@@ -129,20 +147,21 @@ local function ConfirmLabel(model)
   return Text("LOADOUT_CHECK_CONFIRM_KEEP", "Keep current")
 end
 
+-- The card is a section of the shared card stack (rule 242): the stack owns
+-- position (screen center), surface, drag and motion; the card keeps its
+-- top accent for the lead role.
 local function BuildFrame()
   local parent = rawget(_G, "UIParent")
   local frame = CreateFrame("Frame", "IsiLiveLoadoutCheckCard", parent, "BackdropTemplate")
   frame:SetWidth(CARD_WIDTH)
   frame:SetPoint("TOP", parent, "TOP", 0, -140)
-  frame:SetFrameStrata("DIALOG")
   frame:SetClampedToScreen(true)
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", frame.StartMoving)
   frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-  UICommon.ApplyBackdrop(frame, "NOTICE")
-  UICommon.CreateNoticeChrome(frame)
+  frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
   frame:Hide()
 
   frame.eyebrow = CreateLine(frame, "GameFontNormalSmall", Colors.CYAN_EYEBROW)
@@ -188,9 +207,10 @@ end
 -- while a talent switch is still committing.
 local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, availability)
   local y = anchorY
+  local perRow = frame._optionsPerRow or MIN_OPTIONS_PER_ROW
   for index, option in ipairs(options) do
     local button = GetOptionButton(frame, pool, index)
-    local column = (index - 1) % OPTIONS_PER_ROW
+    local column = (index - 1) % perRow
     if column == 0 and index > 1 then
       y = y - OPTION_HEIGHT - OPTION_GAP
     end
@@ -222,8 +242,14 @@ local function LayoutOptions(frame, pool, options, anchorY, labelFor, onClick, a
   return y - OPTION_HEIGHT - OPTION_GAP
 end
 
-local function Render(frame, model, controller)
+local function Render(frame, model, controller, width)
   activeController = controller
+  width = tonumber(width) or CARD_WIDTH
+  frame:SetWidth(width)
+  frame._optionsPerRow = OptionsPerRow(width)
+  for _, key in ipairs(TEXT_LINE_KEYS) do
+    frame[key]:SetWidth(width - 2 * PADDING)
+  end
   local y = -PADDING
   local function Place(line, text, height)
     line:ClearAllPoints()
@@ -301,26 +327,56 @@ end
 function LoadoutCheckCard.Create()
   local card = {}
   local frame = nil
+  local section = nil
+  local lastModel, lastController = nil, nil
+
+  local function EnsureFrame()
+    if frame then
+      return
+    end
+    frame = BuildFrame()
+    local cardStack = addonTable.CardStack
+    if type(cardStack) == "table" and type(cardStack.Register) == "function" then
+      section = cardStack.Register("loadout", frame, {
+        preferredWidth = CARD_WIDTH,
+        relayout = function(width)
+          if lastModel and lastController then
+            Render(frame, lastModel, lastController, width)
+          end
+        end,
+      })
+    end
+  end
 
   function card.Show(_, model, controller)
     if type(model) ~= "table" or type(controller) ~= "table" then
       return false
     end
-    if not frame then
-      frame = BuildFrame()
+    EnsureFrame()
+    lastModel, lastController = model, controller
+    if section then
+      Render(frame, model, controller, section.GetWidth())
+      section.Show()
+    else
+      Render(frame, model, controller, CARD_WIDTH)
+      frame:Show()
     end
-    Render(frame, model, controller)
-    frame:Show()
     return true
   end
 
   function card.Hide()
-    if frame then
+    if section then
+      section.Hide()
+    elseif frame then
       frame:Hide()
     end
   end
 
+  -- A card that is fading out already counts as closed.
   function card.IsShown()
+    if section then
+      return section.IsActive()
+    end
     return frame ~= nil and frame:IsShown() == true
   end
 

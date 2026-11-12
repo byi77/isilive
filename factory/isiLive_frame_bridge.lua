@@ -148,8 +148,13 @@ function FrameBridge.CreateContext(opts)
     mainUI.SetWidthSafe(width)
   end
 
+  -- A window that fades out after closing (rule 242) already counts as hidden.
   function context.IsMainFrameVisible()
-    return mainUI.frame:IsShown() == true
+    if mainUI.frame:IsShown() ~= true then
+      return false
+    end
+    local uiCommon = addonTable.UICommon
+    return not (type(uiCommon) == "table" and type(uiCommon.IsHiding) == "function" and uiCommon.IsHiding(mainUI.frame))
   end
 
   function context.ToggleMainFrameVisibility()

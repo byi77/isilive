@@ -592,6 +592,7 @@ local function InitializeFactoryFrameBridge(ctx)
     modules.notice.CreateCenterNotice({
       parent = UIParent,
       frameName = "isiLiveDemoCenterNoticeTarget",
+      cardKind = "demoNoticeTarget",
       teleportButtonName = "isiLiveDemoCenterNoticeTargetTeleportButton",
       minHeight = 70,
       maxHeight = 220,
@@ -620,6 +621,7 @@ local function InitializeFactoryFrameBridge(ctx)
     modules.notice.CreateCenterNotice({
       parent = UIParent,
       frameName = "isiLiveDemoCenterNoticeDifficulty",
+      cardKind = "demoNoticeDifficulty",
       teleportButtonName = "isiLiveDemoCenterNoticeDifficultyTeleportButton",
       minHeight = 70,
       maxHeight = 220,

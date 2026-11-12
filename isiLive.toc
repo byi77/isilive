@@ -65,6 +65,7 @@ ui/isiLive_teleport_ui.lua
 ui/isiLive_teleport_debug.lua
 ui/isiLive_trace_chat_frame.lua
 ui/isiLive_notice_common.lua
+ui/isiLive_card_stack.lua
 ui/isiLive_portal_navigator_notice.lua
 ui/isiLive_notice_rich_layout.lua
 ui/isiLive_notice.lua

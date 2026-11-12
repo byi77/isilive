@@ -86,6 +86,9 @@ local function BuildCenterNoticeConfig(opts)
     fontDelta = tonumber(opts.fontDelta) or 10,
     frameStrata = type(opts.frameStrata) == "string" and opts.frameStrata ~= "" and opts.frameStrata or nil,
     frameLevel = tonumber(opts.frameLevel),
+    -- Section key in the shared card stack (rule 242): showing the same kind
+    -- again replaces the card in place.
+    cardKind = type(opts.cardKind) == "string" and opts.cardKind ~= "" and opts.cardKind or "notice",
     isInCombat = opts.isInCombat or function()
       local inCombatFn = rawget(_G, "InCombatLockdown")
       return type(inCombatFn) == "function" and inCombatFn() == true
@@ -146,14 +149,9 @@ local function CreateCenterNoticeFrame(config)
     self:StopMovingOrSizing()
   end)
 
+  -- No surface of its own: the card is a section of the shared card stack,
+  -- which paints the one NOTICE background and border (rule 242).
   local UICommon = addonTable and addonTable.UICommon
-  if not (type(UICommon) == "table" and UICommon.ApplyBackdrop and UICommon.ApplyBackdrop(frame, "NOTICE")) then
-    if type(frame.CreateTexture) == "function" then
-      local bg = frame:CreateTexture(nil, "BACKGROUND")
-      bg:SetAllPoints()
-      bg:SetColorTexture(unpack(Colors.BG_NOTICE_CARD or { 0.05, 0.05, 0.08, 0.75 }))
-    end
-  end
   if type(UICommon) == "table" and type(UICommon.CreateNoticeChrome) == "function" then
     frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
   end
@@ -319,22 +317,8 @@ local function ResetCenterNoticeToDefaultPosition(state)
   state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, state.config.yOffset)
 end
 
-local function SetCenterNoticeVisible(state, visible)
-  -- Opening/closing must always be possible, even in combat/in-key.
-  if visible then
-    if state.centerNoticeOnUpdate then
-      state.frame:SetScript("OnUpdate", state.centerNoticeOnUpdate)
-    end
-    if not state.frame:IsShown() then
-      -- Center notice position is intentionally non-persistent.
-      ResetCenterNoticeToDefaultPosition(state)
-      state.frame:Show()
-    end
-    return
-  end
-  if state.frame:IsShown() then
-    state.frame:Hide()
-  end
+-- Teardown once the card is really gone (after its fade-out).
+local function ClearHiddenCenterNotice(state)
   state.frame:SetScript("OnUpdate", nil)
   if state.teleportButton:IsShown() then
     state.teleportButton:Hide()
@@ -342,6 +326,43 @@ local function SetCenterNoticeVisible(state, visible)
   if state.teleportButton.cooldownText then
     state.teleportButton.cooldownText:Hide()
   end
+end
+
+-- True while the card is shown and not on its way out.
+local function IsCenterNoticeActive(state)
+  if state.section then
+    return state.section.IsActive()
+  end
+  return state.frame:IsShown() == true
+end
+
+local function SetCenterNoticeVisible(state, visible)
+  -- Opening/closing must always be possible, even in combat/in-key.
+  if visible then
+    state.hideRequested = false
+    if state.centerNoticeOnUpdate then
+      state.frame:SetScript("OnUpdate", state.centerNoticeOnUpdate)
+    end
+    if state.section then
+      -- The stack owns position (screen center, not persistent) and motion.
+      state.section.Show()
+    elseif not state.frame:IsShown() then
+      -- Center notice position is intentionally non-persistent.
+      ResetCenterNoticeToDefaultPosition(state)
+      state.frame:Show()
+    end
+    return
+  end
+  state.hideRequested = true
+  if state.section then
+    -- Fades out; ClearHiddenCenterNotice runs once it is gone.
+    state.section.Hide()
+    return
+  end
+  if state.frame:IsShown() then
+    state.frame:Hide()
+  end
+  ClearHiddenCenterNotice(state)
 end
 
 local function ApplyCenterNoticeTeleportButtonIcon(state)
@@ -677,18 +698,65 @@ local function ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSu
   end
 end
 
+local DEFAULT_FRAME_WIDTH = 680
+
+-- The card asks for its own width; inside the card stack the widest active
+-- card sets the width of every section (rule 242).
 local function ApplyCenterNoticeFrameWidth(state, showOptions)
   local requestedWidth = tonumber(showOptions.frameWidth)
-  if requestedWidth and requestedWidth > 0 then
-    state.frame:SetWidth(requestedWidth)
+  if not (requestedWidth and requestedWidth > 0) then
+    requestedWidth = DEFAULT_FRAME_WIDTH
+  end
+  local width = requestedWidth
+  if state.section then
+    state.section.SetPreferredWidth(requestedWidth)
+    width = state.section.GetWidth()
+  end
+  state.frame:SetWidth(width)
+end
+
+-- Lays out the body for the current frame width: rich field rows, sublines
+-- or plain text. Shared by Show and the stack's width change (relayout).
+local function ApplyCenterNoticeBody(state, message, showOptions, hasTeleportButton)
+  local hasRich = (type(showOptions.title) == "string" and showOptions.title ~= "")
+    or (type(showOptions.fields) == "table" and #showOptions.fields > 0)
+  if hasRich then
+    -- Rich mode replaces sublines and the body text. Hide them explicitly so
+    -- a previous Show in stack/legacy mode does not leak fragments through.
+    ApplyCenterNoticeSubline(state.sublineTop, nil)
+    ApplyCenterNoticeSubline(state.sublineBottom, nil)
+    RichLayout.ApplyLayout(state, showOptions, hasTeleportButton)
+    return
+  end
+  -- Non-rich modes never use the rich primitives; clear them defensively.
+  RichLayout.HideElements(state)
+  if not state.text:IsShown() then
+    state.text:Show()
+  end
+
+  local hasSublineTop = ApplyCenterNoticeSubline(state.sublineTop, showOptions.sublineTop)
+  local hasSublineBottom = ApplyCenterNoticeSubline(state.sublineBottom, showOptions.sublineBottom)
+
+  if hasSublineTop or hasSublineBottom then
+    ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSublineBottom, hasTeleportButton)
   else
-    state.frame:SetWidth(680)
+    ApplyLegacyCenterNoticeLayout(state, message, hasTeleportButton)
+  end
+end
+
+-- New stack width: the open card lays its body out again, without entrance,
+-- timer reset or teleport reconfiguration.
+local function RelayoutCenterNotice(state, width)
+  local last = state.lastLayout
+  state.frame:SetWidth(width)
+  if type(last) == "table" then
+    ApplyCenterNoticeBody(state, last.message, last.showOptions, last.hasTeleportButton)
   end
 end
 
 local function ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   showOptions = showOptions or {}
-  local wasShown = state.frame:IsShown()
+  local wasShown = IsCenterNoticeActive(state)
   -- Optional: returns the card's show arguments again; a card without it keeps
   -- its texts on a language switch.
   state.rebuild = type(showOptions.rebuild) == "function" and showOptions.rebuild or nil
@@ -699,9 +767,6 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
   ApplyCenterNoticeFrameWidth(state, showOptions)
   ApplyCenterNoticeFontScale(state, showOptions)
   ApplyCenterNoticeTextColor(state, showOptions)
-
-  local hasRich = (type(showOptions.title) == "string" and showOptions.title ~= "")
-    or (type(showOptions.fields) == "table" and #showOptions.fields > 0)
 
   local hasTeleportButton =
     ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, showOptions.teleportMapID)
@@ -722,37 +787,19 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
     kindChanged = changed == true
   end
 
-  if hasRich then
-    -- Rich mode replaces sublines and the body text. Hide them explicitly so
-    -- a previous Show in stack/legacy mode does not leak fragments through.
-    ApplyCenterNoticeSubline(state.sublineTop, nil)
-    ApplyCenterNoticeSubline(state.sublineBottom, nil)
-    RichLayout.ApplyLayout(state, showOptions, hasTeleportButton)
-  else
-    -- Non-rich modes never use the rich primitives; clear them defensively.
-    RichLayout.HideElements(state)
-    if not state.text:IsShown() then
-      state.text:Show()
-    end
-
-    local hasSublineTop = ApplyCenterNoticeSubline(state.sublineTop, showOptions.sublineTop)
-    local hasSublineBottom = ApplyCenterNoticeSubline(state.sublineBottom, showOptions.sublineBottom)
-
-    if hasSublineTop or hasSublineBottom then
-      ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSublineBottom, hasTeleportButton)
-    else
-      ApplyLegacyCenterNoticeLayout(state, message, hasTeleportButton)
-    end
-  end
+  ApplyCenterNoticeBody(state, message, showOptions, hasTeleportButton)
+  state.lastLayout = { message = message, showOptions = showOptions, hasTeleportButton = hasTeleportButton }
 
   state.endsAt = state.isPersistent and math.huge or (CurrentTime() + (durationSeconds or 20))
   SetCenterNoticeVisible(state, true)
   if type(SemanticUICommon) ~= "table" then
     return
   end
-  if not wasShown and type(SemanticUICommon.PlayNoticeEntrance) == "function" then
+  if not state.section and not wasShown and type(SemanticUICommon.PlayNoticeEntrance) == "function" then
+    -- Outside a stack the card fades in on its own; in the stack the
+    -- stack's card motion (fade plus slide) is the entrance.
     SemanticUICommon.PlayNoticeEntrance(state.frame)
-  elseif kindChanged and type(SemanticUICommon.PlayNoticeTransition) == "function" then
+  elseif wasShown and kindChanged and type(SemanticUICommon.PlayNoticeTransition) == "function" then
     SemanticUICommon.PlayNoticeTransition(state.frame)
   end
 end
@@ -968,7 +1015,7 @@ local function AttachCenterNoticeFrameScripts(state)
       UpdateWarningRowPulse(state, elapsed)
     end
 
-    if not state.isPersistent and CurrentTime() >= state.endsAt then
+    if not state.isPersistent and not state.hideRequested and CurrentTime() >= state.endsAt then
       SetCenterNoticeVisible(state, false)
     end
   end
@@ -994,7 +1041,7 @@ local function BuildCenterNoticeController(state)
   end
 
   local function RefreshLocalized()
-    if not state.frame:IsShown() or not state.rebuild then
+    if not IsCenterNoticeActive(state) or not state.rebuild then
       return
     end
     local notice = state.rebuild()
@@ -1086,6 +1133,21 @@ function Notice.CreateCenterNotice(opts)
   closeButton:SetScript("OnClick", function()
     SetCenterNoticeVisible(state, false)
   end)
+  local cardStack = addonTable.CardStack
+  if type(cardStack) == "table" and type(cardStack.Register) == "function" then
+    state.section = cardStack.Register(config.cardKind, frame, {
+      preferredWidth = DEFAULT_FRAME_WIDTH,
+      relayout = function(width)
+        RelayoutCenterNotice(state, width)
+      end,
+      onRoleChanged = function(isLead)
+        NoticeRichLayout.ApplyHeaderRole(state, isLead)
+      end,
+      onHidden = function()
+        ClearHiddenCenterNotice(state)
+      end,
+    })
+  end
   return BuildCenterNoticeController(state)
 end
 
@@ -1101,5 +1163,6 @@ function Notice.CreatePortalNavigatorNotice(opts)
     createCloseButton = CreateCenterNoticeCloseButton,
     createHeaderElements = NoticeRichLayout.CreateHeaderElements,
     applyHeader = NoticeRichLayout.ApplyHeader,
+    applyHeaderRole = NoticeRichLayout.ApplyHeaderRole,
   })
 end

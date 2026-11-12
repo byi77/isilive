@@ -81,6 +81,7 @@ local FILE_PATHS = {
   ["isiLive_teleport_ui.lua"] = "ui/isiLive_teleport_ui.lua",
   ["isiLive_trace_chat_frame.lua"] = "ui/isiLive_trace_chat_frame.lua",
   ["isiLive_notice_common.lua"] = "ui/isiLive_notice_common.lua",
+  ["isiLive_card_stack.lua"] = "ui/isiLive_card_stack.lua",
   ["isiLive_portal_navigator_notice.lua"] = "ui/isiLive_portal_navigator_notice.lua",
   ["isiLive_notice_rich_layout.lua"] = "ui/isiLive_notice_rich_layout.lua",
   ["isiLive_notice.lua"] = "ui/isiLive_notice.lua",
@@ -201,11 +202,16 @@ local IMPLICIT_DEPENDENCIES = {
   },
   ["isiLive_notice.lua"] = {
     "isiLive_notice_common.lua",
+    "isiLive_card_stack.lua",
     "isiLive_portal_navigator_notice.lua",
     "isiLive_notice_rich_layout.lua",
   },
   ["isiLive_sound_utils.lua"] = {
     "isiLive_sound_registry.lua",
+  },
+  -- Cards register with the shared card stack while they are built.
+  ["isiLive_loadout_check_card.lua"] = {
+    "isiLive_card_stack.lua",
   },
   ["isiLive_mob_nameplate.lua"] = {
     "isiLive_mob_nameplate_diagnostics.lua",

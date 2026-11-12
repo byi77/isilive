@@ -404,9 +404,9 @@ local function ApplyDemoFeatureData(ctx)
   local L = ctx.GetL and ctx.GetL() or {}
   ApplyDemoAlertAndSoundPreview(ctx, L)
   ShowDemoPortalNavigator(ctx, L)
-  -- The talent & loot check stays behind tablet action C6: at its live
-  -- position it would cover the portal navigator. The invite card below
-  -- still carries its live "Loadout" row.
+  -- All cards share one stack (rule 242); the talent & loot check stays
+  -- behind tablet actions C6 / F5 so the full preview fits the screen. The
+  -- invite card below still carries its live "Loadout" row.
   local cards = Cards()
   if type(ctx.ShowDemoCenterNotices) == "function" and cards.BuildAcceptedInviteNotice then
     ctx.ShowDemoCenterNotices({
@@ -864,6 +864,19 @@ local function AppendDemoToggleActions(ctx, actions)
     table.insert(actions, action)
   end
   return actions
+end
+
+-- F5 / F6: card stack and motion previews (rule 242).
+local function AppendCardMotionActions(ctx, actions)
+  local cards = Cards()
+  if type(cards.AppendCardMotionActions) ~= "function" then
+    return actions
+  end
+  return cards.AppendCardMotionActions(ctx, actions, {
+    showPortalNavigator = function()
+      ShowDemoPortalNavigator(ctx, ctx.GetL and ctx.GetL() or {})
+    end,
+  })
 end
 
 local function BuildSimulationTabletActions(ctx)
@@ -1349,7 +1362,10 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
           if type(ctx._simulationTabletActions) ~= "table" then
             ctx._simulationTabletActions = TrackTabletActions(
               ctx,
-              AppendDemoToggleActions(ctx, AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx)))
+              AppendCardMotionActions(
+                ctx,
+                AppendDemoToggleActions(ctx, AppendDemoKeyEndActions(ctx, BuildSimulationTabletActions(ctx)))
+              )
             )
           end
           return ctx._simulationTabletActions

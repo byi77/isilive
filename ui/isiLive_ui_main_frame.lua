@@ -297,28 +297,60 @@ end
 local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
   local pendingVisible = nil
 
+  -- Window motion (rule 242): fade in and out over `fast`. The window holds
+  -- secure buttons, so in combat it is treated as protected: closing only
+  -- fades its alpha (with a click blocker) and the real Hide() follows after
+  -- combat; it never gets Show/Hide/EnableMouse there (rules 2, 121).
+  local motionOpts = { protected = true, isInCombat = isInCombat }
+
+  local function Motion()
+    local uiCommon = addonTable.UICommon
+    if type(uiCommon) == "table" and type(uiCommon.ShowAnimated) == "function" then
+      return uiCommon
+    end
+    return nil
+  end
+
+  local function IsFadingOut()
+    local motion = Motion()
+    return motion ~= nil and frame:IsShown() and motion.IsHiding(frame) == true
+  end
+
+  -- What the player sees or has asked for: a queued combat change wins, a
+  -- window that fades out already counts as closed.
+  local function IsLogicallyVisible()
+    if pendingVisible ~= nil then
+      return pendingVisible
+    end
+    return frame:IsShown() == true and not IsFadingOut()
+  end
+
   local function SetVisible(visible)
     if visible and isRaidGroup and isRaidGroup() then
       return false
     end
+    local motion = Motion()
     if isInCombat and isInCombat() then
       pendingVisible = visible and true or false
+      -- Alpha only: a shown window fades out (or back in); a hidden one
+      -- waits for PLAYER_REGEN_ENABLED to be shown.
+      if motion and frame:IsShown() then
+        if visible then
+          motion.ShowAnimated(frame, "window", motionOpts)
+        else
+          motion.HideAnimated(frame, "window", motionOpts)
+        end
+      end
       return false
     end
     pendingVisible = nil
 
     if visible then
-      if not frame:IsShown() then
-        frame:Show()
-        -- Out of combat only (the combat branch above returns first): the
-        -- window fades in instead of popping up. Reduced motion skips it.
-        local uiCommon = addonTable.UICommon
-        if type(uiCommon) == "table" and type(uiCommon.PlayAlphaTransition) == "function" then
-          uiCommon.PlayAlphaTransition(frame, "mainFrameEntrance", {
-            fromAlpha = 0,
-            toAlpha = 1,
-            duration = "normal",
-          })
+      if not frame:IsShown() or IsFadingOut() then
+        if motion then
+          motion.ShowAnimated(frame, "window", motionOpts)
+        else
+          frame:Show()
         end
         return true
       end
@@ -326,7 +358,12 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     end
 
     if frame:IsShown() then
-      frame:Hide()
+      if motion then
+        -- Also finishes a hide that faded out in combat.
+        motion.HideAnimated(frame, "window", motionOpts)
+      else
+        frame:Hide()
+      end
       return true
     end
     return false
@@ -341,12 +378,11 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     end
 
     if isInCombat and isInCombat() then
-      local wantVisible = not frame:IsShown()
-      pendingVisible = wantVisible
+      SetVisible(not IsLogicallyVisible())
       return
     end
 
-    if frame:IsShown() then
+    if IsLogicallyVisible() then
       SetVisible(false)
       return
     end

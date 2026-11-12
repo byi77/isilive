@@ -24,7 +24,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ## Regeluebersicht
 
 1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten. `activityInfo.mapID` ist eine Instanz-ID (ingame 2026-10-30) und wird nur ueber die Maps der aktiven Season in eine Challenge-Map uebersetzt.
-2. Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Blockierte Show/Hide-Wechsel werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
+2. Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Blockierte Show/Hide-Wechsel werden im Kampf gependelt (Schliessen blendet dort nur per Alpha aus) und bei `PLAYER_REGEN_ENABLED` angewendet.
 3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 5. Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
@@ -165,7 +165,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 127. Der Killtracker-Balken ist bei offenem Fortschritt ruhig blau und erst bei 100 % gruen, gleitet bei Aenderungen weich auf den neuen Wert (bei reduzierten Animationen sofort) und zeigt Prozentwerte mit dem Dezimaltrennzeichen der gewaehlten isiLive-Sprache.
 
-128. Eine erscheinende Center-Notice und ein erscheinender Portal-Navigator blenden vollstaendig von transparent ein (bei reduzierten Animationen sofort sichtbar); pro Frame laeuft hoechstens ein Alpha-Uebergang.
+128. Eine erscheinende Karte blendet ueber die Karten-Bewegung aus Regel 242 ein (bei reduzierten Animationen sofort sichtbar); pro Frame laeuft hoechstens ein Alpha-Uebergang.
 
 129. Offline-Mitglieder und Ghost-Zeilen werden im Roster als ganze Zeile abgedunkelt (Daten 45 %, Name 75 %) und kehren beim Wiederverbinden auf volle Deckkraft zurueck.
 
@@ -185,7 +185,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 137. Die Ready-Check-Toenung einer Roster-Zeile blendet bei einem neuen Status ein, und waehrend des 20-Sekunden-Nachhaltefensters zeigt eine schmale Leiste die verbleibende Zeit bis zum Ende der Markierung.
 
-138. Das Hauptfenster blendet beim Oeffnen ausserhalb des Kampfs kurz ein; bei reduzierten Animationen erscheint es sofort.
+138. Das Hauptfenster blendet beim Oeffnen ausserhalb des Kampfs kurz ein und beim Schliessen aus (`fast`); bei reduzierten Animationen erscheint und verschwindet es sofort.
 
 139. Aendert sich ein angezeigter Statsbox-Wert, blendet seine Zahl kurz ein; der erste Wert und Aenderungen durch Settings bleiben ruhig.
 
@@ -324,6 +324,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 239. Der Probe-Modus (`/isilive probe`, Einstellung `probeLogEnabled`, Pattern B) schreibt nur lesende Ingame-API-Pruefungen als `[PROBE] event=...`-Zeilen ins Laufzeit-Log, mit Budget pro Key, ohne Chat-Ausgabe und ohne Kosten im ausgeschalteten Zustand; Secret Values werden nie umgewandelt, sondern nur als `secret` gezaehlt; `/isilive probe report` fasst die Zeilen je Frage zu einem Urteil zusammen.
 240. isiLive zaehlt im laufenden Key die eigenen verfehlten Kicks (Urteil aus Regel 236, auch bei ausgeschaltetem Alarm) und zeigt sie nach dem Key im Roster-Tooltip neben gewirkten und getroffenen Kicks (`37 gewirkt, 32 getroffen, 5 verfehlt`), fuer die eigene Zeile und fuer isiLive-Peers ueber das `KM`-Suffix des `DPS`-Pakets; die Kick-Spalte bleibt unveraendert.
 241. Das Konfigurationsfenster hat im Titelband ein Suchfeld: Es filtert die Optionen nach Label, Beschreibung, Abschnitt und englischen Stichwoertern (alle Woerter muessen passen, Gross-/Kleinschreibung und Akzente egal), zeigt nur Treffer mit ihrer Abschnittsueberschrift und schliesst die Luecken; ein leeres Feld stellt das urspruengliche Layout exakt wieder her, ESC leert zuerst die Suche und schliesst danach das Fenster, Schliessen leert die Suche.
+242. Alle isiLive-Karten (Center-Notice, Portal-Navigator, Talent-/Beute-Check) sind Abschnitte eines Karten-Stapels in der Bildmitte, der wie eine Karte wirkt (ein Rahmen, ein Kopf, Haarlinien zwischen den Abschnitten, Reihenfolge nach Prioritaet und Erscheinen, gleiche Art ersetzt in place, Ziehen bewegt den ganzen Stapel); Karten und Fenster erscheinen und verschwinden ueber `UICommon.ShowAnimated`/`HideAnimated` (unterbrechbar, Maus sofort aus, im Kampf bei geschuetzten Frames nur Alpha).
 
 ## Regelbloecke
 
@@ -340,10 +341,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HOTKEY-KAMPF-TOGGLE
 - Regelnummer: 2
 - Status: aktiv
-- Zusammenfassung: Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Wenn Kampf-Lockdown `Show` oder `Hide` blockiert, wird die angeforderte Sichtbarkeit bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
+- Zusammenfassung: Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Wenn Kampf-Lockdown `Show` oder `Hide` blockiert, wird die angeforderte Sichtbarkeit bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen. Ein Schliessen per Hotkey im Kampf blendet das sichtbare Hauptfenster dabei nur per Alpha aus (Regel 242); ein zweiter Druck im Kampf holt es per Alpha zurueck, und die gependelte Sichtbarkeit folgt dem zuletzt gewuenschten Zustand.
 - Erforderliche Tests:
   - UI toggle defers closing frame during combat and applies after regen
   - UI toggle defers opening frame during combat and applies after regen
+  - UI main frame fades out on close and a hotkey close in combat only fades
 
 ### RULE-QUEUE-NEGATIV-GRUPPE-STABIL
 - Regelnummer: 3
@@ -1348,11 +1350,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MOVABLE-UI-SCREEN-CLAMP
 - Regelnummer: 66
 - Status: aktiv
-- Zusammenfassung: Alle frei verschiebbaren isiLive-Fenster muessen per Screen-Clamp an den WoW-Sichtbereich gebunden sein; beim Ziehen duerfen die Fensterraender nicht ausserhalb des WoW-Fensters verschwinden. Dies gilt fuer Main-UI, Stats-Box, Center-Notice, Portal-Navigator und Demo-Simulator; der Minimap-Button bleibt an seine eigene Minimap-Kreis-Draglogik gebunden.
+- Zusammenfassung: Alle frei verschiebbaren isiLive-Fenster muessen per Screen-Clamp an den WoW-Sichtbereich gebunden sein; beim Ziehen duerfen die Fensterraender nicht ausserhalb des WoW-Fensters verschwinden. Dies gilt fuer Main-UI, Stats-Box, den Karten-Stapel (Regel 242; Center-Notice, Portal-Navigator und Talent-/Beute-Check werden darin als ein Stapel gezogen und geklemmt) und Demo-Simulator; der Minimap-Button bleibt an seine eigene Minimap-Kreis-Draglogik gebunden.
+- Ersetzte Festlegung (Benutzerentscheidung 2026-11-12, Regel 242): "Dies gilt fuer Main-UI, Stats-Box, Center-Notice, Portal-Navigator und Demo-Simulator". Die Karten werden nicht mehr einzeln, sondern als ein Stapel gezogen; der Stapel ist geklemmt.
 - Erforderliche Tests:
   - UI main frame is clamped to the WoW screen while movable
   - StatsBox clamps its movable frame to the screen
   - Notice movable frames are clamped to the WoW screen
+  - Card stack drag moves the whole stack and every card keeps its slot
   - Architecture portal navigator notice owns portal construction behind Notice facade
   - Simulation tablet reapplies screen clamp after dynamic height changes
   - Simulation tablet drag detaches and Dock restores the responsive anchor
@@ -1437,7 +1441,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-NOTICE-TITEL-BRAND-GOLD
 - Regelnummer: 70
 - Status: aktiv
-- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften muessen im Locale-Text mit `isiLive - ` beginnen. Rich-Center-Notice und Portal-Navigator teilen sich denselben Kartenkopf und zeigen diesen Praefix nicht in der Headline: Das Kopfband traegt links einen Kategorie-Chip (Zustandssymbol plus Eyebrow in der Kategoriefarbe), rechts die Marke `isiLive` in der unterstuetzenden Textfarbe, darunter die Headline ohne `isiLive - ` im gemeinsamen Ueberschriftston `TEXT_HEADING` und schliesst mit einer Haarlinie ueber die volle Kartenbreite ab. Der Portal-Navigator ist eine Aktionskarte (Eyebrow `Portal - Navigation` in Aktionsgruen, Headline z. B. `Midnight Season Two M+ Navigator`); seine Portal-Halbkreis-Positionen beginnen unterhalb des Kopfbands. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
+- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften muessen im Locale-Text mit `isiLive - ` beginnen. Rich-Center-Notice und Portal-Navigator teilen sich denselben Kartenkopf und zeigen diesen Praefix nicht in der Headline: Das Kopfband traegt links einen Kategorie-Chip (Zustandssymbol plus Eyebrow in der Kategoriefarbe), rechts die Marke `isiLive` in der unterstuetzenden Textfarbe, darunter die Headline ohne `isiLive - ` im gemeinsamen Ueberschriftston `TEXT_HEADING` und schliesst mit einer Haarlinie ueber die volle Kartenbreite ab. Im Karten-Stapel (Regel 242) zeigt nur der oberste Abschnitt Marke und Kopfband-Flaeche; weitere Abschnitte behalten Chip und Headline. Der Portal-Navigator ist eine Aktionskarte (Eyebrow `Portal - Navigation` in Aktionsgruen, Headline z. B. `Midnight Season Two M+ Navigator`); seine Portal-Halbkreis-Positionen beginnen unterhalb des Kopfbands. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
 - Ersetzte Festlegung (Benutzerfreigabe, 2026-10-29): "Alle Center-Notice- und Portal-Navigator-Ueberschriften, die als Fenstertitel oder Headline gerendert werden, muessen textlich mit `isiLive - ` beginnen und im gemeinsamen warmen Goldton `1, 0.9, 0.45` angezeigt werden. Der Portal-Navigator muss seinen Header optisch an die Rich-Center-Notice-Header angleichen: cyanfarbene Eyebrow-Zeile `Portal - Navigation`, linksbuendige goldene Headline `isiLive - Midnight Season One M+ Navigator` in derselben Headline-Schriftgroesse und blaue Trennlinie unterhalb der vollstaendigen Headline. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.". Center-Notice-Karten und Portal-Navigator wurden auf Kopfband mit Kategorie-Chip und Marke umgestellt.
 - Erforderliche Tests:
   - Locale center-notice titles use isiLive prefix in every locale
@@ -1445,6 +1449,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Center notice rich Show renders title, separator, field rows, teleport header
   - Portal navigator notice lays out the five portal positions in a crescent
   - Architecture portal navigator notice owns portal construction behind Notice facade
+  - Card stack reads as one card with one header and hairlines between sections
 
 ### RULE-BLOODLUST-READY-KLANGHINWEIS
 - Regelnummer: 71
@@ -2092,12 +2097,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MPLUS-RUN-ZONE-UND-NOTICE-CARDS
 - Regelnummer: 105
 - Status: aktiv
-- Zusammenfassung: Die Dungeonportal-Buttons, die Battle-Res-/Bloodlust-Anzeige, der M+-Timer und der M+-Killtracker muessen ihre ruhige blau/slate Flaeche und ihren Border aus der gemeinsamen semantischen M+-Run-Rolle in `UICommon` beziehen. Diese Run-Flaechen muessen den gespeicherten und live geaenderten globalen `bgAlpha`-Wert als Strukturtinte mit exakt `bgAlpha * 0,24` anwenden; ihre Border bleiben davon unberuehrt. Center-Notice und Portal-Navigator muessen dieselbe semantische Notice-Flaeche, denselben kuehlen Border und denselben dezenten oberen Akzent verwenden; die bestehenden warm-goldenen `isiLive - `-Ueberschriften und die gemeinsame Body-Typografie bleiben erhalten. Der Portal-Navigator darf die bereits vom Status-Renderer verifiziert und lokalisiert gelieferten Richtungs- und Leerplatz-Detailtexte anzeigen, muss fehlende Zusatztexte aber leer lassen. Diese visuelle Vereinheitlichung darf keine Layoutbudgets, Secure-Attribute, Portal-Klickpfade sowie M+-Timer-, Cooldown- oder Killtracker-Datenlogik veraendern.
+- Zusammenfassung: Die Dungeonportal-Buttons, die Battle-Res-/Bloodlust-Anzeige, der M+-Timer und der M+-Killtracker muessen ihre ruhige blau/slate Flaeche und ihren Border aus der gemeinsamen semantischen M+-Run-Rolle in `UICommon` beziehen. Diese Run-Flaechen muessen den gespeicherten und live geaenderten globalen `bgAlpha`-Wert als Strukturtinte mit exakt `bgAlpha * 0,24` anwenden; ihre Border bleiben davon unberuehrt. Center-Notice und Portal-Navigator muessen dieselbe semantische Notice-Flaeche, denselben kuehlen Border und denselben dezenten oberen Akzent verwenden; seit Regel 242 malt der gemeinsame Karten-Stapel diese eine Flaeche samt Border, die Karten selbst nur ihren oberen Akzent; die bestehenden warm-goldenen `isiLive - `-Ueberschriften und die gemeinsame Body-Typografie bleiben erhalten. Der Portal-Navigator darf die bereits vom Status-Renderer verifiziert und lokalisiert gelieferten Richtungs- und Leerplatz-Detailtexte anzeigen, muss fehlende Zusatztexte aber leer lassen. Diese visuelle Vereinheitlichung darf keine Layoutbudgets, Secure-Attribute, Portal-Klickpfade sowie M+-Timer-, Cooldown- oder Killtracker-Datenlogik veraendern.
 - Erforderliche Tests:
   - UICommon semantic design system exposes shared modern surface and spacing roles
   - UICommon background opacity repaints semantic title and run surfaces
   - UICommon notice chrome creates a shared top accent and semantic role
-  - Center notice close button hides center notice directly
+  - Center notice close button fades the card out and then hides it
+  - Card stack reads as one card with one header and hairlines between sections
   - CreateCdTrackerRow renders M+ grade badges and wide timer fields
   - CreateKillTrackRow uses readable section color for its run label
   - TeleportUI keeps target refreshes silent and skips pulse when reduced motion is enabled
@@ -2320,10 +2326,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-KAMPF-GEOMETRIE
 - Regelnummer: 121
 - Status: aktiv
-- Zusammenfassung: Die Main-UI ist Parent sicherer Buttons und damit im Kampf-Lockdown selbst geschuetzt; `StartMoving`, `Show`/`Hide`, `SetScale` und Re-Anchoring aus Addon-Code werden dort blockiert (`ADDON_ACTION_BLOCKED`). Ein Drag-Start im Kampf ist daher ein No-op. Ein Klick auf das `×`-Control im Kampf blendet nicht sofort aus, sondern wird ueber den Sichtbarkeits-Controller gependelt und bei `PLAYER_REGEN_ENABLED` angewendet (vgl. Regel 27). Skalierungswechsel und Positions-Reset (Settings-Slider, `/isilive resetui`) werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` in der Reihenfolge Skalierung vor Reset genau einmal nachgezogen.
+- Zusammenfassung: Die Main-UI ist Parent sicherer Buttons und damit im Kampf-Lockdown selbst geschuetzt; `StartMoving`, `Show`/`Hide`, `SetScale` und Re-Anchoring aus Addon-Code werden dort blockiert (`ADDON_ACTION_BLOCKED`). Ein Drag-Start im Kampf ist daher ein No-op. Ein Klick auf das `×`-Control im Kampf ruft kein `Hide` auf, sondern wird ueber den Sichtbarkeits-Controller gependelt und bei `PLAYER_REGEN_ENABLED` angewendet (vgl. Regel 27); bis dahin blendet das Fenster nur per Alpha aus und ein einfacher Blocker-Frame faengt die Klicks auf seine unsichtbaren Secure-Buttons ab (Regel 242). Skalierungswechsel und Positions-Reset (Settings-Slider, `/isilive resetui`) werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` in der Reihenfolge Skalierung vor Reset genau einmal nachgezogen.
 - Erforderliche Tests:
   - UI drag start is skipped and geometry changes are queued during combat
   - UI close button defers hiding during combat and applies after regen
+  - Protected frames only fade in combat and get their real hide after regen
   - PLAYER_REGEN_ENABLED applies pending main-frame scale and position
   - Resize grip does not start a drag during combat lockdown
   - Resize grip drag running into combat ends on PLAYER_REGEN_DISABLED and applies after combat
@@ -2359,7 +2366,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-BEWEGUNG-TOKENS-UND-REDUZIERTE-ANIMATION
 - Regelnummer: 125
 - Status: aktiv
-- Zusammenfassung: Dekorative UI-Bewegung bezieht Dauer und Easing aus `UICommon.Motion` (`fast` = 0,14 s, `normal` = 0,2 s, `slow` = 0,35 s; Easing `OUT` beim Erscheinen, `IN` beim Verschwinden). Alpha-Uebergaenge laufen ueber `UICommon.PlayAlphaTransition`, das die Animationsgruppe pro Frame und Schluessel genau einmal baut, bei erneutem Aufruf neu startet und den Frame danach auf seinem Ruhe-Alpha belaesst. Ist `reduceMotion` aktiv, startet kein dekorativer Uebergang und es wird keine Animationsgruppe gebaut; das Einschalten der Option stoppt alle gerade laufenden registrierten Uebergaenge sofort und setzt deren Frames auf ihr Ruhe-Alpha zurueck; ein ruhender Uebergang laesst die aktuelle Deckkraft seines Frames unveraendert, damit etwa der Kampf-Fade des Hauptfensters nicht ueberschrieben wird. Der Refresh-Uebergang einer bereits sichtbaren Center-Notice bei einem Kategoriewechsel bleibt in Staerke und Dauer unveraendert (0,86 auf 1 ueber `fast`); das erste Erscheinen einer Notice regelt Regel 128. Der Death-/PI-Alert erscheint bei aktiver Option in voller Groesse und Deckkraft ohne Scale-Punch und ohne Einblendung, bleibt genauso lange sichtbar wie in der vollen Variante und blendet dann aus; Text, Farbe und Ausloeser bleiben unveraendert, und ein Umschalten der Option wirkt ab dem naechsten Alert ohne Reload. Die Option ist nicht mehr in den Settings angeboten (Default aus); Schema-Migration 4 setzt einen gespeicherten Wert `true` einmalig auf `false`, die Laufzeitpfade bleiben unveraendert.
+- Zusammenfassung: Dekorative UI-Bewegung bezieht Dauer und Easing aus `UICommon.Motion` (`fast` = 0,14 s, `normal` = 0,2 s, `slow` = 0,35 s; Easing `OUT` beim Erscheinen, `IN` beim Verschwinden). Alpha-Uebergaenge laufen ueber `UICommon.PlayAlphaTransition`, das die Animationsgruppe pro Frame und Schluessel genau einmal baut, bei erneutem Aufruf neu startet und den Frame danach auf seinem Ruhe-Alpha belaesst. Ist `reduceMotion` aktiv, startet kein dekorativer Uebergang und es wird keine Animationsgruppe gebaut; das Einschalten der Option stoppt alle gerade laufenden registrierten Uebergaenge sofort und setzt deren Frames auf ihr Ruhe-Alpha zurueck; ein ruhender Uebergang laesst die aktuelle Deckkraft seines Frames unveraendert, damit etwa der Kampf-Fade des Hauptfensters nicht ueberschrieben wird. Der Refresh-Uebergang einer bereits sichtbaren Center-Notice bei einem Kategoriewechsel bleibt in Staerke und Dauer unveraendert (0,86 auf 1 ueber `fast`); das erste Erscheinen einer Notice regelt Regel 128. Der Death-/PI-Alert erscheint bei aktiver Option in voller Groesse und Deckkraft ohne Scale-Punch und ohne Einblendung, bleibt genauso lange sichtbar wie in der vollen Variante und blendet dann aus; Text, Farbe und Ausloeser bleiben unveraendert, und ein Umschalten der Option wirkt ab dem naechsten Alert ohne Reload. Die Option ist nicht mehr in den Settings angeboten (Default aus); Schema-Migration 4 setzt einen gespeicherten Wert `true` einmalig auf `false`, die Laufzeitpfade bleiben unveraendert. Ein- und Ausblenden von Karten und Fenstern laeuft ueber `UICommon.ShowAnimated`/`HideAnimated` (Regel 242); das Einschalten der Option bringt auch diese laufenden Bewegungen sofort an ihr Ende. Ein dekorativer Alpha-Uebergang startet nicht, solange auf seinem Frame ein Ein- oder Ausblenden laeuft. Die Ausblendwerte des Death-/PI-/Kick-Alerts (Punch) bleiben unveraendert.
 - Erforderliche Tests:
   - UICommon motion tokens resolve shared durations and easing
   - UICommon alpha transition builds once, restarts and settles at the resting alpha
@@ -2368,6 +2375,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - DeathAlert renders big red death text and restarts animation on repeated show
   - DeathAlert drops the scale punch and fade-in when reduced motion is enabled
   - DBSchema migration resets a stored reduced-motion preference
+  - Reduced motion shows and hides cards and windows at once
 
 ### RULE-MPLUS-TIMER-ZEITLEISTE-UND-STUFENFOKUS
 - Regelnummer: 126
@@ -2397,13 +2405,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-NOTICE-EINBLENDUNG
 - Regelnummer: 128
 - Status: aktiv
-- Zusammenfassung: Wird eine zuvor verborgene Center-Notice oder ein zuvor verborgener Portal-Navigator sichtbar, blendet die Karte ueber `UICommon.PlayNoticeEntrance` von Alpha 0 auf 1 ueber die gemeinsame Dauer `normal` (0,2 s) mit Easing `OUT` ein; die Karte bewegt sich dabei nicht. Eine bereits sichtbare Center-Notice nutzt bei einem Kategoriewechsel weiter den kurzen Refresh-Uebergang aus Regel 125, ein bereits sichtbarer Portal-Navigator bei einer Aktualisierung ebenso; ein erneutes Sichtbarschalten einer schon sichtbaren Karte startet keine Einblendung. Auf einem Frame laeuft hoechstens ein Alpha-Uebergang gleichzeitig: ein neu gestarteter Uebergang stoppt einen noch laufenden anderen Uebergang desselben Frames. Bei reduzierten Animationen erscheint die Karte sofort voll sichtbar und es wird keine Animationsgruppe gebaut. Das Ausblenden bleibt sofort, damit Schliessen, Rechtsklick und Auto-Hide die Karte weiterhin direkt verbergen.
+- Zusammenfassung: Wird eine zuvor verborgene Karte (Center-Notice, Portal-Navigator, Talent-/Beute-Check) sichtbar, erscheint sie ueber die Karten-Bewegung aus Regel 242: Ist der Karten-Stapel leer, blendet der Stapel von Alpha 0 auf 1 ueber `normal` (0,2 s, Easing `OUT`) ein und rutscht dabei 7 px von oben an seinen Platz; kommt die Karte zu einem sichtbaren Stapel hinzu, tut der neue Abschnitt dasselbe. Eine bereits sichtbare Center-Notice nutzt bei einem Kategoriewechsel weiter den kurzen Refresh-Uebergang aus Regel 125, ein bereits sichtbarer Portal-Navigator bei einer Aktualisierung ebenso; ein erneutes Sichtbarschalten einer schon sichtbaren Karte startet keine Einblendung. Auf einem Frame laeuft hoechstens ein Alpha-Uebergang gleichzeitig: ein neu gestarteter Uebergang stoppt einen noch laufenden anderen Uebergang desselben Frames, und ein Ein- oder Ausblenden hat Vorrang vor einem dekorativen Uebergang. Bei reduzierten Animationen erscheint die Karte sofort voll sichtbar und es wird keine Animationsgruppe gebaut. Schliessen, Rechtsklick und Auto-Hide blenden die Karte ueber `fast` aus (Maus sofort aus), erst danach wird sie verborgen; bei reduzierten Animationen sofort.
+- Ersetzte Festlegung (Benutzerentscheidung 2026-11-12, Regel 242): "blendet die Karte ueber `UICommon.PlayNoticeEntrance` von Alpha 0 auf 1 ueber die gemeinsame Dauer `normal` (0,2 s) mit Easing `OUT` ein; die Karte bewegt sich dabei nicht" und "Das Ausblenden bleibt sofort, damit Schliessen, Rechtsklick und Auto-Hide die Karte weiterhin direkt verbergen." Karten erscheinen jetzt mit kurzem Versatz von oben und blenden beim Schliessen aus.
 - Erforderliche Tests:
   - UICommon notice entrance fades a hidden card fully in and yields to a refresh
   - Center notice rich warning field renders red and blinks
-  - PortalNavigator fades in when it appears and stays quiet while already visible
+  - PortalNavigator fades in with the card stack and stays quiet while already visible
+  - ShowAnimated and HideAnimated reverse from the current alpha without flicker
   - PortalNavigator hides itself when right-clicked
-  - Center notice close button hides center notice directly
+  - Center notice close button fades the card out and then hides it
 
 ### RULE-ROSTER-INAKTIVE-ZEILEN-ABGEDUNKELT
 - Regelnummer: 129
@@ -2489,11 +2499,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-HAUPTFENSTER-EINBLENDUNG
 - Regelnummer: 138
 - Status: aktiv
-- Zusammenfassung: Zeigt der Sichtbarkeits-Controller das zuvor verborgene Hauptfenster an, blendet es ueber `UICommon.PlayAlphaTransition` (Schluessel `mainFrameEntrance`) von 0 auf 1 ueber die Dauer `normal` ein. Das geschieht nur auf dem Pfad ausserhalb des Kampfs, weil ein Sichtbarkeitswunsch im Kampf weiterhin gependelt und erst bei `PLAYER_REGEN_ENABLED` angewendet wird (Regel 121); ein bereits sichtbares Fenster startet keine Einblendung, und bei reduzierten Animationen erscheint es sofort ohne Animationsgruppe. Ausblenden, Kampf-Fade, Skalierung und Position bleiben unveraendert.
+- Zusammenfassung: Zeigt der Sichtbarkeits-Controller das zuvor verborgene Hauptfenster an, blendet es ueber `UICommon.ShowAnimated(frame, "window")` von 0 auf 1 ueber die Dauer `fast` ein (Regel 242). Das geschieht nur auf dem Pfad ausserhalb des Kampfs, weil ein Sichtbarkeitswunsch fuer ein verborgenes Fenster im Kampf weiterhin gependelt und erst bei `PLAYER_REGEN_ENABLED` angewendet wird (Regel 121); ein bereits sichtbares Fenster startet keine Einblendung, und bei reduzierten Animationen erscheint es sofort ohne Animationsgruppe. Beim Schliessen blendet das Fenster ueber `fast` aus und wird erst danach verborgen; ein Oeffnen waehrend des Ausblendens kehrt die Blende vom aktuellen Alpha aus um, und ein ausblendendes Fenster gilt als geschlossen. Kampf-Fade, Skalierung und Position bleiben unveraendert.
+- Ersetzte Festlegung (Benutzerentscheidung 2026-11-12, Regel 242): "blendet es ueber `UICommon.PlayAlphaTransition` (Schluessel `mainFrameEntrance`) von 0 auf 1 ueber die Dauer `normal` ein" und "Ausblenden, Kampf-Fade, Skalierung und Position bleiben unveraendert." Fenster blenden jetzt ueber `fast` ein und beim Schliessen aus.
 - Erforderliche Tests:
   - UI main frame fades in when opened and skips the fade with reduced motion
   - UICommon reduced motion stops every registered transition and skips new ones
   - UI close button defers hiding during combat and applies after regen
+  - UI main frame fades out on close and a hotkey close in combat only fades
+  - Windows fade in and out over fast without sliding
 
 ### RULE-STATSBOX-WERTWECHSEL-EINBLENDUNG
 - Regelnummer: 139
@@ -2847,7 +2860,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LEERLAUF-OHNE-FRAME-UND-TICKER-ARBEIT
 - Regelnummer: 168
 - Status: aktiv
-- Zusammenfassung: (1) `SetProcessingActive` haengt die Inspect-Schleife (`ctx.InspectLoop`) nur noch als `OnUpdate` des Hauptfensters ein, wenn die Verarbeitung erlaubt ist (sichtbar, Gruppe oder verifizierte Instanzgruppe, kein Raid) und der Inspect-Controller Arbeit haelt (`HasPendingWork`: Einheit in der Queue, laufendes Inspect oder Retry-Eintrag). Ist die Queue leer, haengt sich die Schleife beim naechsten gedrosselten Tick selbst ab; `EnqueueInspect` haengt sie ueber `onWorkQueued` wieder ein. Inspect-Timeout und Retry, die Kampfpause, das Stoppen samt Queue-Reset bei Solo, Raid oder ausgeblendetem Fenster und das Befuellen nach einem Reload mitten im Key bleiben unveraendert. (2) Die Systemoption-Haken (`advancedCombatLogging`, `damageMeterResetOnNewInstance`) lesen die CVars nicht mehr per Fuenf-Sekunden-Ticker, sondern reagieren auf `CVAR_UPDATE(cvarName, value)` (verifiziert in `ConsoleDocumentation.lua` von wow-ui-source; Blizzards `CVarCallbackRegistry` nutzt dasselbe Event). Das Event wird einmal bei der Panel-Erstellung im Main-Chunk registriert, nie aus Show/Hide; bei ausgeblendetem Fenster wird es ignoriert, das `OnShow` des Hauptfensters aktualisiert die Haken einmal. Der Fuenf-Sekunden-Ticker aus Regel 93 entfaellt damit. (3) `SetHeightSafe`/`SetWidthSafe` setzen Hoehe beziehungsweise Breite ausserhalb des Kampfes nur, wenn sie von der aktuellen Frame-Groesse (`GetHeight`/`GetWidth`, Toleranz 0.01) abweichen; verglichen wird mit der Live-Groesse statt mit einem gemerkten Lua-Wert, weil andere Pfade die Groesse direkt setzen. Im Kampf wird wie bisher nur vorgemerkt. (4) Der BOUNCE-Puls des aktiven Teleport-Ziels stoppt im `OnHide` seines Rahmens (auch beim Ausblenden eines Elternframes) und laeuft im `OnShow` nur wieder an, wenn der Button weiterhin verfuegbares aktives Ziel ist und reduzierte Bewegung aus ist. (5) Bei `CHALLENGE_MODE_START` mit eingeschalteten Todesalarmen (`deathAlertEnabled ~= false`) baut ein Timer eine Sekunde spaeter den Todesalarm-Frame vor, ausserhalb des geschuetzten Dispatchs und nur ausserhalb des Kampfes; der verzoegerte Aufbau beim ersten Alarm bleibt als Rueckfallweg erhalten.
+- Zusammenfassung: (1) `SetProcessingActive` haengt die Inspect-Schleife (`ctx.InspectLoop`) nur noch als `OnUpdate` des Hauptfensters ein, wenn die Verarbeitung erlaubt ist (sichtbar, Gruppe oder verifizierte Instanzgruppe, kein Raid) und der Inspect-Controller Arbeit haelt (`HasPendingWork`: Einheit in der Queue, laufendes Inspect oder Retry-Eintrag). Ist die Queue leer, haengt sich die Schleife beim naechsten gedrosselten Tick selbst ab; `EnqueueInspect` haengt sie ueber `onWorkQueued` wieder ein. Inspect-Timeout und Retry, die Kampfpause, das Stoppen samt Queue-Reset bei Solo, Raid oder ausgeblendetem Fenster und das Befuellen nach einem Reload mitten im Key bleiben unveraendert. (2) Die Systemoption-Haken (`advancedCombatLogging`, `damageMeterResetOnNewInstance`) lesen die CVars nicht mehr per Fuenf-Sekunden-Ticker, sondern reagieren auf `CVAR_UPDATE(cvarName, value)` (verifiziert in `ConsoleDocumentation.lua` von wow-ui-source; Blizzards `CVarCallbackRegistry` nutzt dasselbe Event). Das Event wird einmal bei der Panel-Erstellung im Main-Chunk registriert, nie aus Show/Hide; bei ausgeblendetem Fenster wird es ignoriert, das `OnShow` des Hauptfensters aktualisiert die Haken einmal. Der Fuenf-Sekunden-Ticker aus Regel 93 entfaellt damit. (3) `SetHeightSafe`/`SetWidthSafe` setzen Hoehe beziehungsweise Breite ausserhalb des Kampfes nur, wenn sie von der aktuellen Frame-Groesse (`GetHeight`/`GetWidth`, Toleranz 0.01) abweichen; verglichen wird mit der Live-Groesse statt mit einem gemerkten Lua-Wert, weil andere Pfade die Groesse direkt setzen. Im Kampf wird wie bisher nur vorgemerkt. (4) Der BOUNCE-Puls des aktiven Teleport-Ziels stoppt im `OnHide` seines Rahmens (auch beim Ausblenden eines Elternframes) und laeuft im `OnShow` nur wieder an, wenn der Button weiterhin verfuegbares aktives Ziel ist und reduzierte Bewegung aus ist. (5) Bei `CHALLENGE_MODE_START` mit eingeschalteten Todesalarmen (`deathAlertEnabled ~= false`) baut ein Timer eine Sekunde spaeter den Todesalarm-Frame vor, ausserhalb des geschuetzten Dispatchs und nur ausserhalb des Kampfes; der verzoegerte Aufbau beim ersten Alarm bleibt als Rueckfallweg erhalten. (6) Ein- und Ausblenden von Karten und Fenstern (Regel 242) und das Nachrutschen im Karten-Stapel laufen ausschliesslich ueber `AnimationGroup`s ohne `OnUpdate`-Skript; ohne laufende Bewegung entsteht keine Frame-Arbeit.
 - Erforderliche Tests:
   - Mplus stress: the inspect loop detaches once its queue drains and wakes on new work
   - factory composition root: solo inspection sleeps and group transitions wake it
@@ -3714,3 +3727,25 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Config search box debounces, ESC clears first and closes second, closing clears
   - Config search works in combat without protected calls
   - Settings panel exposes labelled search entries for the config window search
+
+### RULE-KARTEN-STAPEL-UND-BEWEGUNG
+- Regelnummer: 242
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidungen vom 2026-11-12 (Karten vereinheitlichen, Animationen). (1) Karten-Stapel: `ui/isiLive_card_stack.lua` (`CardStack`) fuehrt einen gemeinsamen Stapel `isiLiveCardStack` (Strata `HIGH`, ueber dem Hauptfenster und unter dem Simulator-Tablet), dessen obere Kante 200 px ueber der Bildmitte haengt (`TOP` an `UIParent` `CENTER`). Karten sind die Center-Notice (Art `notice`, die Demo-Karten `demoNoticeTarget`/`demoNoticeDifficulty`), der Portal-Navigator (`portal`) und die Talent-/Beute-Check-Karte (`loadout`); keine Karten sind Kurzalarme (Tod, PI, Kick ins Leere; ihr Punch bleibt), Statsbox und VIP-DK-Ghoul-Reminder. Jede Karte wird beim Bau einmal unter ihrer Art registriert: Sie wird Kind des Stapels, wechselt samt allen Kindern, die auf ihrer alten Strata lagen, auf die Strata des Stapels und liegt samt Kindern (um denselben Betrag angehoben) ueber dem Stapel-Hintergrund. Der Stapel malt die eine NOTICE-Flaeche samt Border fuer Modern und Classic; Karten malen keine eigene Flaeche. Der oberste Abschnitt zeigt den Kartenkopf (oberer Akzent, Kopfband-Flaeche, Marke `isiLive`); jeder weitere Abschnitt zeigt statt Akzent eine 1-px-Haarlinie in `BORDER_NOTICE` und behaelt nur Chip, Headline und eigenes `×`. Reihenfolge: aufsteigend nach Prioritaet (`notice` 10, `demoNoticeTarget` 11, `demoNoticeDifficulty` 12, `loadout` 20, `portal` 30), bei gleicher Prioritaet nach Erscheinen; eine erneut gezeigte Karte derselben Art ersetzt ihren Inhalt an ihrem Platz ohne neue Einblendung. Die Breite aller Abschnitte ist die groesste Wunschbreite der sichtbaren Karten (Center-Notice 680 oder `frameWidth`, Portal-Navigator 760, Talent-/Beute-Check 444); aendert sie sich, legt jede Karte ihren Inhalt fuer die neue Breite neu an (ohne Einblendung, ohne Timer-Reset, ohne Teleport-Neukonfiguration). Abschnitte haengen ohne Luecke untereinander, der Stapel ist genau so hoch wie sie. Inhalte und Felder der Karten bleiben unveraendert (Reduktion nur nach Freigabe pro Karte). Ziehen an einer beliebigen Karte bewegt den ganzen Stapel (`StartMoving` am Stapel, nie an der Karte), der Stapel ist an den Bildschirm geklemmt (Regel 66); die Position wird nicht gespeichert, ein leerer Stapel erscheint beim naechsten Mal wieder an seinem Standardplatz. Eine Karte, die anderer Code direkt verbirgt, verlaesst den Stapel sofort; ein leerer Stapel verbirgt sich. (2) Bewegung: `ui/isiLive_ui_motion.lua` bietet `UICommon.ShowAnimated(frame, kind, opts)` und `UICommon.HideAnimated(frame, kind, opts)` mit den Arten `card` (Einblenden ueber `normal` mit 7 px Versatz von oben, Ausblenden ueber `fast` ohne Versatz) und `window` (nur Blende, `fast` ein und aus). Jeder Aufruf animiert vom aktuellen Alpha und Versatz zum neuen Ziel; die Dauer folgt dem noch offenen Alpha-Weg (halber Weg, halbe Zeit), ein reines Rutschen dauert `normal`. Ein Ausblenden schaltet die Maus des Frames sofort ab und ruft `Hide()` erst am Ende; danach bekommt der Frame Alpha 1 und seine Maus zurueck. Ein wiederholtes Ausblenden laeuft nur einmal, ein Einblenden waehrend des Ausblendens kehrt um, ohne dass der Frame verborgen wird. `UICommon.IsHiding(frame)` meldet ein laufendes Ausblenden; ein ausblendendes Fenster oder eine ausblendende Karte gilt fuer Abfragen (`IsOpen`, `IsShown` der Controller, `IsMainFrameVisible`) als geschlossen. Eine Karte, die einen Stapel betritt, der schon sichtbar ist, blendet als Abschnitt ein; die erste Karte erscheint sofort und der Stapel blendet ein; die letzte Karte verlaesst den Stapel mit dessen Ausblenden. Verlaesst eine Karte einen Stapel mit weiteren Karten, behaelt sie ihren Platz bis zum Ende ihres Ausblendens; danach rutschen die verbleibenden Karten ueber `UICommon.PlaySlide` von ihrem alten an ihren neuen Platz (`normal`). Bei reduzierten Animationen geschieht alles sofort ohne Animationsgruppe, und das Einschalten der Option beendet laufende Bewegungen sofort (Regel 125). Nur `AnimationGroup`s, keine `OnUpdate`-Schleifen (Regel 168). (3) Kampf: Fuer einen geschuetzten Frame (`IsProtected()`) oder einen vom Besitzer als geschuetzt gemeldeten Frame (`opts.protected`, Hauptfenster mit Secure-Buttons) ruft die Bewegung im Kampf nie `Show`, `Hide`, `EnableMouse`, `SetPoint` oder eine Translation auf: Ausblenden setzt nur Alpha auf 0, legt einen einfachen Blocker-Frame mit Maus ueber ihn und merkt das echte `Hide()` vor; ein verborgener geschuetzter Frame wird im Kampf nicht gezeigt, sondern vorgemerkt. Bei `PLAYER_REGEN_ENABLED` ruft die Laufzeit `UICommon.ApplyDeferredShowHide` auf und holt beides nach. (4) Fenster: Hauptfenster, Konfigurationsfenster und Simulator-Tablet blenden ueber `window` ein und aus; das Hauptfenster blendet beim Schliessen aus (Button, Hotkey, Befehl). Im Kampf blendet ein Schliessen des Hauptfensters nur per Alpha aus (Regeln 2, 121); ein zweiter Hotkey-Druck im Kampf holt es per Alpha zurueck. Das ESC-Panel blendet ausserhalb des Kampfs mit dem Spielmenue ueber `fast` ein und verschwindet mit Blizzards Menue sofort; ESC ueber `UISpecialFrames` verbirgt das Konfigurationsfenster sofort. (5) Simulator-Tablet: Aktion F5 (Karten-Stapel) zeigt Einladungskarte, Talent-/Beute-Check und Portal-Navigator gleichzeitig; Aktion F6 (Animationen abspielen) zeigt die Karten im Abstand von 0,9 s nacheinander, laesst die mittlere und dann die uebrigen Karten gehen und blendet das Hauptfenster ausserhalb des Kampfs aus und wieder ein. Bildschirmrand: Waere der Stapel an seinem Standardplatz unten abgeschnitten (bei 1920x1080 schon mit Einladung, Talent-/Beute-Check und Portal-Navigator), rueckt er weich nach oben, bis sein unterer Rand 16 px (`CardStack.SCREEN_MARGIN`) Abstand zum Bildschirmrand hat, hoechstens bis seine Oberkante 16 px unter dem oberen Rand liegt. Solange er sichtbar ist, rueckt er nur nach oben (eine verschwindende Karte laesst ihn nicht nach unten springen); ein geleerter Stapel beginnt wieder am Standardplatz, ein gezogener Stapel bleibt, wo der Spieler ihn abgelegt hat.
+- Erforderliche Tests:
+  - Card stack orders cards by priority and arrival and replaces the same kind in place
+  - Card stack reads as one card with one header and hairlines between sections
+  - Card stack lets the remaining cards slide up after a card faded out
+  - Card stack drag moves the whole stack and every card keeps its slot
+  - Card stack in combat shows and hides cards without protected calls
+  - Cards move with their children onto the card stack strata
+  - Center notice close button fades the card out and then hides it
+  - Center notice drag moves the card stack and resets to center on next open
+  - ShowAnimated and HideAnimated reverse from the current alpha without flicker
+  - Windows fade in and out over fast without sliding
+  - Reduced motion shows and hides cards and windows at once
+  - Protected frames only fade in combat and get their real hide after regen
+  - UI main frame fades out on close and a hotkey close in combat only fades
+  - Config window and simulation tablet fade in and out and count as closed while fading
+  - Factory demo simulation tablet builds safe actions and runs preview hooks
+  - Card stack moves up to keep a tall stack on screen and never jumps back down
