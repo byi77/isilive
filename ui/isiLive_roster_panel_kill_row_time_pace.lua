@@ -64,9 +64,11 @@ local TIME_PACE_FORMATS = {
 -- whole seconds without a sign; the word carries the direction. The state
 -- ("ontime", "tight" or "late") comes from TimePace.ClassifyDelta, so the
 -- [TIMEPACE] trace logs the same verdict the badge shows.
-local function FormatTimeDelta(pace, delta)
+local function FormatTimeDelta(pace, delta, verdict)
   local seconds = math.floor(math.abs(delta) + 0.5)
-  local state = pace.ClassifyDelta(delta)
+  -- The module's verdict holds between checkpoints (C3); a status without
+  -- one (demo data) is classified directly.
+  local state = TIME_PACE_FORMATS[verdict] and verdict or pace.ClassifyDelta(delta)
   local format = TIME_PACE_FORMATS[state]
   return string.format(LocalizedText(format.key, format.fallback), FormatMplusTime(seconds)), state
 end
@@ -94,13 +96,13 @@ local function BuildTimePaceText(data)
     if type(delta) ~= "number" or delta ~= delta then
       return nil
     end
-    text, paceState = FormatTimeDelta(pace, delta)
+    text, paceState = FormatTimeDelta(pace, delta, status.verdict)
   elseif status.mode == "projection" then
     local projected, limit = status.projected, status.timeLimit
     if type(projected) ~= "number" or projected ~= projected or type(limit) ~= "number" or limit <= 0 then
       return nil
     end
-    text, paceState = FormatTimeDelta(pace, projected - limit)
+    text, paceState = FormatTimeDelta(pace, projected - limit, status.verdict)
   else
     return nil
   end

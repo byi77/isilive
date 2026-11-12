@@ -149,6 +149,15 @@ local function RunTimers(env)
   end
 end
 
+-- One pull that ends at `elapsed` with `forces` and `kills`: the pull end is
+-- the checkpoint at which the shown verdict may change (C3).
+local function PullTo(addon, env, elapsed, forces, kills)
+  Dispatch(addon, "PLAYER_REGEN_DISABLED")
+  Advance(addon, env, elapsed, forces, kills)
+  Dispatch(addon, "PLAYER_REGEN_ENABLED")
+  RunTimers(env)
+end
+
 local function GetReference(addon, db, level)
   local root = db.timePace
   local seasonBucket = type(root) == "table" and root[addon.SeasonData.GetActiveSeasonID()] or nil
@@ -715,16 +724,16 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.Equal(line._color[1], colors.WHITE_RGB[1], "the live badge has white text")
       Assert.False(row.killTrackTimePausePrimary._shown, "no pause sign outside a fight")
 
-      Advance(addon, env, 853, 150, 1)
+      PullTo(addon, env, 853, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "ON TIME 2:27", "behind the reference but inside the limit is still on time")
 
-      Advance(addon, env, 1003, 150, 1)
+      PullTo(addon, env, 1003, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "CLOSE 0:03", "a forecast within 30 s of the limit is close")
       Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_TIGHT_BG[1], "close is the yellow badge")
 
-      Advance(addon, env, 1075, 150, 1)
+      PullTo(addon, env, 1075, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
       Assert.Equal(line._text, "TOO SLOW 1:15", "a forecast past the limit says too slow")
       Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_LATE_BG[1], "too slow is the red badge")
@@ -843,6 +852,50 @@ local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
+local function RegisterVerdictTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- C3: the badge word changes only at a checkpoint (pull end, boss kill),
+  -- only 30 s past the boundary it crosses, and holds during the last boss.
+  test("TimePace verdict changes only at checkpoints, past the hysteresis, and holds for the last boss", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      local function Verdict()
+        local status = addon.KillTrack.GetData().timePace
+        return status and status.verdict
+      end
+      StartRun(addon, env)
+      -- 0.5 * 0.4 + 0.5 / 3 = 0.3667 at 600 s: whole 1636 s, 164 s ahead.
+      Advance(addon, env, 600, 120, 1)
+      Assert.Equal(Verdict(), "ontime", "the first answer sets the verdict")
+
+      -- Pull end at 650 s: 1773 s, 27 s ahead -- close by raw value, but inside
+      -- the 30 s buffer past the boundary: the word stays.
+      PullTo(addon, env, 650, 120, 1)
+      local status = addon.KillTrack.GetData().timePace
+      local delta = status.projected - 1800
+      Assert.True(delta > -30 and delta < 0, "precondition: close by raw value, inside the buffer")
+      Assert.Equal(Verdict(), "ontime", "a forecast inside the 30 s buffer keeps on time")
+
+      -- Clock runs, no kills: the forecast goes past the limit, the word holds.
+      env.elapsed = 690
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(status.projected - 1800 > 60, "precondition: the live forecast is already late")
+      Assert.Equal(Verdict(), "ontime", "between checkpoints the word does not move")
+
+      -- A later pull end clearly late: two steps at once are allowed past +60 s.
+      PullTo(addon, env, 760, 120, 1)
+      Assert.Equal(Verdict(), "late", "past the buffer of the late boundary the word turns late")
+
+      -- Forces done, only the last boss left: the word holds through its fight.
+      PullTo(addon, env, 800, 300, 2)
+      local held = Verdict()
+      PullTo(addon, env, 950, 300, 2)
+      Assert.Equal(Verdict(), held, "no checkpoint change while only the last boss is left")
+    end)
+  end)
+end
+
 local function RegisterTraceTests(test, Assert, WithGlobals, LoadAddonModules)
   local function Reasons(lines)
     local reasons = {}
@@ -869,7 +922,10 @@ local function RegisterTraceTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.Equal(Reasons(lines), "run_start,boss", "a boss kill traces once; repeated reads add nothing")
       local boss = lines[2]
       Assert.True(boss:find("mode=projection", 1, true) ~= nil, "the mode is logged")
-      Assert.True(boss:find("verdict=late gap=+95 forecast=1895 limit=1800", 1, true) ~= nil, "verdict and gap")
+      Assert.True(
+        boss:find("verdict=late shown=late gap=+95 forecast=1895 limit=1800", 1, true) ~= nil,
+        "verdict and gap"
+      )
       Assert.True(boss:find("forces=30.0 bosses=1/3", 1, true) ~= nil, "the progress split is logged")
       Assert.True(boss:find("whole=1895 rolling=nil curve=nil", 1, true) ~= nil, "every estimate is logged")
 
@@ -943,4 +999,5 @@ return function(test, ctx)
   RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTraceTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterVerdictTests(test, Assert, WithGlobals, LoadAddonModules)
 end

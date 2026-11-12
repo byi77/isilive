@@ -68,6 +68,11 @@ local ROLLING_MIN_COVERAGE = 120
 -- A forecast within this many seconds of the limit, either side, is "tight":
 -- the forecast is not precise enough to call it on time or late.
 local TIGHT_SECONDS = 30
+-- Shown verdict (C3, calibrated on the logged +14 of 2026-11-12, whose
+-- forecast moved up to ~230 s between two pulls): the word changes only at a
+-- checkpoint (pull end, boss kill) and only when the forecast lies this far
+-- past the boundary it crosses -- a 60 s buffer around each boundary.
+local VERDICT_HYSTERESIS = 30
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 local IsSecretValue = addonTable.Validators.IsSecretValue
@@ -200,7 +205,13 @@ end
 -- assigned below ComputeStatus, which it reads.
 local traceFn, traceActive = nil, nil
 local lastVerdict = "none"
+-- Verdict the badge shows ("ontime", "tight", "late"), nil until the first
+-- answer of the run.
+local shownVerdict = nil
 local TraceStatus
+-- Assigned below ComputeStatus as well: Observe runs the boss checkpoint.
+local WithVerdict
+local VerdictCheckpoint
 
 -- Progress from one snapshot, or nil when forces or bosses are unresolved.
 local function ComputeProgress(snapshot)
@@ -306,6 +317,7 @@ function TimePace.BeginRun()
   run = NewRun(true)
   ClearPause()
   lastVerdict = "none"
+  shownVerdict = nil
   TraceRunEvent("run_start", run, nil)
 end
 
@@ -315,6 +327,7 @@ function TimePace.DiscardRun()
   run = nil ---@diagnostic disable-line: cast-local-type
   ClearPause()
   lastVerdict = "none"
+  shownVerdict = nil
   TraceRunEvent("run_discard", dropped, false)
 end
 
@@ -357,6 +370,8 @@ function TimePace.Observe(snapshot)
   run.bossTotal = total
   RecordProgress(progress, kills)
   if bossDied then
+    -- Checkpoint: a boss kill may change the verdict.
+    VerdictCheckpoint()
     TraceStatus("boss")
   end
 end
@@ -512,6 +527,7 @@ function TimePace.CommitRun()
   run = nil ---@diagnostic disable-line: cast-local-type
   ClearPause()
   lastVerdict = "none"
+  shownVerdict = nil
   local stored = StoreFinishedRun(finished)
   TraceRunEvent("run_end", finished, stored)
   return stored
@@ -653,6 +669,61 @@ local function VerdictOf(status)
   return delta and TimePace.ClassifyDelta(delta) or "none"
 end
 
+-- True when `delta` lies VERDICT_HYSTERESIS past the boundary between the
+-- shown verdict and `target`.
+local function ClearsBoundary(delta, target)
+  if target == "ontime" then
+    return delta <= -TIGHT_SECONDS - VERDICT_HYSTERESIS
+  elseif target == "late" then
+    return delta >= TIGHT_SECONDS + VERDICT_HYSTERESIS
+  elseif shownVerdict == "ontime" then
+    return delta >= -TIGHT_SECONDS + VERDICT_HYSTERESIS
+  end
+  return delta <= TIGHT_SECONDS - VERDICT_HYSTERESIS
+end
+
+-- Forces done and only the last boss left: progress cannot move until the
+-- kill, so the forecast drifts late with every second of the fight (the
+-- logged +14 drifted ~3 min). The word holds until that boss dies.
+local function IsLastBossHold()
+  return IsFiniteNumber(run.forces)
+    and run.forces >= 100
+    and IsPositiveInteger(run.bossTotal)
+    and run.kills == run.bossTotal - 1
+end
+
+-- The verdict the badge shows for `status`. The first answer of a run sets
+-- it; afterwards it changes only at a checkpoint, outside the last-boss
+-- hold, and only past the hysteresis.
+local function ResolveVerdict(status, checkpoint)
+  local delta = StatusDelta(status)
+  if not delta then
+    return shownVerdict
+  end
+  local candidate = TimePace.ClassifyDelta(delta)
+  if shownVerdict == nil then
+    shownVerdict = candidate
+  elseif checkpoint and candidate ~= shownVerdict and not IsLastBossHold() and ClearsBoundary(delta, candidate) then
+    shownVerdict = candidate
+  end
+  return shownVerdict
+end
+
+-- Checkpoint (pull end, boss kill): the verdict of the live answer may change.
+VerdictCheckpoint = function()
+  if type(run) == "table" and IsPositiveInteger(run.mapID) then
+    WithVerdict(ComputeStatus(run.mapID), true)
+  end
+end
+
+-- A status with the verdict the badge shows (nil stays nil).
+WithVerdict = function(status, checkpoint)
+  if type(status) == "table" then
+    status.verdict = ResolveVerdict(status, checkpoint)
+  end
+  return status
+end
+
 local function FormatSeconds(value)
   return IsFiniteNumber(value) and string.format("%.0f", value) or "nil"
 end
@@ -672,11 +743,12 @@ local function BuildTraceLine(reason, status)
   local delta = StatusDelta(status)
   local limit = timer and timer.timeLimit or nil
   return string.format(
-    "[TIMEPACE] reason=%s mode=%s verdict=%s gap=%s forecast=%s limit=%s elapsed=%s progress=%s "
+    "[TIMEPACE] reason=%s mode=%s verdict=%s shown=%s gap=%s forecast=%s limit=%s elapsed=%s progress=%s "
       .. "forces=%s bosses=%s/%s whole=%s rolling=%s curve=%s paused=%s key=%s learn=%s",
     reason,
     type(status) == "table" and tostring(status.mode) or "none",
     VerdictOf(status),
+    tostring(shownVerdict or "none"),
     delta and string.format("%+.0f", delta) or "nil",
     (delta and IsFiniteNumber(limit)) and FormatSeconds(limit + delta) or "nil",
     FormatSeconds(limit),
@@ -729,7 +801,7 @@ function TimePace.GetStatus(mapID)
   if paused.active then
     return paused.status
   end
-  local status = ComputeStatus(mapID)
+  local status = WithVerdict(ComputeStatus(mapID), false)
   if IsTraceOn() and VerdictOf(status) ~= lastVerdict then
     TraceStatus("verdict")
   end
@@ -746,7 +818,7 @@ function TimePace.PauseStatus()
   end
   -- Traced before freezing: the frozen answer is the live one at the pull.
   TraceStatus("pull_start")
-  local status = ComputeStatus(run.mapID)
+  local status = WithVerdict(ComputeStatus(run.mapID), false)
   if status then
     status.paused = true
   end
@@ -759,6 +831,8 @@ function TimePace.ResumeStatus()
   local wasPaused = paused.active
   ClearPause()
   if wasPaused then
+    -- Checkpoint: the pull's kills are counted, the verdict may change.
+    VerdictCheckpoint()
     TraceStatus("pull_end")
   end
 end
