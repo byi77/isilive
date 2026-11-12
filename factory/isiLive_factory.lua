@@ -1186,6 +1186,11 @@ function Factory.InitializeAddon(addonName, tbl, testOptions)
   InitializeFactoryRefreshAndStatusControllers(ctx)
   InitializeFactorySecondaryControllers(ctx)
   FinalizeFactoryRuntime(ctx)
+  -- Blizzard Edit Mode for the main window (rule 243), after every window exists.
+  local factoryEditMode = addonTable.FactoryEditMode
+  if type(factoryEditMode) == "table" and type(factoryEditMode.Install) == "function" then
+    ctx.editModeController = factoryEditMode.Install(ctx)
+  end
   if type(testOptions) == "table" and testOptions.returnContext == true then
     return ctx
   end

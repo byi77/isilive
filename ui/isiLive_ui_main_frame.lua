@@ -325,8 +325,11 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     return frame:IsShown() == true and not IsFadingOut()
   end
 
-  local function SetVisible(visible)
-    if visible and isRaidGroup and isRaidGroup() then
+  -- options.ignoreRaid: Blizzard's Edit Mode shows the window in a raid as a
+  -- placeholder so it can be placed there too (rule 243); nothing else does.
+  local function SetVisible(visible, options)
+    local ignoreRaid = type(options) == "table" and options.ignoreRaid == true
+    if visible and not ignoreRaid and isRaidGroup and isRaidGroup() then
       return false
     end
     local motion = Motion()

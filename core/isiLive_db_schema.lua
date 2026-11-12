@@ -219,6 +219,19 @@ local SCHEMA = {
     },
   },
   uiScale = { type = "number", default = 1.0, min = 0.5, max = 2.0 },
+  -- Blizzard Edit Mode (rule 243): integration switch (Pattern A), one
+  -- snapshot of position / uiScale / rosterLayoutMode per Edit Mode layout
+  -- name (validated again on read by ui/isiLive_edit_mode.lua) and the layout
+  -- the live values belong to ("" = none yet).
+  editModeIntegration = { type = "boolean", default = true },
+  editModeLayouts = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 100,
+  },
+  editModeActiveLayout = { type = "string", default = "" },
   -- Selected UI font family. Free-form on purpose: the value is a key from
   -- UICommon.GetFontChoices(), which grows with whatever font pool the client
   -- has loaded, so an enum here would reject valid picks. An unknown key

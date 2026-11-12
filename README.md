@@ -226,6 +226,12 @@ The window comes in four layouts. Click the button in the title bar to switch:
 
 The selected layout is remembered across sessions.
 
+### Blizzard Edit Mode
+
+isiLive's main window is an element of Blizzard's Edit Mode (*Esc -> Edit Mode*): it shows up there as **isiLive** -- also when you are not in a group, and in a raid as a placeholder -- and you move it like any Blizzard frame, the window lock does not apply there. Click it for its settings: layout (M+ / M / H / V), UI scale, background opacity, the window lock and *Reset position*.
+
+Each Edit Mode layout keeps its own position, UI scale and layout. Switch to another Edit Mode layout (by hand or with a specialization-bound layout) and isiLive moves to the place you gave it there; a layout you never set up for isiLive keeps the current values. Edit Mode layouts are told apart by name, so an account layout and a character layout with the same name share one set of values. In combat the change waits until combat ends. *Settings -> Behavior -> Show in Blizzard's Edit Mode* (on by default) switches all of this off.
+
 ---
 
 ## The roster

@@ -103,6 +103,7 @@ local FILE_PATHS = {
   ["isiLive_roster_panel_instance_reset.lua"] = "ui/isiLive_roster_panel_instance_reset.lua",
   ["isiLive_ui.lua"] = "ui/isiLive_ui.lua",
   ["isiLive_ui_main_frame.lua"] = "ui/isiLive_ui_main_frame.lua",
+  ["isiLive_edit_mode.lua"] = "ui/isiLive_edit_mode.lua",
   ["isiLive_ui_game_menu_actions.lua"] = "ui/isiLive_ui_game_menu_actions.lua",
   ["isiLive_ui_game_menu_mounts.lua"] = "ui/isiLive_ui_game_menu_mounts.lua",
   ["isiLive_ui_game_menu_travel.lua"] = "ui/isiLive_ui_game_menu_travel.lua",
@@ -178,6 +179,7 @@ local FILE_PATHS = {
   ["isiLive_factory_controllers.lua"] = "factory/isiLive_factory_controllers.lua",
   ["isiLive_factory_kick_tracker.lua"] = "factory/isiLive_factory_kick_tracker.lua",
   ["isiLive_factory_minimap.lua"] = "factory/isiLive_factory_minimap.lua",
+  ["isiLive_factory_edit_mode.lua"] = "factory/isiLive_factory_edit_mode.lua",
   ["isiLive_factory.lua"] = "factory/isiLive_factory.lua",
 }
 
@@ -294,6 +296,8 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_secondary.lua",
     "isiLive_factory_controllers.lua",
     "isiLive_factory_minimap.lua",
+    "isiLive_edit_mode.lua",
+    "isiLive_factory_edit_mode.lua",
   },
   ["isiLive_factory_controllers.lua"] = {
     "isiLive_factory_kick_tracker.lua",

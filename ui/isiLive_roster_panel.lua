@@ -108,6 +108,12 @@ local SetFlatButtonText = RI.SetFlatButtonText or function(_btn, _text) end
 local UpdateCollapseState = RI.UpdateCollapseState
 local NotifyCollapseChanged = RI.NotifyCollapseChanged
 local NotifyLayoutChanged = RI.NotifyLayoutChanged or function(_ui, _layoutMode) end
+-- controller.SetLayoutMode: like a mode button (Edit Mode, rule 243).
+local function MakeLayoutModeSetter(ui)
+  return function(mode)
+    return type(ui.ApplyLayoutMode) == "function" and ui.ApplyLayoutMode(NormalizeLayoutMode(mode)) or false
+  end
+end
 local CreateModeButton = RI.CreateModeButton
 local CreateTitleResyncButton = RI.CreateTitleResyncButton
 local ApplyFontStringSize = RI.ApplyFontStringSize
@@ -706,27 +712,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       descriptionFallback = L.MODE_LAYOUT_V or "Compact vertical layout.",
     },
   }
+  function ui.ApplyLayoutMode(target) -- shared with the Edit Mode dialog (rule 243)
+    return RI.ApplyLayoutMode(ui, target, mainFrame, isRaidGroupFn, runtimeLog and Trace or nil)
+  end
   for _, def in ipairs(modeButtonDefs) do
     local target = def.target
     local raidLockedTarget = target ~= LAYOUT_MODE_COMPACT_HORIZONTAL
-    local function ApplyRequestedLayoutMode()
-      if raidLockedTarget and isRaidGroupFn() then
-        return
-      end
-      if runtimeLog then
-        Trace(string.format("layout_mode_changed target=%s", tostring(target)))
-      end
-      ui.layoutMode = target
-      local db = GetDB()
-      if db then
-        db.rosterLayoutMode = target
-      end
-      UpdateCollapseState(ui, target, mainFrame)
-      NotifyCollapseChanged(ui, ui.isCollapsed)
-      NotifyLayoutChanged(ui, ui.layoutMode)
-    end
     local btn = CreateModeButton(mainFrame, def.xOffset, def.label, target, function()
-      ApplyRequestedLayoutMode()
+      ui.ApplyLayoutMode(target)
     end, def.width)
     -- Mode buttons that are not COMPACT_HORIZONTAL silently no-op while the
     -- player is in a raid (ApplyRequestedLayoutMode early-returns). Surface the
@@ -958,6 +951,7 @@ function RosterPanel.CreateController(opts)
   function controller.GetLayoutMode()
     return ui.layoutMode
   end
+  controller.SetLayoutMode = MakeLayoutModeSetter(ui)
 
   function controller.RestoreSavedState()
     local savedLayoutMode = ResolveConfiguredDefaultOpenLayoutMode()

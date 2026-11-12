@@ -79,6 +79,27 @@ function SettingsBehavior.BuildSection(canvas, yOffset, labels, config, controls
     )
   )
 
+  -- Blizzard Edit Mode (rule 243, Pattern A): acts at once; off = no
+  -- per-layout profile and no isiLive element in the Edit Mode.
+  controls.editModeIntegration, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_EDIT_MODE or "Show in Blizzard's Edit Mode",
+    function()
+      local db = config.getDB()
+      return db.editModeIntegration ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.editModeIntegration = checked
+    end,
+    "SETTINGS_EDIT_MODE",
+    DescriptionOptions(
+      labels.SETTINGS_EDIT_MODE_DESC
+        or "Main window in Blizzard's Edit Mode; position, scale and layout per Edit Mode layout."
+    )
+  )
+
   controls.combatFadeMM, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -404,6 +425,15 @@ function SettingsBehavior.RefreshControls(controls, labels, db)
         or "Prevents dragging the main isiLive window and keeps the saved position unchanged."
     )
     controls.lockMainFramePosition.check:SetChecked(db.lockMainFramePosition ~= false)
+  end
+  if controls.editModeIntegration then
+    controls.editModeIntegration.label:SetText(labels.SETTINGS_EDIT_MODE or "Show in Blizzard's Edit Mode")
+    SetDescription(
+      controls.editModeIntegration,
+      labels.SETTINGS_EDIT_MODE_DESC
+        or "Main window in Blizzard's Edit Mode; position, scale and layout per Edit Mode layout."
+    )
+    controls.editModeIntegration.check:SetChecked(db.editModeIntegration ~= false)
   end
   if controls.combatFadeMM then
     controls.combatFadeMM.label:SetText(labels.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)")

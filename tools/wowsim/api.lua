@@ -2512,6 +2512,99 @@ local function InstallChatAndAddonMessages(ctx)
   env.C_Club = {}
 end
 
+-- Blizzard Edit Mode surface the embedded LibEditMode (libs/LibEditMode)
+-- needs at load time, plus a scriptable layout list. sim.EditMode(...) in a
+-- scenario drives it: Enter / Exit show and hide EditModeManagerFrame (the
+-- library hooks OnShow / OnHide), SetLayout fires EDIT_MODE_LAYOUTS_UPDATED.
+local function InstallEditMode(ctx)
+  local engine = ctx.engine
+  local env = ctx.env
+  local frameCallbacks = {}
+  local editMode = { activeLayout = 1, layouts = { { layoutName = "Modern" }, { layoutName = "Classic" } } }
+  -- Per client: scenarios reach it through sim.Env().__wowsimEditMode.
+  env.__wowsimEditMode = editMode
+  env.GenerateClosure = env.GenerateClosure
+    or function(fn, ...)
+      local bound = { n = select("#", ...), ... }
+      return function(...)
+        local args = { n = 0 }
+        for i = 1, bound.n do
+          args[i] = bound[i]
+        end
+        args.n = bound.n
+        for i = 1, select("#", ...) do
+          args.n = args.n + 1
+          args[args.n] = select(i, ...)
+        end
+        return fn(unpack(args, 1, args.n))
+      end
+    end
+  env.HEADER_COLON = env.HEADER_COLON or ":"
+  env.HUD_EDIT_MODE_RESET_POSITION = env.HUD_EDIT_MODE_RESET_POSITION or "Reset To Default Position"
+  env.RESET_TO_DEFAULT = env.RESET_TO_DEFAULT or "Reset To Default"
+  env.EDIT_MODE_MODERN_SYSTEM_MAP = {}
+  env.EDIT_MODE_CLASSIC_SYSTEM_MAP = {}
+  env.Enum.EditModeSettingDisplayType = { Dropdown = 0, Checkbox = 1, Slider = 2 }
+  env.EventRegistry.RegisterFrameEventAndCallback = function(_, event, callback)
+    frameCallbacks[event] = frameCallbacks[event] or {}
+    table.insert(frameCallbacks[event], callback)
+  end
+  env.C_EditMode = {
+    GetLayouts = function()
+      -- Blizzard lists only user layouts; the presets Modern / Classic take
+      -- the first indices of activeLayout.
+      local userLayouts = {}
+      for index = 3, #editMode.layouts do
+        userLayouts[#userLayouts + 1] = editMode.layouts[index]
+      end
+      return { activeLayout = editMode.activeLayout, layouts = userLayouts }
+    end,
+  }
+  env.CreateUnsecuredObjectPool = function(creationFunc, resetterFunc)
+    local pool = { active = {}, inactive = {} }
+    function pool.Acquire(self)
+      local obj = table.remove(self.inactive)
+      local isNew = obj == nil
+      if isNew then
+        obj = creationFunc and creationFunc(self) or {}
+      end
+      self.active[obj] = true
+      return obj, isNew
+    end
+    function pool.Release(self, obj)
+      if self.active[obj] then
+        self.active[obj] = nil
+        if resetterFunc then
+          resetterFunc(self, obj)
+        end
+        table.insert(self.inactive, obj)
+      end
+    end
+    function pool.ReleaseAll(self)
+      for obj in pairs(self.active) do
+        self:Release(obj)
+      end
+    end
+    return pool
+  end
+  -- Blizzard's selection template remembers its system frame in OnLoad.
+  engine.RegisterTemplate("EditModeSystemSelectionTemplate", function(f)
+    f.parent = f:GetParent()
+  end)
+  env.EditModeManagerFrame = engine.CreateFrame("Frame", "EditModeManagerFrame", engine.UIParent)
+  env.EditModeManagerFrame:Hide()
+  env.EditModeManagerFrame.SelectSystem = function() end
+  env.EditModeManagerFrame.ClearSelectedSystem = function() end
+  env.EditModeManagerFrame.ShowNewLayoutDialog = function() end
+  env.EditModeSystemSettingsDialog = engine.CreateFrame("Frame", "EditModeSystemSettingsDialog", engine.UIParent)
+  env.EditModeSystemSettingsDialog:Hide()
+  function editMode.FireLayoutsUpdated()
+    for _, callback in ipairs(frameCallbacks.EDIT_MODE_LAYOUTS_UPDATED or {}) do
+      callback(nil, env.C_EditMode.GetLayouts(), false)
+    end
+  end
+end
+
 local function InstallMisc(ctx)
   local world = ctx.world
   local client = ctx.client
@@ -2646,6 +2739,7 @@ function Api.Build(opts)
   InstallSpells(ctx)
   InstallChatAndAddonMessages(ctx)
   InstallMisc(ctx)
+  InstallEditMode(ctx)
   -- Last: wraps tostring / string.format after every helper above captured them.
   Compat.ApplyLua51NumberSemantics(ctx.env)
 end

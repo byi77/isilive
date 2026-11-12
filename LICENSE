@@ -39,6 +39,9 @@ before that remain available under the MIT License they were published with.
    terms:
 
    - libs/ChatThrottleLib: public domain.
+   - libs/LibEditMode: LibEditMode by Adrian L Lange (p3lim), all rights
+     reserved, embedded unmodified as permitted by its license;
+     see libs/LibEditMode/LICENSE.txt.
    - data/isiLive_mplus_forces.lua: data derived from MythicDungeonTools by
      Nnoggie (GPLv2), https://github.com/Nnoggie/MythicDungeonTools.
    - Bundled media: see docs/ASSET_PROVENANCE.md.

@@ -9,6 +9,19 @@
 ## AddonCompartmentFuncOnEnter: isiLive_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: isiLive_OnAddonCompartmentLeave
 libs/ChatThrottleLib/ChatThrottleLib.lua
+libs/LibEditMode/namespaced.lua
+libs/LibEditMode/LibEditMode.lua
+libs/LibEditMode/pools.lua
+libs/LibEditMode/widgets/button.lua
+libs/LibEditMode/widgets/checkbox.lua
+libs/LibEditMode/widgets/coords.lua
+libs/LibEditMode/widgets/dialog.lua
+libs/LibEditMode/widgets/divider.lua
+libs/LibEditMode/widgets/dropdown.lua
+libs/LibEditMode/widgets/expander.lua
+libs/LibEditMode/widgets/extension.lua
+libs/LibEditMode/widgets/slider.lua
+libs/LibEditMode/widgets/colorpicker.lua
 core/isiLive_validation_helpers.lua
 core/isiLive_runtime_mode.lua
 core/isiLive_string_utils.lua
@@ -134,6 +147,7 @@ logic/isiLive_event_handlers.lua
 logic/isiLive_perf_probe.lua
 logic/isiLive_commands.lua
 ui/isiLive_ui_main_frame.lua
+ui/isiLive_edit_mode.lua
 ui/isiLive_ui_game_menu_actions.lua
 ui/isiLive_ui_game_menu_mounts.lua
 ui/isiLive_ui_game_menu_travel.lua
@@ -175,5 +189,6 @@ factory/isiLive_factory_status.lua
 factory/isiLive_factory_secondary.lua
 factory/isiLive_factory_controllers.lua
 factory/isiLive_factory_minimap.lua
+factory/isiLive_factory_edit_mode.lua
 factory/isiLive_factory.lua
 isiLive.lua

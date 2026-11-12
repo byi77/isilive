@@ -76,6 +76,7 @@ SettingsSearch.CONTROL_TAGS = {
   groupJoinNotice = { "invite", "lfg", "target" },
   sync = { "sync", "share" },
   lockMainFramePosition = { "lock", "move", "position" },
+  editModeIntegration = { "edit mode", "move", "position", "layout", "scale" },
   combatFadeMM = { "combat", "fade" },
   autoShowStartup = { "auto", "login", "reload" },
   autoOpen = { "auto", "queue" },

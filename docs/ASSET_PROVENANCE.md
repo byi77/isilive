@@ -15,6 +15,7 @@ Texturen sind seit `2026-07-22` als Eigenwerk des Maintainers geklaert.
 | Pfad | Herkunft | Lizenzstatus |
 | --- | --- | --- |
 | `libs/ChatThrottleLib/ChatThrottleLib.lua` | ChatThrottleLib von Mikk; Herkunft und Autor stehen im Dateikopf | Public Domain laut Dateikopf |
+| `libs/LibEditMode/` | LibEditMode von Adrian L Lange (p3lim), https://github.com/p3lim-wow/LibEditMode, Release `19` (Commit `b4816be`, 2026-11-03), Namespace-Variante (`namespaced.lua` vor den Lib-Dateien, ohne LibStub) | "All rights reserved"; laut `libs/LibEditMode/LICENSE.txt` darf die Lib **unveraendert** zusammen mit anderen Werken als WoW-AddOn verteilt werden ("as long as the software is not modified in any way, except removing any files ... other than this license"). Eingebettet sind `LICENSE.txt`, `namespaced.lua`, `LibEditMode.lua`, `pools.lua` und `widgets/*.lua` byte-gleich zum Release; weggelassen sind `README.md`, `tests/`, `utils/`, Build-Dateien. Nie aendern, nur als Ganzes auf ein neues Release heben. |
 
 ## Sounds
 

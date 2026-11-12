@@ -1023,6 +1023,28 @@ local function NotifyLayoutChanged(ui, layoutMode)
 end
 RI.NotifyLayoutChanged = NotifyLayoutChanged
 
+-- One path for the title-bar mode buttons and the Edit Mode dialog (rule
+-- 243): in a raid only the compact horizontal layout is allowed. `trace`
+-- receives the runtime-log line, or is nil while the log is off.
+local function ApplyLayoutMode(ui, target, mainFrame, isRaidGroup, trace)
+  if target ~= "compact_horizontal" and type(isRaidGroup) == "function" and isRaidGroup() then
+    return false
+  end
+  if type(trace) == "function" then
+    trace(string.format("layout_mode_changed target=%s", tostring(target)))
+  end
+  ui.layoutMode = target
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" then
+    db.rosterLayoutMode = target
+  end
+  UpdateCollapseState(ui, target, mainFrame)
+  NotifyCollapseChanged(ui, ui.isCollapsed)
+  NotifyLayoutChanged(ui, ui.layoutMode)
+  return true
+end
+RI.ApplyLayoutMode = ApplyLayoutMode
+
 -- Shared frame setup of the title-bar buttons (mode buttons and Re-Sync).
 local function CreateTitleBarButton(mainFrame, xOffset, buttonWidth)
   local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
