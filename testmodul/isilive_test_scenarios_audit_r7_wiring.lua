@@ -202,6 +202,31 @@ return function(test, ctx)
     end)
   end)
 
+  test("C1 a reload inside a running key asks peers for their data exactly once", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      local first = #session.messages + 1
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, true)
+      session.Advance(1)
+      Assert.Equal(CountPayloads(session, "^REQSYNC", first), 1, "the reload inside the key sends one REQSYNC")
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.Advance(1)
+      Assert.Equal(CountPayloads(session, "^REQSYNC", first), 1, "a later zone change sends no second request")
+    end)
+  end)
+
+  test("C1 a reload inside a key sends no REQSYNC while addon chat is locked down", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      local first = #session.messages + 1
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, true)
+      session.Advance(1)
+      Assert.Equal(CountPayloads(session, "^REQSYNC", first), 0, "nothing is sent into the lockdown")
+    end, function(globals)
+      globals.C_ChatInfo.InChatMessagingLockdown = function()
+        return true
+      end
+    end)
+  end)
+
   test("R7 L-5 a fresh group join delays its REQSYNC until the group has settled", function()
     Stress.WithParty(ctx, Fixture, function(session)
       session.grouped = false

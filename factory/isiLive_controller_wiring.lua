@@ -670,6 +670,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   -- goes through Sync.SendKick, which keeps the dedup, trace and lockdown
   -- gates of rule 50. Without this line the handlers fell back to a no-op.
   config.sendOwnKickState = type(deps.sendOwnKickState) == "function" and deps.sendOwnKickState or nil
+  -- Peer-data request after a /reload inside a key (C1). Sync.SendRefreshRequest
+  -- skips it while addon chat is locked down (the whole key from the first
+  -- pull on); the post-run refresh covers that case.
+  config.sendRefreshRequest = type(deps.sendRefreshRequest) == "function" and deps.sendRefreshRequest or nil
   config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
   -- Run kicks (rule 238): the key start resets the own cast count and hides
   -- the previous run's kicks; the key end reads the count for the snapshot.
