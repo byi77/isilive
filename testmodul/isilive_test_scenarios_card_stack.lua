@@ -216,6 +216,62 @@ return function(test, ctx)
     end)
   end)
 
+  test("Card stack moves up to keep a tall stack on screen and never jumps back down", function()
+    local world = NewWorld()
+    WithGlobals(Globals(world), function()
+      local addon = LoadCards()
+      local CardStack = addon.CardStack
+      local half = UIParent:GetHeight() / 2
+      -- Three plain 300 px sections: 900 px do not fit below the default
+      -- place (half + TOP_OFFSET = 740 px) but fit on the 1080 px screen.
+      local handles = {}
+      for index, kind in ipairs({ "notice", "loadout", "portal" }) do
+        local frame = CreateFrame("Frame", nil, UIParent)
+        frame:SetSize(600, 300)
+        handles[index] = CardStack.Register(kind, frame)
+      end
+      local container = CardStack.GetContainer()
+
+      handles[1].Show()
+      world.Advance(1)
+      local _, _, _, _, firstOffset = container:GetPoint()
+      Assert.Equal(firstOffset, CardStack.TOP_OFFSET, "a card that fits keeps the default place")
+
+      handles[2].Show()
+      handles[3].Show()
+      local slide = select(2, AlphaAnim(container))
+      Assert.True(slide ~= nil and slide:IsPlaying(), "the stack slides up instead of jumping")
+      world.Advance(1)
+      local _, _, _, _, offset = container:GetPoint()
+      Assert.Equal(container:GetHeight(), 900, "three sections stack")
+      Assert.Equal(offset - 900, CardStack.SCREEN_MARGIN - half, "the bottom keeps the margin to the screen edge")
+      Assert.True(offset <= half - CardStack.SCREEN_MARGIN, "the top stays on screen")
+
+      handles[2].Hide()
+      world.Advance(1)
+      local _, _, _, _, afterLeave = container:GetPoint()
+      Assert.Equal(afterLeave, offset, "a card leaving never makes the stack jump down")
+
+      handles[1].Hide()
+      handles[3].Hide()
+      world.Advance(1)
+      handles[1].Show()
+      world.Advance(1)
+      local _, _, _, _, reopened = container:GetPoint()
+      Assert.Equal(reopened, CardStack.TOP_OFFSET, "an emptied stack starts at the default place again")
+
+      local frame = select(1, container:GetChildren())
+      frame:GetScript("OnDragStart")(frame)
+      frame:GetScript("OnDragStop")(frame)
+      local _, _, _, _, dragged = container:GetPoint()
+      handles[2].Show()
+      handles[3].Show()
+      world.Advance(1)
+      local _, _, _, _, afterDrag = container:GetPoint()
+      Assert.Equal(afterDrag, dragged, "a dragged stack stays where the player put it")
+    end)
+  end)
+
   test("Card stack in combat shows and hides cards without protected calls", function()
     local world = NewWorld()
     WithGlobals(Globals(world), function()

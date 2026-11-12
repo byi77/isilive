@@ -37,6 +37,9 @@ local DEFAULT_PRIORITY = 50
 -- The stack's top edge sits this far above the screen center, so a typical
 -- card is centered and further sections grow downwards.
 CardStack.TOP_OFFSET = 200
+-- A stack taller than the room below its default place moves up until its
+-- bottom keeps this gap to the screen edge (never past the top edge).
+CardStack.SCREEN_MARGIN = 16
 -- Above the main window, below the simulation tablet (DIALOG).
 CardStack.FRAME_STRATA = "HIGH"
 CardStack.FRAME_NAME = "isiLiveCardStack"
@@ -79,10 +82,48 @@ local function CreateContainer(stack)
   return container
 end
 
-local function ResetContainerPosition(stack)
+local function AnchorContainer(stack)
   local container = stack.container
   CallMethod(container, "ClearAllPoints")
-  CallMethod(container, "SetPoint", "TOP", stack.parent, "CENTER", 0, CardStack.TOP_OFFSET)
+  CallMethod(container, "SetPoint", "TOP", stack.parent, "CENTER", 0, stack.topOffset)
+end
+
+local function ResetContainerPosition(stack)
+  stack.moved = false
+  stack.topOffset = CardStack.TOP_OFFSET
+  AnchorContainer(stack)
+end
+
+-- Top offset at which a stack of `height` ends SCREEN_MARGIN above the screen
+-- bottom, or the default when it fits; capped so the top stays on screen.
+local function FittingTopOffset(stack, height)
+  local screenHeight = tonumber(CallMethod(stack.parent, "GetHeight"))
+  if not screenHeight or screenHeight <= 0 then
+    return CardStack.TOP_OFFSET
+  end
+  local half = screenHeight / 2
+  local needed = height - half + CardStack.SCREEN_MARGIN
+  return math.min(math.max(CardStack.TOP_OFFSET, needed), half - CardStack.SCREEN_MARGIN)
+end
+
+-- A stack at its default place moves up when a new section would push its
+-- bottom off screen, sliding from its old place. It only moves up while it
+-- is shown: a card leaving never makes the rest jump down; an empty stack
+-- starts at the default place again. A dragged stack stays where it was put.
+local function FitContainerToScreen(stack, height)
+  if stack.moved then
+    return
+  end
+  local offset = FittingTopOffset(stack, height)
+  local current = stack.topOffset or CardStack.TOP_OFFSET
+  if offset <= current then
+    return
+  end
+  stack.topOffset = offset
+  AnchorContainer(stack)
+  if CallMethod(stack.container, "IsShown") == true then
+    UICommon.PlaySlide(stack.container, current - offset)
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -195,6 +236,7 @@ local function Reflow(stack)
     top = top + FrameHeight(frame)
   end
   CallMethod(container, "SetSize", width, math.max(1, top))
+  FitContainerToScreen(stack, top)
 end
 
 -- ---------------------------------------------------------------------------
@@ -361,6 +403,8 @@ local function AttachDrag(stack, frame)
   end)
   CallMethod(frame, "SetScript", "OnDragStop", function()
     CallMethod(stack.container, "StopMovingOrSizing")
+    -- The player chose this place: no screen fit moves it any more.
+    stack.moved = true
   end)
 end
 
@@ -415,6 +459,8 @@ local function NewStack(parent)
     sections = {},
     sequence = 0,
     width = nil,
+    topOffset = CardStack.TOP_OFFSET,
+    moved = false,
   }
 end
 

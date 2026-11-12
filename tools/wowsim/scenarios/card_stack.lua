@@ -69,6 +69,14 @@ return {
       "the stack is exactly as tall as its three cards"
     )
     sim.Expect(notice:GetWidth() == stack:GetWidth(), "every card takes the stack width")
+    -- The stack's anchor is its TOP at the screen center (positive = above).
+    local _, _, _, _, stackTop = stack:GetPoint(1)
+    local screenHalf = env.UIParent:GetHeight() / 2
+    sim.Expect(
+      stackTop - stack:GetHeight() >= 16 - screenHalf - 0.5,
+      "the three cards stay on screen: the stack moved up so its bottom keeps the margin"
+    )
+    sim.Expect(stackTop <= screenHalf, "the stack's top stays on screen")
     env.isiLiveMainFrame:Hide()
     env.isiLiveSimulationTablet:Hide()
     sim.Step("Card stack: invite, talents & loot, portal navigator")
