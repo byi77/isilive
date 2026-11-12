@@ -123,6 +123,7 @@ ui/isiLive_roster_panel.lua
 logic/isiLive_events.lua
 logic/isiLive_event_handlers_queue.lua
 logic/isiLive_probe_log.lua
+logic/isiLive_probe_report.lua
 logic/isiLive_late_run_capture.lua
 logic/isiLive_event_handlers_challenge.lua
 logic/isiLive_event_handlers_party_run.lua

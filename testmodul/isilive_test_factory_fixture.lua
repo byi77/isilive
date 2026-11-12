@@ -865,6 +865,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_events.lua",
     "isiLive_event_handlers_queue.lua",
     "isiLive_probe_log.lua",
+    "isiLive_probe_report.lua",
     "isiLive_late_run_capture.lua",
     "isiLive_event_handlers_challenge.lua",
     "isiLive_event_handlers_runtime.lua",

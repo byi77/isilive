@@ -194,6 +194,7 @@ local function CreateFactoryContext(addonName, tbl)
   if modules.probeLog and type(modules.probeLog.Attach) == "function" then
     modules.probeLog.Attach({
       appendLog = ctx.runtimeLogController.AppendLog,
+      readLog = ctx.runtimeLogController.GetLinesContaining,
       getAddonVersion = ctx.GetAddonVersionRaw,
     })
   end
