@@ -288,6 +288,128 @@ function FactoryDemoCards.HideLoadoutCheck(ctx)
   end
 end
 
+-- Card stack previews (rule 242). `helpers.showPortalNavigator()` shows the
+-- demo portal navigator (owned by factory/isiLive_factory_demo.lua).
+local MOTION_TOUR_STEP_SECONDS = 0.9
+
+local function HideTourCards(ctx)
+  if type(ctx.SetCenterNoticeVisible) == "function" then
+    ctx.SetCenterNoticeVisible(false)
+  end
+  FactoryDemoCards.HideLoadoutCheck(ctx)
+  if type(ctx.SetPortalNavigatorVisible) == "function" then
+    ctx.SetPortalNavigatorVisible(false)
+  end
+end
+
+--- Three different cards at once: accepted invite, talent & loot check and
+--- portal navigator, stacked as one card.
+function FactoryDemoCards.ShowCardStack(ctx, helpers)
+  FactoryDemoCards.ShowAcceptedInvite(ctx)
+  FactoryDemoCards.ShowLoadoutCheck(ctx)
+  if type(helpers) == "table" and type(helpers.showPortalNavigator) == "function" then
+    helpers.showPortalNavigator()
+  end
+end
+
+local function IsInCombat()
+  local inCombat = rawget(_G, "InCombatLockdown")
+  return type(inCombat) == "function" and inCombat() == true
+end
+
+--- Plays every show/hide motion once, one step per MOTION_TOUR_STEP_SECONDS:
+--- the cards slide in one after the other, the middle card leaves (the one
+--- below slides up), then the rest; finally the main window fades out and in
+--- (out of combat). A newer tour cancels a running one.
+function FactoryDemoCards.PlayMotionTour(ctx, helpers)
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.After) ~= "function" then
+    FactoryDemoCards.ShowCardStack(ctx, helpers)
+    return false
+  end
+  local showPortal = type(helpers) == "table" and helpers.showPortalNavigator or function() end
+  local mainWasVisible = type(ctx.IsMainFrameVisible) == "function" and ctx.IsMainFrameVisible() == true
+  local function SetMainVisible(visible)
+    if mainWasVisible and not IsInCombat() and type(ctx.SetMainFrameVisible) == "function" then
+      ctx.SetMainFrameVisible(visible, { reason = "simulation", skipShowCallbacks = true })
+    end
+  end
+  local steps = {
+    function()
+      FactoryDemoCards.ShowAcceptedInvite(ctx)
+    end,
+    function()
+      FactoryDemoCards.ShowLoadoutCheck(ctx)
+    end,
+    showPortal,
+    function()
+      FactoryDemoCards.HideLoadoutCheck(ctx)
+    end,
+    function()
+      if type(ctx.SetCenterNoticeVisible) == "function" then
+        ctx.SetCenterNoticeVisible(false)
+      end
+    end,
+    function()
+      if type(ctx.SetPortalNavigatorVisible) == "function" then
+        ctx.SetPortalNavigatorVisible(false)
+      end
+    end,
+    function()
+      SetMainVisible(false)
+    end,
+    function()
+      SetMainVisible(true)
+    end,
+  }
+  ctx._motionTourToken = (ctx._motionTourToken or 0) + 1
+  local token = ctx._motionTourToken
+  HideTourCards(ctx)
+  for index, step in ipairs(steps) do
+    timer.After(index * MOTION_TOUR_STEP_SECONDS, function()
+      if ctx._motionTourToken == token then
+        step()
+      end
+    end)
+  end
+  return true
+end
+
+--- Tablet actions F5 (card stack) and F6 (motion tour), appended to `actions`.
+function FactoryDemoCards.AppendCardMotionActions(ctx, actions, helpers)
+  local function Done()
+    local locale = GetL(ctx)
+    return locale.SIM_ACTION_DONE or "Simulation applied."
+  end
+  table.insert(actions, {
+    id = "F5",
+    category = "extras",
+    status = "green",
+    titleKey = "SIM_ACTION_F5_TITLE",
+    descKey = "SIM_ACTION_F5_DESC",
+    title = "Card stack",
+    description = "Shows three cards at once: invite, talent & loot check and portal navigator as one card.",
+    run = function()
+      FactoryDemoCards.ShowCardStack(ctx, helpers)
+      return Done()
+    end,
+  })
+  table.insert(actions, {
+    id = "F6",
+    category = "extras",
+    status = "green",
+    titleKey = "SIM_ACTION_F6_TITLE",
+    descKey = "SIM_ACTION_F6_DESC",
+    title = "Play animations",
+    description = "Plays every card and window animation once: cards slide in and out, the main window fades.",
+    run = function()
+      FactoryDemoCards.PlayMotionTour(ctx, helpers)
+      return Done()
+    end,
+  })
+  return actions
+end
+
 -- Power Infusion on the loaded player from a simulated party priest. The
 -- preview bypasses the duplicate latch so it renders on every replay.
 function FactoryDemoCards.ShowPowerInfusion(ctx)
