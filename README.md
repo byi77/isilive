@@ -397,6 +397,14 @@ If the group breaks up or someone disconnects, their data stays visible as a gre
 
 ---
 
+## Cards
+
+isiLive's cards -- the accepted-invite and dungeon-entry cards, the portal navigator and the talent & loot check -- appear at the screen center as one stack that reads as a single card: one frame, one header with the isiLive mark, and a thin line between the sections. A new card slides in as a further section (group news on top, the talent & loot check below, the portal navigator at the bottom); showing the same card again just updates it in place. Closing a card fades it out and the cards below slide up into its place. Drag any card to move the whole stack; it returns to the center the next time a card appears.
+
+Cards slide in from just above and fade out; the main window, the settings window and the simulation tablet fade in and out. Closing the main window in combat only fades it out -- it hides for real when combat ends, and its buttons cannot be clicked in between. The short death / Power Infusion / missed kick alerts keep their own punch effect. The simulation tablet shows all cards at once (Extras: *Card stack*) and plays every animation once (Extras: *Play animations*).
+
+---
+
 ## Hotkeys
 
 | Key | Action |
