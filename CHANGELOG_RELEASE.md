@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.514`.
+Current version: `0.9.515`.
+
+Version 0.9.515: the roster shows each member's specialization as an icon
+next to the role badge, in the same badge style with a rim in the role color.
+The whole row moved left, so the name column is wider.
 
 Version 0.9.513: all isiLive cards look alike: one width, one close button
 for the whole stack, an opaque background and fewer rows (the invite card
@@ -251,7 +255,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.514 -->
+<!-- highlights-reviewed-for: 0.9.515 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
@@ -269,6 +273,5 @@ Highlights:
 - **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
   member (e.g. `37/32`, no longer cut to `24...`) and the DPS column is filled
   again after the key.
-- **Own settings window with search.** `/isilive settings`, the gear button,
-  the minimap button and the ESC panel open isiLive's own window with a search
-  box; Blizzard's settings search finds "isiLive".
+- **Spec icons in the roster.** Each member's specialization shows as an
+  icon in the role badge style; the name column is wider.
