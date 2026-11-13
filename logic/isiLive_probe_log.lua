@@ -45,7 +45,10 @@ local LIMITS = {
   nameplates = 40,
   readyChecksPerRun = 20,
   playerAuras = 40,
-  channelStopsPerRun = 60,
+  -- Channel ends: the plain ones (interruptedBy nil) are frequent and only
+  -- need a sample; interrupted ones are rare and are all logged.
+  channelStopsPlainPerRun = 30,
+  channelStopsInterruptedPerRun = 60,
   actionBlockedPerRun = 30,
   kickCellLinesPerRun = 20,
 }
@@ -63,9 +66,10 @@ local keyEndedAt = nil
 local lastInterruptAt = nil
 local pendingKicks = {}
 -- True between a seen CHALLENGE_MODE_START (or a running key found after a
--- reload) and its end. The client fires CHALLENGE_MODE_RESET ~0.2 s before
+-- reload) and its end. The client fires CHALLENGE_MODE_RESET ~0.25 s before
 -- every CHALLENGE_MODE_START (probe log 2026-11-12); without a running key
--- that reset is not a key end.
+-- that reset is not a key end. Leaving a running key fires no reset at all
+-- (probe log 2026-11-13): the lifted ChallengeMode restriction ends it.
 local keyRunning = false
 local lastIdleResetAt = nil
 
@@ -81,7 +85,8 @@ local function NewRunState()
     restrictionLines = 0,
     chatLockdownLines = 0,
     readyChecks = 0,
-    channelStops = 0,
+    channelStopsPlain = 0,
+    channelStopsInterrupted = 0,
     actionBlocked = 0,
     kickCellLines = 0,
     kickCellSeen = {},
@@ -821,6 +826,14 @@ function ProbeLog.OnRestrictionChanged(restrictionType, state)
     )
   end
   CheckChatLockdown("restriction_changed")
+  -- Leaving a running key: no CHALLENGE_MODE_RESET, only the lifted
+  -- ChallengeMode restriction marks its end.
+  local typeName = DescribeEnumValue("AddOnRestrictionType", restrictionType)
+  if keyRunning and typeName:find("^ChallengeMode%(") and stateName:find("^Inactive%(") and not IsKeyActive() then
+    keyRunning = false
+    keyEndedAt = Now()
+    Append("[PROBE] event=key_end trigger=restriction_lifted kind=left")
+  end
   if stateName:find("^Inactive%(") and not IsKeyActive() and IsInPostKeyWindow() then
     TryMeterSnapshot("post_key_restriction_lifted", LIMITS.postKeySnapshotsPerPhase)
   end
@@ -1012,7 +1025,14 @@ function ProbeLog.OnChannelStop(unit, interruptedBy)
   if not ProbeLog.IsEnabled() then
     return
   end
-  if not TakeBudget("channelStops", LIMITS.channelStopsPerRun, "channel_stop") then
+  local presence = DescribePresence(interruptedBy)
+  local accepted
+  if presence == "nil" then
+    accepted = TakeBudget("channelStopsPlain", LIMITS.channelStopsPlainPerRun, "channel_stop_plain")
+  else
+    accepted = TakeBudget("channelStopsInterrupted", LIMITS.channelStopsInterruptedPerRun, "channel_stop_interrupted")
+  end
+  if not accepted then
     return
   end
   local now = Now()
@@ -1030,7 +1050,7 @@ function ProbeLog.OnChannelStop(unit, interruptedBy)
     string.format(
       "[PROBE] event=channel_stop unit=%s interruptedBy=%s ownKickPendingMs=%s inKey=%s",
       IsSecretValue(unit) and "secret" or tostring(unit),
-      DescribePresence(interruptedBy),
+      presence,
       kickText,
       YesNo(IsKeyActive())
     )

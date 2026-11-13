@@ -957,6 +957,49 @@ return function(test, ctx)
     end, Prepare())
   end)
 
+  test("Probe mode ends a key the group walked out of on the lifted ChallengeMode restriction", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.active = false
+      session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 0)
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=key_end trigger=restriction_lifted kind=left"),
+        "leaving a running key fires no reset; the lifted restriction ends it"
+      )
+      session.Advance(120)
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=challenge_reset kind=no_running_key"),
+        "the reset before the next key start is no abandoned key"
+      )
+      Assert.Nil(FindLine(ProbeLines(session), "kind=abandoned"), "nothing is logged as abandoned")
+    end, Prepare())
+  end)
+
+  test("Probe mode samples plain channel ends but logs every interrupted one", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local limits = session.addon.ProbeLog.LIMITS
+      Pull(session)
+      for index = 1, limits.channelStopsPlainPerRun + 5 do
+        Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "nameplate3", "plain-" .. index, 4321, nil)
+      end
+      Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "nameplate4", "kicked", 4321, "Player-1-00000001")
+      Assert.Equal(
+        select(2, ProbeLines(session, "interruptedBy=nil")),
+        limits.channelStopsPlainPerRun,
+        "plain channel ends are capped"
+      )
+      Assert.Equal(
+        select(2, ProbeLines(session, "event=cap_reached probe=channel_stop_plain")),
+        1,
+        "one cap line for the plain ends"
+      )
+      Assert.NotNil(
+        FindLine(ProbeLines(session, "event=channel_stop"), "unit=nameplate4 interruptedBy=readable"),
+        "an interrupted channel is logged after the plain cap"
+      )
+    end, Prepare())
+  end)
+
   test("Probe mode logs every hostile channel stop with the presence of interruptedBy", function()
     local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("string")
     Stress.WithKey(ctx, FixtureWithSchema, function(session)

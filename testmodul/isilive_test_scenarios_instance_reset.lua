@@ -198,6 +198,62 @@ return function(test, ctx)
     end, PrepareWorld())
   end)
 
+  test("Instance reset button counts a key the group walked out of (no CHALLENGE_MODE_RESET)", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local button = FindResetButton(session)
+      session.inInstance = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.active = true
+      session.Dispatch("CHALLENGE_MODE_START")
+      session.Advance(2)
+      -- Leaving: the client lifts the restriction, the player lands outside,
+      -- and no CHALLENGE_MODE_RESET arrives (probe log 2026-11-13).
+      session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 0)
+      LeaveDungeon(session)
+      Assert.True(IsShown(button), "a left season key arms the reset and shows the button outside")
+
+      -- The reset the client fires right before the next key start must not
+      -- re-arm or disturb anything.
+      session.inInstance = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      session.active = true
+      session.Dispatch("CHALLENGE_MODE_START")
+      session.Advance(1)
+      Assert.False(IsShown(button), "inside the next key: hidden")
+    end, PrepareWorld())
+  end)
+
+  test("Instance reset mark from walking out is dropped when the player re-enters the running key", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local button = FindResetButton(session)
+      session.inInstance = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.active = true
+      session.Dispatch("CHALLENGE_MODE_START")
+      session.Advance(2)
+      LeaveDungeon(session)
+      Assert.True(IsShown(button), "outside without a readable key: the button shows")
+      session.inInstance = true
+      session.active = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.Advance(1)
+      session.inInstance = false
+      session.active = false
+      session.Dispatch("ZONE_CHANGED_NEW_AREA")
+      session.Advance(1)
+      Assert.True(IsShown(button), "walking out again arms it again")
+      session.inInstance = true
+      session.active = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      session.Advance(1)
+      LeaveDungeon(session)
+      Assert.True(IsShown(button), "the completed key still arms the reset")
+    end, PrepareWorld())
+  end)
+
   test("Instance reset button stays hidden for a non-leader and a secret leader value", function()
     Stress.WithParty(ctx, Fixture, function(session)
       local button = FindResetButton(session)

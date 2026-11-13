@@ -3,9 +3,10 @@ addonTable = addonTable or {}
 
 -- Instance reset after a key (rule 235).
 --
--- A key that ends in a dungeon of the active season (completed or reset by an
--- abandon) arms the module; the first instance change that leaves the player
--- outside any instance turns that into a "reset pending" mark for one hour.
+-- A key that ends in a dungeon of the active season (completed, reset, or
+-- left: the player stands outside and no key runs any more) arms the module;
+-- the first instance change that leaves the player outside any instance
+-- turns that into a "reset pending" mark for one hour.
 -- While the mark stands, the group leader sees a reset button with the leader
 -- buttons of the main window. A click calls ResetInstances(); the result only
 -- counts once the client confirms it with the localized INSTANCE_RESET_SUCCESS
@@ -409,6 +410,17 @@ function InstanceReset.HandleEvent(event, ...)
     local activeMapID = deps.getActiveChallengeMapID()
     if activeMapID ~= nil then
       state.trackedKeyMapID = activeMapID
+      -- Back inside the same running key: the mark from walking out is void.
+      if state.pendingMapID == activeMapID and ClearPending("key_resumed") then
+        NotifyStateChanged()
+      end
+    elseif state.trackedKeyMapID ~= nil and deps.isInInstance() == false then
+      -- Leaving a running key fires no CHALLENGE_MODE_RESET (probe log
+      -- 2026-11-13: the client lifts the ChallengeMode restriction and the
+      -- player lands outside; the reset only comes ~0.25 s before the next
+      -- key start). A tracked key that is gone once the player stands
+      -- readably outside counts as abandoned.
+      ArmKeyEnd(state.trackedKeyMapID, "left")
     end
     PromoteArmedKeyWhenOutside()
     if state.pendingAt ~= nil then
