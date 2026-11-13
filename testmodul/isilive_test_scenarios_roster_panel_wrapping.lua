@@ -398,8 +398,8 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
       end
 
       Assert.Equal(#rowFontStrings, 8, "one rendered row should create eight member text columns")
-      Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
-      Assert.Equal(rowFontStrings[2].width, 122, "name column should keep the compact body width budget")
+      Assert.Equal(rowFontStrings[1].width, 12, "spec column holds exactly one 12 px spec badge")
+      Assert.Equal(rowFontStrings[2].width, 159, "name column should keep the compact body width budget")
       Assert.Equal(rowFontStrings[3].width, 32, "ilvl column should keep compact width budget without truncation")
       Assert.Equal(rowFontStrings[4].width, 62, "key column should fit short-code plus two-digit level (e.g. NPX +10)")
       Assert.Equal(rowFontStrings[5].width, 84, "rio column should fit (+999)9999 without clipping")

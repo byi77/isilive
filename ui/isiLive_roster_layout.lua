@@ -991,6 +991,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       if row.roleIcon then
         SetVisible(row.roleIcon, show and row.unit ~= nil and row.roleIcon._roleVisible ~= false)
       end
+      if row.specIcon then
+        SetVisible(row.specIcon, show and row.unit ~= nil and row.specIcon._specVisible == true)
+      end
       if row.hoverFrame then
         if row.hoverFrame.EnableMouse then
           row.hoverFrame:EnableMouse(show)

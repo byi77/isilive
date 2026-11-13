@@ -759,6 +759,63 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
   end)
 end
 
+local function RegisterRosterSpecIconTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Spec icon lookup resolves class plus localized or English spec name", function()
+    WithGlobals({
+      GetSpecializationInfoByID = function(specID)
+        local localized = { [64] = "Frost", [251] = "Frost", [65] = "Heilig", [257] = "Heilig" }
+        return specID, localized[specID] or ("Spec" .. specID), "", 1000 + specID
+      end,
+    }, function()
+      local specs = LoadAddonModules({ "isiLive_specs.lua" }).Specs
+      Assert.Equal(specs.GetSpecIcon("MAGE", "Frost"), 1064, "Frost Mage")
+      Assert.Equal(specs.GetSpecIcon("DEATHKNIGHT", "Frost"), 1251, "shared spec names stay apart per class")
+      Assert.Equal(specs.GetSpecIcon("PALADIN", "Heilig"), 1065, "localized name resolves")
+      Assert.Equal(specs.GetSpecIcon("PRIEST", "holy"), 1257, "English manifest name resolves case-insensitively")
+      Assert.Nil(specs.GetSpecIcon("MAGE", "Holy"), "a spec of another class does not resolve")
+      Assert.Nil(specs.GetSpecIcon(nil, "Frost"), "unknown class fails closed")
+    end)
+  end)
+
+  test("Roster spec column shows the spec badge with a role-colored frame", function()
+    local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
+    local function Texture()
+      return {
+        SetTexture = function(self, value)
+          self.texture = value
+        end,
+      }
+    end
+    local specIcon = {
+      icon = Texture(),
+      border = Texture(),
+      Show = function(self)
+        self.shown = true
+      end,
+      Hide = function(self)
+        self.shown = false
+      end,
+    }
+    local spec = {
+      SetText = function(self, value)
+        self.text = value
+      end,
+    }
+    local row = { spec = spec, specIcon = specIcon }
+    local apply = addon._RosterInternal.ApplyRowSpecDisplay
+
+    apply(row, { colorHex = "ffffffff", specText = "Prot", specIcon = 135893, role = "TANK" })
+    Assert.Equal(specIcon.icon.texture, 135893, "spec icon texture")
+    Assert.Equal(specIcon.border.texture, "Interface\\AddOns\\isiLive\\media\\spec_frame_tank", "tank rim")
+    Assert.True(specIcon.shown, "badge visible")
+    Assert.Equal(spec.text, "", "no spec text next to the badge")
+
+    apply(row, { colorHex = "ffffffff", specText = "-", role = "HEALER" })
+    Assert.False(specIcon.shown, "badge hidden without an icon")
+    Assert.Equal(spec.text, "|cff808080-|r", "grey dash placeholder")
+  end)
+end
+
 local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster name shortens a long name so its markers fit the name column", function()
     local addon = LoadAddonModules({ "isiLive_roster_panel_render.lua" })
@@ -767,11 +824,11 @@ local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, L
       SetText = function(self, value)
         self.text = value
       end,
-      -- 8 px per visible glyph, 16 px per inline texture.
+      -- 10 px per visible glyph, 20 px per inline texture.
       GetUnboundedStringWidth = function(self)
         measures = measures + 1
         local visible = self.text:gsub("|T.-|t", "XX"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-        return #visible * 8
+        return #visible * 10
       end,
     }
     local displayData = {
@@ -904,6 +961,7 @@ end
 local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterSpecIconTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
@@ -1723,7 +1781,6 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     getL = function()
       return {
         TITLE = "isiLive",
-        COL_SPEC = "Spec",
         COL_NAME = "Name",
         COL_LANGUAGE = "Lang",
         COL_KEY = "Key",

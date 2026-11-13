@@ -58,7 +58,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks bleibt die schrift in der roster-zeile unveraendert; stattdessen markiert ein statusfarbener zeilenhintergrund bereit=gruen, nicht bereit=rot und wartend=gelb. nach `READY_CHECK_FINISHED` bleiben bereit-antworten 20 sekunden gruen und sowohl explizit nicht bereite als auch unbeantwortete spieler 20 sekunden rot; die aktualisierung laeuft ueber einen dedizierten Ready-Check-Refreshpfad ohne Secure-Rollenbutton-Neuschreibung.
 35. die kompakten roster-datenspalten behalten ihr festes breitenbudget fuer spec, name, ilvl, key, rio, dps, kick und flagge.
-36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 5 zeichen mit hunter-kurzlabels `MM`/`BM`, sprache nur flagge, key-code max 4 zeichen und kein numerischer mapID-Fallback.
+36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec als 12-px-spec-icon im rollen-badge-stil (kurzlabel max 5 zeichen mit hunter-kurzlabels `MM`/`BM` nur noch in den anzeigedaten), sprache nur flagge, key-code max 4 zeichen und kein numerischer mapID-Fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Der Panel-Button `Mark-T/H` markiert per Klick Tank (Blau) und Heiler (Gruen) gemeinsam, Rechtsklick entfernt beide Marker; die Rollensymbole in den Roster-Zeilen sind reine Anzeige.
@@ -775,7 +775,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-KOMPAKT-KURZTEXTE
 - Regelnummer: 36
 - Status: aktiv
-- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 5 Zeichen mit gängigen Kurzlabels (`MM`/`BM`/`UH`/`EH`, deutsches `Verh`; andere Client-Sprachen über `shortLabel` im Spec-Manifest), Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
+- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec als Symbol statt Text (User-Entscheidung 2026-11-13): das Blizzard-Spec-Icon aus `GetSpecializationInfoByID`, gefunden ueber Klasse plus lokalisierten oder englischen Spec-Namen (`Specs.GetSpecIcon`), 12 px in der Form der Rollen-Badges (`media/spec_mask`) mit Glanz und Rand in Rollenfarbe (`media/spec_frame_<rolle>`, ohne Rolle neutral); ohne Icon ein graues `-`. Die Spec-Spalte hat keine Ueberschrift; Spec-Icon, Rollen-Badge und Flagge stehen ab 8 px mit je 3 px Abstand, die Namensspalte beginnt bei 56 px und ist 159 px breit, Key und alles rechts davon bleiben unveraendert. Das Kurzlabel bleibt in den Anzeigedaten max 5 Zeichen mit gängigen Kurzlabels (`MM`/`BM`/`UH`/`EH`, deutsches `Verh`; andere Client-Sprachen über `shortLabel` im Spec-Manifest). Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
 - Erforderliche Tests:
   - Units GetShortSpecLabel prefers readable five-character labels
   - Roster display truncates names to Blizzard 12-character limit
@@ -784,6 +784,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster display clamps key short code to four letters
   - Roster display falls back to '?' for numeric-only key short codes
   - Teleport active Midnight Season 2 exposes the locale-specific short codes
+  - Spec icon lookup resolves class plus localized or English spec name
+  - Roster spec column shows the spec badge with a role-colored frame
 
 ### RULE-WARTUNGSDATEI-NICHT-IM-PAKET
 - Regelnummer: 37

@@ -39,14 +39,17 @@ local CreateActionButton = UICommon.CreateActionButton
 -- Column position constants. Shared with isiLive_roster_panel.lua via RI so
 -- both the header row creation here and the member row rendering there stay
 -- in sync without duplicating literals.
-local SPEC_COL_X = 4
-local NAME_COL_X = 93
-local SERVER_COL_X = 75
+-- The spec column holds one 12 px spec badge right after the 2 px class
+-- accent; role badge and language flag follow with 3 px gaps, so the name
+-- column starts at 56 px and takes the freed width up to the key column.
+local SPEC_COL_X = 8
+local NAME_COL_X = 56
+local SERVER_COL_X = 38
 local KEY_COL_X = 216
 local ILVL_COL_X = 282
 local RIO_COL_X = 318
-local SPEC_COL_WIDTH = 52
-local NAME_COL_WIDTH = 122
+local SPEC_COL_WIDTH = 12
+local NAME_COL_WIDTH = 159
 local SERVER_COL_WIDTH = 18
 local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 32
@@ -725,7 +728,8 @@ local function ApplyPanelTitleLocalization(ui, L)
 end
 
 local function ApplyPanelHeaderLocalization(ui, L)
-  SetPanelHeaderText(ui.specHeader, L.COL_SPEC)
+  -- The spec column shows icons only; its header stays blank.
+  SetPanelHeaderText(ui.specHeader, "")
   SetPanelHeaderText(ui.nameHeader, L.COL_NAME)
   SetPanelHeaderText(ui.serverHeader, L.COL_LANGUAGE)
   SetPanelHeaderText(ui.keyHeader, L.COL_KEY)

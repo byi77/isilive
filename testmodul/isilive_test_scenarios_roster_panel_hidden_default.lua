@@ -88,7 +88,7 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
       local visibleRowNames = {}
       for _, fontString in ipairs(createdFontStrings) do
         if
-          fontString.pointX == 93
+          fontString.pointX == 56
           and fontString.pointY ~= -34
           and type(fontString.text) == "string"
           and fontString.text ~= ""
@@ -232,8 +232,8 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
 
       local guides = FindM2ColumnGuides(createdTextures)
       local expectedGuideX = {
-        spec = 56,
-        server = 93,
+        spec = 20,
+        server = 56,
         name = 215,
         key = 278,
         ilvl = 314,

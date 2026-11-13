@@ -115,10 +115,50 @@ def make_badge(role):
     return badge.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
 
+# Spec icons (ui/isiLive_roster_panel_render.lua) use the same badge shape:
+# the Blizzard spec icon is clipped by spec_mask and covered by spec_frame_<role>,
+# which carries the glass highlight and the role-colored rim of the role badge.
+NEUTRAL_RIM = (150, 156, 170, 150)
+
+
+def make_spec_mask():
+    size = SIZE * SCALE
+    mask = Image.new("L", (size, size))
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=CORNER_RADIUS * SCALE, fill=255)
+    white = Image.new("L", (size, size), 255)
+    return Image.merge("RGBA", (white, white, white, mask)).resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+
+
+def make_spec_frame(rim):
+    size = SIZE * SCALE
+    shape = Image.new("L", (size, size))
+    ImageDraw.Draw(shape).rounded_rectangle((0, 0, size - 1, size - 1), radius=CORNER_RADIUS * SCALE, fill=255)
+    shine = Image.new("L", (size, size))
+    ImageDraw.Draw(shine).ellipse((-0.3 * size, -0.75 * size, 1.3 * size, 0.42 * size), fill=22)
+    shine = Image.composite(shine, Image.new("L", (size, size)), shape)
+    frame = Image.merge("RGBA", (*[Image.new("L", (size, size), 255)] * 3, shine))
+    border = Image.new("RGBA", (size, size))
+    border_draw = ImageDraw.Draw(border)
+    border_draw.rounded_rectangle(
+        (0, 0, size - 1, size - 1), radius=CORNER_RADIUS * SCALE, outline=(0, 0, 0, 170), width=SCALE
+    )
+    border_draw.rounded_rectangle(
+        (SCALE, SCALE, size - 1 - SCALE, size - 1 - SCALE),
+        radius=(CORNER_RADIUS - 1) * SCALE,
+        outline=rim,
+        width=SCALE,
+    )
+    frame.alpha_composite(border)
+    return frame.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+
+
 def main():
     media = Path(__file__).resolve().parent.parent / "media"
     for role in GLYPHS:
         make_badge(role).save(media / f"role_{role}.tga", compression=None)
+        make_spec_frame(ROLE_COLORS[role][1]).save(media / f"spec_frame_{role}.tga", compression=None)
+    make_spec_frame(NEUTRAL_RIM).save(media / "spec_frame_none.tga", compression=None)
+    make_spec_mask().save(media / "spec_mask.tga", compression=None)
 
 
 if __name__ == "__main__":

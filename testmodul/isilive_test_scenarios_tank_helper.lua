@@ -879,7 +879,6 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
         getL = function()
           return {
             TITLE = "isiLive",
-            COL_SPEC = "Spec",
             COL_NAME = "Name",
             COL_LANGUAGE = "Lang",
             COL_KEY = "Key",

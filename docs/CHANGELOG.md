@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-13 - Version 0.9.515 (patch)
+
+- Change: the roster shows each member's specialization as an icon instead of a short text (rule 36). The icon is the client's spec icon (`GetSpecializationInfoByID`, found by class plus localized or English spec name via `Specs.GetSpecIcon`), 12 px in the shape of the role badges with their highlight and a rim in the role color; without a known spec a grey `-` stays. The spec column has no header any more (`COL_SPEC` removed in all five languages). Spec icon, role badge and flag now start at 8 px with 3 px gaps, so the name column starts at 56 px instead of 93 px and is 159 px wide instead of 122 px; key and every column to its right stay where they were. New textures `media/spec_mask.tga` and `media/spec_frame_{tank,healer,dps,none}.tga` from `tools/generate_role_badges.py`.
+
 ## 2026-11-13 - Version 0.9.514 (patch)
 
 - Change: probe mode (rule 239) records everything the open in-game checks need. Probe mode is an admin tool and is now off after every reload and relog (it no longer persists); switching it on also switches the runtime log on (its context lines `[STATS]`, `[TIMEPACE]`, `[SYNC]`, `[INSTANCE_RESET]` belong to the probe session), and the ring holds 4000 instead of 1500 entries so two keys fit. New probe lines: `event=channel_stop` (every hostile channel end with `interruptedBy=nil|readable|secret` and the time since the own kick), `event=action_blocked` (an `ADDON_ACTION_BLOCKED` / `ADDON_ACTION_FORBIDDEN` naming isiLive, with the protected call and combat/key context), `event=kick_cell` (whether the run-kick pair and its landed-only fallback fit the kick column in the real font) and `event=challenge_reset kind=no_running_key` for the `CHALLENGE_MODE_RESET` the client fires ~0.2 s before every key start (the probe no longer logs it as a key end; `key_start` names `resetBeforeStartMs`, a reset inside a running key is `key_end kind=abandoned`).

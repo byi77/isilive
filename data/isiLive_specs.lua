@@ -338,3 +338,51 @@ function Specs.GetClassToken(specID)
   local spec = addonTable.SpecManifest.specs[specID]
   return type(spec) == "table" and spec.class or nil
 end
+
+-- Spec icon lookup for the roster spec column: "<CLASS>|<spec name>" -> icon
+-- file ID from GetSpecializationInfoByID. Both the client's localized spec name
+-- and the manifest's English name are keys, so a spec name sent by a peer with
+-- another client language still resolves. Spec names repeat across classes
+-- (Frost, Holy, Protection, Restoration), hence the class in the key.
+local specIconLookup = nil
+
+local function SpecIconKey(classToken, specName)
+  return tostring(classToken) .. "|" .. string.lower(tostring(specName))
+end
+
+local function BuildSpecIconLookup()
+  local getSpecInfoByID = rawget(_G, "GetSpecializationInfoByID")
+  if type(getSpecInfoByID) ~= "function" then
+    return nil
+  end
+  local validators = addonTable.Validators
+  local isSecret = validators and validators.IsSecretValue or function()
+    return false
+  end
+  local lookup = {}
+  for specID, spec in pairs(addonTable.SpecManifest.specs) do
+    local ok, _, localizedName, _, icon = pcall(getSpecInfoByID, specID)
+    if ok and not isSecret(icon) and (type(icon) == "number" or type(icon) == "string") and icon ~= "" then
+      lookup[SpecIconKey(spec.class, spec.name)] = icon
+      if not isSecret(localizedName) and type(localizedName) == "string" and localizedName ~= "" then
+        lookup[SpecIconKey(spec.class, localizedName)] = icon
+      end
+    end
+  end
+  return lookup
+end
+
+-- Returns the spec icon (file ID or path) for a class token and spec name, or
+-- nil when either is unknown.
+function Specs.GetSpecIcon(classToken, specName)
+  if type(classToken) ~= "string" or type(specName) ~= "string" or specName == "" then
+    return nil
+  end
+  if not specIconLookup then
+    specIconLookup = BuildSpecIconLookup()
+    if not specIconLookup then
+      return nil
+    end
+  end
+  return specIconLookup[SpecIconKey(classToken, specName)]
+end

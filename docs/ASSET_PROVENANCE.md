@@ -72,6 +72,7 @@ selbst erstellt wurden. Damit ist dieser Abschnitt vollstaendig geklaert.
 | `media/diamond_bonus_green.tga`, `media/link_sync_blue.tga` | Am `2026-10-20` fuer den bestaetigten Benutzerentwurf geometrisch erzeugt; reproduzierbar mit `python tools/generate_utility_markers.py` (Pillow) | Projekteigene geometrische Gestaltung, keine Drittvorlage |
 | `media/plus_bonus_green.tga` | Am `2026-10-20` auf Benutzerwunsch geometrisch erzeugtes Pluszeichen mit Leuchthof und Glanzkante; derselbe Generator | Projekteigene geometrische Gestaltung, keine Drittvorlage |
 | `media/role_tank.tga`, `media/role_healer.tga`, `media/role_dps.tga` | Am `2026-10-22` auf Benutzerwunsch als Rollen-Badges (Schild, Kreuz, Schwert) im Stil der Sprachflaggen geometrisch erzeugt; reproduzierbar mit `python tools/generate_role_badges.py` (Pillow) | Projekteigene geometrische Gestaltung, keine Drittvorlage |
+| `media/spec_mask.tga`, `media/spec_frame_tank.tga`, `media/spec_frame_healer.tga`, `media/spec_frame_dps.tga`, `media/spec_frame_none.tga` | Am `2026-11-13` auf Benutzerwunsch als Maske und Rahmen der Spec-Icons (Form, Glanz und Rand der Rollen-Badges) geometrisch erzeugt; derselbe Generator. Das Spec-Icon selbst liefert der Client zur Laufzeit, es wird nicht mitgeliefert | Projekteigene geometrische Gestaltung, keine Drittvorlage |
 | `media/arrow_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22`. Bewusst im Repository behalten | Eigenes Werk des Maintainers |
 
 ## Screenshots und Mockups

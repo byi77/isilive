@@ -9,7 +9,6 @@ local LFG_GROUP_BONUSES_DESC_RU = TextsCommon.LFG_GROUP_BONUSES_DESC_RU
 addonTable.TextsLocales = addonTable.TextsLocales or {}
 addonTable.TextsLocales.ruRU = {
   TITLE = "isiLive",
-  COL_SPEC = "Спек",
   COL_NAME = "Имя",
   COL_LANGUAGE = "",
   COL_KEY = "Ключ",

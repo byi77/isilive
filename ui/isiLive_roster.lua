@@ -301,6 +301,12 @@ function Roster.BuildDisplayData(info, opts)
   if info.spec and truncateName then
     specText = truncateName(specText, 5)
   end
+  local specs = addonTable.Specs
+  local specIcon = info.spec
+      and specs
+      and type(specs.GetSpecIcon) == "function"
+      and specs.GetSpecIcon(info.class, info.spec)
+    or nil
   local ilvlText = info.ilvl and Roster.ColorizeItemLevelText(info.ilvl, tostring(math.floor(info.ilvl))) or "-"
 
   local rioDelta = nil
@@ -342,6 +348,8 @@ function Roster.BuildDisplayData(info, opts)
     displayName = displayName,
     languageDisplay = languageDisplay,
     specText = specText,
+    specIcon = specIcon,
+    role = info.role,
     ilvlText = ilvlText,
     rioText = rioText,
     keyText = keyText,
