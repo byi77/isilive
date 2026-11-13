@@ -168,9 +168,18 @@ local function CreateFactoryContext(addonName, tbl)
 
   -- ~120 bytes per entry: 1500 entries are ~180 KB of SavedVariables and
   -- cover a full key plus queue time at normal level.
+  -- Probe mode (rule 239) raises the ring to two keys of context lines.
   local runtimeLogMaxEntries = 1500
+  local function GetRuntimeLogMaxEntries()
+    local probe = modules.probeLog
+    if probe and type(probe.GetRingEntries) == "function" then
+      return probe.GetRingEntries()
+    end
+    return runtimeLogMaxEntries
+  end
   ctx.runtimeLogController = modules.runtimeLog.CreateController({
     maxEntries = runtimeLogMaxEntries,
+    getMaxEntries = GetRuntimeLogMaxEntries,
     buildSessionHeader = function()
       local db = rawget(_G, "IsiLiveDB") or {}
       return string.format(
@@ -179,7 +188,7 @@ local function CreateFactoryContext(addonName, tbl)
         tostring(ctx.GetAddonVersionRaw and ctx.GetAddonVersionRaw() or "unknown"),
         tostring(db.locale or ctx.locale or "unknown"),
         tostring(db.runtimeLogLevel or "normal"),
-        runtimeLogMaxEntries,
+        GetRuntimeLogMaxEntries(),
         tostring(db.syncEnabled),
         tostring(db.autoOpenOnQueue),
         tostring(db.autoCloseOnKeyStart),
@@ -196,6 +205,7 @@ local function CreateFactoryContext(addonName, tbl)
       appendLog = ctx.runtimeLogController.AppendLog,
       readLog = ctx.runtimeLogController.GetLinesContaining,
       getAddonVersion = ctx.GetAddonVersionRaw,
+      setRuntimeLogEnabled = ctx.runtimeLogController.SetEnabled,
     })
   end
 

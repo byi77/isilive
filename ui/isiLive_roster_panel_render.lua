@@ -710,11 +710,23 @@ local function SetKickCellText(cell, info, getL, runKicks)
     return
   end
   if type(runKicks) == "table" and type(runKicks.landed) == "number" then
-    SetReadableText(cell, FormatRunKicksText(runKicks))
+    local pairText = FormatRunKicksText(runKicks)
+    SetReadableText(cell, pairText)
     -- A larger font can still clip the pair: show the landed kicks alone
     -- instead of a cut-off "24...".
-    if type(cell.IsTruncated) == "function" and cell:IsTruncated() == true then
-      SetReadableText(cell, tostring(math.floor(runKicks.landed)))
+    local canMeasure = type(cell.IsTruncated) == "function"
+    local fits = not (canMeasure and cell:IsTruncated() == true)
+    local fallbackText, fallbackFits = nil, nil
+    if not fits then
+      fallbackText = tostring(math.floor(runKicks.landed))
+      SetReadableText(cell, fallbackText)
+      fallbackFits = cell:IsTruncated() ~= true
+    end
+    -- Probe mode (rule 239): does the pair fit the real font in game?
+    local probe = addonTable.ProbeLog
+    if canMeasure and type(probe) == "table" and probe.IsEnabled() then
+      local width = type(cell.GetWidth) == "function" and cell:GetWidth() or nil
+      probe.OnKickCellFit(pairText, fits, fallbackText, fallbackFits, width)
     end
     return
   end

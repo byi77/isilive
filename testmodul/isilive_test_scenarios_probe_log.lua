@@ -568,15 +568,15 @@ return function(test, ctx)
       slash("probe")
       Assert.True(db.probeLogEnabled, "no argument toggles probe mode on")
       Assert.NotNil(FindLine(session.printed, "Probe mode ON"), "localized confirmation")
-      Assert.NotNil(FindLine(session.printed, "The runtime log is off"), "hint while the runtime log is off")
+      Assert.Nil(FindLine(session.printed, "The runtime log is off"), "no hint: probe mode switched the runtime log on")
       Assert.NotNil(FindLine(ProbeLines(session), "event=probe_enabled"), "enabling writes a probe line")
       Assert.NotNil(FindLine(ProbeLines(session), "event=probe_session"), "with a session header")
-      Assert.False(db.runtimeLogEnabled == true, "the runtime log switch is left untouched")
+      Assert.True(db.runtimeLogEnabled, "probe mode switches the runtime log on for the context lines")
 
       session.printed = {}
       slash("probe status")
       Assert.NotNil(
-        FindLine(session.printed, "Probe mode: ON | runtime log: OFF | probe lines this session: 2"),
+        FindLine(session.printed, "Probe mode: ON | runtime log: ON | probe lines this session: 2"),
         "status"
       )
 
@@ -883,6 +883,134 @@ return function(test, ctx)
         globals[key] = value
       end
     end)
+  end)
+
+  test("Probe mode widens the ring and is switched off again by every load", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local db = session.globals.IsiLiveDB
+      local probe = session.addon.ProbeLog
+      Assert.Equal(probe.GetRingEntries(), probe.RING_ENTRIES_PROBE, "probe mode widens the ring")
+      local controller = session.runtime.runtimeLogController
+      for index = 1, probe.RING_ENTRIES_DEFAULT + 50 do
+        controller.AppendLog("[TEST] filler " .. index)
+      end
+      Assert.Equal(
+        select(2, controller.GetLogTailFiltered(1, "event=filler")),
+        probe.RING_ENTRIES_DEFAULT + 50,
+        "the wider ring keeps more than the default size"
+      )
+      session.Dispatch("ADDON_LOADED", "isiLive")
+      Assert.False(db.probeLogEnabled, "admin tool: every load (reload, relog) switches probe mode off")
+      Assert.False(db.runtimeLogEnabled, "and the runtime log with it")
+      Assert.Equal(probe.GetRingEntries(), probe.RING_ENTRIES_DEFAULT, "probe off: default ring size")
+      Assert.True(
+        select(2, controller.GetLogTailFiltered(1, "event=filler")) <= probe.RING_ENTRIES_DEFAULT,
+        "probe off trims the ring to the default size"
+      )
+    end, Prepare())
+  end)
+
+  test("Probe mode off leaves the runtime log off after a reload", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.Dispatch("ADDON_LOADED", "isiLive")
+      Assert.False(session.globals.IsiLiveDB.runtimeLogEnabled, "the load reset stays in force")
+    end, Prepare({ probe = false }))
+  end)
+
+  test("Switching probe mode on switches the runtime log on", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local db = session.globals.IsiLiveDB
+      Assert.False(db.runtimeLogEnabled == true, "precondition: runtime log off")
+      session.addon.ProbeLog.SetEnabled(true)
+      Assert.True(db.runtimeLogEnabled, "probe on brings the context lines along")
+    end, Prepare({ probe = false }))
+  end)
+
+  test("Probe mode tells the reset before a key start apart from an abandoned key", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=key_end trigger=CHALLENGE_MODE_COMPLETED kind=completed"),
+        "a completed key"
+      )
+      session.Advance(30)
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=challenge_reset kind=no_running_key"),
+        "the reset the client fires before a key start is no key end"
+      )
+      Assert.Equal(select(2, ProbeLines(session, "event=key_end")), 1, "still one key end")
+      session.Advance(0.25)
+      session.active = true
+      session.Dispatch("CHALLENGE_MODE_START")
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=key_start mapID=2662 resetBeforeStartMs=250"),
+        "the key start names the gap to the reset before it"
+      )
+      session.Advance(60)
+      session.Dispatch("CHALLENGE_MODE_RESET")
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=key_end trigger=CHALLENGE_MODE_RESET kind=abandoned"),
+        "a reset inside a running key is an abandoned key"
+      )
+    end, Prepare())
+  end)
+
+  test("Probe mode logs every hostile channel stop with the presence of interruptedBy", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("string")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      Pull(session)
+      Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "nameplate3", "chan-1", 4321, nil)
+      Kick(session)
+      Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "nameplate4", "chan-2", 4321, "Player-1-00000001")
+      Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "nameplate5", "chan-3", 4321, secret)
+      Deliver(session, "UNIT_SPELLCAST_CHANNEL_STOP", "party1", "chan-4", 4321, nil)
+      local lines = ProbeLines(session, "event=channel_stop")
+      Assert.Equal(#lines, 3, "hostile units only")
+      Assert.NotNil(
+        FindLine(lines, "unit=nameplate3 interruptedBy=nil ownKickPendingMs=none inKey=yes"),
+        "a channel that simply ends"
+      )
+      Assert.NotNil(
+        FindLine(lines, "unit=nameplate4 interruptedBy=readable ownKickPendingMs=0"),
+        "a kicked channel right after the own kick"
+      )
+      Assert.NotNil(FindLine(lines, "unit=nameplate5 interruptedBy=secret"), "a masked interruptedBy is never read")
+      session.Advance(2)
+      Assert.NotNil(
+        FindLine(ProbeLines(session, "event=kick spellID="), "firstEvent=UNIT_SPELLCAST_CHANNEL_STOP"),
+        "the kicked channel still counts for the kick verdict"
+      )
+    end, function(globals, session)
+      Prepare()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe mode logs blocked protected calls of isiLive only", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local probe = session.addon.ProbeLog
+      local frame = probe._actionBlockedFrame
+      Assert.NotNil(frame, "the event frame is created in the main chunk")
+      local onEvent = frame:GetScript("OnEvent")
+      session.combat = true
+      onEvent(frame, "ADDON_ACTION_BLOCKED", "isiLive", "isiLiveResizeGrip:Hide()")
+      onEvent(frame, "ADDON_ACTION_FORBIDDEN", "OtherAddon", "CastSpellByName()")
+      onEvent(frame, "ADDON_ACTION_FORBIDDEN", "isiLive", "SetRaidTarget()")
+      local lines = ProbeLines(session, "event=action_blocked")
+      Assert.Equal(#lines, 2, "other addons are ignored")
+      Assert.NotNil(
+        FindLine(lines, "kind=blocked func=isiLiveResizeGrip:Hide() inCombat=yes inKey=yes"),
+        "blocked call with its context"
+      )
+      Assert.NotNil(FindLine(lines, "kind=forbidden func=SetRaidTarget()"), "forbidden call")
+      probe.SetEnabled(false)
+      onEvent(frame, "ADDON_ACTION_BLOCKED", "isiLive", "Show()")
+      Assert.Equal(select(2, ProbeLines(session, "event=action_blocked")), 2, "probe off: nothing logged")
+    end, Prepare())
   end)
 
   test("DBSchema declares probeLogEnabled as a default-off boolean", function()

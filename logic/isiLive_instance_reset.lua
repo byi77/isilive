@@ -350,9 +350,12 @@ local function HandleSystemMessage(message)
     return
   end
   local instanceName = MatchGlobalFormat(SUCCESS_GLOBAL, message)
+  local now = deps.now()
+  local ownRequest = IsOwnRequestRecent(now)
   if instanceName then
-    local now = deps.now()
-    local ownRequest = IsOwnRequestRecent(now)
+    Trace(function()
+      return string.format("[INSTANCE_RESET] reset_success own=%s", ownRequest and "yes" or "no")
+    end)
     local cleared = ClearPending("reset_success")
     if ownRequest then
       -- One announce per click, even when several instances report a reset.
@@ -372,6 +375,13 @@ local function HandleSystemMessage(message)
       end)
       return
     end
+  end
+  -- After an own click no pattern matched: the system message text shows
+  -- whether the localized INSTANCE_RESET_SUCCESS pattern fits this client.
+  if ownRequest then
+    Trace(function()
+      return string.format("[INSTANCE_RESET] system_unmatched text=%s", message:sub(1, 160))
+    end)
   end
 end
 

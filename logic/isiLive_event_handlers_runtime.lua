@@ -799,6 +799,8 @@ local function HandleAddonLoaded(ctx, loadedAddon)
   -- Administrative debug settings are never persisted: always start disabled, user must re-enable each session.
   IsiLiveDB.queueDebug = false
   IsiLiveDB.runtimeLogEnabled = false
+  -- Probe mode (rule 239) is an admin tool as well: off after every load.
+  IsiLiveDB.probeLogEnabled = false
   -- Same for the level: a "deep" left over from an old session would make the
   -- next "/isilive log on" silently trace at deep.
   IsiLiveDB.runtimeLogLevel = "normal"

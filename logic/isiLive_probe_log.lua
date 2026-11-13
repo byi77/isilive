@@ -10,10 +10,10 @@ addonTable = addonTable or {}
 --   /isilive probe [on|off|status]   toggles without an argument
 --   /isilive probe report            one verdict line per question (ProbeReport)
 --
--- IsiLiveDB.probeLogEnabled is Pattern B (default off) and persists across
--- reloads. Probe lines bypass the runtimeLogEnabled gate (that flag is reset
--- on every ADDON_LOADED), so the mode keeps recording after a reload; the
--- runtime log itself is left as the user set it and only adds context lines.
+-- IsiLiveDB.probeLogEnabled is Pattern B (default off). It is an admin tool:
+-- ADDON_LOADED resets it to off on every load and relog (like the runtime
+-- log), the user switches it on by hand for each session. Switching it on
+-- also switches the runtime log on for the context lines.
 --
 -- Every hook starts with IsEnabled(): with the mode off nothing else runs, no
 -- timer is scheduled and no API is read. Nothing here sends chat or addon
@@ -45,12 +45,16 @@ local LIMITS = {
   nameplates = 40,
   readyChecksPerRun = 20,
   playerAuras = 40,
+  channelStopsPerRun = 60,
+  actionBlockedPerRun = 30,
+  kickCellLinesPerRun = 20,
 }
 ProbeLog.LIMITS = LIMITS
 
 local sink = nil
 local readLog = nil
 local getAddonVersion = nil
+local setRuntimeLogEnabled = nil
 local sessionHeaderWritten = false
 local sessionLineCount = 0
 
@@ -58,6 +62,12 @@ local lastChatLockdown = nil
 local keyEndedAt = nil
 local lastInterruptAt = nil
 local pendingKicks = {}
+-- True between a seen CHALLENGE_MODE_START (or a running key found after a
+-- reload) and its end. The client fires CHALLENGE_MODE_RESET ~0.2 s before
+-- every CHALLENGE_MODE_START (probe log 2026-11-12); without a running key
+-- that reset is not a key end.
+local keyRunning = false
+local lastIdleResetAt = nil
 
 local function NewRunState()
   return {
@@ -71,6 +81,10 @@ local function NewRunState()
     restrictionLines = 0,
     chatLockdownLines = 0,
     readyChecks = 0,
+    channelStops = 0,
+    actionBlocked = 0,
+    kickCellLines = 0,
+    kickCellSeen = {},
     capped = {},
   }
 end
@@ -633,14 +647,37 @@ function ProbeLog.OnReadyCheck()
 end
 
 --- Wires the log sink (runtime log AppendLog), the ring reader for the
--- report and the version reader.
+-- report, the version reader and the runtime log switch.
 -- @param opts table {appendLog = function(message), readLog = function(needle): table,
---   getAddonVersion = function()}
+--   getAddonVersion = function(), setRuntimeLogEnabled = function(enabled)}
 function ProbeLog.Attach(opts)
   opts = type(opts) == "table" and opts or {}
   sink = type(opts.appendLog) == "function" and opts.appendLog or nil
   readLog = type(opts.readLog) == "function" and opts.readLog or nil
   getAddonVersion = type(opts.getAddonVersion) == "function" and opts.getAddonVersion or nil
+  setRuntimeLogEnabled = type(opts.setRuntimeLogEnabled) == "function" and opts.setRuntimeLogEnabled or nil
+end
+
+--- Ring size for the runtime log: a probe session keeps the context lines
+-- of two keys (about 1000 lines each at normal level), otherwise 1500.
+ProbeLog.RING_ENTRIES_DEFAULT = 1500
+ProbeLog.RING_ENTRIES_PROBE = 4000
+function ProbeLog.GetRingEntries()
+  return ProbeLog.IsEnabled() and ProbeLog.RING_ENTRIES_PROBE or ProbeLog.RING_ENTRIES_DEFAULT
+end
+
+-- Probe mode needs the context lines ([STATS], [TIMEPACE], [SYNC],
+-- [INSTANCE_RESET], ...) next to its own: it switches the runtime log on.
+-- Returns true when the runtime log is on afterwards.
+local function EnsureRuntimeLogOn()
+  if IsRuntimeLogOn() then
+    return true
+  end
+  if type(setRuntimeLogEnabled) ~= "function" then
+    return false
+  end
+  setRuntimeLogEnabled(true)
+  return IsRuntimeLogOn()
 end
 
 --- Probe lines written since the addon was loaded.
@@ -670,6 +707,9 @@ function ProbeLog.SetEnabled(enabled)
       )
     )
   end
+  if nextEnabled then
+    EnsureRuntimeLogOn()
+  end
   return nextEnabled
 end
 
@@ -681,20 +721,51 @@ function ProbeLog.OnKeyStart()
   run = NewRunState()
   keyEndedAt = nil
   pendingKicks = {}
+  keyRunning = true
+  local now = Now()
+  local resetBefore = "none"
+  if lastIdleResetAt ~= nil and now ~= nil and now - lastIdleResetAt >= 0 and now - lastIdleResetAt <= 5 then
+    resetBefore = Ms(now - lastIdleResetAt)
+  end
+  lastIdleResetAt = nil
   local mapID = ReadActiveMapID()
-  Append(string.format("[PROBE] event=key_start mapID=%s note=budgets_reset", tostring(mapID or "unknown")))
+  Append(
+    string.format(
+      "[PROBE] event=key_start mapID=%s resetBeforeStartMs=%s note=budgets_reset",
+      tostring(mapID or "unknown"),
+      resetBefore
+    )
+  )
   CheckChatLockdown("key_start")
 end
 
 --- CHALLENGE_MODE_COMPLETED / CHALLENGE_MODE_RESET: meter at the key end and
--- once more keyEndFollowUpSeconds later.
+-- once more keyEndFollowUpSeconds later. A reset without a running key (the
+-- one the client fires right before every key start) is logged as
+-- challenge_reset kind=no_running_key and is not a key end; with a running
+-- key it is an abandoned key.
 function ProbeLog.OnKeyEnd(event)
   if not ProbeLog.IsEnabled() then
     return
   end
+  local isReset = event == "CHALLENGE_MODE_RESET"
+  if isReset and not keyRunning then
+    lastIdleResetAt = Now()
+    Append(
+      string.format(
+        "[PROBE] event=challenge_reset kind=no_running_key activeMap=%s inInstance=%s",
+        tostring(ReadActiveMapID() or "none"),
+        tostring(ReadInInstance())
+      )
+    )
+    return
+  end
+  keyRunning = false
   keyEndedAt = Now()
-  local phase = event == "CHALLENGE_MODE_RESET" and "key_reset" or "key_completed"
-  Append(string.format("[PROBE] event=key_end trigger=%s", tostring(event)))
+  local phase = isReset and "key_reset" or "key_completed"
+  Append(
+    string.format("[PROBE] event=key_end trigger=%s kind=%s", tostring(event), isReset and "abandoned" or "completed")
+  )
   CheckChatLockdown(phase)
   TryMeterSnapshot(phase)
   TimerAfter(LIMITS.keyEndFollowUpSeconds, function()
@@ -760,6 +831,10 @@ end
 function ProbeLog.OnZoneChanged()
   if not ProbeLog.IsEnabled() then
     return
+  end
+  -- A reload inside a running key misses CHALLENGE_MODE_START.
+  if not keyRunning and IsKeyActive() then
+    keyRunning = true
   end
   if ReadInInstance() ~= false or not IsInPostKeyWindow() then
     return
@@ -912,6 +987,123 @@ function ProbeLog.OnOwnKick(spellID, pending, alertEnabled)
     FinishKick(record)
   end) then
     FinishKick(record)
+  end
+end
+
+-- interruptedBy of UNIT_SPELLCAST_CHANNEL_STOP as text, never converted.
+local function DescribePresence(value)
+  if IsSecretValue(value) then
+    return "secret"
+  end
+  if value == nil then
+    return "nil"
+  end
+  if type(value) == "string" then
+    return value == "" and "empty" or "readable"
+  end
+  return type(value)
+end
+
+--- Every hostile UNIT_SPELLCAST_CHANNEL_STOP, interrupted or not: is
+-- interruptedBy set for a kicked channel and nil for one that simply ends?
+-- ownKickPendingMs = time since the newest own kick still waiting for its
+-- verdict (none = no own kick in the last second).
+function ProbeLog.OnChannelStop(unit, interruptedBy)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  if not TakeBudget("channelStops", LIMITS.channelStopsPerRun, "channel_stop") then
+    return
+  end
+  local now = Now()
+  local newestKickAt = nil
+  for _, record in ipairs(pendingKicks) do
+    if newestKickAt == nil or record.castAt > newestKickAt then
+      newestKickAt = record.castAt
+    end
+  end
+  local kickText = "none"
+  if newestKickAt ~= nil and now ~= nil and now >= newestKickAt then
+    kickText = Ms(now - newestKickAt)
+  end
+  Append(
+    string.format(
+      "[PROBE] event=channel_stop unit=%s interruptedBy=%s ownKickPendingMs=%s inKey=%s",
+      IsSecretValue(unit) and "secret" or tostring(unit),
+      DescribePresence(interruptedBy),
+      kickText,
+      YesNo(IsKeyActive())
+    )
+  )
+end
+
+--- ADDON_ACTION_BLOCKED / ADDON_ACTION_FORBIDDEN naming isiLive: which
+-- protected call, in which context. Answers the taint checks (resize grip,
+-- settings window, edit mode, demo) without /console taintLog.
+function ProbeLog.OnActionBlocked(event, addonName, functionName)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  if IsSecretValue(addonName) or addonName ~= "isiLive" then
+    return
+  end
+  if not TakeBudget("actionBlocked", LIMITS.actionBlockedPerRun, "action_blocked") then
+    return
+  end
+  Append(
+    string.format(
+      "[PROBE] event=action_blocked kind=%s func=%s inCombat=%s inKey=%s",
+      tostring(event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked"),
+      IsSecretValue(functionName) and "secret" or tostring(functionName or "nil"),
+      ReadInCombat(),
+      YesNo(IsKeyActive())
+    )
+  )
+end
+
+--- Kick column of a roster row: did the run-kick pair fit the cell, and did
+-- the landed-only fallback fit? One line per distinct outcome per run.
+function ProbeLog.OnKickCellFit(text, fits, fallbackText, fallbackFits, width)
+  if not ProbeLog.IsEnabled() then
+    return
+  end
+  local key = string.format("%s|%s|%s", tostring(text), tostring(fits), tostring(fallbackFits))
+  if run.kickCellSeen[key] then
+    return
+  end
+  if not TakeBudget("kickCellLines", LIMITS.kickCellLinesPerRun, "kick_cell") then
+    return
+  end
+  run.kickCellSeen[key] = true
+  Append(
+    string.format(
+      "[PROBE] event=kick_cell text=%s fits=%s fallback=%s fallbackFits=%s width=%s",
+      tostring(text),
+      YesNo(fits),
+      tostring(fallbackText or "none"),
+      fallbackFits == nil and "n/a" or YesNo(fallbackFits),
+      type(width) == "number" and string.format("%d", math.floor(width + 0.5)) or "nil"
+    )
+  )
+end
+
+-- ADDON_ACTION_BLOCKED / _FORBIDDEN are registered once in the main chunk on
+-- a frame of their own (registering from a handler would be forbidden); the
+-- handler does nothing while probe mode is off.
+do
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) == "function" then
+    local ok, frame = pcall(createFrame, "Frame")
+    if ok and type(frame) == "table" and type(frame.RegisterEvent) == "function" then
+      pcall(frame.RegisterEvent, frame, "ADDON_ACTION_BLOCKED")
+      pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
+      if type(frame.SetScript) == "function" then
+        frame:SetScript("OnEvent", function(_, event, addonName, functionName)
+          ProbeLog.OnActionBlocked(event, addonName, functionName)
+        end)
+      end
+      ProbeLog._actionBlockedFrame = frame
+    end
   end
 end
 

@@ -104,7 +104,12 @@ local function CreateMissedKickAlert(ctx, IsRaidModeActive, HasActiveChallengeFr
     if not recordOn and not probe then
       return
     end
-    if event == "UNIT_SPELLCAST_CHANNEL_STOP" and not IsInterruptedChannelStop(interruptedBy) then
+    local isChannelStop = event == "UNIT_SPELLCAST_CHANNEL_STOP"
+    if isChannelStop and probe and IsHostileInterruptUnit(unit) then
+      -- Every hostile channel end, kicked or not: is interruptedBy set?
+      probe.OnChannelStop(unit, interruptedBy)
+    end
+    if isChannelStop and not IsInterruptedChannelStop(interruptedBy) then
       return
     end
     if not IsHostileInterruptUnit(unit) then

@@ -51,9 +51,22 @@ function RuntimeLog.CreateController(opts)
       return nil
     end
 
-  local maxEntries = tonumber(opts.maxEntries) or 800
-  if maxEntries < 1 then
-    maxEntries = 1
+  local fixedMaxEntries = tonumber(opts.maxEntries) or 800
+  if fixedMaxEntries < 1 then
+    fixedMaxEntries = 1
+  end
+  -- Optional dynamic ring size (probe mode keeps two keys of context). The
+  -- ring is trimmed to the current size on the next access.
+  local getMaxEntries = type(opts.getMaxEntries) == "function" and opts.getMaxEntries or nil
+  local function MaxEntries()
+    if getMaxEntries then
+      local ok, value = pcall(getMaxEntries)
+      value = ok and tonumber(value) or nil
+      if value and value >= 1 then
+        return math.floor(value)
+      end
+    end
+    return fixedMaxEntries
   end
   local buildSessionHeader = type(opts.buildSessionHeader) == "function" and opts.buildSessionHeader or nil
 
@@ -70,7 +83,7 @@ function RuntimeLog.CreateController(opts)
   local throttledLogState = {}
 
   local function GetStorage()
-    return logBuffer.Normalize(EnsureStorage(), maxEntries)
+    return logBuffer.Normalize(EnsureStorage(), MaxEntries())
   end
 
   function controller.EnsureStorage()
@@ -146,7 +159,7 @@ function RuntimeLog.CreateController(opts)
     lastRawTime = now or lastRawTime
     local entry =
       string.format("seq=%d t=%s%s %s", sequence, tostring(getTimestamp()), deltaStr, NormalizeRuntimeMessage(message))
-    logBuffer.Append(storage, "", entry, maxEntries)
+    logBuffer.Append(storage, "", entry, MaxEntries())
     if watchFn then
       watchFn(entry)
     end
@@ -260,7 +273,7 @@ function RuntimeLog.CreateController(opts)
     if not filterText then
       return controller.GetLogTail(clampedLimit)
     end
-    local fetchCount = maxEntries
+    local fetchCount = MaxEntries()
     local all = logBuffer.GetTail(GetStorage(), fetchCount, fetchCount, fetchCount)
     local filtered = {}
     for _, line in ipairs(all) do
@@ -281,7 +294,8 @@ function RuntimeLog.CreateController(opts)
   -- probe report (rule 239) reads the whole ring.
   function controller.GetLinesContaining(needle)
     local needleText = tostring(needle or "")
-    local all = logBuffer.GetTail(GetStorage(), maxEntries, maxEntries, maxEntries)
+    local cap = MaxEntries()
+    local all = logBuffer.GetTail(GetStorage(), cap, cap, cap)
     local matches = {}
     for _, line in ipairs(all) do
       local text = tostring(line)
