@@ -139,6 +139,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_queue_debug.lua",
   "testmodul/isilive_test_scenarios_bindings.lua",
   "testmodul/isilive_test_scenarios_context_helpers.lua",
+  "testmodul/isilive_test_scenarios_version_notice.lua",
   "testmodul/isilive_test_scenarios_roster_tooltip.lua",
   "testmodul/isilive_test_scenarios_controller_init.lua",
   "testmodul/isilive_test_scenarios_lfg_detect.lua",

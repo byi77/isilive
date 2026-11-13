@@ -89,6 +89,7 @@ logic/isiLive_demo.lua
 logic/isiLive_test_mode.lua
 logic/isiLive_sync_receive.lua
 logic/isiLive_sync.lua
+logic/isiLive_version_notice.lua
 logic/isiLive_keysync.lua
 logic/isiLive_refresh.lua
 logic/isiLive_highlight.lua

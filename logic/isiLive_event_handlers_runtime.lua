@@ -869,6 +869,32 @@ local function WithLateRunCapture(ctx, handler, kind)
   end
 end
 
+local function TracePlayerLogin(ctx, playerName, playerRealm)
+  if type(ctx.logRuntimeTracef) == "function" then
+    ctx.logRuntimeTracef(
+      "[RUNTIME] player_login playerName=%s playerRealm=%s",
+      tostring(playerName),
+      tostring(playerRealm)
+    )
+  end
+end
+
+-- Update notice (rule 247): feeds the peer version of a HELLO/ACK or a guild
+-- VER ping. Returns true for a guild ping, which carries nothing else.
+local function NoteSyncPeerVersion(ctx, syncResult)
+  local versionNotice = ctx.versionNotice
+  if syncResult.guildVersion then
+    if versionNotice and not syncResult.isSelf then
+      versionNotice.NotePeerVersion(syncResult.guildVersion, true)
+    end
+    return true
+  end
+  if versionNotice and syncResult.peerAddonVersion then
+    versionNotice.NotePeerVersion(syncResult.peerAddonVersion, false)
+  end
+  return false
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -944,13 +970,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ApplyStartupMainFrameVisibility(ctx)
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
-    if type(ctx.logRuntimeTracef) == "function" then
-      ctx.logRuntimeTracef(
-        "[RUNTIME] player_login playerName=%s playerRealm=%s",
-        tostring(playerName),
-        tostring(playerRealm)
-      )
+    if ctx.versionNotice then
+      ctx.versionNotice.OnLogin()
     end
+    TracePlayerLogin(ctx, playerName, playerRealm)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
@@ -1189,6 +1212,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     local syncResult = ctx.processAddonMessage(prefix, message, sender, channel)
     if not syncResult then
+      return
+    end
+    if NoteSyncPeerVersion(ctx, syncResult) then
       return
     end
 

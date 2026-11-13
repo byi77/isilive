@@ -33,6 +33,7 @@ local function BuildContext(opts)
   ctx.isRosterCollapsed = RequireFunction(opts.isRosterCollapsed, "isRosterCollapsed")
 
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
+  ctx.versionNotice = type(opts.versionNotice) == "table" and opts.versionNotice or nil
   ctx.isRaidGroup = OptionalFunction(opts.isRaidGroup, function()
     return false
   end)

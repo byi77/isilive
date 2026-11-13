@@ -1868,6 +1868,34 @@ local function IsAddonChatLockedDown()
   return ok and not addonTable.Validators.IsSecretValue(restricted) and restricted == true
 end
 
+--- Sends the update-notice version ping ("VER:<version>") to the guild.
+-- Honors the sync setting, needs a guild and stays silent during the 12.0
+-- addon chat lockdown. Bulk priority: the ping is never time-critical.
+-- @param versionRaw string Local addon version.
+-- @return boolean true if the message was accepted for dispatch.
+function Sync.SendGuildVersion(versionRaw)
+  if type(versionRaw) ~= "string" or versionRaw == "" then
+    return false
+  end
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  if type(chatInfo) ~= "table" or type(chatInfo.SendAddonMessage) ~= "function" then
+    return false
+  end
+  if not IsSyncEnabled() then
+    return false
+  end
+  local isInGuild = rawget(_G, "IsInGuild")
+  if type(isInGuild) ~= "function" or not SafeBooleanCall(isInGuild) then
+    return false
+  end
+  if IsAddonChatLockedDown() then
+    return false
+  end
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, "VER:" .. versionRaw, "GUILD", "BULK")
+  SyncLog("send_guild_version", "version=%s sent=%s", versionRaw, tostring(sent))
+  return sent == true
+end
+
 -- Traces a SendKick outcome only when what it reports changes: hasKick,
 -- onCooldown, the cooldown running or done (remain > 0), the channel or the
 -- send result ("true", "false", "lockdown"). The running remain itself is not

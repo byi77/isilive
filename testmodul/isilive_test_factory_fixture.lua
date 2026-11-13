@@ -868,6 +868,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_demo.lua",
     "isiLive_test_mode.lua",
     "isiLive_sync.lua",
+    "isiLive_version_notice.lua",
     "isiLive_keysync.lua",
     "isiLive_refresh.lua",
     "isiLive_highlight.lua",

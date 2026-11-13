@@ -37,6 +37,24 @@ local function IsIsiLiveReceiveChannelAllowed(message, channel)
   return channel == "WHISPER" and type(message) == "string" and message:find("^ACK:") ~= nil
 end
 
+-- The guild update ping ("VER:<version>", rule 247) only feeds the update
+-- notice. GUILD carries nothing else, and the ping never touches the peer
+-- tables: guild members outside the group are no sync peers.
+local function ProcessGuildVersionMessage(Sync, message, sender, localName, localRealm)
+  if type(sender) ~= "string" or sender == "" or type(message) ~= "string" or #message > 255 then
+    return nil
+  end
+  local version = message:match("^VER:([^:]+)$")
+  if not version then
+    return nil
+  end
+  return {
+    sender = sender,
+    guildVersion = version,
+    isSelf = Sync.NormalizePlayerKey(sender) == Sync.NormalizePlayerKey(localName, localRealm),
+  }
+end
+
 local PARTY_UNITS = { "party1", "party2", "party3", "party4" }
 
 -- A whispered ACK answers our own HELLO, so it always comes from a current
@@ -75,7 +93,26 @@ local function AlwaysActive()
   return true
 end
 
+local BuildPartyReceiver
+
+-- Routes the guild channel to the VER handler before the party receiver; a
+-- guild VER ping returns only {sender, guildVersion, isSelf}.
 addonTable.SyncReceiveFactory = function(deps)
+  local Sync = deps.Sync
+  local isiLivePrefix = deps.ISILIVE_SYNC_PREFIX
+  local processPartyMessage = BuildPartyReceiver(deps)
+  return function(prefix, message, sender, localName, localRealm, channel)
+    if channel == "GUILD" then
+      if prefix ~= isiLivePrefix then
+        return nil
+      end
+      return ProcessGuildVersionMessage(Sync, message, sender, localName, localRealm)
+    end
+    return processPartyMessage(prefix, message, sender, localName, localRealm, channel)
+  end
+end
+
+BuildPartyReceiver = function(deps)
   local Sync = deps.Sync
   local ISILIVE_SYNC_PREFIX = deps.ISILIVE_SYNC_PREFIX
   local LIBKEYSTONE_SYNC_PREFIX = deps.LIBKEYSTONE_SYNC_PREFIX

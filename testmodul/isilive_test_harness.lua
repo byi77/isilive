@@ -136,6 +136,7 @@ local FILE_PATHS = {
   ["isiLive_test_mode.lua"] = "logic/isiLive_test_mode.lua",
   ["isiLive_sync_receive.lua"] = "logic/isiLive_sync_receive.lua",
   ["isiLive_sync.lua"] = "logic/isiLive_sync.lua",
+  ["isiLive_version_notice.lua"] = "logic/isiLive_version_notice.lua",
   ["isiLive_keysync.lua"] = "logic/isiLive_keysync.lua",
   ["isiLive_refresh.lua"] = "logic/isiLive_refresh.lua",
   ["isiLive_highlight.lua"] = "logic/isiLive_highlight.lua",

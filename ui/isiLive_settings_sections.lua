@@ -576,6 +576,7 @@ local DISPLAY_DEFAULTS = {
   tooltipFlagsEnabled = true,
   acceptedInviteNoticeEnabled = true,
   groupJoinNoticeEnabled = true,
+  versionNoticeEnabled = true,
 }
 
 local DISPLAY_CALLBACKS = {
@@ -630,6 +631,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "tooltipFlagsEnabled",
   "acceptedInviteNoticeEnabled",
   "groupJoinNoticeEnabled",
+  "versionNoticeEnabled",
 }
 
 local function RestoreDisplayDefaults(config)
@@ -656,6 +658,29 @@ local function RestoreDisplayDefaults(config)
   if statsOptionsChanged and type(config.onStatsBoxOptionsChange) == "function" then
     config.onStatsBoxOptionsChange()
   end
+end
+
+-- Update notice toggle (rule 247). Outside BuildDisplaySection to keep it
+-- under the 420-line metrics gate.
+local function CreateVersionNoticeCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_VERSION_NOTICE_ENABLED or "Update notice",
+    function()
+      local db = config.getDB()
+      return db.versionNoticeEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.versionNoticeEnabled = checked
+    end,
+    "SETTINGS_VERSION_NOTICE_ENABLED",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_VERSION_NOTICE_ENABLED_DESC
+        or "Prints a chat line when a group or guild member runs a newer isiLive version."
+    )
+  )
 end
 
 local function CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
@@ -1180,6 +1205,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     )
   )
 
+  controls.versionNotice, yOffset = CreateVersionNoticeCheckbox(canvas, yOffset, labels, config)
   controls.displayReset, yOffset = CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
 
   return yOffset
@@ -1417,5 +1443,14 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
         or "Shows the compact dungeon reminder when joining a group after an invite."
     )
     controls.groupJoinNotice.check:SetChecked(db.groupJoinNoticeEnabled ~= false)
+  end
+  if controls.versionNotice then
+    controls.versionNotice.label:SetText(labels.SETTINGS_VERSION_NOTICE_ENABLED or "Update notice")
+    SetCheckboxDescription(
+      controls.versionNotice,
+      labels.SETTINGS_VERSION_NOTICE_ENABLED_DESC
+        or "Prints a chat line when a group or guild member runs a newer isiLive version."
+    )
+    controls.versionNotice.check:SetChecked(db.versionNoticeEnabled ~= false)
   end
 end

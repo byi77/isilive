@@ -329,6 +329,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 244. Mit `aggroAlertEnabled` (Pattern B) zeigt isiLive Nicht-Tanks im laufenden Key einen kurzen `AGGRO`-Kurzalarm (optional mit Ton `aggroAlertSound`, Pattern B), wenn `UnitThreatSituation("player")` mindestens eine halbe Sekunde lang 2 oder 3 meldet; hoechstens einmal pro Pull, nie im Raid, nie fuer eine Tank-Spezialisierung, nicht solange der Gruppen-Tank tot ist, und nie ueber einem Tod- oder PI-Alarm.
 245. Waehrend eines Keys zeigt der Roster-Tooltip mit `liveRunKicksEnabled` (Pattern A) die getroffenen Kicks jedes Mitglieds im laufenden Key (`Kicks in diesem Key: N getroffen`), gelesen aus der Interrupts-Overall-Session des Damage-Meters bei jedem Pull-Ende und Pull-Start; die Kick-Spalte zeigt im Key weiter den Cooldown.
 246. Mit `consumableCheckEnabled` (Pattern B) prueft isiLive beim Betreten eines Dungeons ausserhalb des Kampfs, ausserhalb von Raids und ausserhalb eines laufenden Keys das eigene Waffenoel und die Flask (Essen und Augment-Rune vorbereitet, aber abgeschaltet) und zeigt im Kartenstapel 25 Sekunden lang eine Karte, wenn etwas fehlt oder in weniger als 40 Minuten auslaeuft; maskierte Werte zaehlen nie als fehlend.
+247. Mit `versionNoticeEnabled` (Pattern A) meldet isiLive einmal pro Sitzung und Version im Chat, wenn ein Gruppenmitglied (HELLO/ACK) oder ein Gildenmitglied (Gilden-Ping `VER:<version>`) eine neuere isiLive-Version nutzt; der Gilden-Ping geht einmal nach dem Login raus, aeltere Gilden-Pings werden zufaellig verzoegert beantwortet, es sei denn, ein anderer Client mit gleicher oder neuerer Version antwortet zuerst.
 
 ## Regelbloecke
 
@@ -3800,3 +3801,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Consumable check uses the season's buff IDs and stays quiet in combat, in a key or when off
   - Consumable check finds a buff set for every season of the manifest
   - Probe mode logs own buff and weapon enchant readability on a ready check
+
+### RULE-UPDATE-HINWEIS
+- Regelnummer: 247
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-13 (Update-Hinweis wie bei anderen Addons, Gruppen- und Gildensync, Download-Quelle CurseForge). `logic/isiLive_version_notice.lua` (`VersionNotice`) vergleicht Versionen als 1 bis 4 punktgetrennte Ganzzahlen (fehlende Teile zaehlen als 0); alles andere ist keine Version und loest nie etwas aus. Quelle sind die Version aus HELLO und ACK der Gruppe (Regel 159) und der Gilden-Ping `VER:<version>`, den `Sync.SendGuildVersion` mit Praefix `ISILIVE` auf `GUILD` (Prioritaet `BULK`) sendet, nur bei `syncEnabled ~= false`, mit Gilde (`IsInGuild`) und ausserhalb der Addon-Chat-Sperre (`C_ChatInfo.InChatMessagingLockdown`). Auf `GUILD` nimmt der Empfang nur `VER:` an; die Gilden-Nachricht beruehrt keine Peer-Tabelle (kein `MarkUser`, keine Roster-Aenderung), das eigene Echo wird ignoriert, und im Raid faellt sie wie jede Addon-Nachricht weg. Ist die Peer-Version neuer als die eigene TOC-Version und neuer als die in dieser Sitzung zuletzt gemeldete, schreibt isiLive bei `versionNoticeEnabled ~= false` (Pattern A, Display-Abschnitt nach dem Gruppenbeitritts-Zielhinweis) `VERSION_NOTICE_NEWER` (`isiLive %s ist auf CurseForge verfuegbar - du hast %s.`) in den Chat. Der Gilden-Ping geht einmal pro Sitzung 15 Sekunden nach `PLAYER_LOGIN` raus. Sieht ein Client einen aelteren Gilden-Ping, antwortet er nach 2 bis 12 Sekunden Zufallsverzoegerung mit dem eigenen Ping, hoechstens einmal je 5 Minuten; kommt vorher ein Gilden-Ping mit gleicher oder neuerer Version, entfaellt die Antwort.
+- Erforderliche Tests:
+  - Version notice compares dotted release versions part by part
+  - Version notice prints once per newer group peer version
+  - Version notice stays quiet when the setting is off
+  - Version notice answers an older guild ping unless someone else answered first
+  - Version notice keeps the guild channel closed to everything but VER
+  - Version notice sends no guild ping without a guild or with sync off

@@ -320,6 +320,7 @@ local SCHEMA = {
   tooltipFlagsEnabled = { type = "boolean", default = true },
   acceptedInviteNoticeEnabled = { type = "boolean", default = true },
   groupJoinNoticeEnabled = { type = "boolean", default = true },
+  versionNoticeEnabled = { type = "boolean", default = true },
 
   -- Mob nameplate / forces overlay.
   mobNameplateEnabled = { type = "boolean", default = true },

@@ -399,6 +399,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
 end
 
 local function ExtendEventHandlersConfig(config, deps, state, refs, controllers, callbacks, modules)
+  config.versionNotice = type(deps.versionNotice) == "table" and deps.versionNotice or nil
   config.getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm")
   config.getUnitRole = type(deps.getUnitRole) == "function" and deps.getUnitRole or function(_unit)
     return nil
@@ -762,8 +763,42 @@ function ControllerWiring.CreateEventHandlersController(eventHandlersModule, dep
   return eventHandlersModule.CreateController(config)
 end
 
+-- Update notice (rule 247): chat line when a group or guild peer runs a
+-- newer isiLive. The guild ping goes through Sync.SendGuildVersion.
+local function BuildVersionNotice(ctx)
+  local versionNoticeModule = addonTable.VersionNotice
+  if type(versionNoticeModule) ~= "table" or type(versionNoticeModule.Create) ~= "function" then
+    return nil
+  end
+  return versionNoticeModule.Create({
+    getOwnVersion = ctx.getAddonVersionRaw,
+    isNoticeEnabled = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) ~= "table" or db.versionNoticeEnabled ~= false
+    end,
+    showNotice = function(peerVersion, ownVersion)
+      local L = type(ctx.getL) == "function" and ctx.getL() or nil
+      local format = type(L) == "table" and L.VERSION_NOTICE_NEWER or nil
+      if type(format) ~= "string" then
+        format = "isiLive %s is available on CurseForge - you have %s."
+      end
+      local ok, line = pcall(string.format, format, peerVersion, ownVersion)
+      if ok and type(ctx.printFn) == "function" then
+        ctx.printFn("|cffffd200" .. line .. "|r")
+      end
+    end,
+    sendGuildVersion = function(version)
+      local sync = addonTable.Sync
+      return type(sync) == "table"
+        and type(sync.SendGuildVersion) == "function"
+        and sync.SendGuildVersion(version) == true
+    end,
+  })
+end
+
 local function BuildEventHandlersDepsFromContext(ctx)
   return {
+    versionNotice = BuildVersionNotice(ctx),
     addonName = ctx.addonName,
     isRosterCollapsed = ctx.isRosterCollapsed,
     defaultLocale = ctx.defaultLocale,

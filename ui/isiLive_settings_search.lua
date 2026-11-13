@@ -78,6 +78,7 @@ SettingsSearch.CONTROL_TAGS = {
   tooltipFlags = { "tooltip", "flag", "language" },
   acceptedInviteNotice = { "invite", "lfg" },
   groupJoinNotice = { "invite", "lfg", "target" },
+  versionNotice = { "update", "version", "curseforge", "guild" },
   sync = { "sync", "share" },
   lockMainFramePosition = { "lock", "move", "position" },
   editModeIntegration = { "edit mode", "move", "position", "layout", "scale" },

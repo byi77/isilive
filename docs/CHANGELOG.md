@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-13 - Version 0.9.517 (patch)
+
+- Feature: update notice (rule 247). When a group member (HELLO/ACK) or a guild member runs a newer isiLive, the chat shows `isiLive X is available on CurseForge - you have Y.` once per session and version. Every client sends one guild ping (`VER:<version>`, prefix `ISILIVE`, channel `GUILD`, bulk priority) 15 s after login, only with sync on, a guild and outside the addon chat lockdown; a client that sees an older guild ping answers after a random 2-12 s, at most every 5 minutes, unless another client with the same or a newer version answered first. The guild channel accepts nothing but `VER:` and never touches the sync peer tables. New setting *Update notice* (`versionNoticeEnabled`, default on) in the display section, texts in all five languages.
+
 ## 2026-11-13 - Version 0.9.516 (patch)
 
 - Code: `game/isiLive_time_pace.lua` carries a notice that the time pace calculation must not be reused without written permission (LICENSE, section 2).
