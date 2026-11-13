@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-13 - Version 0.9.514 (patch)
 
 - Change: probe mode (rule 239) records everything the open in-game checks need. Probe mode is an admin tool and is now off after every reload and relog (it no longer persists); switching it on also switches the runtime log on (its context lines `[STATS]`, `[TIMEPACE]`, `[SYNC]`, `[INSTANCE_RESET]` belong to the probe session), and the ring holds 4000 instead of 1500 entries so two keys fit. New probe lines: `event=channel_stop` (every hostile channel end with `interruptedBy=nil|readable|secret` and the time since the own kick), `event=action_blocked` (an `ADDON_ACTION_BLOCKED` / `ADDON_ACTION_FORBIDDEN` naming isiLive, with the protected call and combat/key context), `event=kick_cell` (whether the run-kick pair and its landed-only fallback fit the kick column in the real font) and `event=challenge_reset kind=no_running_key` for the `CHALLENGE_MODE_RESET` the client fires ~0.2 s before every key start (the probe no longer logs it as a key end; `key_start` names `resetBeforeStartMs`, a reset inside a running key is `key_end kind=abandoned`).
 - Change: the instance reset trace logs `reset_success own=yes|no` and, after an own click, a system message that matched no pattern (`system_unmatched text=...`), so the localized `INSTANCE_RESET_SUCCESS` pattern can be checked from the log.

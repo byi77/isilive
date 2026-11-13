@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.513`.
+Current version: `0.9.514`.
 
 Version 0.9.513: all isiLive cards look alike: one width, one close button
 for the whole stack, an opaque background and fewer rows (the invite card
@@ -251,7 +251,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.513 -->
+<!-- highlights-reviewed-for: 0.9.514 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
