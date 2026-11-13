@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.516`.
+Current version: `0.9.517`.
+
+Version 0.9.517: isiLive tells you in chat when a group or guild member runs
+a newer version, so you know an update is waiting on CurseForge (Settings >
+Display > Update notice). The instance reset button now also appears after a
+key the group walked out of.
 
 Version 0.9.516: the time pace badge keeps moving during fights. It updates
 on every kill at the pull's kill tempo instead of standing still until the
@@ -259,17 +264,13 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.516 -->
+<!-- highlights-reviewed-for: 0.9.517 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
   Mode like any Blizzard frame, set layout, scale, opacity and the lock in its
   dialog; every Edit Mode layout keeps its own position, scale and layout. On
   by default, one switch under Settings > Behavior.
-- **One card stack.** The accepted-invite card, the talent and loot check and
-  the portal navigator stack at the screen center as one card with one header,
-  one width and one close button, slide in and fade out; the main window and
-  the settings window fade too.
 - **New optional helpers.** An AGGRO alert when a mob turns on you as a
   non-tank in a key, live kick counts of the running key in the roster tooltip
   (on by default) and a consumable check on dungeon entry that flags a
@@ -279,3 +280,5 @@ Highlights:
   chain pulls no longer freeze it.
 - **Spec icons in the roster.** Each member's specialization shows as an
   icon in the role badge style; the name column is wider.
+- **Update notice.** The chat tells you once per session when a group or
+  guild member runs a newer isiLive.

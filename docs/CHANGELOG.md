@@ -1,13 +1,10 @@
 # Changelog
 
-## Unreleased
-
-- Fix: the instance reset button (rule 235) now also appears after a key the group walked out of. Leaving a running key fires no `CHALLENGE_MODE_RESET` (probe log 2026-11-13): the reset only comes ~0.25 s before the next key start, so the button armed at that start and was cleared by it at once. A tracked key that is gone once the player stands readably outside now counts as left; re-entering the same running key drops that mark again.
-- Change: probe mode (rule 239) ends a key the group walked out of on the lifted ChallengeMode restriction (`key_end trigger=restriction_lifted kind=left`) instead of calling the next pre-start reset an abandoned key, and splits the channel-end budget: plain ends (`interruptedBy=nil`) are sampled (30 per key), interrupted ones are all logged (60 per key).
-
-## 2026-11-13 - Version 0.9.517 (patch)
+## 2026-11-14 - Version 0.9.517 (patch)
 
 - Feature: update notice (rule 247). When a group member (HELLO/ACK) or a guild member runs a newer isiLive, the chat shows `isiLive X is available on CurseForge - you have Y.` once per session and version. Every client sends one guild ping (`VER:<version>`, prefix `ISILIVE`, channel `GUILD`, bulk priority) 15 s after login, only with sync on, a guild and outside the addon chat lockdown; a client that sees an older guild ping answers after a random 2-12 s, at most every 5 minutes, unless another client with the same or a newer version answered first. The guild channel accepts nothing but `VER:` and never touches the sync peer tables. New setting *Update notice* (`versionNoticeEnabled`, default on) in the display section, texts in all five languages.
+- Fix: the instance reset button (rule 235) now also appears after a key the group walked out of. Leaving a running key fires no `CHALLENGE_MODE_RESET` (probe log 2026-11-13): the reset only comes ~0.25 s before the next key start, so the button armed at that start and was cleared by it at once. A tracked key that is gone once the player stands readably outside now counts as left; re-entering the same running key drops that mark again.
+- Change: probe mode (rule 239) ends a key the group walked out of on the lifted ChallengeMode restriction (`key_end trigger=restriction_lifted kind=left`) instead of calling the next pre-start reset an abandoned key, and splits the channel-end budget: plain ends (`interruptedBy=nil`) are sampled (30 per key), interrupted ones are all logged (60 per key).
 
 ## 2026-11-13 - Version 0.9.516 (patch)
 
