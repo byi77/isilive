@@ -13,23 +13,77 @@
 # Mirrors the GitHub Actions workflow (`.github/workflows/lua-check.yml`),
 # so a green pre-push usually guarantees a green CI.
 # Bypass with `git push --no-verify` if absolutely necessary.
+#
+# Never test the same code twice (user decision 2026-11-13): the gate is
+# skipped when nothing new would be checked --
+#   * deleted refs and refs the remote already has at this commit,
+#   * tags whose commit is already on a remote branch (release tags),
+#   * commits whose tree already passed the gate (a retried push).
+# A passed gate records the tree of a clean HEAD in .git/isilive-ci-passed.
 
 set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
-if command -v pwsh >/dev/null 2>&1; then
-  exec pwsh -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
+ZERO_SHA="0000000000000000000000000000000000000000"
+PASSED_FILE="$(git rev-parse --git-dir)/isilive-ci-passed"
+PASSED_TREE=""
+if [ -f "$PASSED_FILE" ]; then
+  PASSED_TREE="$(cat "$PASSED_FILE")"
 fi
 
-if command -v powershell.exe >/dev/null 2>&1; then
-  exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
+needs_gate=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  # Deleting a ref or pushing what the remote already has checks nothing.
+  if [ "$local_sha" = "$ZERO_SHA" ] || [ "$local_sha" = "$remote_sha" ]; then
+    continue
+  fi
+  commit="$(git rev-parse --verify --quiet "$local_sha^{commit}" || true)"
+  case "$local_ref" in
+    refs/tags/*)
+      # A tag on a commit that is already on a remote branch was checked
+      # when that branch was pushed.
+      if [ -n "$commit" ] && [ -n "$(git branch -r --contains "$commit" 2>/dev/null)" ]; then
+        echo "pre-push: $local_ref points at an already pushed commit; gate skipped."
+        continue
+      fi
+      ;;
+  esac
+  tree="$(git rev-parse --verify --quiet "$local_sha^{tree}" || true)"
+  if [ -n "$tree" ] && [ "$tree" = "$PASSED_TREE" ]; then
+    echo "pre-push: $local_ref already passed the gate at this tree; gate skipped."
+    continue
+  fi
+  needs_gate=1
+done
+
+if [ "$needs_gate" -eq 0 ]; then
+  exit 0
 fi
 
-if command -v powershell >/dev/null 2>&1; then
-  exec powershell -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
-fi
+run_gate() {
+  if command -v pwsh >/dev/null 2>&1; then
+    pwsh -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
+    return
+  fi
+  if command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
+    return
+  fi
+  if command -v powershell >/dev/null 2>&1; then
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
+    return
+  fi
+  echo "pre-push: PowerShell not found (pwsh / powershell.exe / powershell)." >&2
+  echo "Install PowerShell 7+ or skip explicitly with 'git push --no-verify'." >&2
+  exit 1
+}
 
-echo "pre-push: PowerShell not found (pwsh / powershell.exe / powershell)." >&2
-echo "Install PowerShell 7+ or skip explicitly with 'git push --no-verify'." >&2
-exit 1
+run_gate
+
+# Remember the tree that passed, but only when the working tree matched HEAD
+# (the gate checks the working tree, not the pushed commit).
+if git diff --quiet HEAD -- 2>/dev/null; then
+  git rev-parse HEAD^{tree} >"$PASSED_FILE"
+fi

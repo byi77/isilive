@@ -93,6 +93,8 @@ git tag isiLive_release_X.Y.Z
 git push origin isiLive_release_X.Y.Z
 ```
 
+Derselbe Code wird nie doppelt geprueft (User-Entscheidung 2026-11-13): Der Pre-Push-Hook (`.githooks/pre-push`) ueberspringt die lokale CI fuer einen Tag, dessen Commit schon auf einem Remote-Branch liegt, fuer Refs, die der Remote schon auf diesem Commit hat, und fuer einen Tree, der das Gate schon bestanden hat (`<git-dir>/isilive-ci-passed`). Der `Release`-Workflow ueberspringt sein Quality Gate (Job `prior-ci`), wenn `Lua Check` fuer genau den getaggten Commit schon erfolgreich war; sonst laeuft das Gate wie bisher vor dem Veroeffentlichen.
+
 Pre-Release-Tag-Formate fuer den Workflow `Pre-Release (Alpha/Beta)`:
 
 ```powershell

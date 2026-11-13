@@ -6,15 +6,44 @@ on:
       - "isiLive_release_*"
 
 jobs:
-  quality-gate:
+  # Never test the same code twice (user decision 2026-11-13): a release tag
+  # sits on a commit that main's push already ran through Lua Check. When that
+  # run succeeded for exactly this commit, the quality gate is skipped.
+  prior-ci:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.lookup.outputs.passed }}
+    steps:
+      - name: Look up a successful Lua Check run for this commit
+        id: lookup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/lua-check.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=1" --jq '.total_count' || echo 0)"
+          if [ "${COUNT:-0}" -gt 0 ]; then
+            echo "Lua Check already passed for ${GITHUB_SHA}; the quality gate is skipped."
+            echo "passed=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "No successful Lua Check run for ${GITHUB_SHA}; the quality gate runs."
+            echo "passed=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  quality-gate:
+    needs: prior-ci
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') && needs.prior-ci.outputs.passed != 'true' }}
     uses: ./.github/workflows/lua-check.yml
     permissions:
       contents: read
 
   publish-release:
-    needs: quality-gate
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') }}
+    needs: [prior-ci, quality-gate]
+    # Publishes after a green quality gate, or without one when Lua Check had
+    # already passed for this commit (the gate is then skipped, not failed).
+    if: ${{ always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') && needs.prior-ci.result == 'success' && (needs.quality-gate.result == 'success' || (needs.quality-gate.result == 'skipped' && needs.prior-ci.outputs.passed == 'true')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

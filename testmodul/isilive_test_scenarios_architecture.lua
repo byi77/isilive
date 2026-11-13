@@ -737,6 +737,32 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture release workflow skips the quality gate when Lua Check already passed the commit", function()
+    -- Never test the same code twice (user decision 2026-11-13): the release
+    -- tag sits on a commit main's push already ran through Lua Check.
+    local workflow = ReadFile(".github/workflows/release.yml")
+
+    AssertContains(
+      Assert,
+      workflow,
+      "actions/workflows/lua-check.yml/runs?head_sha=${GITHUB_SHA}&status=success",
+      "release workflow must look up a successful Lua Check run for the tagged commit"
+    )
+    AssertContains(
+      Assert,
+      workflow,
+      "needs.prior-ci.outputs.passed != 'true'",
+      "release workflow must run the quality gate only without a prior green Lua Check"
+    )
+    AssertContains(
+      Assert,
+      workflow,
+      "needs.quality-gate.result == 'success' || (needs.quality-gate.result == 'skipped'"
+        .. " && needs.prior-ci.outputs.passed == 'true')",
+      "release workflow must publish only after a green gate or a skipped gate with a prior green Lua Check"
+    )
+  end)
+
   test("Architecture release changelog highlights carry a current review marker", function()
     -- The stub is the release note CurseForge shows. Between 0.9.373 and
     -- 0.9.385 every release commit moved its version line and nothing else, so
