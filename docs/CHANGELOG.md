@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-13 - Version 0.9.513 (patch)
+
+- Change: the card stack is unified (rule 242). Every card has the same width of 480 px (was 680 px for notices, 760 px for the portal navigator, 444 px for the talent and loot check), the stack has one close button in its top-right corner that closes all cards (each card through its own dismiss path), and its background is opaque, so the main window no longer shows through. All card headlines share one size, the label column is 108 px, the portal tile of the invite card is 112 px wide, and the five portal navigator destinations sit at 10/30/50/70/90 % of the card width with long names wrapping onto a second line.
+- Change: fewer rows on the cards. The accepted-invite card shows dungeon and level, leader, navigation and the loadout in one row (the group title and the source row are gone); the dungeon and raid entry card shows `Name · Difficulty` in one row plus the hint (no source row, no own difficulty row); the simulator's group-full card loses its source row. Eight locale keys that only fed the removed rows are gone in all five languages.
+- Feature: the title bar shows a red `DEMOMODE` after the version while the demo roster is shown.
+- Change: the demo mode ends by itself when you enter a dungeon and after five minutes without input (no cursor movement and no moving character, sampled every ten seconds); the main window stays open, as on combat start.
+
 ## 2026-11-12 - Version 0.9.512 (patch)
 
 - Feature: the time pace badge no longer flips between ON TIME, CLOSE and TOO SLOW from pack to pack (rule 208, C3). The word is judged only when a pull ends or a boss dies, and only changes once the forecast is 30 seconds past the boundary it crosses (ON TIME -> CLOSE from 0 s, -> TOO SLOW from +60 s, back to ON TIME from -60 s); in between only the seconds count on. With the forces done and only the last boss left, the word holds until that boss dies. Calibrated on a logged +14 whose forecast moved by up to ~4 minutes between two pulls. The `[TIMEPACE]` trace also writes the shown word (`shown=`).

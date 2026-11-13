@@ -3,7 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.512`.
+Current version: `0.9.513`.
+
+Version 0.9.513: all isiLive cards look alike: one width, one close button
+for the whole stack, an opaque background and fewer rows (the invite card
+shows dungeon, leader, way there and loadout). The demo mode shows DEMOMODE in
+the title bar and ends by itself when you enter a dungeon or after five idle
+minutes.
 
 Version 0.9.512: the time pace badge is calm: ON TIME, CLOSE and TOO SLOW
 only change after a pull or a boss kill and only with a clear margin, and the
@@ -245,7 +251,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.512 -->
+<!-- highlights-reviewed-for: 0.9.513 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
@@ -254,7 +260,8 @@ Highlights:
   by default, one switch under Settings > Behavior.
 - **One card stack.** The accepted-invite card, the talent and loot check and
   the portal navigator stack at the screen center as one card with one header,
-  slide in and fade out; the main window and the settings window fade too.
+  one width and one close button, slide in and fade out; the main window and
+  the settings window fade too.
 - **New optional helpers.** An AGGRO alert when a mob turns on you as a
   non-tank in a key, live kick counts of the running key in the roster tooltip
   (on by default) and a consumable check on dungeon entry that flags a
