@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-13 - Version 0.9.516 (patch)
+
+- Code: `game/isiLive_time_pace.lua` carries a notice that the time pace calculation must not be reused without written permission (LICENSE, section 2).
+- Change: the time pace badge (rule 208) keeps moving during a fight instead of standing still until the pull ends, so a chain pull of 5-10 minutes no longer hides the pace. During a fight the answer moves only on kills, at the pull's kill tempo: the fight's time counts in full and every progress gain is credited at the time per progress the answer at the pull implied; between two kills it holds. A replay of 216 timed Warcraft Logs keys (+12 to +20, 24 per level, all eight dungeons) found it at least as accurate as the frozen answer (mean error 97 s against 98 s; inside pulls of 3+ minutes 87 s against 92 s, at +18 to +20 100 s against 100 s), while a forecast running with the clock drifted +260 s per pull of 3+ minutes. Pulls of 3+ minutes grow with the key level (72 at +12-14, 196 at +18-20). In a fight of 90 s or more every kill is also a checkpoint for the word (ON TIME / CLOSE / TOO SLOW), with the same 60 s buffer. The grey pause look of the badge is gone; the setting description says so in all five languages. The `[TIMEPACE]` trace adds `reason=pull_kill` (at most every 15 s) and `shownGap=`.
+
 ## 2026-11-13 - Version 0.9.515 (patch)
 
 - Change: the roster shows each member's specialization as an icon instead of a short text (rule 36). The icon is the client's spec icon (`GetSpecializationInfoByID`, found by class plus localized or English spec name via `Specs.GetSpecIcon`), 12 px in the shape of the role badges with their highlight and a rim in the role color; without a known spec a grey `-` stays. The spec column has no header any more (`COL_SPEC` removed in all five languages). Spec icon, role badge and flag now start at 8 px with 3 px gaps, so the name column starts at 56 px instead of 93 px and is 159 px wide instead of 122 px; key and every column to its right stay where they were. New textures `media/spec_mask.tga` and `media/spec_frame_{tank,healer,dps,none}.tga` from `tools/generate_role_badges.py`.

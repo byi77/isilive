@@ -47,12 +47,6 @@ local TIME_PACE_FONT_SIZE = 12
 local TIME_PACE_RIGHT_INSET = 2
 local TIME_PACE_BADGE_HEIGHT = 16
 local TIME_PACE_BADGE_PAD = 4
--- Pause sign in front of the text while a fight freezes the value: two bars.
-local TIME_PACE_PAUSE_BAR_WIDTH = 2
-local TIME_PACE_PAUSE_BAR_HEIGHT = 10
-local TIME_PACE_PAUSE_BAR_GAP = 2
-local TIME_PACE_PAUSE_TEXT_GAP = 4
-local TIME_PACE_PAUSE_ICON_WIDTH = 2 * TIME_PACE_PAUSE_BAR_WIDTH + TIME_PACE_PAUSE_BAR_GAP
 
 local TIME_PACE_FORMATS = {
   ontime = { key = "TIME_PACE_ONTIME_FMT", fallback = "ON TIME %s" },
@@ -74,7 +68,7 @@ local function FormatTimeDelta(pace, delta, verdict)
 end
 
 -- Time pace of the run (see game/isiLive_time_pace.lua) as badge text, its
--- state ("ontime", "tight" or "late") and whether a fight froze it, or nil
+-- state ("ontime", "tight" or "late"), or nil
 -- when nothing is shown: the forecast end time against the time limit, from
 -- the reference run or the projection. Without the TimePace module the
 -- setting cannot be read: fail closed.
@@ -106,7 +100,7 @@ local function BuildTimePaceText(data)
   else
     return nil
   end
-  return text, paceState, status.paused == true
+  return text, paceState
 end
 
 local TIME_PACE_BADGE_COLORS = {
@@ -134,34 +128,29 @@ local function SetRegionColor(region, method, color)
   end
 end
 
--- Live: white text on the state colour. Paused by a fight: the pill turns
--- grey, a pause sign leads, and the word keeps its state colour, so it reads
--- as "frozen" at a glance and still says on time / tight / late.
+-- White text on the state colour, in and out of a fight: during a fight the
+-- value moves on kills (game/isiLive_time_pace.lua), so it is never shown as
+-- frozen.
 local function UpdateTimePaceText(row, data)
   local fontString = row.killTrackTimePaceText
   if not fontString then
     return
   end
-  local text, paceState, paused = BuildTimePaceText(data)
+  local text, paceState = BuildTimePaceText(data)
   SetReadableText(fontString, text or "")
   local badge = row.killTrackTimePaceBadge
   ShowRegion(badge, text ~= nil)
-  ShowRegion(row.killTrackTimePausePrimary, text ~= nil and paused)
-  ShowRegion(row.killTrackTimePauseSecondary, text ~= nil and paused)
   if not text then
     return
   end
   local colors = UICommon.Colors or {}
   local tokens = TIME_PACE_BADGE_COLORS[paceState]
-  local bgColor = paused and colors.MPLUS_TIME_PACE_PAUSED_BG or colors[tokens.bg]
-  local textColor = paused and colors[tokens.text] or colors.WHITE_RGB
-  SetRegionColor(row.killTrackTimePaceBadgeBg, "SetVertexColor", bgColor)
-  SetRegionColor(fontString, "SetTextColor", textColor or { 1, 1, 1 })
+  SetRegionColor(row.killTrackTimePaceBadgeBg, "SetVertexColor", colors[tokens.bg])
+  SetRegionColor(fontString, "SetTextColor", colors.WHITE_RGB or { 1, 1, 1 })
   if badge and type(badge.SetWidth) == "function" and type(fontString.GetStringWidth) == "function" then
     -- Own font string holding our own plain badge text: the width is never secret.
     local textWidth = tonumber(fontString:GetStringWidth()) or 0 -- secret-value-ok
-    local iconWidth = paused and (TIME_PACE_PAUSE_ICON_WIDTH + TIME_PACE_PAUSE_TEXT_GAP) or 0
-    badge:SetWidth(math.ceil(textWidth) + iconWidth + 2 * TIME_PACE_BADGE_PAD)
+    badge:SetWidth(math.ceil(textWidth) + 2 * TIME_PACE_BADGE_PAD)
   end
 end
 
@@ -187,26 +176,6 @@ local function CreateTimePaceBadge(row, barOverlay)
   if type(timePaceBadgeBg.SetTexture) == "function" then
     timePaceBadgeBg:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
-  local pauseBars = {}
-  for i = 1, 2 do
-    local bar = timePaceBadge:CreateTexture(nil, "ARTWORK")
-    if type(bar.SetTexture) == "function" then
-      bar:SetTexture("Interface\\Buttons\\WHITE8X8")
-    end
-    if type(bar.SetWidth) == "function" then
-      bar:SetWidth(TIME_PACE_PAUSE_BAR_WIDTH)
-    end
-    if type(bar.SetHeight) == "function" then
-      bar:SetHeight(TIME_PACE_PAUSE_BAR_HEIGHT)
-    end
-    local x = TIME_PACE_BADGE_PAD + (i - 1) * (TIME_PACE_PAUSE_BAR_WIDTH + TIME_PACE_PAUSE_BAR_GAP)
-    if type(bar.SetPoint) == "function" then
-      bar:SetPoint("LEFT", timePaceBadge, "LEFT", x, 0)
-    end
-    SetRegionColor(bar, "SetVertexColor", (UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1, 1, 1 })
-    bar:Hide()
-    pauseBars[i] = bar
-  end
   timePaceBadge:Hide()
 
   local timePaceText = timePaceBadge:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
@@ -225,8 +194,6 @@ local function CreateTimePaceBadge(row, barOverlay)
   row.killTrackTimePaceText = timePaceText
   row.killTrackTimePaceBadge = timePaceBadge
   row.killTrackTimePaceBadgeBg = timePaceBadgeBg
-  row.killTrackTimePausePrimary = pauseBars[1]
-  row.killTrackTimePauseSecondary = pauseBars[2]
 end
 
 RI.CreateKillTrackTimePaceBadge = CreateTimePaceBadge

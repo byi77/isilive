@@ -225,8 +225,6 @@ local function NewRow()
     killTrackTimePaceText = NewTextStub(),
     killTrackTimePaceBadge = NewTextureStub(),
     killTrackTimePaceBadgeBg = NewTextureStub(),
-    killTrackTimePausePrimary = NewTextureStub(),
-    killTrackTimePauseSecondary = NewTextureStub(),
     killTrackTimeStrip = NewTextureStub(),
     killTrackTimeGap = NewTextureStub(),
   }
@@ -573,9 +571,9 @@ local function RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   end)
 end
 
--- Combat pause: the shown pace freezes for each fight in the key.
+-- Combat pause: during each fight in the key the shown pace moves only on kills.
 local function RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("TimePace freezes the shown pace during a fight and resumes once the pull's kills land", function()
+  test("TimePace moves the shown pace during a fight only on kills, at the pull's kill tempo", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()
       local addon = Load(LoadAddonModules)
@@ -587,20 +585,30 @@ local function RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.True(status.paused, "the frozen answer is marked as paused")
       Assert.True(math.abs(status.delta + 300) < 0.5, "the frozen answer is the one at the pull")
 
-      -- The clock runs, kills land mid-pull: the shown answer stays put.
+      -- The clock runs without kills: the shown answer holds.
       env.elapsed = 760
       Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(status.paused and math.abs(status.delta + 300) < 0.5, "no kill, no drift during the fight")
+
+      -- A kill at 790 s: forecast at the pull 1500 s, 800 s left for 0.5833 of
+      -- progress (1371.4 s per progress). The pull's 90 s count in full, its
+      -- 0.05 of progress is credited 68.6 s: -300 + 90 - 68.6 = -278.6.
       Advance(addon, env, 790, 180, 1)
       status = addon.KillTrack.GetData().timePace
-      Assert.True(status.paused and math.abs(status.delta + 300) < 0.5, "the answer does not drift during the fight")
+      Assert.True(status.paused, "the answer still belongs to the fight")
+      Assert.True(math.abs(status.delta + 278.6) < 0.5, "a kill moves the answer at the pull's kill tempo")
+      env.elapsed = 820
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
+      Assert.True(math.abs(addon.KillTrack.GetData().timePace.delta + 278.6) < 0.5, "between kills the answer holds")
 
       Dispatch(addon, "PLAYER_REGEN_ENABLED")
       Assert.True(addon.KillTrack.GetData().timePace.paused, "the grace window waits for the late criteria update")
       RunTimers(env)
       status = addon.KillTrack.GetData().timePace
       Assert.Nil(status.paused, "the grace window end releases the answer")
-      -- progress 0.4667 lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 868.6 s.
-      Assert.True(math.abs(status.delta - (790 - 868.6 - 200)) < 1, "the released answer counts the pull's kills")
+      -- Live again at 820 s: progress 0.4667 lies between 0.4167 (800 s) and 0.7083 (1200 s), at about 868.6 s.
+      Assert.True(math.abs(status.delta - (820 - 868.6 - 200)) < 1, "the released answer is live again")
 
       -- Learning used the real timer during the fight: the slower run becomes
       -- the reference and keeps the sample taken mid-pull.
@@ -722,7 +730,6 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.True(badge._shown, "the badge shows during a key")
       Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_ONTIME_BG[1], "on time is the green badge")
       Assert.Equal(line._color[1], colors.WHITE_RGB[1], "the live badge has white text")
-      Assert.False(row.killTrackTimePausePrimary._shown, "no pause sign outside a fight")
 
       PullTo(addon, env, 853, 150, 1)
       addon._RosterInternal.UpdateKillTrackRow(row)
@@ -739,19 +746,12 @@ local function RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_LATE_BG[1], "too slow is the red badge")
 
       Dispatch(addon, "PLAYER_REGEN_DISABLED")
-      Advance(addon, env, 1150, 150, 1)
+      env.elapsed = 1150
+      Dispatch(addon, "SCENARIO_CRITERIA_UPDATE")
       addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.Equal(line._text, "TOO SLOW 1:15", "a fight keeps the pull's answer")
-      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_PAUSED_BG[1], "a frozen answer turns the badge grey")
-      Assert.Equal(line._color[1], colors.TEXT_ALERT_DANGER[1], "the frozen word keeps the pull's red")
-      Assert.True(row.killTrackTimePausePrimary._shown, "the pause sign shows while frozen")
-      Assert.True(row.killTrackTimePauseSecondary._shown, "both pause bars show while frozen")
-
-      Dispatch(addon, "PLAYER_REGEN_ENABLED")
-      RunTimers(env)
-      addon._RosterInternal.UpdateKillTrackRow(row)
-      Assert.False(row.killTrackTimePausePrimary._shown, "the pause sign goes once the pull is counted")
-      Assert.Equal(line._color[1], colors.WHITE_RGB[1], "the live badge is back to white text")
+      Assert.Equal(line._text, "TOO SLOW 1:15", "a fight without kills keeps the pull's answer")
+      Assert.Equal(bg._color[1], colors.MPLUS_TIME_PACE_LATE_BG[1], "the badge keeps its state colour in a fight")
+      Assert.Equal(line._color[1], colors.WHITE_RGB[1], "and its white text: the value is not frozen")
     end)
   end)
 
@@ -848,6 +848,53 @@ local function RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)
 
       panel.Refresh()
       Assert.False(check:GetChecked(), "refresh must mirror the stored off state")
+    end)
+  end)
+end
+
+local function RegisterChainPullTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TimePace chain pull: fast kills lower the forecast, kills change the word only after 90 s", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      StartRun(addon, env)
+      -- 0.5 * 0.4 + 0.5 / 3 = 0.3667 at 600 s: whole 1636 s, 164 s ahead.
+      Advance(addon, env, 600, 120, 1)
+      Assert.Equal(addon.KillTrack.GetData().timePace.verdict, "ontime", "precondition: on time at the pull")
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      -- Time per progress at the pull: (1636.4 - 600) / 0.6333 = 1636.4 s.
+      -- A slow kill at 660 s (+3 %, 0.015): +60 - 24.5 = +35.5 s.
+      Advance(addon, env, 660, 129, 1)
+      local status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.projected - 1671.9) < 0.5, "a slow kill raises the forecast by the lost time")
+      Assert.Equal(status.verdict, "ontime", "inside the first 90 s a kill never changes the word")
+      -- Nothing dies until 800 s, then a kill brings the forecast to the limit.
+      -- At 800 s with 130 forces (0.3833): +200 - 0.01667 * 1636.4 = +172.7 s,
+      -- 9 s past the limit -- beyond the buffer of the on time boundary (0 s).
+      Advance(addon, env, 800, 130, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(math.abs(status.projected - 1809.1) < 0.5, "the stalled pull is charged at the next kill")
+      Assert.Equal(status.verdict, "tight", "past 90 s a kill is a checkpoint: on time turns close")
+      -- The chain speeds up: 30 % forces in 60 s more pulls the forecast back.
+      Advance(addon, env, 840, 222, 1)
+      status = addon.KillTrack.GetData().timePace
+      Assert.True(status.projected < 1700, "fast kills in a chain pull lower the forecast")
+      Assert.Equal(status.verdict, "ontime", "and turn the word back once past the buffer")
+    end)
+  end)
+
+  test("TimePace fight that starts before the first answer takes its base from the first kill", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      StartRun(addon, env)
+      Advance(addon, env, 70, 0, 0)
+      Dispatch(addon, "PLAYER_REGEN_DISABLED")
+      Assert.Nil(addon.KillTrack.GetData().timePace, "no answer before 5 % progress")
+      -- 60 forces at 200 s: 0.1 progress -> whole 2000 s.
+      Advance(addon, env, 200, 60, 0)
+      local status = Assert.NotNil(addon.KillTrack.GetData().timePace, "the first kill with an answer starts it")
+      Assert.True(status.paused and math.abs(status.projected - 2000) < 0.5, "the base is the live answer then")
     end)
   end)
 end
@@ -995,6 +1042,7 @@ return function(test, ctx)
   RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCombatPauseTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterChainPullTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKillRowTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTimeOverlayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingTests(test, Assert, WithGlobals, LoadAddonModules)

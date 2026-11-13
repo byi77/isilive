@@ -2,6 +2,14 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Copyright (c) 2026 mematiWoW. All rights reserved.
+--
+-- NOTICE: this time pace calculation (progress model, forecast, kill-percent
+-- tempo during fights, verdict smoothing and the calibration behind them)
+-- must not be copied, reused or adapted, in whole or in part, in other
+-- addons, programs, websites or other works without prior written permission
+-- from the author. See LICENSE, section 2.
+--
 -- Time pace for the M+ killtracker: is the current key on its way to time?
 --
 -- Run progress is one number from 0 to 1: half enemy forces, half killed
@@ -27,10 +35,18 @@ addonTable = addonTable or {}
 --                 The median keeps one estimate going wild out of the answer.
 --
 -- During a pull the clock runs while progress only moves on kills, so the
--- answer drifts towards late and snaps back when mobs die. KillTrack
--- therefore pauses the shown answer for each fight in the key: PauseStatus
--- freezes the answer at the pull and ResumeStatus releases it once the
--- kills of the pull are counted. Learning keeps the real timer throughout.
+-- live answer drifts towards late and snaps back when mobs die (WCL replay
+-- of 216 timed keys +12 to +20, 2026-11-13: +260 s median drift over a pull
+-- of 3+ minutes).
+-- KillTrack therefore pauses the shown answer for each fight in the key:
+-- PauseStatus takes the answer at the pull, ResumeStatus releases it once
+-- the kills of the pull are counted. In between the shown answer moves only
+-- on kills, at the pull's kill-percent tempo: the pull's time counts in
+-- full, and every kill credits its progress at the time per progress the
+-- answer at the pull implied. Between kills it holds, so a long chain pull
+-- keeps moving without drifting (same replay: mean error 97 s against 98 s
+-- for a frozen answer, 87 s against 92 s inside pulls of 3+ minutes, median
+-- drift +23 s per long pull). Learning keeps the real timer throughout.
 --
 -- Trace: while the runtime log is on, a `[TIMEPACE]` line records every
 -- estimate (whole / rolling / curve / reference), the progress split and the
@@ -73,6 +89,12 @@ local TIGHT_SECONDS = 30
 -- checkpoint (pull end, boss kill) and only when the forecast lies this far
 -- past the boundary it crosses -- a 60 s buffer around each boundary.
 local VERDICT_HYSTERESIS = 30
+-- A kill inside a fight is a checkpoint once the fight runs this long, so a
+-- chain pull of several minutes can still change the word; shorter pulls
+-- keep it until they end.
+local COMBAT_CHECKPOINT_AFTER = 90
+-- At most one `pull_kill` trace line per this many seconds of a fight.
+local PULL_KILL_TRACE_INTERVAL = 15
 
 local IsFiniteNumber = addonTable.Validators.IsFiniteNumber
 local IsSecretValue = addonTable.Validators.IsSecretValue
@@ -191,13 +213,32 @@ local function NewRun(trackedFromStart)
   }
 end
 
--- Answer frozen by PauseStatus while a fight in the key runs. `active` is
--- separate from `status` because the frozen answer may be nil.
-local paused = { active = false, status = nil }
+-- Shown answer while a fight in the key runs (PauseStatus). `active` is
+-- separate from `status` because the answer may be nil. `base` is the answer
+-- at the pull (or at the first kill that gave one), with the elapsed time
+-- and progress it was taken at and its forecast as an absolute finish time.
+local paused = {
+  active = false,
+  status = nil,
+  base = nil,
+  baseElapsed = nil,
+  baseProgress = nil,
+  baseForecast = nil,
+  pullStart = nil,
+  appliedProgress = nil,
+  lastTrace = nil,
+}
 
 local function ClearPause()
   paused.active = false
   paused.status = nil
+  paused.base = nil
+  paused.baseElapsed = nil
+  paused.baseProgress = nil
+  paused.baseForecast = nil
+  paused.pullStart = nil
+  paused.appliedProgress = nil
+  paused.lastTrace = nil
 end
 
 -- [TIMEPACE] trace sink (SetTraceLogger) and the verdict of the answer shown
@@ -209,9 +250,11 @@ local lastVerdict = "none"
 -- answer of the run.
 local shownVerdict = nil
 local TraceStatus
--- Assigned below ComputeStatus as well: Observe runs the boss checkpoint.
+-- Assigned below ComputeStatus as well: Observe runs the boss checkpoint
+-- and moves the shown answer of a running fight.
 local WithVerdict
 local VerdictCheckpoint
+local AdvancePause
 
 -- Progress from one snapshot, or nil when forces or bosses are unresolved.
 local function ComputeProgress(snapshot)
@@ -369,9 +412,14 @@ function TimePace.Observe(snapshot)
   run.forces = percent
   run.bossTotal = total
   RecordProgress(progress, kills)
-  if bossDied then
+  if paused.active then
+    -- A boss killed inside the fight is a checkpoint of the fight's answer.
+    AdvancePause(bossDied)
+  elseif bossDied then
     -- Checkpoint: a boss kill may change the verdict.
     VerdictCheckpoint()
+  end
+  if bossDied then
     TraceStatus("boss")
   end
 end
@@ -744,7 +792,7 @@ local function BuildTraceLine(reason, status)
   local limit = timer and timer.timeLimit or nil
   return string.format(
     "[TIMEPACE] reason=%s mode=%s verdict=%s shown=%s gap=%s forecast=%s limit=%s elapsed=%s progress=%s "
-      .. "forces=%s bosses=%s/%s whole=%s rolling=%s curve=%s paused=%s key=%s learn=%s",
+      .. "forces=%s bosses=%s/%s whole=%s rolling=%s curve=%s paused=%s key=%s learn=%s shownGap=%s",
     reason,
     type(status) == "table" and tostring(status.mode) or "none",
     VerdictOf(status),
@@ -762,7 +810,8 @@ local function BuildTraceLine(reason, status)
     FormatSeconds(curve),
     tostring(paused.active),
     tostring(run.keyLevel),
-    tostring(run.learnable)
+    tostring(run.learnable),
+    (paused.active and StatusDelta(paused.status)) and string.format("%+.0f", StatusDelta(paused.status)) or "nil"
   )
 end
 
@@ -793,7 +842,7 @@ end
 -- Pace answer for the current run on `mapID`, or nil:
 --   { mode = "reference", delta = s, keyLevel = n }   (delta < 0 = ahead)
 --   { mode = "projection", projected = s, timeLimit = s }
--- While paused, the answer frozen at the pull with `paused = true`.
+-- During a fight, the fight's answer (moved only by kills) with `paused = true`.
 function TimePace.GetStatus(mapID)
   if type(run) ~= "table" or not IsPositiveInteger(mapID) or run.mapID ~= mapID then
     return nil
@@ -808,15 +857,106 @@ function TimePace.GetStatus(mapID)
   return status
 end
 
--- Freezes the shown answer at the start of a fight (PLAYER_REGEN_DISABLED).
--- A pull inside the post-combat grace window freezes again with the
--- progress the previous pull reached.
+-- Absolute finish time of a status, or nil.
+local function ForecastOf(status, timeLimit)
+  local delta = StatusDelta(status)
+  if not delta then
+    return nil
+  end
+  if status.mode == "projection" then
+    return status.projected
+  end
+  return IsFiniteNumber(timeLimit) and timeLimit + delta or nil
+end
+
+local function CopyStatus(status)
+  local copy = {}
+  for key, value in pairs(status) do
+    copy[key] = value
+  end
+  copy.verdict = nil
+  copy.paused = true
+  return copy
+end
+
+-- Makes `status`, taken at `elapsed` with `progress`, the base of the fight.
+local function SetPauseBase(status, elapsed, progress)
+  local timer = ReadTimer()
+  local forecast = ForecastOf(status, timer and timer.timeLimit)
+  if not forecast or not IsFiniteNumber(elapsed) or not IsFiniteNumber(progress) or progress >= 1 then
+    return false
+  end
+  paused.base = CopyStatus(status)
+  paused.baseElapsed = elapsed
+  paused.baseProgress = progress
+  paused.baseForecast = forecast
+  return true
+end
+
+-- The fight's answer at `elapsed` with `progress`: the base forecast plus
+-- the fight's time, minus the fight's progress at the base's time per
+-- progress.
+local function KillTempoStatus(elapsed, progress)
+  local timePerProgress = math.max(0, (paused.baseForecast - paused.baseElapsed) / (1 - paused.baseProgress))
+  local shift = (elapsed - paused.baseElapsed) - (progress - paused.baseProgress) * timePerProgress
+  local status = CopyStatus(paused.base)
+  if status.mode == "projection" then
+    status.projected = status.projected + shift
+  else
+    status.delta = status.delta + shift
+  end
+  return status
+end
+
+-- Moves the fight's answer on a progress gain (a kill). Without an answer at
+-- the pull (too early in the key) the first kill that gives one becomes the
+-- base. A boss kill, and in a fight past COMBAT_CHECKPOINT_AFTER every kill,
+-- is a checkpoint for the word.
+AdvancePause = function(bossDied)
+  if type(run) ~= "table" or not IsPositiveInteger(run.mapID) then
+    return
+  end
+  local progress = run.progress
+  if not IsFiniteNumber(progress) or (paused.appliedProgress ~= nil and progress <= paused.appliedProgress) then
+    return
+  end
+  local timer = ReadTimer()
+  if not timer then
+    return
+  end
+  paused.appliedProgress = progress
+  local elapsed = timer.timer
+  local status = nil
+  if paused.base then
+    status = KillTempoStatus(elapsed, progress)
+  else
+    local live = ComputeStatus(run.mapID)
+    if live and SetPauseBase(live, elapsed, progress) then
+      status = CopyStatus(live)
+    end
+  end
+  if not status then
+    return
+  end
+  local longFight = paused.pullStart ~= nil and elapsed - paused.pullStart >= COMBAT_CHECKPOINT_AFTER
+  local checkpoint = bossDied == true or longFight
+  paused.status = WithVerdict(status, checkpoint)
+  if longFight and (paused.lastTrace == nil or elapsed - paused.lastTrace >= PULL_KILL_TRACE_INTERVAL) then
+    paused.lastTrace = elapsed
+    TraceStatus("pull_kill")
+  end
+end
+
+-- Takes the shown answer at the start of a fight (PLAYER_REGEN_DISABLED);
+-- from then on it moves only on kills (AdvancePause). A pull inside the
+-- post-combat grace window starts again from the progress the previous pull
+-- reached.
 function TimePace.PauseStatus()
   ClearPause()
   if type(run) ~= "table" or not IsPositiveInteger(run.mapID) then
     return
   end
-  -- Traced before freezing: the frozen answer is the live one at the pull.
+  -- Traced before pausing: the answer is the live one at the pull.
   TraceStatus("pull_start")
   local status = WithVerdict(ComputeStatus(run.mapID), false)
   if status then
@@ -824,6 +964,14 @@ function TimePace.PauseStatus()
   end
   paused.active = true
   paused.status = status
+  paused.appliedProgress = run.progress
+  local timer = ReadTimer()
+  if timer then
+    paused.pullStart = timer.timer
+    if status then
+      SetPauseBase(status, timer.timer, run.progress)
+    end
+  end
 end
 
 -- Releases the frozen answer once the fight's kills are counted.

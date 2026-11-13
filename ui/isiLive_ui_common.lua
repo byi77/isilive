@@ -128,7 +128,6 @@ UICommon.Colors = {
   MPLUS_TIME_PACE_ONTIME_BG = { 0.1, 0.5, 0.2, 0.5 },
   MPLUS_TIME_PACE_TIGHT_BG = { 0.72, 0.5, 0.04, 0.5 },
   MPLUS_TIME_PACE_LATE_BG = { 0.72, 0.1, 0.1, 0.5 },
-  MPLUS_TIME_PACE_PAUSED_BG = { 0.2, 0.21, 0.24, 0.5 },
 
   -- Restrained danger states for the shared close control. Only hover and
   -- press expose red; the default state uses the quiet secondary surface.

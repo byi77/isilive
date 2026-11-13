@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.515`
+Versionsbasis: `0.9.516`
 Zuletzt aktualisiert: `2026-11-13`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -630,7 +630,7 @@ Ziel: Der Spieler sieht im laufenden Key, ob die Gruppe in der Zeit liegt, gemes
 1. Trigger: dieselben `KillTrack`-Ereignisse wie UC-29; `KillTrack` reicht jeden Snapshot an `TimePace` weiter, verstrichene Zeit, Zeitlimit und Keystufe kommen aus `MplusTimer`.
 2. Verarbeitung: Fortschritt = halb Enemy Forces, halb tote Bosse. Ab `CHALLENGE_MODE_START` zeichnet `TimePace` bei jedem Fortschrittszuwachs ein Zeit-/Fortschritts-Sample auf; zusaetzlich haelt es fuer jeden Run, auch nach Reload, einen Verlauf der letzten 240 Sekunden. Die Prognose ohne Referenz ist der Median aus gesamtem Run (Zeit / Fortschritt), Tempo der letzten 240 Sekunden (ab 120 Sekunden Verlauf) und Zeitkurve des Dungeons, soweit vorhanden.
 3. Regel: Gespeichert wird bei `CHALLENGE_MODE_COMPLETED` nur ein ab Start verfolgter, getimter Run (`GetChallengeCompletionInfo().onTime`) ohne vorab tote Bosse mit passender Map und Keystufe; je Season, Dungeon und Keystufe bleibt der langsamste. `CHALLENGE_MODE_RESET` verwirft den Run.
-4. Output: Rechts auf dem Killtracker-Balken steht eine Badge mit Zustandswort und Abstand der prognostizierten Endzeit zum Zeitlimit ohne Vorzeichen: `IN TIME 1:12` (gruen, im Limit), `KNAPP 0:18` (gelb, bis 30 Sekunden um das Limit) oder `ZU LANGSAM 0:40` (rot, darueber). Im Kampf wird die Badge grau mit Pause-Zeichen und zeigt den Stand vom Pull, bis dessen Kills gezaehlt sind. Im laufenden Key steht kein Dungeonname auf dem Balken. Mit Referenz ist die Prognose deren Laufzeit plus der Abstand beim selben Fortschritt, ohne Referenz der Median der Schaetzungen.
+4. Output: Rechts auf dem Killtracker-Balken steht eine Badge mit Zustandswort und Abstand der prognostizierten Endzeit zum Zeitlimit ohne Vorzeichen: `IN TIME 1:12` (gruen, im Limit), `KNAPP 0:18` (gelb, bis 30 Sekunden um das Limit) oder `ZU LANGSAM 0:40` (rot, darueber). Im Kampf bleibt die Badge sichtbar und bewegt sich nur bei Kills: Die Zeit des Pulls zaehlt voll, jeder Kill wird im Tempo von vor dem Pull gutgeschrieben; zwischen zwei Kills steht der Wert, auch bei Chainpulls ueber mehrere Minuten. Im laufenden Key steht kein Dungeonname auf dem Balken. Mit Referenz ist die Prognose deren Laufzeit plus der Abstand beim selben Fortschritt, ohne Referenz der Median der Schaetzungen.
 5. Erfolgskriterium: Ohne aktiven Run, am Anfang des Keys (unter 5 % Fortschritt oder 60 Sekunden) oder bei ausgeschaltetem `timePaceEnabled` bleibt die Anzeige leer.
 
 ## UC-31 Time to Kill des Ziels
