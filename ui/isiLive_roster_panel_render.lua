@@ -783,6 +783,9 @@ local function RenderRosterImpl(state, roster)
 
   if state.uiRef then
     state.uiRef.memberRows = memberRows
+    if type(RI.ApplyDemoTitleMarker) == "function" then
+      RI.ApplyDemoTitleMarker(state.uiRef, roster)
+    end
   end
   local layoutMode = state.uiRef and state.uiRef.layoutMode or LAYOUT_MODE_EXPANDED
   local isCollapsed = IsCompactLayoutMode(layoutMode)

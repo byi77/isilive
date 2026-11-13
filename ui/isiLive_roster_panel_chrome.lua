@@ -696,11 +696,22 @@ local function ResolveAddonVersionSuffix()
   return "v" .. version
 end
 
+-- Untranslated on purpose: the marker reads the same in every language.
+local DEMO_TITLE_MARKER = "  |cffff4040DEMOMODE|r"
+
+local function ResolveTitleVersionText(ui)
+  local suffix = ResolveAddonVersionSuffix()
+  if ui.demoTitleActive == true then
+    return suffix .. DEMO_TITLE_MARKER
+  end
+  return suffix
+end
+
 local function ApplyPanelTitleLocalization(ui, L)
   ui.title:SetText(tostring(L.TITLE or "isiLive"))
   ApplyLocaleFontIfAvailable(ui.title)
   if ui.titleVersion then
-    ui.titleVersion:SetText(ResolveAddonVersionSuffix())
+    ui.titleVersion:SetText(ResolveTitleVersionText(ui))
     ApplyLocaleFontIfAvailable(ui.titleVersion)
   end
   if ui.titleHint then
@@ -806,3 +817,30 @@ RI.AttachPanelButtonTooltip = AttachPanelButtonTooltip
 RI.AttachModeButtonTooltip = AttachModeButtonTooltip
 RI.CreateTankHelperButtons = CreateTankHelperButtons
 RI.ApplyPanelLocalization = ApplyPanelLocalization
+
+--- Shows DEMOMODE in the title bar while the rendered roster holds demo
+--- dummies; every render re-checks, so entering and leaving the demo flips it.
+local function ApplyDemoTitleMarker(ui, roster)
+  if type(ui) ~= "table" or not ui.titleVersion then
+    return
+  end
+  local active = false
+  if type(roster) == "table" then
+    for _, info in pairs(roster) do
+      if type(info) == "table" and info.isDemoEntry == true then
+        active = true
+        break
+      end
+    end
+  end
+  if (ui.demoTitleActive == true) == active then
+    return
+  end
+  ui.demoTitleActive = active
+  ui.titleVersion:SetText(ResolveTitleVersionText(ui))
+  if type(ui.ApplyTitleBudget) == "function" then
+    ui.ApplyTitleBudget()
+  end
+end
+
+RI.ApplyDemoTitleMarker = ApplyDemoTitleMarker

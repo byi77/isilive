@@ -100,38 +100,30 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload, navigationText, 
   end
   fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = dungeonValue }
 
-  if type(payload.groupName) == "string" and payload.groupName ~= "" then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = payload.groupName }
-  end
-
+  -- At most four rows (rule 242): the group title repeats the dungeon line
+  -- and the source is visible from the card title, so both are left out.
   if type(payload.leaderName) == "string" and payload.leaderName ~= "" then
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = payload.leaderName }
   end
-
-  fields[#fields + 1] = {
-    label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
-    value = L[payload.sourceTextKey]
-      or payload.sourceText
-      or L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED
-      or "LFG accepted invite",
-  }
 
   if type(navigationText) == "string" and navigationText ~= "" then
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_NAVIGATION or "Navigation:", value = navigationText }
   end
 
-  -- Loadout block: its label row, then "Talents" and "Loot" as grouped
-  -- sub-rows in the label column (no hairline in between).
+  -- Loadout in one row: the talents and loot summaries (each already names
+  -- itself and carries its status icon) side by side, on the warning strip
+  -- when either is off.
   if type(loadoutFields) == "table" and #loadoutFields > 0 then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:", value = "" }
+    local parts, warning = {}, false
     for _, subField in ipairs(loadoutFields) do
-      fields[#fields + 1] = {
-        label = subField.label,
-        value = subField.value,
-        warning = subField.warning == true,
-        grouped = true,
-      }
+      parts[#parts + 1] = subField.value
+      warning = warning or subField.warning == true
     end
+    fields[#fields + 1] = {
+      label = L.INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT or "Loadout:",
+      value = table.concat(parts, "   "),
+      warning = warning,
+    }
   end
 
   return fields
@@ -226,7 +218,6 @@ local function BuildAcceptedInviteNoticeArgs(ctx, modules, payload)
       teleportMapID = mapID,
       -- Fixed kind: a loadout mismatch marks its own row, not the whole card.
       noticeKind = hasTeleportContext and "action" or "info",
-      frameWidth = 680,
       persistent = true,
       rebuild = Rebuild,
     },
@@ -278,7 +269,6 @@ local function ShowJoinedTargetNotice(ctx, modules)
   local leaderName = nil
   local groupName = nil
   -- Keys, not texts: the open card is rebuilt on a language switch.
-  local sourceTextKey = nil
   local titleKey = nil
   local usedQueueListingIdentity = false
   if type(lfgDetect) == "table" then
@@ -298,7 +288,6 @@ local function ShowJoinedTargetNotice(ctx, modules)
     end
   end
   if usedQueueListingIdentity then
-    sourceTextKey = "INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING"
     titleKey = "INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING"
   end
 
@@ -308,7 +297,6 @@ local function ShowJoinedTargetNotice(ctx, modules)
     level = targetInfo.level,
     leaderName = leaderName,
     groupName = groupName,
-    sourceTextKey = sourceTextKey,
     titleKey = titleKey,
   }, false)
 end
@@ -344,7 +332,6 @@ local function BuildAcceptedRaidInviteOptions(ctx, modules, payload)
     eyebrow = L.INVITE_ACCEPTED_RAID_NOTICE_EYEBROW or "Raid Target",
     title = L.INVITE_ACCEPTED_RAID_NOTICE_TITLE or "isiLive - Raid invite accepted",
     fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload),
-    frameWidth = 540,
     persistent = true,
     rebuild = function()
       return { showOptions = BuildAcceptedRaidInviteOptions(ctx, modules, payload) }

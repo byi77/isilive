@@ -91,6 +91,9 @@ UICommon.Colors = {
   SURFACE_RUN_ZONE = { 0.035, 0.055, 0.085, 0.86 },
   BORDER_RUN_ZONE = { 0.22, 0.48, 0.72, 0.54 },
   SURFACE_NOTICE = { 0.035, 0.05, 0.075, 0.90 },
+  -- The card stack (rule 242): opaque, so nothing behind any card
+  -- section shows through.
+  SURFACE_CARD_STACK = { 0.035, 0.05, 0.075, 1 },
   BORDER_NOTICE = { 0.24, 0.55, 0.82, 0.58 },
   ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
   -- Notice card rows: hairline between field rows, tinted strip behind a
@@ -706,6 +709,11 @@ UICommon.BACKDROP_PRESETS = {
   NOTICE = {
     backdrop = BACKDROP_PANEL,
     bgColor = UICommon.Colors.SURFACE_NOTICE,
+    borderColor = UICommon.Colors.BORDER_NOTICE,
+  },
+  CARD_STACK = {
+    backdrop = BACKDROP_PANEL,
+    bgColor = UICommon.Colors.SURFACE_CARD_STACK,
     borderColor = UICommon.Colors.BORDER_NOTICE,
   },
   TOOLTIP = {

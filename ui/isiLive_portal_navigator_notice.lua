@@ -8,21 +8,24 @@ local PortalNavigatorNotice = {}
 addonTable.PortalNavigatorNotice = PortalNavigatorNotice
 
 -- The crescent starts below the shared notice header band (chip row, headline
--- and hairline end at about 77 px).
+-- and hairline end at about 70 px). Each entry is centered at `fraction` of
+-- the card width, so the crescent follows the stack width (rule 242).
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
-  left = { point = "TOPLEFT", x = 36, y = -154, iconX = 0, iconY = -6 },
-  half_left = { point = "TOPLEFT", x = 178, y = -114, iconX = 0, iconY = -6 },
-  center = { point = "TOP", x = 0, y = -94, iconX = 0, iconY = -6 },
-  half_right = { point = "TOPRIGHT", x = -178, y = -114, iconX = 0, iconY = -6 },
-  right = { point = "TOPRIGHT", x = -36, y = -154, iconX = 0, iconY = -6 },
+  left = { fraction = 0.1, y = -144, iconX = 0, iconY = -6 },
+  half_left = { fraction = 0.3, y = -110, iconX = 0, iconY = -6 },
+  center = { fraction = 0.5, y = -90, iconX = 0, iconY = -6 },
+  half_right = { fraction = 0.7, y = -110, iconX = 0, iconY = -6 },
+  right = { fraction = 0.9, y = -144, iconX = 0, iconY = -6 },
 }
+
+local EYEBROW_FONT_DELTA = 3
 
 local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
 
 -- Vertical space one entry needs below its anchor: direction label, icon,
 -- destination line, and the "Unoccupied" detail line an empty slot adds, plus
 -- the bottom padding.
-local PORTAL_NAVIGATOR_ENTRY_STACK_HEIGHT = 110
+local PORTAL_NAVIGATOR_ENTRY_STACK_HEIGHT = 124
 
 -- The frame height follows the deepest slot instead of being a free number.
 -- The slots are staggered to mirror the portal room, and the outer pair sits
@@ -49,16 +52,16 @@ local function BuildConfig(opts)
   return {
     parent = opts.parent or UIParent,
     frameName = frameName,
-    width = tonumber(opts.width) or 760,
+    width = tonumber(opts.width) or ((addonTable.CardStack and addonTable.CardStack.CARD_WIDTH) or 480),
     height = tonumber(opts.height) or ResolveDefaultFrameHeight(),
     yOffset = tonumber(opts.yOffset) or 190,
     frameAlpha = tonumber(opts.frameAlpha) or 1,
     backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.62,
     fontDelta = tonumber(opts.fontDelta) or 2,
-    headerFontDelta = tonumber(opts.headerFontDelta) or 10,
-    paddingX = tonumber(opts.paddingX) or 24,
+    headerFontDelta = tonumber(opts.headerFontDelta) or 6,
+    paddingX = tonumber(opts.paddingX) or 20,
     paddingY = tonumber(opts.paddingY) or 14,
-    entryWidth = tonumber(opts.entryWidth) or 180,
+    entryWidth = tonumber(opts.entryWidth) or 92,
     frameStrata = type(opts.frameStrata) == "string" and opts.frameStrata ~= "" and opts.frameStrata or nil,
     frameLevel = tonumber(opts.frameLevel),
   }
@@ -98,7 +101,8 @@ end
 
 local function CreateEyebrow(frame, config, deps)
   local eyebrow = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  deps.increaseFontSize(eyebrow, math.max(0, math.floor((tonumber(config.headerFontDelta) or 0) / 3)))
+  -- Same eyebrow size as the rich center notice (its fontDelta 10 / 3).
+  deps.increaseFontSize(eyebrow, EYEBROW_FONT_DELTA)
   eyebrow:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
   eyebrow:SetJustifyH("LEFT")
   eyebrow:SetJustifyV("TOP")
@@ -148,7 +152,7 @@ local function CreateEntry(frame, config, slot, deps)
     direction:SetNonSpaceWrap(false)
   end
   direction:SetTextColor(unpack(colors.CYAN_DIRECTION or { 0.38, 0.92, 1 }))
-  direction:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
+  direction:SetPoint("TOP", frame, "TOPLEFT", math.floor(pointDef.fraction * config.width), pointDef.y)
 
   local iconBg = frame:CreateTexture(nil, "BACKGROUND")
   if type(iconBg.SetSize) == "function" then
@@ -166,8 +170,9 @@ local function CreateEntry(frame, config, slot, deps)
 
   text:SetWidth(config.entryWidth)
   text:SetJustifyH("CENTER")
-  text:SetJustifyV("MIDDLE")
-  text:SetWordWrap(false)
+  text:SetJustifyV("TOP")
+  -- Narrow entries: a long dungeon name wraps onto a second line.
+  text:SetWordWrap(true)
   if text.SetNonSpaceWrap then
     text:SetNonSpaceWrap(false)
   end
@@ -185,12 +190,30 @@ local function CreateEntry(frame, config, slot, deps)
   detail:SetPoint("TOP", text, "BOTTOM", 0, -2)
 
   return {
+    pointDef = pointDef,
     direction = direction,
     destination = text,
     detail = detail,
     iconBg = iconBg,
     iconCore = iconCore,
   }
+end
+
+-- Re-centers every entry on its share of a new card width.
+local function AnchorEntries(state, width)
+  for _, slot in ipairs(PORTAL_NAVIGATOR_SLOT_ORDER) do
+    local node = state.nodes[slot]
+    if node and node.pointDef then
+      node.direction:ClearAllPoints()
+      node.direction:SetPoint(
+        "TOP",
+        state.frame,
+        "TOPLEFT",
+        math.floor(node.pointDef.fraction * width),
+        node.pointDef.y
+      )
+    end
+  end
 end
 
 local function SetIconTexture(iconFrame, icon)
@@ -419,10 +442,11 @@ function PortalNavigatorNotice.Create(opts, deps)
   local cardStack = addonTable.CardStack
   if type(cardStack) == "table" and type(cardStack.Register) == "function" then
     state.section = cardStack.Register("portal", frame, {
-      preferredWidth = config.width,
+      closeButton = closeButton,
+      close = Hide,
       relayout = function(width)
-        -- The crescent is anchored to the edges; only the header follows.
         state.width = width
+        AnchorEntries(state, width)
         if state.lastLayout then
           ApplyLayout(state, state.lastLayout)
         end

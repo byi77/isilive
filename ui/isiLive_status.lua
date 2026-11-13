@@ -594,6 +594,14 @@ end
 
 Status.ResolveInstanceDisplayName = ResolveInstanceDisplayName
 
+-- "King's Rest · Normal": name and difficulty share one card row.
+local function JoinNameAndDifficulty(name, difficultyText)
+  if type(difficultyText) == "string" and difficultyText ~= "" then
+    return name .. " \194\183 " .. difficultyText
+  end
+  return name
+end
+
 local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanceName)
   local template
   local showOpts
@@ -605,15 +613,9 @@ local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanc
       fields = {
         {
           label = L.NON_MYTHIC_NOTICE_LABEL_RAID or "Raid:",
-          value = instanceName or L.DUNGEON_DIFF_RAID_UNKNOWN or "Raid",
-        },
-        { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = difficultyText },
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
-          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+          value = JoinNameAndDifficulty(instanceName or L.DUNGEON_DIFF_RAID_UNKNOWN or "Raid", difficultyText),
         },
       },
-      frameWidth = 680,
     }
   else
     template = L.NON_MYTHIC_ENTERED or "Non-Mythic: %s"
@@ -623,21 +625,18 @@ local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanc
       fields = {
         {
           label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
-          value = instanceName or L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon",
+          value = JoinNameAndDifficulty(
+            instanceName or L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon",
+            difficultyText
+          ),
         },
-        { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = difficultyText },
         {
           label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
           value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
           warning = true,
           blink = true,
         },
-        {
-          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
-          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
-        },
       },
-      frameWidth = 680,
     }
   end
   return template, showOpts

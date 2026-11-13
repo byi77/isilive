@@ -693,7 +693,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.Equal(point, "TOPLEFT", "field value should anchor from the left text block")
       Assert.Equal(relativeTo, centerNotice.frame, "field value should anchor to the center notice frame")
       Assert.Equal(relativePoint, "TOPLEFT", "field value should use a stable top-left anchor")
-      Assert.Equal(x, 170, "field values should start farther to the right")
+      Assert.Equal(x, 134, "field values start right of the shared 108 px label column")
     end)
   end)
 
@@ -1065,28 +1065,28 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
 
       Assert.Equal(
         centerNotice.teleportButton:GetWidth(),
-        170,
-        "rich teleport button should keep a generous click area"
+        112,
+        "rich teleport button keeps a compact tile in the narrow card"
       )
       Assert.Equal(
         centerNotice.teleportButton:GetHeight(),
-        104,
+        96,
         "rich teleport button should span the field rows below the header band"
       )
       local point, relativeTo, relativePoint, x, y = centerNotice.teleportButton:GetPoint()
       Assert.Equal(point, "CENTER", "rich teleport button should anchor by its center in the right action area")
       Assert.Equal(relativeTo, centerNotice.frame, "rich teleport button should anchor to the center notice")
       Assert.Equal(relativePoint, "TOPRIGHT", "rich teleport button should calculate its y-position from the frame top")
-      Assert.Equal(x, -109, "rich teleport button should sit in the free right-side interior area")
-      Assert.Equal(y, -121, "rich teleport button should start below the header band at the first field row")
+      Assert.Equal(x, -76, "rich teleport button should sit in the free right-side interior area")
+      Assert.Equal(y, -117, "rich teleport button should start below the header band at the first field row")
       Assert.Equal(
         centerNotice.teleportButton.icon._width,
-        90,
+        84,
         "rich teleport icon should be visually dominant inside the action area"
       )
       Assert.Equal(
         centerNotice.teleportButton.actionBg._width,
-        90,
+        84,
         "rich teleport blue background sits only behind the icon, inside the tile border"
       )
     end)
@@ -1306,7 +1306,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
-  test("Center notice rich Show with frameWidth resizes the frame", function()
+  test("Center notice keeps the one card width for rich and legacy cards", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
       CreateFrame = CreateFrameStub,
@@ -1320,10 +1320,10 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         fields = { { label = "X:", value = "y" } },
         frameWidth = 540,
       })
-      Assert.Equal(centerNotice.frame:GetWidth(), 540, "frameWidth option must resize the frame")
+      Assert.Equal(centerNotice.frame:GetWidth(), 480, "a card cannot pick its own width (rule 242)")
 
       centerNotice.Show("legacy", 12, nil, nil, {})
-      Assert.Equal(centerNotice.frame:GetWidth(), 680, "legacy Show without frameWidth resets to default 680")
+      Assert.Equal(centerNotice.frame:GetWidth(), 480, "a legacy card shares the same width")
     end)
   end)
 
@@ -1404,7 +1404,6 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       local function ShowNavigation(value)
         centerNotice.Show(nil, 12, nil, nil, {
           title = "Invite accepted",
-          frameWidth = 680,
           fields = {
             { label = "Dungeon:", value = "Ruby Life Pools +15" },
             { label = "Navigation:", value = value },
@@ -1560,7 +1559,6 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         { label = "Leader:", value = "Leader-Realm" },
       },
       teleportMapID = 559,
-      frameWidth = 680,
       persistent = true,
     })
   end

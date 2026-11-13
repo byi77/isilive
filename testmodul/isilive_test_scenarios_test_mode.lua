@@ -560,6 +560,86 @@ local function RegisterDemoModeBranchTests(test, Assert, LoadAddonModules)
   )
 end
 
+local function RegisterDemoIdleTests(test, Assert, LoadAddonModules)
+  local function NewIdleWatch(addon, env)
+    return addon.TestMode.CreateIdleWatch({
+      isActive = function()
+        return env.active
+      end,
+      exit = function()
+        env.exits = env.exits + 1
+        if not env.lockdown then
+          env.active = false
+        end
+      end,
+      newTicker = function(seconds, fn)
+        env.tickerSeconds = seconds
+        env.tick = fn
+        return {
+          Cancel = function()
+            env.cancels = env.cancels + 1
+          end,
+        }
+      end,
+      getTime = function()
+        return env.now
+      end,
+      getCursor = function()
+        return env.x, env.y
+      end,
+      isMoving = function()
+        return env.moving
+      end,
+    })
+  end
+
+  local function NewEnv()
+    return { active = true, exits = 0, cancels = 0, now = 0, x = 1, y = 1, moving = false, lockdown = false }
+  end
+
+  test("Demo idle watch ends the demo after five minutes without input", function()
+    local addon = LoadAddonModules({ "isiLive_test_mode.lua" })
+    local env = NewEnv()
+    local watch = NewIdleWatch(addon, env)
+    watch.Start()
+    watch.Start()
+    Assert.Equal(env.tickerSeconds, 10, "the watch samples every ten seconds")
+    Assert.True(watch.IsArmed(), "an active demo arms the watch")
+    env.now = 200
+    env.x = 5
+    env.tick()
+    env.now = 400
+    env.moving = true
+    env.tick()
+    env.moving = false
+    env.now = 699
+    env.tick()
+    Assert.Equal(env.exits, 0, "cursor and character movement keep the demo alive")
+    env.now = 700
+    env.tick()
+    Assert.Equal(env.exits, 1, "five idle minutes end the demo")
+    Assert.False(watch.IsArmed(), "the watch disarms after the exit")
+    Assert.Equal(env.cancels, 1, "the ticker is cancelled")
+  end)
+
+  test("Demo idle watch survives a refused exit and stops once the demo is off", function()
+    local addon = LoadAddonModules({ "isiLive_test_mode.lua" })
+    local env = NewEnv()
+    env.lockdown = true
+    local watch = NewIdleWatch(addon, env)
+    watch.Start()
+    env.now = 400
+    env.tick()
+    Assert.Equal(env.exits, 1, "the idle exit is attempted")
+    Assert.True(watch.IsArmed(), "a refused exit keeps the watch for the next sample")
+    env.active = false
+    env.tick()
+    Assert.False(watch.IsArmed(), "a demo ended elsewhere disarms the watch")
+    watch.Start()
+    Assert.False(watch.IsArmed(), "an inactive demo never arms the watch")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -639,4 +719,5 @@ return function(test, ctx)
   RegisterTestModeGuardTests(test, Assert, LoadAddonModules)
   RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDemoModeBranchTests(test, Assert, LoadAddonModules)
+  RegisterDemoIdleTests(test, Assert, LoadAddonModules)
 end

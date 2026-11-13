@@ -27,7 +27,10 @@ local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretVa
 local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82, 0.25
 local SUBLINE_GAP = 4
 
-local FIELD_LABEL_WIDTH = 144
+-- Shared by every card of the stack (rule 242): label column of the
+-- label/value grid and the headline size (GameFontNormalLarge + delta).
+local FIELD_LABEL_WIDTH = 108
+local TITLE_FONT_DELTA = 6
 -- Largest cards: accepted invite (dungeon, title, leader, source, navigation)
 -- and accepted raid invite (up to six rows). Surplus fields are dropped.
 -- Invite card: five rows, the Loadout label row and its two sub-rows.
@@ -38,10 +41,10 @@ local FIELD_VALUE_COLOR = Colors.TEXT_HEADING or { 0.93, 0.96, 1 }
 local FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B = FIELD_LABEL_COLOR[1], FIELD_LABEL_COLOR[2], FIELD_LABEL_COLOR[3]
 local FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B = FIELD_VALUE_COLOR[1], FIELD_VALUE_COLOR[2], FIELD_VALUE_COLOR[3]
 local FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B = 1, 0.16, 0.12
-local RICH_TELEPORT_BUTTON_WIDTH = 170
-local RICH_TELEPORT_BUTTON_MIN_HEIGHT = 104
-local RICH_TELEPORT_ICON_INSET = 14
-local RICH_TELEPORT_BUTTON_RIGHT_INSET = 24
+local RICH_TELEPORT_BUTTON_WIDTH = 112
+local RICH_TELEPORT_BUTTON_MIN_HEIGHT = 84
+local RICH_TELEPORT_ICON_INSET = 12
+local RICH_TELEPORT_BUTTON_RIGHT_INSET = 20
 -- Header band: kind chip (icon + eyebrow), brand mark on the right, title
 -- below, closed off by a full-width hairline.
 local HEADER_CHIP_HEIGHT = 20
@@ -69,6 +72,8 @@ NoticeRichLayout.GOLD_ACCENT = { NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOT
 NoticeRichLayout.FIELD_WARNING_COLOR = { FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B }
 NoticeRichLayout.SUBLINE_GAP = SUBLINE_GAP
 NoticeRichLayout.MAX_FIELD_ROWS = MAX_FIELD_ROWS
+NoticeRichLayout.FIELD_LABEL_WIDTH = FIELD_LABEL_WIDTH
+NoticeRichLayout.TITLE_FONT_DELTA = TITLE_FONT_DELTA
 
 -- Rich-layout primitives for the post-accept invite info card. Pre-allocated
 -- at frame creation; hidden by default. Show paths set their text and
@@ -76,9 +81,9 @@ NoticeRichLayout.MAX_FIELD_ROWS = MAX_FIELD_ROWS
 
 local function CreateCenterNoticeTitle(frame, config)
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  -- Title sits above the separator and announces the notice category. Sized
-  -- a touch larger than the body fontDelta so it reads as the dominant header.
-  IncreaseFontSize(title, tonumber(config.fontDelta) or 0)
+  -- Title sits above the separator and names the card; one size for every
+  -- card of the stack, a step above the field rows.
+  IncreaseFontSize(title, math.min(tonumber(config.fontDelta) or 0, TITLE_FONT_DELTA))
   title:SetJustifyH("CENTER")
   title:SetJustifyV("MIDDLE")
   title:SetWordWrap(false)
@@ -472,7 +477,7 @@ local function ApplyCenterNoticeRichLayout(deps, state, payload, hasTeleportButt
   local paddingX = state.config.paddingX
   local paddingY = state.config.paddingY
   local lineGap = math.max(SUBLINE_GAP, 6)
-  local actionReserve = hasTeleportButton and (RICH_TELEPORT_BUTTON_WIDTH + 28) or 0
+  local actionReserve = hasTeleportButton and (RICH_TELEPORT_BUTTON_WIDTH + 24) or 0
   local contentWidth = math.max(220, innerWidth - actionReserve)
 
   -- Hide the regular text body; rich mode renders payload via field rows.

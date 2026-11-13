@@ -108,11 +108,9 @@ local function BuildInvitePayload(ctx, ownListing)
     level = level,
     leaderName = DEMO_INVITE_LEADER_NAME,
     groupName = name and string.format("+%d %s", level, name) or nil,
-    sourceText = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
   }
   if ownListing then
     payload.leaderName = ReadPlayerFullName() or DEMO_INVITE_LEADER_NAME
-    payload.sourceText = L.INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING or "Own LFG key search"
     payload.title = L.INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING or "isiLive - LFG key search"
   end
   return payload
@@ -247,16 +245,11 @@ local function BuildGroupFullOptions(ctx)
     fields = {
       { label = L.SIM_NOTICE_LABEL_STATE or "State:", value = L.SIM_GROUP_FULL_VALUE or "Group full" },
       {
-        label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
-        value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
-      },
-      {
         label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
         value = L.SIM_GROUP_FULL_HINT or "No group action and no chat post were sent.",
         warning = true,
       },
     },
-    frameWidth = 680,
     persistent = true,
     rebuild = function()
       return { durationSeconds = 120, showOptions = BuildGroupFullOptions(ctx) }

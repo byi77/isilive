@@ -397,8 +397,6 @@ local function BuildControllerContext(state, addon, initial)
         INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Title:",
         INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Role:",
         INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader:",
-        INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
-        INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED = "LFG accepted invite",
         INVITE_HINT_EYEBROW = "LFG Invite",
         INVITE_HINT_TITLE = "isiLive - Invite received",
         INVITE_HINT_SOURCE_LFG_INVITED = "LFG invite received",
@@ -407,11 +405,8 @@ local function BuildControllerContext(state, addon, initial)
         NON_MYTHIC_NOTICE_DUNGEON_EYEBROW = "Dungeon",
         NON_MYTHIC_NOTICE_DUNGEON_TITLE = "isiLive - Dungeon entered",
         NON_MYTHIC_NOTICE_LABEL_DUNGEON = "Dungeon:",
-        NON_MYTHIC_NOTICE_LABEL_DIFFICULTY = "Difficulty:",
         NON_MYTHIC_NOTICE_LABEL_HINT = "Hint:",
-        NON_MYTHIC_NOTICE_LABEL_SOURCE = "Source:",
         NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
-        NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
         PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
@@ -1031,29 +1026,24 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       "center notice demo must configure a verified map portal"
     )
     Assert.Nil(acceptedNotice.showOptions.teleportLabel, "center notice demo must omit the redundant teleport header")
-    Assert.Equal(acceptedNotice.showOptions.frameWidth, 680, "accepted-invite demo notice must use the rich card width")
+    Assert.Nil(acceptedNotice.showOptions.frameWidth, "the card stack sets the width of the demo card too")
     Assert.Equal(
       acceptedNotice.showOptions.fields[1].value,
       "King's Rest +15",
       "the live builder renders the simulated key level in the dungeon row"
     )
     Assert.Equal(
-      acceptedNotice.showOptions.fields[3].value,
+      acceptedNotice.showOptions.fields[2].value,
       "isiLive-Demo",
       "accepted-invite demo notice must render the simulated leader row"
     )
     Assert.Equal(
-      acceptedNotice.showOptions.fields[4].value,
-      "Simulation tablet",
-      "the source row marks the invite as simulated"
-    )
-    Assert.Equal(
-      acceptedNotice.showOptions.fields[5].label,
+      acceptedNotice.showOptions.fields[3].label,
       "Navigation:",
       "accepted-invite demo notice must render the live navigation row"
     )
     Assert.Equal(
-      acceptedNotice.showOptions.fields[5].value,
+      acceptedNotice.showOptions.fields[3].value,
       "Zuldazar\nPortal Millennia's Threshold",
       "accepted-invite demo notice navigation must come from the curated season entrance"
     )
@@ -1064,20 +1054,15 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       difficultyNotice.showOptions.fields[1].value,
-      "King's Rest",
-      "outside an instance the dungeon-entry card names the preview target"
-    )
-    Assert.Equal(
-      difficultyNotice.showOptions.fields[2].value,
-      "Normal",
-      "non-mythic demo notice must render the normal difficulty"
+      "King's Rest · Normal",
+      "outside an instance the dungeon-entry card names the preview target and the normal difficulty"
     )
     Assert.True(
-      difficultyNotice.showOptions.fields[3].warning == true,
+      difficultyNotice.showOptions.fields[2].warning == true,
       "non-mythic demo notice hint must be marked as a warning row"
     )
     Assert.True(
-      difficultyNotice.showOptions.fields[3].blink == true,
+      difficultyNotice.showOptions.fields[2].blink == true,
       "non-mythic demo notice hint must blink for emphasis"
     )
 

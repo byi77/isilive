@@ -106,8 +106,6 @@ local function RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonM
     local fi = addon._FactoryInternal
     local labels = {
       INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon-DE:",
-      INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
-      INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING = "Eigene Suche",
       INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING = "Titel-DE",
       SIM_RAID_NAME = "Schlachtzug",
     }
@@ -127,7 +125,6 @@ local function RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonM
     local args = fi.BuildAcceptedInviteNoticeArgs(c, modules, {
       mapID = 250,
       level = 12,
-      sourceTextKey = "INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING",
       titleKey = "INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING",
     })
     Assert.Equal(args.options.title, "Titel-DE")
@@ -135,8 +132,6 @@ local function RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonM
 
     labels = {
       INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
-      INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
-      INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING = "Own search",
       INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING = "Title-EN",
       SIM_RAID_NAME = "Raid",
     }
@@ -146,7 +141,7 @@ local function RegisterLanguageSwitchTests(test, Assert, WithGlobals, LoadAddonM
     Assert.Equal(rebuilt.dungeonName, "Temple of Sethraliss")
     Assert.Equal(rebuilt.showOptions.fields[1].label, "Dungeon:")
     Assert.Equal(rebuilt.showOptions.fields[1].value, "Temple of Sethraliss +12")
-    Assert.Equal(rebuilt.showOptions.fields[2].value, "Own search")
+    Assert.Equal(#rebuilt.showOptions.fields, 1, "no source row on the rebuilt card")
 
     local raidOptions = nil
     c.ShowCenterNotice = function(_, _, _, _, options)

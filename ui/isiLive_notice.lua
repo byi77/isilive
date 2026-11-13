@@ -134,7 +134,7 @@ end
 
 local function CreateCenterNoticeFrame(config)
   local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
-  frame:SetSize(680, config.minHeight)
+  frame:SetSize((addonTable.CardStack and addonTable.CardStack.CARD_WIDTH) or 480, config.minHeight)
   frame:SetPoint("CENTER", config.parent, "CENTER", 0, config.yOffset)
   ApplyNoticeFrameLayer(frame, config)
   frame:SetMovable(true)
@@ -698,18 +698,13 @@ local function ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSu
   end
 end
 
-local DEFAULT_FRAME_WIDTH = 680
+-- Every card shares the stack's width (rule 242); outside a stack (tests,
+-- no container) the card keeps the same width.
+local DEFAULT_FRAME_WIDTH = (addonTable.CardStack and addonTable.CardStack.CARD_WIDTH) or 480
 
--- The card asks for its own width; inside the card stack the widest active
--- card sets the width of every section (rule 242).
-local function ApplyCenterNoticeFrameWidth(state, showOptions)
-  local requestedWidth = tonumber(showOptions.frameWidth)
-  if not (requestedWidth and requestedWidth > 0) then
-    requestedWidth = DEFAULT_FRAME_WIDTH
-  end
-  local width = requestedWidth
+local function ApplyCenterNoticeFrameWidth(state)
+  local width = DEFAULT_FRAME_WIDTH
   if state.section then
-    state.section.SetPreferredWidth(requestedWidth)
     width = state.section.GetWidth()
   end
   state.frame:SetWidth(width)
@@ -764,7 +759,7 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
   state.isBlinking = showOptions.blink == true
   state.blinkTime = 0
 
-  ApplyCenterNoticeFrameWidth(state, showOptions)
+  ApplyCenterNoticeFrameWidth(state)
   ApplyCenterNoticeFontScale(state, showOptions)
   ApplyCenterNoticeTextColor(state, showOptions)
 
@@ -1136,7 +1131,10 @@ function Notice.CreateCenterNotice(opts)
   local cardStack = addonTable.CardStack
   if type(cardStack) == "table" and type(cardStack.Register) == "function" then
     state.section = cardStack.Register(config.cardKind, frame, {
-      preferredWidth = DEFAULT_FRAME_WIDTH,
+      closeButton = closeButton,
+      close = function()
+        SetCenterNoticeVisible(state, false)
+      end,
       relayout = function(width)
         RelayoutCenterNotice(state, width)
       end,

@@ -11,20 +11,21 @@ addonTable.LoadoutCheckCard = LoadoutCheckCard
 
 local UICommon = assert(addonTable.UICommon, "isiLive: UICommon missing")
 local Colors = UICommon.Colors
-local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue or function()
-  return false
-end
+local IsSecretValue = addonTable.Validators and addonTable.Validators.IsSecretValue
+  or function(_value)
+    return false
+  end
 
-local CARD_WIDTH = 444
+local CARD_WIDTH = (addonTable.CardStack and addonTable.CardStack.CARD_WIDTH) or 480
 -- Same insets and type scale as the rich center notice (rule 242: the cards
 -- of the stack share one card header and the label/value grid).
 local PADDING = 20
 local PADDING_Y = 12
-local HEADER_FONT_DELTA = 10
+local HEADER_FONT_DELTA = 6
 local BODY_FONT_DELTA = 5
-local LABEL_COLUMN_WIDTH = 144
+local LABEL_COLUMN_WIDTH = 108
 local COLUMN_GAP = 6
-local OPTION_WIDTH = 134
+local OPTION_WIDTH = 104
 local OPTION_HEIGHT = 24
 local OPTION_GAP = 6
 -- In the card stack the card takes the stack width; the option buttons
@@ -239,7 +240,8 @@ local function BuildFrame()
 
   -- Card header shared with the center notice and the portal navigator:
   -- kind chip with the eyebrow, brand mark, headline, hairline.
-  frame.eyebrow = CreateLine(frame, "GameFontNormalSmall", Colors.CYAN_EYEBROW, math.floor(HEADER_FONT_DELTA / 3))
+  -- Eyebrow in the size of the rich center notice (its fontDelta 10 / 3).
+  frame.eyebrow = CreateLine(frame, "GameFontNormalSmall", Colors.CYAN_EYEBROW, 3)
   frame.title = CreateLine(frame, "GameFontNormalLarge", Colors.TEXT_HEADING, HEADER_FONT_DELTA)
   frame.titleSeparator = CreateHairline(frame, Colors.BORDER_NOTICE or { 0.24, 0.55, 0.82, 0.58 })
   local richLayout = addonTable.NoticeRichLayout
@@ -507,7 +509,14 @@ function LoadoutCheckCard.Create()
     local cardStack = addonTable.CardStack
     if type(cardStack) == "table" and type(cardStack.Register) == "function" then
       section = cardStack.Register("loadout", frame, {
-        preferredWidth = CARD_WIDTH,
+        closeButton = frame.closeButton,
+        close = function()
+          if lastController and type(lastController.Dismiss) == "function" then
+            lastController.Dismiss()
+          elseif section then
+            section.Hide()
+          end
+        end,
         onRoleChanged = function(isLead)
           local richLayout = addonTable.NoticeRichLayout
           if frame.headerState and type(richLayout) == "table" and type(richLayout.ApplyHeaderRole) == "function" then
@@ -533,8 +542,8 @@ function LoadoutCheckCard.Create()
       -- Report the needed width before asking the stack for the shared one.
       activeController = controller
       local requiredWidth = PrepareColumns(frame)
-      if type(section.SetPreferredWidth) == "function" then
-        section.SetPreferredWidth(requiredWidth)
+      if type(section.SetMinWidth) == "function" then
+        section.SetMinWidth(requiredWidth)
       end
       Render(frame, model, controller, section.GetWidth())
       section.Show()

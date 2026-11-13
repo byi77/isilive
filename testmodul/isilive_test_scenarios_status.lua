@@ -18,11 +18,8 @@ local function BuildLocale()
     NON_MYTHIC_NOTICE_RAID_TITLE = "isiLive - Raid entered",
     NON_MYTHIC_NOTICE_LABEL_DUNGEON = "Dungeon:",
     NON_MYTHIC_NOTICE_LABEL_RAID = "Raid:",
-    NON_MYTHIC_NOTICE_LABEL_DIFFICULTY = "Difficulty:",
     NON_MYTHIC_NOTICE_LABEL_HINT = "Hint:",
-    NON_MYTHIC_NOTICE_LABEL_SOURCE = "Source:",
     NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
-    NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
     RAID_ENTERED = "Entered raid: %s",
     PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
@@ -422,13 +419,8 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
         )
         Assert.Equal(
           notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[1].value,
-          "Manaforge Omega",
-          "raid entry notice must render the verified instance name"
-        )
-        Assert.Equal(
-          notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].value,
-          case.expectedDifficulty,
-          "raid entry notice must render the difficulty row"
+          "Manaforge Omega · " .. case.expectedDifficulty,
+          "raid entry notice must render the verified instance name and its difficulty in one row"
         )
       end)
     end
@@ -534,27 +526,23 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
       )
       Assert.Equal(
         notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[1].value,
-        "Priory of the Sacred Flame",
-        "non-mythic dungeon notice must render the verified instance name"
+        "Priory of the Sacred Flame · Normal",
+        "non-mythic dungeon notice must render the instance name and its difficulty in one row"
       )
       Assert.Equal(
         notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].value,
-        "Normal",
-        "non-mythic dungeon notice must render the difficulty row"
-      )
-      Assert.Equal(
-        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].value,
         "Not a Mythic+ dungeon",
         "non-mythic dungeon notice must render the non-mythic hint"
       )
       Assert.True(
-        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].warning == true,
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].warning == true,
         "non-mythic dungeon notice hint must be marked as a warning row"
       )
       Assert.True(
-        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].blink == true,
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].blink == true,
         "non-mythic dungeon notice hint must blink for emphasis"
       )
+      Assert.Equal(#notices[1].showOptions.fields, 2, "the card keeps two rows (no source row)")
     end)
   end)
 end

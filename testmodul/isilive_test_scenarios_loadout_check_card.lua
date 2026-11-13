@@ -62,7 +62,7 @@ end
 local function VisibleOptionButtons(createdFrames)
   local buttons = {}
   for _, frame in ipairs(createdFrames) do
-    if frame._frameType == "Button" and frame._flatLabel and frame:IsShown() and frame._width == 134 then
+    if frame._frameType == "Button" and frame._flatLabel and frame:IsShown() and frame._width == 104 then
       buttons[#buttons + 1] = frame
     end
   end

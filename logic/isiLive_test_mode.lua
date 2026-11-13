@@ -243,3 +243,74 @@ function TestMode.CreateController(opts)
 
   return controller
 end
+
+-- Idle auto-exit: the demo ends after IDLE_SECONDS without input. "Input" is
+-- a moved cursor or a moving character, sampled every CHECK_SECONDS while
+-- the demo runs; the ticker stops itself once the demo is off.
+TestMode.IDLE_SECONDS = 300
+TestMode.IDLE_CHECK_SECONDS = 10
+
+function TestMode.CreateIdleWatch(opts)
+  local isActive = RequireFunction(opts.isActive, "isActive")
+  local exit = RequireFunction(opts.exit, "exit")
+  local newTicker = RequireFunction(opts.newTicker, "newTicker")
+  local getTime = RequireFunction(opts.getTime, "getTime")
+  local getCursor = opts.getCursor or function()
+    return nil
+  end
+  local isMoving = opts.isMoving or function()
+    return false
+  end
+  local idleSeconds = opts.idleSeconds or TestMode.IDLE_SECONDS
+  local watch = {}
+  local ticker, lastX, lastY, lastInputAt = nil, nil, nil, 0
+
+  local function Stop()
+    if ticker and type(ticker.Cancel) == "function" then
+      ticker:Cancel()
+    end
+    ticker = nil
+  end
+
+  local function SampleInput()
+    local x, y = getCursor()
+    local moved = isMoving() == true or x ~= lastX or y ~= lastY
+    lastX, lastY = x, y
+    return moved
+  end
+
+  local function Check()
+    if not isActive() then
+      Stop()
+      return
+    end
+    if SampleInput() then
+      lastInputAt = getTime()
+    elseif getTime() - lastInputAt >= idleSeconds then
+      exit()
+      -- A refused exit (combat lockdown) keeps the watch for the next sample.
+      if not isActive() then
+        Stop()
+      end
+    end
+  end
+
+  --- Arms the watch (idempotent); call whenever the demo turns on.
+  function watch.Start()
+    if not isActive() then
+      return
+    end
+    lastX, lastY = getCursor()
+    lastInputAt = getTime()
+    if ticker == nil then
+      ticker = newTicker(opts.checkSeconds or TestMode.IDLE_CHECK_SECONDS, Check)
+    end
+  end
+
+  watch.Check = Check
+  function watch.IsArmed()
+    return ticker ~= nil
+  end
+
+  return watch
+end

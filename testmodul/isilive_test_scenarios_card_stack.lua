@@ -157,8 +157,22 @@ return function(test, ctx)
         notice.frame:GetHeight() + portal.frame:GetHeight(),
         "the stack is exactly as tall as its sections"
       )
-      Assert.Equal(container:GetWidth(), 760, "the widest card sets the stack width")
-      Assert.Equal(notice.frame:GetWidth(), 760, "every section takes the stack width")
+      Assert.Equal(container:GetWidth(), addon.CardStack.CARD_WIDTH, "every card shares one stack width")
+      Assert.Equal(notice.frame:GetWidth(), addon.CardStack.CARD_WIDTH, "every section takes the stack width")
+      Assert.False(notice.closeButton:IsShown(), "a card hides its own close button")
+      Assert.False(portal.closeButton:IsShown(), "a further card hides its own close button too")
+
+      -- The stack's one close button closes every card through its own path.
+      local stackClose = nil
+      for _, child in ipairs({ container:GetChildren() }) do
+        if child ~= notice.frame and child ~= portal.frame and child:GetScript("OnClick") then
+          stackClose = child
+        end
+      end
+      stackClose = Assert.NotNil(stackClose, "the stack carries one close button")
+      stackClose:GetScript("OnClick")(stackClose)
+      world.Advance(1)
+      Assert.Equal(#addon.CardStack.GetOrder(), 0, "the stack close button closes every card")
     end)
   end)
 
@@ -260,7 +274,12 @@ return function(test, ctx)
       local _, _, _, _, reopened = container:GetPoint()
       Assert.Equal(reopened, CardStack.TOP_OFFSET, "an emptied stack starts at the default place again")
 
-      local frame = select(1, container:GetChildren())
+      local frame = nil
+      for _, child in ipairs({ container:GetChildren() }) do
+        if frame == nil and child:GetScript("OnDragStart") then
+          frame = child
+        end
+      end
       frame:GetScript("OnDragStart")(frame)
       frame:GetScript("OnDragStop")(frame)
       local _, _, _, _, dragged = container:GetPoint()

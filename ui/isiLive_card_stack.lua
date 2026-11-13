@@ -12,11 +12,18 @@ addonTable = addonTable or {}
 -- again replaces its content in place, a new kind slides in as a further
 -- section. Sections are ordered by priority, then by the order they appeared.
 --
+-- Every card has the same width (CARD_WIDTH) and the stack has one close
+-- button in its top-right corner that closes all cards; the cards' own close
+-- buttons stay hidden.
+--
 -- Free dragging stays until the edit mode integration exists: dragging any
 -- section moves the whole stack. The position is not saved; an empty stack
 -- returns to its default anchor the next time a card appears.
 local CardStack = {}
 addonTable.CardStack = CardStack
+
+-- Defined in the visibility block; the stack's close button needs it earlier.
+local HideSection
 
 local UICommon = assert(addonTable.UICommon, "isiLive: UICommon missing")
 local Colors = UICommon.Colors or {}
@@ -43,6 +50,9 @@ CardStack.SCREEN_MARGIN = 16
 -- Above the main window, below the simulation tablet (DIALOG).
 CardStack.FRAME_STRATA = "HIGH"
 CardStack.FRAME_NAME = "isiLiveCardStack"
+-- One width for every card (was 680 px for notices, 760 px for the portal
+-- navigator, 444 px for the talent & loot check).
+CardStack.CARD_WIDTH = 480
 
 local function CallMethod(target, methodName, ...)
   local method = type(target) == "table" and target[methodName] or nil
@@ -61,6 +71,38 @@ end
 -- Stack container
 -- ---------------------------------------------------------------------------
 
+-- Closes every visible card through its own close path (each card keeps its
+-- dismiss semantics, e.g. the talent & loot check remembers the dismissal).
+local function CloseAll(stack)
+  local open = {}
+  for _, section in pairs(stack.sections) do
+    if section.state == "visible" then
+      open[#open + 1] = section
+    end
+  end
+  for _, section in ipairs(open) do
+    if type(section.close) == "function" then
+      section.close()
+    else
+      HideSection(stack, section)
+    end
+  end
+end
+
+local function CreateStackCloseButton(stack, container)
+  if type(UICommon.CreateCloseButton) ~= "function" then
+    return nil
+  end
+  local button = UICommon.CreateCloseButton(container, {
+    point = { "TOPRIGHT", container, "TOPRIGHT", -2, -2 },
+    frameLevel = (tonumber(CallMethod(container, "GetFrameLevel")) or 1) + 40,
+  })
+  CallMethod(button, "SetScript", "OnClick", function()
+    CloseAll(stack)
+  end)
+  return button
+end
+
 local function CreateContainer(stack)
   local createFrame = rawget(_G, "CreateFrame")
   if type(createFrame) ~= "function" then
@@ -76,9 +118,11 @@ local function CreateContainer(stack)
   CallMethod(container, "SetClampedToScreen", true)
   CallMethod(container, "SetClampRectInsets", 0, 0, 0, 0)
   CallMethod(container, "Hide")
+  stack.closeButton = CreateStackCloseButton(stack, container)
   -- The one surface of the whole stack: Modern and Classic both paint it
-  -- through the shared NOTICE preset.
-  UICommon.ApplyBackdrop(container, "NOTICE")
+  -- through the shared, opaque CARD_STACK preset, so nothing behind
+  -- the stack shows through any section.
+  UICommon.ApplyBackdrop(container, "CARD_STACK")
   return container
 end
 
@@ -150,19 +194,14 @@ local function CollectLaidOut(stack)
   return list
 end
 
-local function ResolveWidth(stack, list)
-  local width = 0
+-- Every card shares CARD_WIDTH; a card whose content cannot fit it (the
+-- talent & loot check with many loadouts) widens the whole stack instead.
+local function ResolveWidth(list)
+  local width = CardStack.CARD_WIDTH
   for _, section in ipairs(list) do
-    if section.state == "visible" then
-      width = math.max(width, tonumber(section.preferredWidth) or 0)
-    end
+    width = math.max(width, tonumber(section.minWidth) or 0)
   end
-  if width <= 0 then
-    for _, section in ipairs(list) do
-      width = math.max(width, tonumber(section.preferredWidth) or 0)
-    end
-  end
-  return width > 0 and width or stack.width or 1
+  return width
 end
 
 local function EnsureDivider(section)
@@ -180,8 +219,10 @@ local function EnsureDivider(section)
 end
 
 -- The lead section carries the card header; the others a hairline on top.
+-- A card's own close button stays hidden: the stack's one button closes all.
 local function ApplyRole(section, isLead)
   local frame = section.frame
+  CallMethod(section.closeButton, "Hide")
   frame._isiLiveCardLead = isLead
   local accent = frame._isiLiveNoticeAccent
   if accent then
@@ -207,7 +248,7 @@ local function Reflow(stack)
     return
   end
   local list = CollectLaidOut(stack)
-  local width = ResolveWidth(stack, list)
+  local width = ResolveWidth(list)
   stack.width = width
   stack.reflowing = true
   for _, section in ipairs(list) do
@@ -278,7 +319,7 @@ local function HideContainer(stack)
   })
 end
 
-local function HideSection(stack, section)
+function HideSection(stack, section)
   if section.state ~= "visible" then
     return
   end
@@ -489,9 +530,11 @@ local function EnsureContainer(stack, frame)
 end
 
 --- Registers `frame` as the section `kind` of the shared stack.
---- opts: priority, preferredWidth, relayout(width), onRoleChanged(isLead),
---- onHidden(). Returns the section handle (Show, Hide, IsActive,
---- NotifyLayout, SetPreferredWidth, GetWidth) or nil without a container.
+--- opts: priority, minWidth, closeButton (kept hidden: the stack closes),
+--- close() (the card's own dismiss, used by the stack's close button),
+--- relayout(width), onRoleChanged(isLead), onHidden(). Returns the section
+--- handle (Show, Hide, IsActive, NotifyLayout, SetMinWidth, GetWidth) or nil
+--- without a container.
 function CardStack.Register(kind, frame, opts)
   opts = opts or {}
   local stack = CardStack.GetShared()
@@ -506,7 +549,9 @@ function CardStack.Register(kind, frame, opts)
     kind = kind,
     frame = frame,
     priority = tonumber(opts.priority) or CardStack.KIND_PRIORITY[kind] or DEFAULT_PRIORITY,
-    preferredWidth = tonumber(opts.preferredWidth) or tonumber(CallMethod(frame, "GetWidth")) or 1,
+    minWidth = tonumber(opts.minWidth),
+    closeButton = opts.closeButton,
+    close = opts.close,
     relayout = opts.relayout,
     onRoleChanged = opts.onRoleChanged,
     onHidden = opts.onHidden,
@@ -520,6 +565,7 @@ function CardStack.Register(kind, frame, opts)
   MoveChildrenToStackStrata(frame, previousStrata)
   RaiseAboveContainer(frame, container)
   CallMethod(frame, "Hide")
+  CallMethod(section.closeButton, "Hide")
   AttachDrag(stack, frame)
   if type(frame.HookScript) == "function" then
     frame:HookScript("OnHide", function()
@@ -544,17 +590,20 @@ function CardStack.Register(kind, frame, opts)
       Reflow(stack)
     end
   end
-  function handle.SetPreferredWidth(width)
-    section.preferredWidth = tonumber(width) or section.preferredWidth
+  -- Width the card's content needs at least (nil: CARD_WIDTH is enough).
+  function handle.SetMinWidth(width)
+    section.minWidth = tonumber(width)
   end
-  -- Width the section lays itself out with: the widest active card wins.
+  -- Width the section lays itself out with: CARD_WIDTH unless a visible card
+  -- needs more.
   function handle.GetWidth()
-    local width = tonumber(section.preferredWidth) or 1
+    local list = {}
     for _, other in pairs(stack.sections) do
-      if other ~= section and other.state == "visible" then
-        width = math.max(width, tonumber(other.preferredWidth) or 0)
+      if other == section or other.state == "visible" then
+        list[#list + 1] = other
       end
     end
+    local width = ResolveWidth(list)
     section.appliedWidth = width
     return width
   end
@@ -572,6 +621,11 @@ function CardStack.GetOrder()
     order[#order + 1] = section.kind
   end
   return order
+end
+
+--- Closes every visible card (the stack's close button).
+function CardStack.CloseAll()
+  CloseAll(CardStack.GetShared())
 end
 
 --- The stack container frame (nil before the first card registered).

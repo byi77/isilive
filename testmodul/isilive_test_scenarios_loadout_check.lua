@@ -743,7 +743,7 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       local ctx = {
         GetL = function()
           return {
-            INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
+            INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon-DE:",
             INVITE_ACCEPTED_NOTICE_LABEL_LOADOUT = "Loadout-DE:",
           }
         end,
@@ -756,36 +756,28 @@ local function RegisterLoadoutCheckTests(test, Assert, WithGlobals, LoadAddonMod
       }
 
       render(ctx, {}, { mapID = MAP_ID })
-      local count = #captured.fields
-      local header, talents, loot = captured.fields[count - 2], captured.fields[count - 1], captured.fields[count]
-      Assert.Equal(header.label, "Loadout-DE:", "the Loadout block closes the card")
-      Assert.Equal(header.value, "", "the Loadout label row carries no value of its own")
-      Assert.Equal(talents.label, "Talents:", "Talents sits below Loadout in the label column")
-      Assert.True(talents.grouped and loot.grouped, "both sub-rows are grouped under Loadout")
+      local row = captured.fields[#captured.fields]
+      Assert.Equal(row.label, "Loadout-DE:", "the Loadout row closes the card")
       Assert.Equal(
-        talents.value,
-        "|cffff2429|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t Talents: M+ Single expected|r",
-        "the talents sub-row carries the real summary with its status icon and colour"
+        row.value,
+        "|cffff2429|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:14:14:0:0|t Talents: M+ Single expected|r"
+          .. "   |cff33d94d|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t Loot OK|r",
+        "one row carries both summaries with their status icons and colours"
       )
-      Assert.Equal(
-        loot.value,
-        "|cff33d94d|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14:0:0|t Loot OK|r",
-        "the loot sub-row carries its own status"
-      )
-      Assert.True(talents.warning, "a mismatch puts its sub-row on the warning strip")
-      Assert.False(loot.warning, "the matching loot sub-row stays plain")
+      Assert.True(row.warning, "a talents mismatch puts the Loadout row on the warning strip")
+      Assert.Nil(row.grouped, "the Loadout row is a plain row, no sub-rows any more")
       Assert.Equal(captured.noticeKind, "action", "the row warning does not turn the whole card into a warning")
 
       world.db.loadoutCheckEnabled = false
       render(ctx, {}, { mapID = MAP_ID })
-      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "the disabled setting omits the row")
+      Assert.Equal(captured.fields[#captured.fields].label, "Dungeon-DE:", "the disabled setting omits the row")
 
       world.db.loadoutCheckEnabled = true
       addon.LoadoutCheck.GetSummaryFields = function()
         error("boom")
       end
       render(ctx, {}, { mapID = MAP_ID })
-      Assert.Equal(captured.fields[#captured.fields].label, "Quelle-DE:", "a failing summary must omit the row")
+      Assert.Equal(captured.fields[#captured.fields].label, "Dungeon-DE:", "a failing summary must omit the row")
     end)
   end)
 

@@ -564,4 +564,35 @@ return function(test, ctx)
       Assert.Equal(highlight._color[4], 0.2, "marker hover must stay translucent")
     end)
   end)
+
+  test("ApplyDemoTitleMarker shows DEMOMODE in the title only while demo dummies render", function()
+    WithGlobals(MinimalGlobals(), function()
+      local addon = LoadAddonModules({
+        "isiLive_roster_panel_helpers.lua",
+        "isiLive_roster_panel_chrome.lua",
+      })
+      local text, budgets = nil, 0
+      local ui = {
+        titleVersion = {
+          SetText = function(_self, value)
+            text = value
+          end,
+        },
+        ApplyTitleBudget = function()
+          budgets = budgets + 1
+        end,
+      }
+      local apply = addon._RosterInternal.ApplyDemoTitleMarker
+      apply(ui, { player = { name = "Me" } })
+      Assert.Nil(text, "a real roster must leave the title untouched")
+      apply(ui, { player = { name = "Me" }, party1 = { name = "Dummy", isDemoEntry = true } })
+      Assert.True(type(text) == "string" and text:find("DEMOMODE", 1, true) ~= nil, "demo roster must mark the title")
+      Assert.Equal(budgets, 1, "the marker must re-run the title width budget")
+      apply(ui, { party1 = { isDemoEntry = true } })
+      Assert.Equal(budgets, 1, "an unchanged demo state must not rewrite the title")
+      apply(ui, {})
+      Assert.Nil(text:find("DEMOMODE", 1, true), "leaving the demo must clear the marker")
+      apply(nil, {})
+    end)
+  end)
 end
