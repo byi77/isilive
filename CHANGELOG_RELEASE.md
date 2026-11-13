@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.515`.
+Current version: `0.9.516`.
+
+Version 0.9.516: the time pace badge keeps moving during fights. It updates
+on every kill at the pull's kill tempo instead of standing still until the
+pull ends, so long chain pulls show the pace too.
 
 Version 0.9.515: the roster shows each member's specialization as an icon
 next to the role badge, in the same badge style with a rim in the role color.
@@ -255,7 +259,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.515 -->
+<!-- highlights-reviewed-for: 0.9.516 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
@@ -270,8 +274,8 @@ Highlights:
   non-tank in a key, live kick counts of the running key in the roster tooltip
   (on by default) and a consumable check on dungeon entry that flags a
   missing flask or weapon oil, or one ending within 40 minutes.
-- **Kicks and DPS after the key.** The kick column shows cast/landed kicks per
-  member (e.g. `37/32`, no longer cut to `24...`) and the DPS column is filled
-  again after the key.
+- **Time pace during fights.** The ON TIME / CLOSE / TOO SLOW badge keeps
+  moving in combat: every kill updates it at the pull's kill tempo, so long
+  chain pulls no longer freeze it.
 - **Spec icons in the roster.** Each member's specialization shows as an
   icon in the role badge style; the name column is wider.
