@@ -332,7 +332,8 @@ Aktueller Soll-Zustand:
 - Der Auto-Refresh laeuft donnerstags 06:00 UTC nach dem MDT-Release-Fenster (US Tuesday Patch + EU Wednesday Reset). Manuell ausloesbar ueber `workflow_dispatch`.
 - Der Workflow klont MDT, erfasst den exakten Checkout per `git rev-parse HEAD`, schreibt diesen vollstaendig als `sourceCommit`, regeneriert den Datensatz, laeuft den vollen CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, usecases) und committet nur bei echtem Diff direkt nach `main`.
 - `expiresAt` ist `generatedAt + 15 Tage`. Das Lifetime-Gate blockiert jeden Release mit abgelaufenem DB-File; Override ausschliesslich ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
-- Die Runtime prueft dasselbe `expiresAt` bei jedem Zugriff ueber `SeasonData.GetMatchingForcesData`; abgelaufene oder kalendarisch ungueltige Snapshots sowie ein nicht verifizierbares aktuelles Datum schliessen alle MDT-abhaengigen Anzeigen sofort.
+- Die Runtime liest `expiresAt` nicht (Benutzerentscheidung 2026-11-14): `SeasonData.GetMatchingForcesData` prueft nur Season-Match und Tabellenform. Eine abgelaufene DB der aktiven Season bleibt im Client offen, damit Nutzer ohne neuen Release die Mobprozente nicht nach 15 Tagen verlieren; eine DB einer anderen Season bleibt geschlossen. `expiresAt` ist nur das Frische-Gate fuer Build und CI.
+- Saisonpause und MDT-Umbau: Scheitert der Sync, weil MDT sein Verzeichnis umbaut, blockiert das Lifetime-Gate auch Hotfix-Releases. Dann bewusst mit `ISILIVE_ALLOW_STALE_MPLUS_DB=1` releasen; die Mobprozente im Client bleiben davon unberuehrt.
 - Der Generator schreibt Single-Space-Key-Format (`season = %q,`), damit StyLua den regenerierten Datensatz akzeptiert.
 - `tools/check_mplus_db_lifetime.lua` prueft nach dem Ablaufdatum zusaetzlich die Struktur ueber `SeasonData.GetForcesReadiness` (Season-Match, positiver Gesamtwert und NPC-Abdeckung je Map der `activeSeasonID`, keine fremden Maps); bei `requiresForces = false` wird dieser Schritt uebersprungen. Das ist das einzige Gate fuer `requiresForces` — die Season-Aktivierung zur Laufzeit liest keine Forces-Daten.
 - Der Season-Readiness-Workflow fuehrt `tools/inspect_season_readiness.lua` aus, berichtet aktive/vorbereitete Seasons, Readiness-Fehler, getrennt davon die Spalte `Forces` (`yes`/`no`/`skipped`) mit dem Abschnitt `M+ Forces gate` sowie den Abgleich zwischen aktiver Season und Forces-DB als Summary/Artifact und committet nichts.
@@ -929,8 +930,9 @@ greift nur fuer bekannte Peers). Test: 4 Post-Run-HELLOs -> hoechstens 1 Fan-out
 Zeitliche Streuung (Jitter) wurde verworfen. Manueller Refresh und Gruppenende
 loeschen weiter vollstaendig.
 
-Forces-DB: der Generator vergibt 15 Tage Laufzeit, Refresh daher etwa alle zwei
-Wochen (`tools/sync_mdt_forces.ps1` ohne `-Season` erzeugt fuer `activeSeasonID`, dann Release). Der
+Forces-DB: der Generator vergibt 15 Tage Laufzeit fuer das CI-Gate, Refresh daher etwa alle zwei
+Wochen (`tools/sync_mdt_forces.ps1` ohne `-Season` erzeugt fuer `activeSeasonID`, dann Release). Seit
+2026-11-14 laeuft die DB im Client nicht mehr ab. Der
 MDT-Cache unter `tools/cache/mdt` haelt sein Git-Verzeichnis ausserhalb des
 WoW-Ordners (`--separate-git-dir`); ein echter `.git`-Ordner dort fuehrt zur
 Battle.net-Update-Schleife (error 2118).

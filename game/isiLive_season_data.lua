@@ -447,18 +447,19 @@ function SeasonData.GetToolDefaultSeasonID()
   return SeasonData.UPCOMING_SEASON_ID or SeasonData.ACTIVE_SEASON_ID
 end
 
-function SeasonData.GetMatchingForcesData(seasonID, opts)
+-- Runtime gate for the generated M+ forces DB: only the season match and the
+-- table shape count. `expiresAt` is deliberately not read here (user decision
+-- 2026-11-14): it is the build/CI freshness gate (GetForcesReadiness,
+-- tools/check_mplus_db_lifetime.lua). Reading it at runtime switched the MDT
+-- mob percentages off in every client that skipped a release for 15 days,
+-- even mid-season with unchanged data. A DB of another season still closes.
+function SeasonData.GetMatchingForcesData(seasonID)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local forces = addonTable.MPlusForces
   if type(forces) ~= "table" or forces.season ~= resolvedSeasonID then
     return nil
   end
   if type(forces.dungeonTotal) ~= "table" or type(forces.byNpcId) ~= "table" then
-    return nil
-  end
-  local expiresKey = ParseIsoDate(forces.expiresAt)
-  local currentKey = ParseIsoDate(ResolveCurrentDate(opts))
-  if not expiresKey or not currentKey or currentKey > expiresKey then
     return nil
   end
   return forces

@@ -205,7 +205,7 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     )
   end)
 
-  test("SeasonData.GetMatchingForcesData rejects expired or unverifiable forces data", function()
+  test("SeasonData.GetMatchingForcesData ignores expiresAt at runtime and keeps the build gate", function()
     local addon = LoadSeasonData(LoadAddonModules)
     addon.MPlusForces = {
       season = "midnight_s2",
@@ -215,24 +215,26 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     }
 
     Assert.NotNil(
-      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-08-07" }),
-      "Forces data must remain usable through its exact expiry date"
-    )
-    Assert.Nil(
       addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-08-08" }),
-      "expired Forces data must be hidden from every runtime consumer"
+      "an expired but season-matching DB stays usable at runtime"
     )
+    addon.MPlusForces.expiresAt = "not-a-date"
+    Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "a malformed expiresAt does not close the runtime DB")
+    addon.MPlusForces.dungeonTotal = nil
+    Assert.Nil(addon.SeasonData.GetMatchingForcesData(), "a DB without dungeonTotal stays closed")
+    addon.MPlusForces.dungeonTotal = {}
+    addon.MPlusForces.season = "midnight_s1"
+    Assert.Nil(addon.SeasonData.GetMatchingForcesData(), "a DB of another season stays closed")
 
-    addon.MPlusForces.expiresAt = "2026-02-30"
-    Assert.Nil(
-      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-02-28" }),
-      "an impossible expiry date must remain unresolved"
-    )
-    addon.MPlusForces.expiresAt = "2099-01-01"
-    Assert.Nil(
-      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "not-a-date" }),
-      "an unverifiable current date must fail closed"
-    )
+    -- The freshness check lives on in the build gate.
+    addon.MPlusForces.season = "midnight_s2"
+    addon.MPlusForces.expiresAt = "2026-08-07"
+    local readiness = addon.SeasonData.GetForcesReadiness("midnight_s2", { currentDate = "2026-08-08" })
+    local expiredError = false
+    for _, message in ipairs(readiness.errors) do
+      expiredError = expiredError or message == "M+ forces expired on 2026-08-07"
+    end
+    Assert.True(expiredError, "the build gate still reports the expired DB")
   end)
 
   test("SeasonData marks only Midnight native dungeons with level 90 portal gates", function()
@@ -744,6 +746,9 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
       {
         label = "expired",
         forces = { season = "test_forces", expiresAt = "2026-07-12", dungeonTotal = totals, byNpcId = npcs },
+        -- expiresAt is a build gate only (user decision 2026-11-14): the
+        -- season-matching DB stays open at runtime.
+        runtimeOpen = true,
       },
       {
         label = "foreign",
@@ -762,11 +767,12 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
       Assert.True(ok, variant.label .. " forces data must not block auto-selection")
       Assert.True(changed, variant.label .. " forces data must not block the season change")
       Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "test_forces", variant.label .. ": season must switch")
-      Assert.Equal(
-        addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-13" }),
-        nil,
-        variant.label .. " forces data must stay closed for the MDT displays"
-      )
+      local runtimeDB = addon.SeasonData.GetMatchingForcesData()
+      if variant.runtimeOpen then
+        Assert.Equal(runtimeDB, variant.forces, variant.label .. " forces data stays open for the MDT displays")
+      else
+        Assert.Nil(runtimeDB, variant.label .. " forces data must stay closed for the MDT displays")
+      end
     end
   end)
 
