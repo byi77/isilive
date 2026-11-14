@@ -1900,10 +1900,17 @@ end
 -- onCooldown, the cooldown running or done (remain > 0), the channel or the
 -- send result ("true", "false", "lockdown"). The running remain itself is not
 -- part of it -- it changes every second. The next logged line carries the
--- number of identical outcomes it stood for (repeats).
+-- number of identical outcomes it stood for (repeats). While addon chat stays
+-- locked down nothing goes out, so a lockdown is one line however often the
+-- cooldown state flips under it (log 2026-11-14: ~60 lockdown lines per key,
+-- one per cooldown change).
 local function TraceKickSend(hasKick, onCooldown, remain, channel, sent)
   local trace = lastKickTrace
   local running = remain > 0
+  if sent == "lockdown" and trace.sent == "lockdown" then
+    kickTraceRepeats = kickTraceRepeats + 1
+    return
+  end
   if
     trace.hasKick == hasKick
     and trace.onCooldown == onCooldown

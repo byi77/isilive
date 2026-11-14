@@ -422,15 +422,15 @@ return function(test, ctx)
     Stress.WithKey(ctx, FixtureWithSchema, function(session)
       Pull(session)
       Kick(session)
-      session.Advance(0.1)
+      session.Advance(0.016)
       HostileInterrupt(session)
       session.Advance(1)
       local landed = FindLine(ProbeLines(session, "event=kick "), "event=kick")
       Assert.NotNil(landed, "a kick line after the one second lookahead")
       Assert.NotNil(
         tostring(landed):find(
-          "spellID=2139 inKey=yes inCombat=yes alert=off window_ms=250 verdict=landed "
-            .. "firstInterruptAfterMs=100 firstEvent=UNIT_SPELLCAST_INTERRUPTED interruptBeforeCastMs=none",
+          "spellID=2139 inKey=yes inCombat=yes alert=off window_ms=30 verdict=landed "
+            .. "firstInterruptAfterMs=16 firstEvent=UNIT_SPELLCAST_INTERRUPTED interruptBeforeCastMs=none",
           1,
           true
         ),
@@ -617,7 +617,7 @@ return function(test, ctx)
       session.lockdown = true
       Pull(session)
       Kick(session)
-      session.Advance(0.1)
+      session.Advance(0.016)
       HostileInterrupt(session)
       session.Advance(2.5)
       session.lockdown = false
@@ -670,7 +670,7 @@ return function(test, ctx)
       AssertReportLine(
         printed,
         "K3 kick timing: 1 kicks, 1 landed, 0 missed, 0 excluded; ms to the first hostile interrupt "
-          .. "min/median/max 100/100/100 (1 timed)",
+          .. "min/median/max 16/16/16 (1 timed)",
         "landed kick timing"
       )
       AssertReportLine(
@@ -801,7 +801,7 @@ return function(test, ctx)
       session.selfThreat = 1
       Pull(session)
       Kick(session)
-      session.Advance(0.1)
+      session.Advance(0.016)
       HostileInterrupt(session)
       session.Advance(2.5)
       EndPull(session)
@@ -860,7 +860,7 @@ return function(test, ctx)
       AssertReportLine(
         printed,
         "K3 kick timing: 4 kicks, 1 landed, 2 missed, 0 excluded; ms to the first hostile interrupt "
-          .. "min/median/max 100/100/400 (2 timed)",
+          .. "min/median/max 16/16/400 (2 timed)",
         "lower median of the logged timings; the empty kick line counts without a verdict"
       )
       AssertReportLine(

@@ -104,6 +104,28 @@ local function GetTrackedMythicZeroState(ctx)
   return true, ResolveTrackedMythicZeroMapID(), difficultyID, instanceName
 end
 
+-- True when the dungeon the M0 run was tracked in became a key: the keystone
+-- runs, or the instance already reports the keystone difficulty (the
+-- CHALLENGE_MODE_RESET right before CHALLENGE_MODE_START comes before the
+-- challenge state). Rule 92 closes the tracked run there without a capture:
+-- the time before the key is no run of its own, and the challenge lifecycle
+-- records the key. Capturing it fired a level-0 record_run with five retries
+-- at every key start (log 2026-11-14) and could, with trash pulled before the
+-- key, store that M0 snapshot over the previous key's.
+local function DungeonBecameKey(ctx)
+  if ctx.isInChallengeMode() then
+    return true
+  end
+  if type(GetInstanceInfoSafe) ~= "function" then
+    return false
+  end
+  local okInstance, instanceInfo = GetInstanceInfoSafe()
+  return okInstance
+    and type(instanceInfo) == "table"
+    and instanceInfo.instanceType == "party"
+    and instanceInfo.difficultyID == MYTHIC_KEYSTONE_DIFFICULTY_ID
+end
+
 local function CloneRosterSnapshotForStats(roster)
   if type(roster) ~= "table" then
     return {}
@@ -220,7 +242,7 @@ local function UpdateTrackedMythicZeroRun(ctx)
     return
   end
 
-  if previousMapID then
+  if previousMapID and not DungeonBecameKey(ctx) then
     local rosterSnapshot = ctx.activeMythicZeroRosterSnapshot
     if rosterSnapshot == nil and type(roster) == "table" and next(roster) ~= nil then
       rosterSnapshot = CloneRosterSnapshotForStats(roster)

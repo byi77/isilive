@@ -78,6 +78,30 @@ return function(test, ctx)
     end, Prepare)
   end)
 
+  -- Log 2026-11-14: one sent=lockdown line per cooldown change, ~60 per key.
+  -- The lockdown spans the whole cooldown here (start and ready flip
+  -- onCooldown and running underneath it) and still yields one line.
+  test("Kick sync traces a lockdown once across cooldown changes", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      session.runtime.runtimeLogController.SetEnabled(true)
+      session.lockdown = true
+      session.messages = {}
+      Kick(session)
+      session.Advance(30)
+      -- Second kick: the cooldown runs again when the lockdown lifts, so the
+      -- poll is still active.
+      Kick(session)
+      session.Advance(10)
+      Assert.Equal(CountKickMessages(session), 0, "nothing is dispatched while addon chat is locked down")
+      Assert.Equal(CountLog(session, "sent=lockdown"), 1, "one lockdown is one trace line across cooldown changes")
+
+      session.lockdown = false
+      session.Advance(0.5)
+      Assert.True(CountKickMessages(session) >= 1, "the first poll after the lockdown sends the kick state")
+      Assert.True(CountLog(session, "sent=true") >= 1, "the send after the lockdown is traced")
+    end, Prepare)
+  end)
+
   -- The event-handler config dropped sendOwnKickState until 2026-11-09, so
   -- PLAYER_ENTERING_WORLD called a no-op. The own kick state must reach the
   -- addon-message API through the real dispatcher, and the lockdown gate of

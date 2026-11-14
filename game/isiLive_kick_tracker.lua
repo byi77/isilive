@@ -134,10 +134,15 @@ local EXTRA_KICK_CD = {
 -- Missed-kick ("Kick ins Leere") evaluation windows, rule 236. After the own
 -- interrupt cast a hostile interrupt must be observed within this many
 -- seconds, otherwise the kick counts as missed.
--- CALIBRATE IN-GAME: these are start values, not measurements. Raise a value
--- if real landed kicks raise the alert; lower it if missed kicks slip through
--- because an unrelated interrupt happened to land in the window.
-local MISSED_KICK_WINDOW_DEFAULT_SECONDS = 0.25
+-- CALIBRATE IN-GAME: raise a value if real landed kicks raise the alert; lower
+-- it if missed kicks slip through because an unrelated interrupt happened to
+-- land in the window.
+-- Default calibrated on the probe logs of 2026-11-12 to 2026-11-14 (Kick 1766,
+-- ~160 kicks): real hits land in the same frame (0 ms), twice one frame later
+-- (13 and 16 ms); a teammate's interrupt 39 ms after an own kick the damage
+-- meter did not count was the only false "landed". 0.25 s took such teammate
+-- interrupts as own hits. Pet kicks and Solar Beam have no data yet.
+local MISSED_KICK_WINDOW_DEFAULT_SECONDS = 0.03
 -- Pet kicks (Warlock Spell Lock / Axe Toss) travel through the pet first.
 local MISSED_KICK_WINDOW_PET_SECONDS = 0.6
 -- Per-spell overrides for slow kicks. CALIBRATE IN-GAME.

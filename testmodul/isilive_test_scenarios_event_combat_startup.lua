@@ -685,6 +685,74 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
 
     Assert.Equal(#recordedRuns, 0, "leaving a finished keystone dungeon must not record a second run snapshot")
   end)
+
+  test("Event handlers drop the M0 run without a capture when the dungeon becomes a key", function()
+    -- Log 2026-11-14: the group waits in the dungeon (difficulty 23, tracked M0
+    -- run), the keystone goes in and the instance reports difficulty 8 already
+    -- at the CHALLENGE_MODE_RESET before CHALLENGE_MODE_START. That is the
+    -- start of a challenge run, not the end of an M0 run (rule 92): no
+    -- record_run, also not on a later event while the challenge runs.
+    local current = {
+      instanceType = "party",
+      difficultyID = 23,
+      mapID = 2649,
+    }
+    local inChallenge = false
+    local recordedRuns = {}
+    local clearTrackedContexts = 0
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        isInChallengeMode = function()
+          return inChallenge
+        end,
+        recordRun = function(mapID, level, onTime)
+          table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+        end,
+        setTrackedPartyRunInfo = function() end,
+        clearTrackedPartyRunInfo = function()
+          clearTrackedContexts = clearTrackedContexts + 1
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#recordedRuns, 0, "entering the M0 dungeon must not record a run")
+
+      -- Keystone inserted: difficulty 8 before the challenge state is set.
+      current.difficultyID = 8
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#recordedRuns, 0, "the keystone difficulty must not record the M0 run")
+      Assert.True(clearTrackedContexts > 0, "the keystone difficulty must close the tracked party run")
+
+      inChallenge = true
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 0, "a dungeon that became a key must never record an M0 run")
+  end)
 end
 
 local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)

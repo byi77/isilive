@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix: a key start no longer closes the M0 run of the group waiting in the dungeon with a capture (rule 92). The instance reports the keystone difficulty (8) already at the `CHALLENGE_MODE_RESET` before `CHALLENGE_MODE_START`; the tracked M0 run then counted as left and fired a level-0 `record_run` with five retries at every key start (log 2026-11-14, 0.9.518). With trash pulled before the key it could store that M0 snapshot over the previous key's DPS and kicks. A dungeon that becomes a key now drops the M0 run without a capture.
+- Change: the missed-kick window (rule 236) is 0.03 s instead of 0.25 s, calibrated on the probe logs of 2026-11-12 to 2026-11-14 (~160 rogue kicks): real hits land in the same frame, twice one frame later (13 and 16 ms); a teammate's interrupt 39 ms after an own kick counted as landed although the damage meter did not count it (kick column `25/21` against 22 judged landed). Pet kicks and Solar Beam stay at 0.6 s.
+- Change: the `send_kick` trace writes one `sent=lockdown` line per addon chat lockdown instead of one per cooldown change (~60 per key in the log of 2026-11-14); the line after the lockdown carries the repeats.
+
 ## 2026-11-14 - Version 0.9.520 (patch)
 
 - Fix: run focus collapses at countdown 5 again (rule 248). The in-game probe of 0.9.518 (+16) showed the window collapsing at ~1 s via the timer-start fallback: the client starts the key countdown (`START_TIMER` type 1) 2-3 s before `CHALLENGE_MODE_START`, so the countdown arrived before run focus was armed. Every key countdown is now recorded with `GetTime()`; the key start uses one recorded within the last 12 s and schedules the collapse for `remaining - age - 5` s. The record survives the `CHALLENGE_MODE_RESET` the client fires ~0.25 s before every key start, and ends when stale, on completion, on leaving the instance or when the setting is switched off. The `START_TIMER`-after-arming path and the timer-start fallback stay.
