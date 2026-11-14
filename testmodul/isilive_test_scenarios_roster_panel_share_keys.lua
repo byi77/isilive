@@ -1,4 +1,13 @@
 ---@diagnostic disable: undefined-global
+-- Rule 249 locks the main window to the M+ layout (RI.LAYOUT_LOCKED_TO_MPLUS).
+-- These scenarios cover the kept V / H / M layout code, so they lift the lock.
+local function UnlockLayout(addon)
+  if type(addon) == "table" and type(addon._RosterInternal) == "table" then
+    addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+  end
+  return addon
+end
+
 local function RequireRosterPanelHelpers()
   local chunk, loadErr = loadfile("testmodul/isilive_test_scenarios_roster_panel.lua")
   if not chunk then
@@ -2804,7 +2813,9 @@ return function(test_arg, ctx)
   test = test_arg
   Assert = ctx.assert
   WithGlobals = ctx.with_globals
-  LoadAddonModules = ctx.load_modules
+  LoadAddonModules = function(files)
+    return UnlockLayout(ctx.load_modules(files))
+  end
   local Helpers = RequireRosterPanelHelpers()
   NewRecordedFrame = Helpers.NewRecordedFrame
   NewRecordedMainFrame = Helpers.NewRecordedMainFrame

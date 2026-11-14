@@ -105,6 +105,7 @@ local FILE_PATHS = {
   ["isiLive_roster_panel_render.lua"] = "ui/isiLive_roster_panel_render.lua",
   ["isiLive_roster_panel_instance_reset.lua"] = "ui/isiLive_roster_panel_instance_reset.lua",
   ["isiLive_run_focus.lua"] = "ui/isiLive_run_focus.lua",
+  ["isiLive_run_focus_title.lua"] = "ui/isiLive_run_focus_title.lua",
   ["isiLive_ui.lua"] = "ui/isiLive_ui.lua",
   ["isiLive_ui_main_frame.lua"] = "ui/isiLive_ui_main_frame.lua",
   ["isiLive_edit_mode.lua"] = "ui/isiLive_edit_mode.lua",
@@ -306,6 +307,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_edit_mode.lua",
     "isiLive_factory_live_kicks.lua",
     "isiLive_run_focus.lua",
+    "isiLive_run_focus_title.lua",
   },
   ["isiLive_factory_controllers.lua"] = {
     "isiLive_factory_kick_tracker.lua",

@@ -220,6 +220,9 @@ return function(test, ctx)
 
   test("Demo shows the instance reset button in the M layout and the demo end hides it", function()
     Stress.WithParty(ctx, FixtureWithTablet, function(session)
+      -- Rule 249 locks the window to M+; the kept M layout is covered unlocked.
+      session.addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+      session.runtime.rosterPanelController.SetLayoutMode("expanded")
       local db = session.globals.IsiLiveDB
       local button = FindResetButton(session)
       Slash(session, "testall")

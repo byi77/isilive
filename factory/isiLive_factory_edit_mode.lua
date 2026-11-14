@@ -95,6 +95,16 @@ function FactoryEditMode.InstallLate(ctx)
       rosterPanel = ctx.rosterPanelController,
       mainUI = ctx.mainUI,
       isRaidGroup = ctx.IsRaidGroup,
+      -- Title-bar switch (ui/isiLive_run_focus_title.lua): texts and the
+      -- settings panel that mirrors runFocusEnabled.
+      getText = function(key, fallback)
+        local L = type(ctx.GetL) == "function" and ctx.GetL() or nil
+        local text = type(L) == "table" and L[key] or nil
+        return type(text) == "string" and text or fallback
+      end,
+      onEnabledToggled = function()
+        RefreshSettingsPanel(ctx)
+      end,
       refreshOwners = function()
         local panel = ctx.rosterPanelController
         if type(panel) == "table" then

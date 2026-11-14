@@ -24,6 +24,10 @@ local function Bottom(sim)
   return MainFrame(sim):GetBottom()
 end
 
+local function Top(sim)
+  return MainFrame(sim):GetTop()
+end
+
 local function Near(a, b)
   return type(a) == "number" and type(b) == "number" and math.abs(a - b) < 0.5
 end
@@ -65,6 +69,15 @@ local function ClickTabletButton(sim, text)
     end
   end
   sim.Expect(false, "no tablet button: " .. text)
+end
+
+local function TitleToggle(sim)
+  return sim.Client().addonTable.RunFocus.GetActiveController().titleButton
+end
+
+local function ClickTitleToggle(sim)
+  local button = TitleToggle(sim)
+  button:GetScript("OnClick")(button, "LeftButton", false)
 end
 
 local function ExpectCollapsed(sim, label)
@@ -153,7 +166,7 @@ return {
     sim.Wait(3.8, 0.05)
     sim.Step("Countdown 6: still full")
     ExpectExpanded(sim, "countdown at 6", fullHeight)
-    sim.Wait(1.2, 0.05)
+    sim.Wait(1.35, 0.05)
     sim.Step("Countdown 5: collapsing")
     sim.Expect(Height(sim) < fullHeight, "countdown at 5 starts the collapse animation")
     sim.Wait(1)
@@ -226,6 +239,135 @@ return {
     sim.Wait(1)
     sim.Step("Key reset: expanded")
     ExpectExpanded(sim, "after reset")
+
+    -- Anchor "top": the top edge stays, the run zone moves up with the
+    -- bottom edge while the rest fades.
+    local env = sim.Env()
+    env.IsiLiveDB.runFocusAnchor = "top"
+    local fullTop, fullBottom = Top(sim), Bottom(sim)
+    sim.StartKey({ mapID = KR, level = 16, timerStartDelay = 10 })
+    sim.Wait(5.25, 0.05)
+    sim.Step("Top anchor: collapsing")
+    sim.Expect(Height(sim) < 150, "top anchor: countdown 5 starts the collapse")
+    sim.Expect(Near(Top(sim), fullTop), "top anchor: the top edge stays during the animation")
+    sim.Wait(1)
+    sim.Step("Top anchor: run zone at the top")
+    ExpectCollapsed(sim, "top anchor")
+    sim.Expect(Near(Top(sim), fullTop), "top anchor: top edge unchanged after collapse")
+
+    -- Switching the anchor while collapsed re-applies at once.
+    env.IsiLiveDB.runFocusAnchor = "bottom"
+    sim.Client().addonTable.RunFocus.Refresh()
+    sim.Wait(0.5)
+    sim.Step("Anchor switched to bottom while collapsed")
+    ExpectCollapsed(sim, "anchor switch to bottom")
+    sim.Expect(Near(Bottom(sim), fullBottom), "anchor switch: bottom edge back where the full window ended")
+    env.IsiLiveDB.runFocusAnchor = "top"
+    sim.Client().addonTable.RunFocus.Refresh()
+    sim.Wait(0.5)
+    ExpectCollapsed(sim, "anchor switch to top")
+    sim.Expect(Near(Top(sim), fullTop), "anchor switch: top edge back where the full window started")
+
+    sim.CompleteKey()
+    sim.Wait(5)
+    sim.Step("Top anchor: expanded")
+    ExpectExpanded(sim, "top anchor after completion")
+    sim.Expect(Near(Top(sim), fullTop), "top anchor: top edge unchanged after expand")
+    sim.Expect(Near(Bottom(sim), fullBottom), "top anchor: bottom edge back after expand")
+    env.IsiLiveDB.runFocusAnchor = nil
+
+    -- Option off (default): leaving combat inside the key keeps the run zone.
+    sim.StartKey({ mapID = KR, level = 16, timerStartDelay = 10 })
+    sim.Wait(6.5)
+    ExpectCollapsed(sim, "key for the combat cycle")
+    sim.Combat(true)
+    sim.Wait(2)
+    sim.Combat(false)
+    sim.Wait(3)
+    sim.Step("Out of combat, option off: stays collapsed")
+    ExpectCollapsed(sim, "option off after combat")
+
+    -- Option on: 1.5 s out of combat opens the window, the next fight folds
+    -- it back at once; a chain pull inside the 1.5 s keeps it closed.
+    env.IsiLiveDB.runFocusExpandOutOfCombat = true
+    sim.Combat(true)
+    sim.Wait(2)
+    sim.Combat(false)
+    sim.Wait(1)
+    ExpectCollapsed(sim, "1 s out of combat (debounce)")
+    sim.Wait(1.5)
+    sim.Step("Out of combat, option on: opened")
+    ExpectExpanded(sim, "1.5 s out of combat")
+    sim.Expect(Near(Bottom(sim), fullBottom), "opened window keeps the bottom edge")
+    sim.Combat(true)
+    sim.Step("Combat start: folded at once")
+    ExpectCollapsed(sim, "combat start in the opened window")
+    sim.Expect(Near(Bottom(sim), fullBottom), "combat fold keeps the bottom edge")
+    sim.Combat(false)
+    sim.Wait(1)
+    sim.Combat(true)
+    sim.Wait(3)
+    sim.Combat(false)
+    sim.Wait(1)
+    ExpectCollapsed(sim, "chain pull inside the debounce")
+    sim.Wait(1.5)
+    ExpectExpanded(sim, "after the chain pull")
+    env.IsiLiveDB.runFocusAnchor = "top"
+    sim.Combat(true)
+    sim.Step("Combat start with top anchor")
+    ExpectCollapsed(sim, "combat fold with top anchor")
+    sim.Expect(Near(Top(sim), fullTop), "combat fold with top anchor keeps the top edge")
+    sim.Combat(false)
+    sim.Wait(3)
+    ExpectExpanded(sim, "opened again with top anchor")
+    env.IsiLiveDB.runFocusAnchor = nil
+
+    -- Title-bar switch: off expands nothing more (already open) and keeps the
+    -- next fight from folding; on folds the running key again.
+    sim.Expect(TitleToggle(sim):IsVisible(), "title switch visible in the open M+ window")
+    ClickTitleToggle(sim)
+    sim.Expect(env.IsiLiveDB.runFocusEnabled == false, "title switch turns run focus off")
+    sim.Step("Title switch off")
+    sim.Combat(true)
+    sim.Wait(0.5)
+    ExpectExpanded(sim, "combat with run focus off")
+    sim.Combat(false)
+    sim.Wait(0.5)
+    ClickTitleToggle(sim)
+    sim.Expect(env.IsiLiveDB.runFocusEnabled == true, "title switch turns run focus on")
+    sim.Wait(1)
+    sim.Step("Title switch on: folded")
+    ExpectCollapsed(sim, "title switch on in a running key")
+    sim.Expect(not TitleToggle(sim):IsVisible(), "the switch hides with the title bar while collapsed")
+    env.IsiLiveDB.runFocusExpandOutOfCombat = false
+    sim.Client().addonTable.RunFocus.Refresh()
+
+    -- In combat: switching on hides the content at once, the frame shrinks
+    -- after combat; switching off expands after combat.
+    ClickTitleToggle(sim) -- the button is hidden; its script still works for the test
+    sim.Wait(1)
+    ExpectExpanded(sim, "switched off out of combat")
+    sim.Combat(true)
+    ClickTitleToggle(sim)
+    sim.Wait(1)
+    sim.Expect(not Visible(sim, "^Readycheck$"), "switch on in combat hides the content at once")
+    sim.Expect(Height(sim) > 150, "switch on in combat keeps the frame size")
+    sim.Combat(false)
+    sim.Wait(1)
+    ExpectCollapsed(sim, "switch on in combat, after combat")
+    sim.Combat(true)
+    sim
+      .Client().addonTable.RunFocus
+      .GetActiveController().titleButton
+      :GetScript("OnClick")(TitleToggle(sim), "LeftButton", false)
+    sim.Wait(1)
+    ExpectCollapsed(sim, "switch off in combat waits")
+    sim.Combat(false)
+    sim.Wait(1)
+    ExpectExpanded(sim, "switch off in combat, after combat")
+    env.IsiLiveDB.runFocusEnabled = true
+    sim.CompleteKey()
+    sim.Wait(5)
 
     -- Test switch with the setting off: slash command and demo action.
     sim.Env().IsiLiveDB.runFocusEnabled = false

@@ -263,6 +263,11 @@ function EditMode.Install(opts)
       name = Text("EDIT_MODE_LAYOUT", "Layout"),
       default = "compact_main_horizontal",
       values = LAYOUT_OPTIONS,
+      -- Layout lock (rule 249): the choice stays visible on M+ but disabled.
+      disabled = function()
+        local RI = addonTable._RosterInternal
+        return type(RI) == "table" and type(RI.IsLayoutLocked) == "function" and RI.IsLayoutLocked() == true
+      end,
       get = function()
         return type(opts.getLayoutMode) == "function" and opts.getLayoutMode() or "compact_main_horizontal"
       end,

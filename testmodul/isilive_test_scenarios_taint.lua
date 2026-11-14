@@ -1,4 +1,12 @@
 ---@diagnostic disable: undefined-global
+-- Rule 249 locks the main window to the M+ layout (RI.LAYOUT_LOCKED_TO_MPLUS).
+-- These scenarios cover the kept V / H / M layout code, so they lift the lock.
+local function UnlockLayout(addon)
+  if type(addon) == "table" and type(addon._RosterInternal) == "table" then
+    addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+  end
+  return addon
+end
 
 local function RegisterProtectedApiTraps()
   local protectedFunctions = {
@@ -1378,7 +1386,9 @@ end
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+  local LoadAddonModules = function(files)
+    return UnlockLayout(ctx.load_modules(files))
+  end
 
   RegisterGroupTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonModules)

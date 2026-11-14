@@ -90,6 +90,33 @@ local function NormalizeStoredLayoutMode(layoutMode)
   return nil
 end
 
+-- Layout lock (rule 249): the default-layout choice shows M+ and cannot be
+-- clicked while RI.IsLayoutLocked() holds.
+local LAYOUT_LOCKED_DESC_FALLBACK = "The main window always uses the M+ layout."
+
+local function IsLayoutLocked()
+  local RI = addonTable._RosterInternal
+  return type(RI) == "table" and type(RI.IsLayoutLocked) == "function" and RI.IsLayoutLocked() == true
+end
+
+local function ApplyLayoutLock(selector, labels)
+  if type(selector) ~= "table" then
+    return
+  end
+  local locked = IsLayoutLocked()
+  for _, button in ipairs(selector.buttons or {}) do
+    if type(button.EnableMouse) == "function" then
+      button:EnableMouse(not locked)
+    end
+    if type(button.SetAlpha) == "function" then
+      button:SetAlpha(locked and 0.45 or 1)
+    end
+  end
+  if locked and selector.description and type(selector.description.SetText) == "function" then
+    selector.description:SetText(labels.SETTINGS_LAYOUT_LOCKED_DESC or LAYOUT_LOCKED_DESC_FALLBACK)
+  end
+end
+
 local UI_DESIGN_DESC_FALLBACK = "Chooses the look of the isiLive windows. Takes effect after /reload."
 
 -- Unknown or missing designs read as the default design (fail closed to classic).
@@ -161,10 +188,16 @@ function SettingsGeneral.BuildGeneralSection(canvas, yOffset, labels, config, co
     },
     config.getL,
     function()
+      if IsLayoutLocked() then
+        return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+      end
       local db = config.getDB()
       return NormalizeStoredLayoutMode(db.rosterDefaultLayoutMode)
     end,
     function(mode)
+      if IsLayoutLocked() then
+        return
+      end
       local db = config.getDB()
       db.rosterDefaultLayoutMode = NormalizeStoredLayoutMode(mode)
       if type(config.onDefaultLayoutModeChange) == "function" then
@@ -182,6 +215,7 @@ function SettingsGeneral.BuildGeneralSection(canvas, yOffset, labels, config, co
       { descriptionKey = "SETTINGS_DEFAULT_OPEN_UI_DESC" }
     )
   )
+  ApplyLayoutLock(controls.defaultLayout, labels)
 
   -- UI design (rule 233): stored only; the design is applied after /reload.
   controls.uiDesign, yOffset = CreateSettingsOptionSelector(
@@ -315,6 +349,7 @@ function SettingsGeneral.RefreshGeneralControls(controls, labels)
       labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
     )
     controls.defaultLayout.UpdateHighlight()
+    ApplyLayoutLock(controls.defaultLayout, labels)
   end
   if controls.uiDesign then
     SetControlDescription(controls.uiDesign, labels.SETTINGS_UI_DESIGN_DESC or UI_DESIGN_DESC_FALLBACK)

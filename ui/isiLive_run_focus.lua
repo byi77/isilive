@@ -4,8 +4,9 @@ addonTable = addonTable or {}
 -- Run focus (rule 248): while a key runs, the M+ layout keeps only its run
 -- zone -- the CD row (battle res, Bloodlust, M+ timer, deaths) and the
 -- killtracker row (forces, pace, section target) -- and slides everything
--- above it away. The window keeps its bottom edge, so the run zone never
--- moves. A key start only arms it: the animated collapse starts when the key
+-- above it away. By default the window keeps its bottom edge, so the run
+-- zone never moves; with runFocusAnchor "top" it keeps its top edge and the
+-- run zone moves up to where the title bar was. A key start only arms it: the animated collapse starts when the key
 -- countdown (START_TIMER, ChallengeModeCountdown) shows 5, or at the latest
 -- when the M+ timer starts (WORLD_STATE_TIMER_START). A completed key expands
 -- 4 s later, a reset key or leaving the instance expands at once (a pending
@@ -31,12 +32,20 @@ local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
 local LAYOUT_MODE_RUN = "compact_main_horizontal"
-local COLLAPSE_SECONDS = 0.35
-local EXPAND_SECONDS = 0.4
+local COLLAPSE_SECONDS = 0.45
+local EXPAND_SECONDS = 0.5
 -- Share of the animation that carries the fade (start of a collapse, end of
 -- an expand); the height moves over the whole duration.
-local FADE_SHARE = 0.6
+-- Two phases, so the run zone never slides over half-faded content: a
+-- collapse fades the rest out during the first FADE_SHARE of the time and
+-- folds the window during the last FOLD_SHARE; an expand folds open first and
+-- fades in at the end.
+local FADE_SHARE = 0.35
+local FOLD_SHARE = 0.7
 local COMPLETED_EXPAND_DELAY_SECONDS = 4
+-- runFocusExpandOutOfCombat: seconds out of combat before the window opens,
+-- so chain pulls do not flap.
+local PEEK_DEBOUNCE_SECONDS = 1.5
 -- The collapse starts when the key countdown shows this second.
 local COUNTDOWN_COLLAPSE_AT_SECONDS = 5
 -- Enum.StartTimerType.ChallengeModeCountdown; type 2 is the leader's pull
@@ -149,6 +158,15 @@ local function AnchorPreserving(frame, parent, point)
   return true
 end
 
+-- Edge that stays put while collapsed: "bottom" (default, the window folds
+-- down onto the run zone) or "top" (the run zone moves up to where the title
+-- bar was). Anything else fails closed to "bottom".
+local ANCHOR_POINTS = { bottom = "BOTTOMLEFT", top = "TOPLEFT" }
+
+function RunFocus.NormalizeAnchor(value)
+  return value == "top" and "top" or "bottom"
+end
+
 local function GetCompactHeight()
   local offset = tonumber(RI.CD_TRACKER_ROW_BOTTOM_OFFSET) or 40
   local rowHeight = tonumber(RI.CD_TRACKER_ROW_HEIGHT) or 24
@@ -205,6 +223,7 @@ local function BuildCandidates(f)
 end
 
 local HideObject
+local ReapplyAnchor
 
 local function HookOnShow(f, obj)
   if f.hooked[obj] or type(obj.HookScript) ~= "function" then
@@ -375,14 +394,16 @@ local function StepAnimation(f, elapsed)
   local progress = state.duration > 0 and math.min(1, state.elapsed / state.duration) or 1
   local collapsing = state.phase == PHASE_COLLAPSING
   local toHeight = collapsing and GetCompactHeight() or TargetFullHeight(f)
-  state.animHeight = state.fromHeight + (toHeight - state.fromHeight) * EaseOut(progress)
-  ApplyFrameHeight(f, state.animHeight)
-  local visibility
+  local fold, visibility
   if collapsing then
+    fold = math.max(0, (progress - (1 - FOLD_SHARE)) / FOLD_SHARE)
     visibility = 1 - math.min(1, progress / FADE_SHARE)
   else
+    fold = math.min(1, progress / FOLD_SHARE)
     visibility = math.max(0, (progress - (1 - FADE_SHARE)) / FADE_SHARE)
   end
+  state.animHeight = state.fromHeight + (toHeight - state.fromHeight) * EaseOut(fold)
+  ApplyFrameHeight(f, state.animHeight)
   for obj, base in pairs(state.fade or {}) do
     SetAlpha(obj, base * visibility)
   end
@@ -419,9 +440,9 @@ local function CanAnimate(f)
   return type(f.frame.IsVisible) == "function" and f.frame:IsVisible() == true
 end
 
--- Out of combat with a readable rect: pin the bottom edge and remember the
+-- Out of combat with a readable rect: pin the chosen edge and remember the
 -- anchor point to return to.
-local function PinBottomEdge(f)
+local function PinEdge(f)
   if IsInCombat() then
     return false
   end
@@ -431,12 +452,13 @@ local function PinBottomEdge(f)
     state.originalPoint = type(point) == "string" and point or "CENTER"
   end
   state.fullHeight = CurrentHeight(f)
-  return AnchorPreserving(f.frame, f.parent, "BOTTOMLEFT")
+  state.pinnedAnchor = RunFocus.NormalizeAnchor(f.getAnchor())
+  return AnchorPreserving(f.frame, f.parent, ANCHOR_POINTS[state.pinnedAnchor])
 end
 
 -- Shrinks the frame for content that is already hidden.
 local function CompleteCollapseGeometry(f, animate)
-  if not PinBottomEdge(f) then
+  if not PinEdge(f) then
     f.state.geometryPending = true
     return
   end
@@ -461,7 +483,7 @@ local function Collapse(f, animate)
     HideAll(f)
     return
   end
-  if animate and CanAnimate(f) and PinBottomEdge(f) then
+  if animate and CanAnimate(f) and PinEdge(f) then
     state.fade = CaptureFade(f, false)
     state.phase = PHASE_COLLAPSING
     if StartDriver(f, COLLAPSE_SECONDS) then
@@ -511,7 +533,8 @@ local function IsWanted(f)
   if state.testMode then
     return true
   end
-  return f.isEnabled() and (state.keyRunning or state.holdAfterCompletion)
+  -- `peek`: opened out of combat inside a running key (runFocusExpandOutOfCombat).
+  return f.isEnabled() and (state.keyRunning or state.holdAfterCompletion) and not state.peek
 end
 
 local function Evaluate(f, animate)
@@ -525,6 +548,9 @@ end
 -- Hide pass, the last writer after every layout pass and roster render. It
 -- also follows a layout switch (Edit Mode, raid) while a key runs.
 local function Pass(f)
+  if f.title then
+    f.title.Layout(f.state.phase)
+  end
   local phase = f.state.phase
   if phase == PHASE_EXPANDING then
     return
@@ -550,6 +576,8 @@ local function EndKey(f)
   state.armed = false
   state.holdAfterCompletion = false
   state.holdToken = state.holdToken + 1
+  state.peek = false
+  state.peekToken = state.peekToken + 1
 end
 
 -- The countdown is over (or about to be): the key counts as running.
@@ -638,8 +666,53 @@ local function HoldAfterCompletion(f)
   end)
 end
 
+-- runFocusExpandOutOfCombat: after PEEK_DEBOUNCE_SECONDS out of combat in a
+-- running key, the collapsed window opens; a new combat start cancels it.
+local function SchedulePeek(f)
+  local state = f.state
+  if not f.expandOutOfCombat() or state.testMode or not state.keyRunning or state.peek then
+    return
+  end
+  if state.phase ~= PHASE_COLLAPSED and state.phase ~= PHASE_COLLAPSING then
+    return
+  end
+  local timer = rawget(_G, "C_Timer")
+  local after = type(timer) == "table" and timer.After or nil
+  if type(after) ~= "function" then
+    return
+  end
+  state.peekToken = state.peekToken + 1
+  local token = state.peekToken
+  after(PEEK_DEBOUNCE_SECONDS, function()
+    if token ~= state.peekToken or IsInCombat() or not state.keyRunning or not f.expandOutOfCombat() then
+      return
+    end
+    state.peek = true
+    Evaluate(f, true)
+  end)
+end
+
+-- PLAYER_REGEN_DISABLED fires before the lockdown starts, so the protected
+-- main frame can still be re-anchored and resized here: the opened window
+-- collapses at once, without an animation.
+local function OnCombatStarted(f)
+  local state = f.state
+  state.peekToken = state.peekToken + 1
+  if state.peek then
+    state.peek = false
+    Evaluate(f, false)
+  end
+end
+
 local function OnCombatEnded(f)
   local state = f.state
+  if not state.expandPending and not (state.phase == PHASE_COLLAPSED and state.geometryPending) then
+    SchedulePeek(f)
+  end
+  if state.anchorPending then
+    state.anchorPending = false
+    ReapplyAnchor(f)
+  end
   if state.expandPending then
     state.expandPending = false
     if state.phase == PHASE_EXPANDING then
@@ -652,7 +725,29 @@ local function OnCombatEnded(f)
   if state.phase == PHASE_COLLAPSED and state.geometryPending then
     HideAll(f)
     CompleteCollapseGeometry(f, true)
+    SchedulePeek(f)
   end
+end
+
+-- The anchor setting changed while collapsed: expand and collapse again at
+-- once on the new edge (out of combat; in combat at PLAYER_REGEN_ENABLED).
+-- Returns true when it took over the refresh.
+ReapplyAnchor = function(f)
+  local state = f.state
+  if state.phase ~= PHASE_COLLAPSED or state.geometryPending then
+    return false
+  end
+  if state.pinnedAnchor == RunFocus.NormalizeAnchor(f.getAnchor()) then
+    return false
+  end
+  if IsInCombat() then
+    state.anchorPending = true
+    return true
+  end
+  state.anchorPending = false
+  Expand(f, false)
+  Evaluate(f, false)
+  return true
 end
 
 local function BuildController(f)
@@ -692,6 +787,9 @@ local function BuildController(f)
       Evaluate(f, false)
     end
   end
+  function controller.OnCombatStarted()
+    OnCombatStarted(f)
+  end
   function controller.OnCombatEnded()
     OnCombatEnded(f)
   end
@@ -705,6 +803,16 @@ local function BuildController(f)
   function controller.Refresh()
     if not f.isEnabled() then
       state.holdToken = state.holdToken + 1
+    end
+    if state.peek and not f.expandOutOfCombat() then
+      state.peek = false
+    end
+    if f.title then
+      f.title.Refresh()
+      f.title.Layout(state.phase)
+    end
+    if ReapplyAnchor(f) then
+      return
     end
     Evaluate(f, true)
   end
@@ -754,6 +862,12 @@ function RunFocus.Create(deps)
       return false
     end),
     refreshOwners = Fn(deps.refreshOwners, function() end),
+    getAnchor = Fn(deps.getAnchor, function()
+      return "bottom"
+    end),
+    expandOutOfCombat = Fn(deps.expandOutOfCombat, function()
+      return false
+    end),
     getRequestedHeight = Fn(deps.getRequestedHeight, nil),
     hooked = setmetatable({}, { __mode = "k" }),
     state = {
@@ -764,6 +878,8 @@ function RunFocus.Create(deps)
       testMode = false,
       -- CHALLENGE_MODE_START seen, countdown not yet at 5.
       armed = false,
+      peek = false,
+      peekToken = 0,
       -- Content hidden, while anchor / height / clip still wait for a moment
       -- out of combat with a readable rect.
       geometryPending = false,
@@ -773,6 +889,26 @@ function RunFocus.Create(deps)
     },
   }
   local controller = BuildController(f)
+  -- Title-bar switch for runFocusEnabled (ui/isiLive_run_focus_title.lua).
+  if type(deps.getText) == "function" and type(RunFocus.CreateTitleToggle) == "function" then
+    f.title = RunFocus.CreateTitleToggle({
+      frame = frame,
+      ui = deps.ui,
+      getText = deps.getText,
+      isEnabled = f.isEnabled,
+      onToggle = function()
+        local db = rawget(_G, "IsiLiveDB")
+        if type(db) == "table" then
+          db.runFocusEnabled = not f.isEnabled()
+        end
+        controller.Refresh()
+        if type(deps.onEnabledToggled) == "function" then
+          deps.onEnabledToggled()
+        end
+      end,
+    })
+    controller.titleButton = f.title and f.title.button or nil
+  end
   if type(deps.setHeightFilter) == "function" then
     deps.setHeightFilter(function(height)
       return FilterHeight(f, height)
@@ -819,6 +955,8 @@ local function RegisterEvents(events, controller)
       controller.OnEnteringWorld(isInitialLogin == true or isReloadingUi == true)
     elseif event == "ZONE_CHANGED_NEW_AREA" then
       controller.OnEnteringWorld(false)
+    elseif event == "PLAYER_REGEN_DISABLED" then
+      controller.OnCombatStarted()
     elseif event == "PLAYER_REGEN_ENABLED" then
       controller.OnCombatEnded()
     end
@@ -831,6 +969,7 @@ local function RegisterEvents(events, controller)
     "CHALLENGE_MODE_RESET",
     "PLAYER_ENTERING_WORLD",
     "ZONE_CHANGED_NEW_AREA",
+    "PLAYER_REGEN_DISABLED",
     "PLAYER_REGEN_ENABLED",
   }) do
     events:RegisterEvent(event)
@@ -876,6 +1015,16 @@ function RunFocus.Install(opts)
       local db = rawget(_G, "IsiLiveDB")
       return type(db) == "table" and db.runFocusEnabled == true
     end,
+    getAnchor = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return RunFocus.NormalizeAnchor(type(db) == "table" and db.runFocusAnchor or nil)
+    end,
+    expandOutOfCombat = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) == "table" and db.runFocusExpandOutOfCombat == true
+    end,
+    getText = opts.getText,
+    onEnabledToggled = opts.onEnabledToggled,
   })
   if not controller then
     rosterPanel.AttachRunFocus(nil)

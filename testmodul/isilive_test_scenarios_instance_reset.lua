@@ -400,6 +400,10 @@ return function(test, ctx)
 
   test("Instance reset button takes the next leader slot in the M layout", function()
     Stress.WithParty(ctx, Fixture, function(session)
+      -- Rule 249 locks the window to M+; the kept M layout code is covered with
+      -- the lock lifted.
+      session.addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+      session.runtime.rosterPanelController.SetLayoutMode("expanded")
       local button = FindResetButton(session)
       RunKey(session)
       LeaveDungeon(session)

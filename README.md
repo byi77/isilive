@@ -215,7 +215,7 @@ The window opens automatically when you join a group and closes when you leave. 
 
 ### Layouts
 
-The window comes in four layouts. Click the button in the title bar to switch:
+The main window is fixed to the **M+** layout: the title bar has no layout buttons, and saved H / V / M choices open as M+ (the layout choices in the settings and in Edit Mode are greyed out). The other layouts below stay in the code and may come back later:
 
 | Button | Layout | What you get |
 |---|---|---|
@@ -224,15 +224,14 @@ The window comes in four layouts. Click the button in the title bar to switch:
 | **H** | Horizontal | Slim tool strip — just the essentials |
 | **V** | Vertical | Small palette with short `RC` / `CD10` / `CD0` leader buttons and two compact marker columns |
 
-The selected layout is remembered across sessions.
 
 ### Run focus
 
-Optional, off by default: *Settings -> Behavior -> Run focus during a key*. While a key runs, the **M+** layout keeps only its run zone -- Battle Res, Bloodlust, the M+ timer with deaths, and the killtracker with pace and section target. Title bar, roster, leader buttons, Share Keys, Mark-T/H and the portal grid slide away when the key countdown shows 5 (at the latest when the M+ timer starts; the leader's pull timer does not count); the window keeps its bottom edge, so the run zone does not move. They slide back 4 seconds after a completed key, and at once after an abandoned key or when you leave the dungeon. A `/reload` inside a key starts in the run zone. In combat the content disappears at once and the window shrinks or grows when combat ends. The other layouts are not affected. To try it without a key: `/isilive runfocus`, or the demo simulator (action C13, M+ tab); both work with the setting off.
+Optional, off by default: *Settings -> Behavior -> Run focus during a key*. While a key runs, the **M+** layout keeps only its run zone -- Battle Res, Bloodlust, the M+ timer with deaths, and the killtracker with pace and section target. Title bar, roster, leader buttons, Share Keys, Mark-T/H and the portal grid slide away when the key countdown shows 5 (at the latest when the M+ timer starts; the leader's pull timer does not count); by default the window keeps its bottom edge, so the run zone does not move; with *Run focus edge: Top* (right below the switch) the window keeps its top edge instead and the run zone moves up to where the title bar was. They slide back 4 seconds after a completed key, and at once after an abandoned key or when you leave the dungeon. A `/reload` inside a key starts in the run zone. In combat the content disappears at once and the window shrinks or grows when combat ends. The other layouts are not affected. With *Run focus: open out of combat* (off by default) the full window opens 1.5 seconds after a fight inside the key and folds back the moment the next fight starts. In the **M+** layout a small hourglass button next to Re-Sync switches run focus on and off (highlighted = on, grey = off); it hides with the title bar while the window is folded, so use it while the window is open. To try it without a key: `/isilive runfocus`, or the demo simulator (action C13, M+ tab); both work with the setting off.
 
 ### Blizzard Edit Mode
 
-isiLive's main window is an element of Blizzard's Edit Mode (*Esc -> Edit Mode*): it shows up there as **isiLive** -- also when you are not in a group, and in a raid as a placeholder -- and you move it like any Blizzard frame, the window lock does not apply there. Click it for its settings: layout (M+ / M / H / V), UI scale, background opacity, the window lock and *Reset position*.
+isiLive's main window is an element of Blizzard's Edit Mode (*Esc -> Edit Mode*): it shows up there as **isiLive** -- also when you are not in a group, and in a raid as a placeholder -- and you move it like any Blizzard frame, the window lock does not apply there. Click it for its settings: layout (shown as M+ and greyed out while the window is fixed to M+), UI scale, background opacity, the window lock and *Reset position*.
 
 Each Edit Mode layout keeps its own position, UI scale and layout. Switch to another Edit Mode layout (by hand or with a specialization-bound layout) and isiLive moves to the place you gave it there; a layout you never set up for isiLive keeps the current values. Edit Mode layouts are told apart by name, so an account layout and a character layout with the same name share one set of values. In combat the change waits until combat ends. *Settings -> Behavior -> Show in Blizzard's Edit Mode* (on by default) switches all of this off.
 

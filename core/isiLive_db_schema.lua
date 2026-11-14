@@ -322,6 +322,8 @@ local SCHEMA = {
   groupJoinNoticeEnabled = { type = "boolean", default = true },
   versionNoticeEnabled = { type = "boolean", default = true },
   runFocusEnabled = { type = "boolean", default = false },
+  runFocusAnchor = { type = "string", default = "bottom", enum = { "bottom", "top" } },
+  runFocusExpandOutOfCombat = { type = "boolean", default = false },
 
   -- Mob nameplate / forces overlay.
   mobNameplateEnabled = { type = "boolean", default = true },

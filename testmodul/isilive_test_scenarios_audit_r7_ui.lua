@@ -1,4 +1,12 @@
 ---@diagnostic disable: undefined-global, undefined-field
+-- Rule 249 locks the main window to the M+ layout (RI.LAYOUT_LOCKED_TO_MPLUS).
+-- These scenarios cover the kept V / H / M layout code, so they lift the lock.
+local function UnlockLayout(addon)
+  if type(addon) == "table" and type(addon._RosterInternal) == "table" then
+    addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+  end
+  return addon
+end
 
 -- Round 7 UI audit regressions: roster render visibility/tooltip ownership,
 -- reset popup restore, nameplate diagnostics secret safety, trace chat frame reuse.
@@ -21,7 +29,9 @@ local H = LoadRosterPanelHelpers()
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+  local LoadAddonModules = function(files)
+    return UnlockLayout(ctx.load_modules(files))
+  end
 
   local ORDER = { "player", "party1", "party2" }
   local function BuildRoster(count)

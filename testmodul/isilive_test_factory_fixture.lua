@@ -863,6 +863,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_roster_panel_instance_reset.lua",
     "isiLive_roster_panel.lua",
     "isiLive_run_focus.lua",
+    "isiLive_run_focus_title.lua",
     "isiLive_ui.lua",
     "isiLive_settings.lua",
     "isiLive_leader_watch.lua",

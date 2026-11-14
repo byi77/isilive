@@ -3,7 +3,8 @@
 -- meter's Interrupts session read at CHALLENGE_MODE_COMPLETED, the isiLive
 -- peer's own cast count through the real DPS sync (KC suffix). The roster
 -- shows "cast/landed" for isiLive users and "landed" for everybody else, in
--- every layout that has roster rows (M, M+); H and V hide the rows.
+-- every layout that has roster rows (M+; M only with the rule 249 lock
+-- lifted); H and V hide the rows.
 local MAP_ID = 249
 local COUNTERSPELL = 2139
 local WIND_SHEAR = 57994
@@ -120,7 +121,7 @@ return {
     sim.Login()
     sim.JoinGroup("Velindra", "Stormbreaker", "Thornwick", "Ravencast")
     sim.Wait(8)
-    -- Start in the M layout (no title-bar button; the default-layout setting).
+    -- A saved M default: rule 249 locks the window to M+, so it opens as M+.
     sim.Env().IsiLiveDB.rosterDefaultLayoutMode = "expanded"
     sim.Reload()
     sim.Wait(3)
@@ -146,19 +147,27 @@ return {
 
     sim.CompleteKey()
     sim.Wait(15)
-    sim.Step("Run end, M layout: cast/landed for isiLive users, landed for the rest")
+    sim.Step("Run end, locked M+ layout: cast/landed for isiLive users, landed for the rest")
+    sim.Expect(sim.Env().isiLiveMainFrame:GetWidth() == 500, "the saved M default opens as M+ (500 px)")
     sim.ExpectText("^37/32$", "own row shows 37 cast / 32 landed")
     sim.ExpectText("^12/10$", "the isiLive peer's synced cast count pairs with the landed kicks")
     sim.ExpectText("^20$", "a member without isiLive shows the landed count only")
     sim.ExpectText("^0$", "the healer without kicks shows 0 landed")
-    ExpectNotTruncated(sim, "37/32", "the run kicks fit the kick column (M layout)")
-    ExpectNotTruncated(sim, "12/10", "the peer's run kicks fit the kick column (M layout)")
-
-    ClickLayout(sim, "M+")
-    sim.Wait(1)
-    sim.Step("Run end, M+ layout")
-    sim.ExpectText("^37/32$", "M+ shows the run kicks as well")
     ExpectNotTruncated(sim, "37/32", "the run kicks fit the kick column (M+ layout)")
+    ExpectNotTruncated(sim, "12/10", "the peer's run kicks fit the kick column (M+ layout)")
+
+    -- Under the lock the title bar has no layout buttons; the kept H / V
+    -- layouts are reached with the lock lifted (rule 249 flag).
+    local modeButtonVisible = false
+    for _, obj in ipairs(sim.Client().engine.all) do
+      if obj._isFrame and obj._modeLabel and obj:IsVisible() then
+        modeButtonVisible = true
+      end
+    end
+    sim.Expect(not modeButtonVisible, "the locked title bar shows no layout buttons")
+    sim.Client().addonTable._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false
+    sim.Client().addonTable.RunFocus.Refresh()
+    sim.Wait(1)
 
     ClickLayout(sim, "H")
     sim.Wait(1)

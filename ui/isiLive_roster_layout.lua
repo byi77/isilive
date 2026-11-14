@@ -805,7 +805,7 @@ end
 RI.SetCombatShrouded = SetCombatShrouded
 
 local function UpdateCollapseState(ui, layoutMode, mainFrame)
-  layoutMode = NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode))
+  layoutMode = (RI.LockLayoutMode or NormalizeLayoutMode)(NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode)))
   local isCollapsed = IsCompactLayoutMode(layoutMode)
   local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
   local isMainHorizontal = IsMainHorizontalLayoutMode(layoutMode)
@@ -1034,6 +1034,7 @@ RI.NotifyLayoutChanged = NotifyLayoutChanged
 -- 243): in a raid only the compact horizontal layout is allowed. `trace`
 -- receives the runtime-log line, or is nil while the log is off.
 local function ApplyLayoutMode(ui, target, mainFrame, isRaidGroup, trace)
+  target = RI.LockLayoutMode and RI.LockLayoutMode(target) or target -- rule 249
   if target ~= "compact_horizontal" and type(isRaidGroup) == "function" and isRaidGroup() then
     return false
   end

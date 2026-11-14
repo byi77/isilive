@@ -98,3 +98,21 @@ function RI.RunFocusPass(ui)
     ui.runFocus.Pass()
   end
 end
+
+-- Layout lock (rule 249, user decision 2026-11-14): the main window always
+-- uses the M+ layout. The mode buttons stay hidden, saved V / H / M values
+-- resolve to M+, and the settings and Edit Mode layout choices are disabled.
+-- The layout code stays; setting this flag to false brings the switching back.
+RI.LAYOUT_LOCKED_TO_MPLUS = true
+
+function RI.IsLayoutLocked()
+  return RI.LAYOUT_LOCKED_TO_MPLUS ~= false
+end
+
+-- Every layout write goes through here (UpdateCollapseState, ApplyLayoutMode).
+function RI.LockLayoutMode(layoutMode)
+  if RI.IsLayoutLocked() then
+    return "compact_main_horizontal"
+  end
+  return layoutMode
+end

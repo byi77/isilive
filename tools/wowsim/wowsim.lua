@@ -588,10 +588,18 @@ function sim.SetLeader(name)
   world.FireAll("GROUP_ROSTER_UPDATE")
 end
 
+-- As in the client, PLAYER_REGEN_DISABLED fires just before the lockdown
+-- starts (InCombatLockdown() is still false in its handlers) and
+-- PLAYER_REGEN_ENABLED right after it ends.
 function sim.Combat(on)
   for _, client in ipairs(world.clients) do
-    client.inCombat = on and true or false
-    client.Fire(on and "PLAYER_REGEN_DISABLED" or "PLAYER_REGEN_ENABLED")
+    if on then
+      client.Fire("PLAYER_REGEN_DISABLED")
+      client.inCombat = true
+    else
+      client.inCombat = false
+      client.Fire("PLAYER_REGEN_ENABLED")
+    end
   end
 end
 
@@ -643,7 +651,12 @@ function sim.StartKey(opts)
   if opts.startTimer ~= false then
     world.FireAll("START_TIMER", 1, 10, 10)
   end
+  local challenge = world.challenge
   local function StartWorldTimer()
+    -- A reset or a newer key start drops the countdown of this key.
+    if world.challenge ~= challenge then
+      return
+    end
     world.FireAll("WORLD_STATE_TIMER_START", 1)
     world.FireAll("SCENARIO_UPDATE")
     world.FireAll("SCENARIO_CRITERIA_UPDATE", 999)

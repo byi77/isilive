@@ -91,8 +91,10 @@ return function(test, ctx)
       BeginKey(session)
       PumpFrames(session, 4.9)
       Assert.Equal(runFocus.GetPhase(), "idle", "the key start and countdown 6 only arm the run focus")
-      PumpFrames(session, 0.15)
+      PumpFrames(session, 0.1)
       Assert.Equal(runFocus.GetPhase(), "collapsing", "countdown 5 animates the collapse")
+      Assert.Equal(mainFrame:GetHeight(), fullHeight, "the rest fades out before the window folds")
+      PumpFrames(session, 0.2)
       local midHeight = mainFrame:GetHeight()
       Assert.True(midHeight < fullHeight and midHeight > COMPACT_HEIGHT, "the height moves between both")
       PumpFrames(session, 1)
@@ -117,6 +119,7 @@ return function(test, ctx)
       Assert.False(session.addon.RunFocus.SetTestMode(false), "the test switch turns off")
       PumpFrames(session, 1)
       ExpectExpanded(Assert, session, "test mode off", fullHeight)
+      session.addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false -- rule 249 lifted for the V check
       panel.SetLayoutMode("compact_vertical")
       session.addon.RunFocus.SetTestMode(true)
       PumpFrames(session, 1)
@@ -205,5 +208,153 @@ return function(test, ctx)
       PumpFrames(session, 5)
       Assert.Equal(runFocus.GetPhase(), "idle", "turning the setting off cancels the pending collapse")
     end, Prepare(true))
+  end)
+
+  test("Run focus pins the chosen edge and re-applies an anchor change while collapsed", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local mainFrame, _, runFocus = Parts(session)
+      local db = session.globals.IsiLiveDB
+      local function Anchor()
+        local point = mainFrame._points[#mainFrame._points]
+        return point and point[1]
+      end
+      local fullHeight = EnterRunLayout(session)
+      db.runFocusAnchor = "top"
+      StartKey(session)
+      ExpectCollapsed(Assert, session, "top anchor")
+      Assert.Equal(Anchor(), "TOPLEFT", "the top anchor pins the top edge")
+      db.runFocusAnchor = "bottom"
+      session.addon.RunFocus.Refresh()
+      ExpectCollapsed(Assert, session, "switched to bottom")
+      Assert.Equal(Anchor(), "BOTTOMLEFT", "an anchor change while collapsed re-pins at once")
+      session.combat = true
+      db.runFocusAnchor = "top"
+      session.addon.RunFocus.Refresh()
+      Assert.Equal(Anchor(), "BOTTOMLEFT", "in combat the anchor change waits")
+      session.combat = false
+      session.DispatchToFrames("PLAYER_REGEN_ENABLED")
+      ExpectCollapsed(Assert, session, "after combat")
+      Assert.Equal(Anchor(), "TOPLEFT", "the anchor change applies when combat ends")
+      db.runFocusAnchor = "sideways"
+      session.addon.RunFocus.Refresh()
+      Assert.Equal(Anchor(), "BOTTOMLEFT", "an invalid anchor fails closed to bottom")
+      Assert.Equal(runFocus.GetPhase(), "collapsed", "the run zone stays collapsed throughout")
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 1)
+      ExpectExpanded(Assert, session, "after the reset", fullHeight)
+    end, Prepare(true))
+  end)
+
+  test("Run focus opens out of combat after a debounce and folds at once on the next pull", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local _, _, runFocus = Parts(session)
+      local db = session.globals.IsiLiveDB
+      local fullHeight = EnterRunLayout(session)
+      StartKey(session)
+      local function Pull(seconds)
+        session.DispatchToFrames("PLAYER_REGEN_DISABLED")
+        session.combat = true
+        PumpFrames(session, seconds)
+        session.combat = false
+        session.DispatchToFrames("PLAYER_REGEN_ENABLED")
+      end
+      Pull(2)
+      PumpFrames(session, 3)
+      ExpectCollapsed(Assert, session, "option off")
+      db.runFocusExpandOutOfCombat = true
+      Pull(2)
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "inside the debounce")
+      PumpFrames(session, 1.5)
+      ExpectExpanded(Assert, session, "after the debounce", fullHeight)
+      session.DispatchToFrames("PLAYER_REGEN_DISABLED")
+      ExpectCollapsed(Assert, session, "folded in PLAYER_REGEN_DISABLED before the lockdown")
+      session.combat = true
+      PumpFrames(session, 1)
+      session.combat = false
+      session.DispatchToFrames("PLAYER_REGEN_ENABLED")
+      PumpFrames(session, 1)
+      Pull(2)
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "a chain pull restarts the debounce")
+      PumpFrames(session, 1.5)
+      ExpectExpanded(Assert, session, "after the chain pull", fullHeight)
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_COMPLETED")
+      PumpFrames(session, 6)
+      ExpectExpanded(Assert, session, "after the key", fullHeight)
+      Assert.Equal(runFocus.GetPhase(), "idle", "a completed key ends the open-out-of-combat state")
+    end, Prepare(true))
+  end)
+
+  test("Run focus title switch toggles the setting and sits next to Re-Sync in M+ only", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local _, panel, runFocus = Parts(session)
+      local db = session.globals.IsiLiveDB
+      local fullHeight = EnterRunLayout(session)
+      local button = runFocus.titleButton
+      Assert.NotNil(button, "the run focus installs a title-bar switch")
+      Assert.True(button:IsShown(), "the switch shows in the M+ layout")
+      local point = button._points[#button._points]
+      Assert.Equal(point[4], -96, "the switch takes the slot left of Re-Sync")
+      button:GetScript("OnClick")(button, "LeftButton", false)
+      Assert.True(db.runFocusEnabled == false, "a click switches run focus off")
+      button:GetScript("OnClick")(button, "LeftButton", false)
+      Assert.True(db.runFocusEnabled == true, "a second click switches it on")
+      StartKey(session)
+      ExpectCollapsed(Assert, session, "key with the switch on")
+      Assert.False(button:IsShown(), "the switch hides with the title bar")
+      button:GetScript("OnClick")(button, "LeftButton", false)
+      PumpFrames(session, 1)
+      ExpectExpanded(Assert, session, "switched off while collapsed", fullHeight)
+      button:GetScript("OnClick")(button, "LeftButton", false)
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "switched on in a running key")
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 1)
+      session.addon._RosterInternal.LAYOUT_LOCKED_TO_MPLUS = false -- rule 249 lifted for the V check
+      panel.SetLayoutMode("compact_vertical")
+      Assert.False(button:IsShown(), "the switch is gone outside the M+ layout")
+    end, Prepare(true))
+  end)
+
+  test("Layout lock keeps the main window in M+ and hides the mode buttons", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local _, panel, runFocus = Parts(session)
+      local RI = session.addon._RosterInternal
+      Assert.True(RI.IsLayoutLocked(), "the layout is locked to M+ by default")
+      Assert.Equal(panel.GetLayoutMode(), "compact_main_horizontal", "a saved V layout opens as M+")
+      Assert.Equal(session.globals.IsiLiveDB.rosterLayoutMode, "compact_vertical", "the saved value is not wiped")
+      for _, mode in ipairs({ "compact_vertical", "compact_horizontal", "expanded" }) do
+        panel.SetLayoutMode(mode)
+        Assert.Equal(panel.GetLayoutMode(), "compact_main_horizontal", mode .. " resolves to M+")
+      end
+      local hiddenModeButtons = 0
+      for _, frame in ipairs(session.frames) do
+        if frame._modeTarget ~= nil then
+          Assert.False(frame:IsShown(), "mode button " .. tostring(frame._modeLabel) .. " is hidden")
+          hiddenModeButtons = hiddenModeButtons + 1
+        end
+      end
+      Assert.Equal(hiddenModeButtons, 3, "all three mode buttons stay hidden")
+      local point = runFocus.titleButton._points[#runFocus.titleButton._points]
+      Assert.Equal(point[4], -96, "the run focus switch sits left of Re-Sync")
+      session.raid = true
+      session.DispatchToFrames("GROUP_ROSTER_UPDATE")
+      session.Advance(2)
+      Assert.Equal(panel.GetLayoutMode(), "compact_main_horizontal", "a raid does not fight the lock")
+      session.raid = false
+      session.DispatchToFrames("GROUP_ROSTER_UPDATE")
+      session.Advance(2)
+      Assert.Equal(panel.GetLayoutMode(), "compact_main_horizontal", "leaving the raid keeps M+")
+      RI.LAYOUT_LOCKED_TO_MPLUS = false
+      panel.SetLayoutMode("compact_vertical")
+      Assert.Equal(panel.GetLayoutMode(), "compact_vertical", "lifting the flag brings layout switching back")
+    end, function(globals)
+      globals.IsiLiveDB.rosterLayoutMode = "compact_vertical"
+      globals.IsiLiveDB.rosterDefaultLayoutMode = "last_used"
+    end)
   end)
 end

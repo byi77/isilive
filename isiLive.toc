@@ -139,6 +139,7 @@ ui/isiLive_roster_panel_render.lua
 ui/isiLive_roster_panel_instance_reset.lua
 ui/isiLive_roster_panel.lua
 ui/isiLive_run_focus.lua
+ui/isiLive_run_focus_title.lua
 logic/isiLive_events.lua
 logic/isiLive_event_handlers_queue.lua
 logic/isiLive_probe_log.lua

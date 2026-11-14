@@ -125,7 +125,9 @@ return {
     sim.Slash("/il testall")
     sim.Wait(1)
     sim.Step("Demo in M")
-    sim.Expect(({ button:GetPoint() })[1] == "TOPRIGHT", "M: the reset button sits in the leader column")
+    -- Rule 249 locks the window to M+: a saved M default opens as M+, so the
+    -- button stays in the toolbar row.
+    sim.Expect(({ button:GetPoint() })[1] == "BOTTOMLEFT", "M default under the lock: the button stays in the toolbar")
     ExpectDemo("M", mainFrame, button, grip)
 
     button:GetScript("OnClick")(button, "LeftButton")

@@ -7,9 +7,55 @@ addonTable.SettingsBehavior = SettingsBehavior
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
+local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 local DESCRIPTION_WIDTH = 620
 local RUN_FOCUS_DESC_FALLBACK = "While a key runs, the M+ layout keeps only battle res, Bloodlust,"
   .. " the M+ timer and the killtracker; the rest slides away and returns a few seconds after the key ends."
+
+local RUN_FOCUS_OOC_DESC_FALLBACK = "In a running key the full window opens 1.5 seconds after you leave combat"
+  .. " and folds back to the run zone when the next fight starts."
+
+local function NormalizeRunFocusAnchor(value)
+  return value == "top" and "top" or "bottom"
+end
+
+local RUN_FOCUS_ANCHOR_OPTIONS = {
+  { value = "bottom", labelKey = "SETTINGS_RUN_FOCUS_ANCHOR_BOTTOM", fallback = "Bottom", width = 80 },
+  { value = "top", labelKey = "SETTINGS_RUN_FOCUS_ANCHOR_TOP", fallback = "Top", width = 80 },
+}
+
+-- Run focus anchor (rule 248): which window edge stays put while collapsed.
+local function CreateRunFocusAnchorSelector(canvas, yOffset, labels, config)
+  return CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_RUN_FOCUS_ANCHOR",
+    labels.SETTINGS_RUN_FOCUS_ANCHOR or "Run focus edge",
+    RUN_FOCUS_ANCHOR_OPTIONS,
+    function()
+      return labels
+    end,
+    function()
+      return NormalizeRunFocusAnchor(config.getDB().runFocusAnchor)
+    end,
+    function(value)
+      config.getDB().runFocusAnchor = NormalizeRunFocusAnchor(value)
+      local runFocus = addonTable.RunFocus
+      if type(runFocus) == "table" and type(runFocus.Refresh) == "function" then
+        runFocus.Refresh()
+      end
+    end,
+    NormalizeRunFocusAnchor,
+    false,
+    {
+      descriptionKey = "SETTINGS_RUN_FOCUS_ANCHOR_DESC",
+      descriptionText = labels.SETTINGS_RUN_FOCUS_ANCHOR_DESC
+        or "Bottom: the window folds down onto the run zone. Top: the run zone moves up to the title bar.",
+      descriptionWidth = DESCRIPTION_WIDTH,
+      descriptionWordWrap = true,
+    }
+  )
+end
 
 local function DescriptionOptions(descriptionText)
   return {
@@ -240,6 +286,24 @@ function SettingsBehavior.BuildSection(canvas, yOffset, labels, config, controls
     "SETTINGS_RUN_FOCUS_ENABLED",
     DescriptionOptions(labels.SETTINGS_RUN_FOCUS_ENABLED_DESC or RUN_FOCUS_DESC_FALLBACK)
   )
+  controls.runFocusAnchor, yOffset = CreateRunFocusAnchorSelector(canvas, yOffset, labels, config)
+  controls.runFocusExpandOutOfCombat, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RUN_FOCUS_OOC or "Run focus: open out of combat",
+    function()
+      return config.getDB().runFocusExpandOutOfCombat == true
+    end,
+    function(checked)
+      config.getDB().runFocusExpandOutOfCombat = checked
+      local runFocus = addonTable.RunFocus
+      if type(runFocus) == "table" and type(runFocus.Refresh) == "function" then
+        runFocus.Refresh()
+      end
+    end,
+    "SETTINGS_RUN_FOCUS_OOC",
+    DescriptionOptions(labels.SETTINGS_RUN_FOCUS_OOC_DESC or RUN_FOCUS_OOC_DESC_FALLBACK)
+  )
 
   controls.autoCloseOnSoloChange, yOffset = CreateSettingsCheckbox(
     canvas,
@@ -433,6 +497,17 @@ function SettingsBehavior.RefreshControls(controls, labels, db)
     controls.runFocus.label:SetText(labels.SETTINGS_RUN_FOCUS_ENABLED or "Run focus during a key")
     SetDescription(controls.runFocus, labels.SETTINGS_RUN_FOCUS_ENABLED_DESC or RUN_FOCUS_DESC_FALLBACK)
     controls.runFocus.check:SetChecked(db.runFocusEnabled == true)
+  end
+  if controls.runFocusAnchor and type(controls.runFocusAnchor.UpdateHighlight) == "function" then
+    controls.runFocusAnchor.UpdateHighlight()
+  end
+  if controls.runFocusExpandOutOfCombat then
+    controls.runFocusExpandOutOfCombat.label:SetText(labels.SETTINGS_RUN_FOCUS_OOC or "Run focus: open out of combat")
+    SetDescription(
+      controls.runFocusExpandOutOfCombat,
+      labels.SETTINGS_RUN_FOCUS_OOC_DESC or RUN_FOCUS_OOC_DESC_FALLBACK
+    )
+    controls.runFocusExpandOutOfCombat.check:SetChecked(db.runFocusExpandOutOfCombat == true)
   end
   if controls.autoCloseOnSoloChange then
     controls.autoCloseOnSoloChange.label:SetText(
