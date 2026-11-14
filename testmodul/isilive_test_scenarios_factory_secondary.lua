@@ -1160,7 +1160,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 38, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 39, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do

@@ -87,6 +87,29 @@ function FactoryEditMode.InstallLate(ctx)
   end
   -- Ready-check consumable check (rule 246): its card goes through the shared
   -- center notice of the card stack.
+  -- Run focus (rule 248, ui/isiLive_run_focus.lua): the M+ layout keeps only
+  -- its run zone while a key runs.
+  local runFocus = addonTable.RunFocus
+  if type(runFocus) == "table" and type(runFocus.Install) == "function" then
+    ctx.runFocusController = runFocus.Install({
+      rosterPanel = ctx.rosterPanelController,
+      mainUI = ctx.mainUI,
+      isRaidGroup = ctx.IsRaidGroup,
+      refreshOwners = function()
+        local panel = ctx.rosterPanelController
+        if type(panel) == "table" then
+          panel.RefreshLayoutState()
+          panel.UpdateLeaderButtons()
+        end
+        if type(ctx.UpdateUI) == "function" then
+          ctx.UpdateUI()
+        end
+        if type(ctx.UpdateMPlusTeleportButton) == "function" then
+          ctx.UpdateMPlusTeleportButton()
+        end
+      end,
+    })
+  end
   local consumableCheck = addonTable.ConsumableCheck
   if type(consumableCheck) == "table" and type(consumableCheck.Install) == "function" then
     ctx.consumableCheckFrame = consumableCheck.Install({

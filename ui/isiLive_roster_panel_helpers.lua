@@ -84,8 +84,17 @@ end
 ---@field PlayKillTrackRunEnd fun(outcome: "timed"|"late"|"abandoned"|"left")
 ---@field ClearKillTrackRunEnd fun()
 ---@field MarkCdTrackerDirty fun()
+---@field AttachRunFocus fun(runFocus: table): table
 
 RI.ApplyFontStringSize = ApplyFontStringSize
 RI.PaintToken = PaintToken
 RI.FormatMplusTime = FormatMplusTime
 RI.SetFontStringTextColorSafe = SetFontStringTextColorSafe
+
+-- Run focus (rule 248, ui/isiLive_run_focus.lua): every layout pass and
+-- roster render ends here, so its hide pass is the last writer.
+function RI.RunFocusPass(ui)
+  if type(ui) == "table" and type(ui.runFocus) == "table" then
+    ui.runFocus.Pass()
+  end
+end

@@ -332,6 +332,9 @@ local function BuildMainFrameDecor(frame)
   end
 
   PaintPieces(BuildRoundedFill(frame, "BACKGROUND", -7, radius), colors.SURFACE_MAIN_FRAME, 1, regions)
+  -- The title band and the glow behind the title row are listed on the frame,
+  -- so the run focus (rule 248) can hide them with the title row.
+  local titleBand = {}
   if frame._isiLiveTitleBar then
     PaintPieces(
       BuildRoundedFill(frame, "BACKGROUND", -6, radius, {
@@ -340,9 +343,13 @@ local function BuildMainFrameDecor(frame)
       }),
       colors.SURFACE_TITLE_BAR,
       UICommon.STRUCTURAL_TINT_ALPHA_FACTOR,
-      regions
+      titleBand
     )
+    for _, texture in ipairs(titleBand) do
+      regions[#regions + 1] = texture
+    end
   end
+  frame._isiLiveTitleBandRegions = titleBand
   PaintPieces(BuildRoundedRing(frame, "BORDER", 7, radius), colors.BORDER_TITLE_BAR, nil, regions)
 
   local sheen = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
@@ -359,17 +366,20 @@ local function BuildMainFrameDecor(frame)
   glowTop:SetHeight(radius - 1)
   PaintGradient(glowTop, "HORIZONTAL", colors.ACCENT_BLUE, 0.16, 0)
   regions[#regions + 1] = glowTop
+  titleBand[#titleBand + 1] = glowTop
   local glow = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
   glow:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -radius)
   glow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -radius)
   glow:SetHeight(HEADER_GLOW_HEIGHT - radius)
   PaintGradient(glow, "HORIZONTAL", colors.ACCENT_BLUE, 0.16, 0)
   regions[#regions + 1] = glow
+  titleBand[#titleBand + 1] = glow
   -- The glow is strongest on the left, so its top-left corner square needs a
   -- rounded piece of its own; on the right it has already faded out.
   local glowCorner = NewCorner(frame, "BACKGROUND", 2, CORNER_DISC, "TOPLEFT", radius)
   glowCorner:SetVertexColor(colors.ACCENT_BLUE[1], colors.ACCENT_BLUE[2], colors.ACCENT_BLUE[3], 0.16)
   regions[#regions + 1] = glowCorner
+  titleBand[#titleBand + 1] = glowCorner
 
   local accent = frame:CreateTexture(nil, "ARTWORK", nil, 7)
   accent:SetPoint("TOPLEFT", frame, "TOPLEFT", radius, -1)

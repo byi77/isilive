@@ -156,6 +156,10 @@ local function CreateStatusLine(mainFrame)
 end
 
 local function AttachControllerAccessors(controller, deps)
+  function controller.AttachRunFocus(runFocus) -- rule 248, ui/isiLive_run_focus.lua
+    deps.runFocus = runFocus
+    return deps
+  end
   function controller.GetRefreshButton()
     return deps.refreshButton
   end

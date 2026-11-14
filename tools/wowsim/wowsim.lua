@@ -636,9 +636,24 @@ function sim.StartKey(opts)
   world.scenario = { title = info.name, bosses = bosses, forcesTotal = info.forcesTotal, forcesCurrent = 0 }
   world.Log("note", string.format("key start %s +%d", info.name, world.challenge.level))
   world.FireAll("CHALLENGE_MODE_START", mapID)
-  world.FireAll("WORLD_STATE_TIMER_START", 1)
-  world.FireAll("SCENARIO_UPDATE")
-  world.FireAll("SCENARIO_CRITERIA_UPDATE", 999)
+  -- The client shows the 10 s key countdown (START_TIMER, type 1 =
+  -- Enum.StartTimerType.ChallengeModeCountdown) right after the key start.
+  -- opts.startTimer = false leaves it out; opts.timerStartDelay delays
+  -- WORLD_STATE_TIMER_START to the end of the countdown (default: at once).
+  if opts.startTimer ~= false then
+    world.FireAll("START_TIMER", 1, 10, 10)
+  end
+  local function StartWorldTimer()
+    world.FireAll("WORLD_STATE_TIMER_START", 1)
+    world.FireAll("SCENARIO_UPDATE")
+    world.FireAll("SCENARIO_CRITERIA_UPDATE", 999)
+  end
+  if (opts.timerStartDelay or 0) > 0 then
+    world.FireAll("SCENARIO_UPDATE")
+    world.clock.after(opts.timerStartDelay, StartWorldTimer)
+  else
+    StartWorldTimer()
+  end
 end
 
 function sim.KillForces(count)

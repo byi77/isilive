@@ -100,6 +100,15 @@ local function BuildDeps(opts)
       end
       return ttk.SetTestMode(not ttk.IsTestMode())
     end,
+    -- Run focus test mode (rule 248, ui/isiLive_run_focus.lua); returns the new state.
+    toggleRunFocusTestMode = type(opts.toggleRunFocusTestMode) == "function" and opts.toggleRunFocusTestMode
+      or function()
+        local runFocus = addonTable.RunFocus
+        if type(runFocus) ~= "table" or type(runFocus.ToggleTestMode) ~= "function" then
+          return false
+        end
+        return runFocus.ToggleTestMode()
+      end,
     -- Replays the key end banner of the M+ killtracker on the real row.
     previewKeyEndOutcome = type(opts.previewKeyEndOutcome) == "function" and opts.previewKeyEndOutcome
       or function() end,
@@ -138,6 +147,7 @@ local HELP_KEYS = {
   "HELP_SETTINGS",
   "HELP_DESIGN",
   "HELP_TTKTEST",
+  "HELP_RUNFOCUS",
   "HELP_KEYEND",
   "HELP_ADMIN",
 }
@@ -646,6 +656,15 @@ local function TryHandleUtilityCommands(ctx, cmd)
     local L = type(ctx.getL) == "function" and ctx.getL() or {}
     local active = ctx.toggleTtkTestMode()
     ctx.printFn(active and (L.TTK_TEST_ON or "TTK test mode ON") or (L.TTK_TEST_OFF or "TTK test mode OFF"))
+    return true
+  end
+
+  if cmd == "runfocus" then
+    local L = type(ctx.getL) == "function" and ctx.getL() or {}
+    local active = ctx.toggleRunFocusTestMode()
+    ctx.printFn(
+      active and (L.RUN_FOCUS_TEST_ON or "Run focus test ON") or (L.RUN_FOCUS_TEST_OFF or "Run focus test OFF")
+    )
     return true
   end
 

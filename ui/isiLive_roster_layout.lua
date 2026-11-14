@@ -782,6 +782,7 @@ local function SetCombatShrouded(frame, shrouded)
         blocker:EnableMouse(true)
       end
       frame._isiLiveCombatBlocker = blocker
+      blocker._isiLiveIsCombatBlocker = true
     end
     if blocker then
       if blocker.SetFrameLevel and type(frame.GetFrameLevel) == "function" then
@@ -1008,6 +1009,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
         SetVisible(row.hoverFrame, show)
       end
     end
+  end
+  if RI.RunFocusPass then
+    RI.RunFocusPass(ui) -- rule 248: the run focus hides last, after every owner
   end
 end
 RI.UpdateCollapseState = UpdateCollapseState

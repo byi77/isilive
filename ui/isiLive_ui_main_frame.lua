@@ -419,14 +419,24 @@ local function IsCurrentSize(current, wanted)
   return type(current) == "number" and type(wanted) == "number" and math.abs(current - wanted) < SIZE_EPSILON
 end
 
+-- The run focus (rule 248, ui/isiLive_run_focus.lua) installs a height filter:
+-- every caller keeps asking for the layout's full height, the filter turns it
+-- into the collapsed or animated height. The pending value stays unfiltered,
+-- so the post-combat drain asks the filter again with the real request.
 local function CreateHeightController(frame, isInCombat)
   local pendingHeight = nil
+  local requestedHeight = nil
+  local heightFilter = nil
   local function SetHeightSafe(height)
+    requestedHeight = height
     if isInCombat() then
       pendingHeight = height
       return
     end
     pendingHeight = nil
+    if heightFilter then
+      height = tonumber(heightFilter(height)) or height
+    end
     if type(frame.GetHeight) == "function" and IsCurrentSize(frame:GetHeight(), height) then
       return
     end
@@ -435,7 +445,13 @@ local function CreateHeightController(frame, isInCombat)
   local function GetPendingHeight()
     return pendingHeight
   end
-  return SetHeightSafe, GetPendingHeight
+  local function SetHeightFilter(filter)
+    heightFilter = type(filter) == "function" and filter or nil
+  end
+  local function GetRequestedHeight()
+    return requestedHeight
+  end
+  return SetHeightSafe, GetPendingHeight, SetHeightFilter, GetRequestedHeight
 end
 
 local function CreateWidthController(frame, isInCombat)
@@ -856,7 +872,7 @@ function UI.CreateMainFrame(opts)
 
   local SetVisible, ToggleVisibility, GetPendingVisible =
     CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
-  local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
+  local SetHeightSafe, GetPendingHeight, SetHeightFilter, GetRequestedHeight = CreateHeightController(frame, isInCombat)
   local SetWidthSafe, GetPendingWidth = CreateWidthController(frame, isInCombat)
 
   local function ApplyStoredPosition(pos)
@@ -1034,6 +1050,8 @@ function UI.CreateMainFrame(opts)
     ResetPosition = ResetPosition,
     ApplyPendingGeometry = ApplyPendingGeometry,
     GetPendingHeight = GetPendingHeight,
+    SetHeightFilter = SetHeightFilter,
+    GetRequestedHeight = GetRequestedHeight,
     GetPendingVisible = GetPendingVisible,
     SetWidthSafe = SetWidthSafe,
     GetPendingWidth = GetPendingWidth,

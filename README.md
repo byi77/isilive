@@ -226,6 +226,10 @@ The window comes in four layouts. Click the button in the title bar to switch:
 
 The selected layout is remembered across sessions.
 
+### Run focus
+
+Optional, off by default: *Settings -> Behavior -> Run focus during a key*. While a key runs, the **M+** layout keeps only its run zone -- Battle Res, Bloodlust, the M+ timer with deaths, and the killtracker with pace and section target. Title bar, roster, leader buttons, Share Keys, Mark-T/H and the portal grid slide away when the key countdown shows 5 (at the latest when the M+ timer starts; the leader's pull timer does not count); the window keeps its bottom edge, so the run zone does not move. They slide back 4 seconds after a completed key, and at once after an abandoned key or when you leave the dungeon. A `/reload` inside a key starts in the run zone. In combat the content disappears at once and the window shrinks or grows when combat ends. The other layouts are not affected. To try it without a key: `/isilive runfocus`, or the demo simulator (action C13, M+ tab); both work with the setting off.
+
 ### Blizzard Edit Mode
 
 isiLive's main window is an element of Blizzard's Edit Mode (*Esc -> Edit Mode*): it shows up there as **isiLive** -- also when you are not in a group, and in a raid as a placeholder -- and you move it like any Blizzard frame, the window lock does not apply there. Click it for its settings: layout (M+ / M / H / V), UI scale, background opacity, the window lock and *Reset position*.
@@ -527,7 +531,7 @@ closing the window always clears the search.
 - **General** — language and default layout when opening isiLive
 - **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button
 - **Display** — UI scale and background opacity with a live preview, a display-only defaults action, player stats box controls, minimap button, Portal Navigator, killtracker forces pace, time pace and time to kill, the optional instance reset button after a key, the optional missed-kick alert (only in a key, sound), Group Finder language flags and class-bonus hints
-- **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
+- **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), run focus during a key, raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, Power Infusion received, pet stuck voice alert, group invite voice alert, removed-from-group voice alert, and tank/healer death alert; these alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Raid** — optional raid opt-ins for the incoming-summon alert (with its 5-second repeat), the pet-stuck voice alert, and the lead-transfer sound; all off by default, isiLive otherwise stays off in raids

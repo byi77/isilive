@@ -8,6 +8,8 @@ local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local DESCRIPTION_WIDTH = 620
+local RUN_FOCUS_DESC_FALLBACK = "While a key runs, the M+ layout keeps only battle res, Bloodlust,"
+  .. " the M+ timer and the killtracker; the rest slides away and returns a few seconds after the key ends."
 
 local function DescriptionOptions(descriptionText)
   return {
@@ -219,6 +221,26 @@ function SettingsBehavior.BuildSection(canvas, yOffset, labels, config, controls
     )
   )
 
+  controls.runFocus, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RUN_FOCUS_ENABLED or "Run focus during a key",
+    function()
+      local db = config.getDB()
+      return db.runFocusEnabled == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.runFocusEnabled = checked
+      local runFocus = addonTable.RunFocus
+      if type(runFocus) == "table" and type(runFocus.Refresh) == "function" then
+        runFocus.Refresh()
+      end
+    end,
+    "SETTINGS_RUN_FOCUS_ENABLED",
+    DescriptionOptions(labels.SETTINGS_RUN_FOCUS_ENABLED_DESC or RUN_FOCUS_DESC_FALLBACK)
+  )
+
   controls.autoCloseOnSoloChange, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -406,6 +428,11 @@ function SettingsBehavior.RefreshControls(controls, labels, db)
       labels.SETTINGS_AUTO_CLOSE_ON_KEY_START_DESC or "Closes the main window when a Mythic+ key starts."
     )
     controls.autoCloseOnKeyStart.check:SetChecked(db.autoCloseOnKeyStart == true)
+  end
+  if controls.runFocus then
+    controls.runFocus.label:SetText(labels.SETTINGS_RUN_FOCUS_ENABLED or "Run focus during a key")
+    SetDescription(controls.runFocus, labels.SETTINGS_RUN_FOCUS_ENABLED_DESC or RUN_FOCUS_DESC_FALLBACK)
+    controls.runFocus.check:SetChecked(db.runFocusEnabled == true)
   end
   if controls.autoCloseOnSoloChange then
     controls.autoCloseOnSoloChange.label:SetText(

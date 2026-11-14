@@ -492,6 +492,17 @@ local function RestoreDemoLfgFlags(ctx, db)
   end
 end
 
+-- Run focus preview (rule 248, demo action C13): the real collapse and expand
+-- of the M+ window, independent of the runFocusEnabled setting.
+local function SetDemoRunFocus(ctx, active)
+  local runFocus = ctx.runFocusController
+  if type(runFocus) ~= "table" or type(runFocus.SetTestMode) ~= "function" then
+    return false
+  end
+  ctx._demoRunFocusActive = active == true
+  return runFocus.SetTestMode(active == true)
+end
+
 local function ClearDemoFeatureData(ctx)
   ctx._demoFeatureActive = false
   local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
@@ -527,6 +538,9 @@ local function ClearDemoFeatureData(ctx)
   RestoreDemoStatsBox(ctx)
   ClearDemoInstanceReset(ctx)
   SetDemoResizeGripVisible(ctx, false)
+  if ctx._demoRunFocusActive == true then
+    SetDemoRunFocus(ctx, false)
+  end
   RestoreDemoLfgFlags(ctx, db)
   RestoreDemoMobForces(ctx, db)
   ClearDemoReadyCheckPreview(ctx)
@@ -820,8 +834,8 @@ local function AppendDemoKeyEndActions(ctx, actions)
   return actions
 end
 
--- Demo toggles for the instance reset button (rule 235, M+ tab) and the
--- resize grip (rule 234, extras tab). Kept apart from the main palette builder
+-- Demo toggles for the instance reset button (rule 235, M+ tab), the run
+-- focus (rule 248, M+ tab) and the resize grip (rule 234, extras tab). Kept apart from the main palette builder
 -- so it stays within the function size gate.
 local function AppendDemoToggleActions(ctx, actions)
   local function done()
@@ -844,6 +858,19 @@ local function AppendDemoToggleActions(ctx, actions)
         else
           ShowDemoInstanceReset(ctx)
         end
+        return done()
+      end,
+    },
+    {
+      id = "C13",
+      category = "mplus",
+      status = "green",
+      titleKey = "SIM_ACTION_C13_TITLE",
+      descKey = "SIM_ACTION_C13_DESC",
+      title = "Run focus",
+      description = "Collapses or expands the M+ window to its run zone with the real animation.",
+      run = function()
+        SetDemoRunFocus(ctx, ctx._demoRunFocusActive ~= true)
         return done()
       end,
     },

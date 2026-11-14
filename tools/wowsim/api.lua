@@ -2545,6 +2545,7 @@ local function InstallEditMode(ctx)
   env.EDIT_MODE_MODERN_SYSTEM_MAP = {}
   env.EDIT_MODE_CLASSIC_SYSTEM_MAP = {}
   env.Enum.EditModeSettingDisplayType = { Dropdown = 0, Checkbox = 1, Slider = 2 }
+  env.Enum.StartTimerType = { PvPBeginTimer = 0, ChallengeModeCountdown = 1, PlayerCountdown = 2 }
   env.EventRegistry.RegisterFrameEventAndCallback = function(_, event, callback)
     frameCallbacks[event] = frameCallbacks[event] or {}
     table.insert(frameCallbacks[event], callback)

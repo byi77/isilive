@@ -87,6 +87,7 @@ SettingsSearch.CONTROL_TAGS = {
   autoOpen = { "auto", "queue" },
   autoOpenKeyEnd = { "auto", "key" },
   autoCloseOnKeyStart = { "auto", "key" },
+  runFocus = { "run", "focus", "key", "compact", "timer" },
   autoCloseOnSoloChange = { "auto", "group" },
   nameplateDisplayMode = { "nameplate", "tooltip" },
   nameplateShowPercent = { "nameplate", "percent" },

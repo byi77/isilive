@@ -321,6 +321,7 @@ local SCHEMA = {
   acceptedInviteNoticeEnabled = { type = "boolean", default = true },
   groupJoinNoticeEnabled = { type = "boolean", default = true },
   versionNoticeEnabled = { type = "boolean", default = true },
+  runFocusEnabled = { type = "boolean", default = false },
 
   -- Mob nameplate / forces overlay.
   mobNameplateEnabled = { type = "boolean", default = true },
