@@ -12,27 +12,10 @@ local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 -- both mislabelled the status line ("Mythic" next to "M+: no") and suppressed
 -- the dungeon-entry notice, because that notice skips party dungeons reported
 -- as mythic. Timewalking is a reduced-profile dungeon like normal and heroic.
-local TIMEWALKING_DIFFICULTY_IDS = {
-  [24] = true,
-}
+-- Difficulty IDs live in data/isiLive_difficulties.lua.
+local Difficulties = addonTable.Difficulties
 
-local HEROIC_DIFFICULTY_IDS = {
-  [2] = true,
-  [174] = true,
-}
-
--- Raid difficulty IDs -> localized label key. Covers the four current Blizzard
--- raid difficulties (LFR / Normal / Heroic / Mythic) which all carry their
--- own difficulty ID in `select(3, GetInstanceInfo())`. Legacy IDs (10-man /
--- 25-man split, original LFR=7) are intentionally not mapped: those raids
--- are no longer reachable through the current group finder, and adding them
--- would dilute the label table without a real user-visible benefit.
-local RAID_DIFFICULTY_LABEL_KEYS = {
-  [14] = "DUNGEON_DIFF_RAID_NORMAL",
-  [15] = "DUNGEON_DIFF_RAID_HEROIC",
-  [16] = "DUNGEON_DIFF_RAID_MYTHIC",
-  [17] = "DUNGEON_DIFF_RAID_LFR",
-}
+-- Raid difficulty labels: Difficulties.GetRaidLabelKey (data/isiLive_difficulties.lua).
 
 local function BuildDungeonContextSignature(instanceType, difficultyID, instanceName, isMythic)
   if instanceType ~= "party" and instanceType ~= "raid" then
@@ -541,7 +524,7 @@ local function GetDungeonDifficultyLabel(getL)
   -- M+-specific "non-mythic warning". `inDungeon` is true so the same
   -- enter/leave bookkeeping the dungeon path uses applies to raids too.
   if instanceType == "raid" then
-    local labelKey = difficultyID and RAID_DIFFICULTY_LABEL_KEYS[difficultyID]
+    local labelKey = Difficulties.GetRaidLabelKey(difficultyID)
     local text = (labelKey and L[labelKey]) or L.DUNGEON_DIFF_RAID_UNKNOWN or L.DUNGEON_DIFF_UNKNOWN
     return text, false, true, instanceType, difficultyID, instanceName
   end
@@ -557,13 +540,13 @@ local function GetDungeonDifficultyLabel(getL)
     end
   end
 
-  if difficultyID == 1 then
+  if Difficulties.IsParty("normal", difficultyID) then
     return L.DUNGEON_DIFF_NORMAL, false, true, instanceType, difficultyID, instanceName
   end
-  if HEROIC_DIFFICULTY_IDS[difficultyID] then
+  if Difficulties.IsParty("heroic", difficultyID) then
     return L.DUNGEON_DIFF_HEROIC, false, true, instanceType, difficultyID, instanceName
   end
-  if TIMEWALKING_DIFFICULTY_IDS[difficultyID] then
+  if Difficulties.IsParty("timewalking", difficultyID) then
     return L.DUNGEON_DIFF_TIMEWALKING, false, true, instanceType, difficultyID, instanceName
   end
   if addonTable.RuntimeMode.IsFullProfileDifficulty(difficultyID) then

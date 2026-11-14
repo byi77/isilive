@@ -23,6 +23,7 @@ libs/LibEditMode/widgets/extension.lua
 libs/LibEditMode/widgets/slider.lua
 libs/LibEditMode/widgets/colorpicker.lua
 core/isiLive_validation_helpers.lua
+data/isiLive_difficulties.lua
 core/isiLive_runtime_mode.lua
 core/isiLive_string_utils.lua
 core/isiLive_sound_registry.lua

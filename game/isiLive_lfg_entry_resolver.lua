@@ -63,7 +63,7 @@ local function MapIDFromRaidActivityID(activityID)
   if rawget(info, "isMythicPlusActivity") == true then
     return nil
   end
-  if tonumber(rawget(info, "categoryID")) ~= 3 then
+  if tonumber(rawget(info, "categoryID")) ~= addonTable.Difficulties.GetLfgCategory("raids") then
     return nil
   end
   local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))

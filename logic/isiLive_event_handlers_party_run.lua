@@ -28,9 +28,9 @@ local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 -- then closed that phantom run and recorded it over the key's DPS snapshot
 -- with whatever (usually nothing) the damage meter still reported.
 -- difficultyID 8 means an inserted keystone, which is never the M0 case.
-local MYTHIC_KEYSTONE_DIFFICULTY_ID = 8
+local Difficulties = addonTable.Difficulties
 local function IsTrackedPartyDifficulty(difficultyID)
-  if difficultyID == MYTHIC_KEYSTONE_DIFFICULTY_ID then
+  if Difficulties.IsParty("mythicKeystone", difficultyID) then
     return false
   end
   local runtimeMode = addonTable.RuntimeMode
@@ -123,7 +123,7 @@ local function DungeonBecameKey(ctx)
   return okInstance
     and type(instanceInfo) == "table"
     and instanceInfo.instanceType == "party"
-    and instanceInfo.difficultyID == MYTHIC_KEYSTONE_DIFFICULTY_ID
+    and Difficulties.IsParty("mythicKeystone", instanceInfo.difficultyID)
 end
 
 local function CloneRosterSnapshotForStats(roster)

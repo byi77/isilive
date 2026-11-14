@@ -96,6 +96,11 @@ Pruefen:
 Typische Ursache:
 - neuer WoW-Patch, aber `Interface` noch alt
 
+Vorbeugen: `## Interface` darf mehrere kommagetrennte Werte tragen (`## Interface: 120105, 120107`);
+`release.yml` prueft jeden Wert. Sobald der PTR-Build des naechsten Patches bekannt ist, den neuen Wert
+zusaetzlich eintragen, dann ist das Addon am Patch-Tag nicht als veraltet markiert. Die Interface-Nummer
+wird nur auf ausdruecklichen Auftrag geaendert.
+
 ### 3.2 Dungeon-/Schwierigkeits-Kontext
 
 Pruefen:
@@ -105,7 +110,9 @@ Pruefen:
 
 Kritisch:
 - `GetInstanceInfo()`
-- `difficultyID`-Mapping fuer Normal/Heroic/Mythic
+- `difficultyID`-Mapping fuer Normal/Heroic/Mythic: einzige Stelle ist `data/isiLive_difficulties.lua`
+  (`DifficultyManifest`, Zugriff ueber `addonTable.Difficulties`), ebenso die Raid-Labels und die
+  LFG-`categoryID`-Werte (Dungeons 2, Raids 3)
 - `C_Map.GetBestMapForUnit("player")`
 
 Wichtig:
@@ -113,7 +120,7 @@ Wichtig:
 - `M0` wird aktuell ueber `mythic non-challenge dungeon exit` erkannt
 - fuer `M0` wird der Gruppen-Roster beim Eintritt eingefroren und spaeter beim Exit verwendet
 
-Wenn Blizzard Difficulty-IDs aendert, muss das dort angepasst werden.
+Wenn Blizzard Difficulty-IDs aendert, nur `data/isiLive_difficulties.lua` anpassen. Der Test "Difficulty manifest owns every literal difficulty and LFG category ID" schlaegt fehl, sobald eine Runtime-Datei wieder eine eigene Literal-ID fuehrt.
 
 ### 3.3 Blizzard Damage Meter API
 
@@ -444,6 +451,7 @@ Jede Datenart hat genau eine Stelle; Verbraucher leiten ihre Lookup-Tabellen dar
 | --- | --- | --- |
 | Battle-Res-, Bloodlust-Cast-, Sated-Debuff-IDs, Power Infusion, CD-Zeilen-Icons | `data/isiLive_spells.lua` (`SpellManifest`) | `lua tools/validate_usecases.lua` (Snapshot- und End-to-end-Tests) |
 | Spec-IDs mit Klasse, Name, LFG-Bonusprofil (`lfg`), Stats-Box-Primaerstat (`primaryStat`) | `data/isiLive_specs.lua` (`SpecManifest`) | `lua tools/check_spec_coverage.lua` |
+| Instanz-Schwierigkeitsgrade (Party, Raid-Labels) und LFG-Kategorien | `data/isiLive_difficulties.lua` (`DifficultyManifest`) | Test "Difficulty manifest owns every literal difficulty and LFG category ID" |
 | Interrupt-Spell und Cooldown pro Spec | `game/isiLive_kick_tracker.lua` (`SPEC_DATA` / `NO_INTERRUPT_SPEC_IDS`) | Skill `interrupt-audit`, `check_spec_coverage.lua` (Abdeckung je Spec) |
 
 Neuer Bloodlust-artiger Spell:

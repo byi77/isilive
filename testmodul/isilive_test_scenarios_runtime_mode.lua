@@ -188,6 +188,60 @@ return function(test, ctx)
     end)
   end)
 
+  test("Difficulty manifest classifies party difficulties and LFG categories", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({})
+      local difficulties = addon.Difficulties
+      Assert.True(difficulties.IsParty("mythicKeystone", 8), "8 is an inserted keystone")
+      Assert.True(difficulties.IsParty("mythic", 23), "23 is mythic without a keystone")
+      Assert.True(difficulties.IsParty("heroic", 2), "2 is heroic")
+      Assert.True(difficulties.IsParty("heroic", 174), "174 is heroic")
+      Assert.True(difficulties.IsParty("normal", 1), "1 is normal")
+      Assert.True(difficulties.IsParty("timewalking", 24), "24 is timewalking")
+      Assert.False(difficulties.IsParty("mythic", 24), "timewalking is never mythic")
+      Assert.False(difficulties.IsParty("heroic", nil), "a missing difficulty matches nothing")
+      Assert.False(difficulties.IsParty("unknown_group", 1), "an unknown group matches nothing")
+      Assert.Equal(difficulties.GetRaidLabelKey(16), "DUNGEON_DIFF_RAID_MYTHIC", "raid labels come from the manifest")
+      Assert.Nil(difficulties.GetRaidLabelKey(7), "legacy raid IDs stay unmapped")
+      Assert.Equal(difficulties.GetLfgCategory("dungeons"), 2, "LFG dungeon category")
+      Assert.Equal(difficulties.GetLfgCategory("raids"), 3, "LFG raid category")
+      local copy = difficulties.GetPartySet("heroic")
+      copy[99] = true
+      Assert.False(difficulties.IsParty("heroic", 99), "GetPartySet returns a copy")
+    end)
+  end)
+
+  test("Difficulty manifest owns every literal difficulty and LFG category ID", function()
+    local function ReadText(path)
+      local handle = assert(io.open(path, "rb"))
+      local content = handle:read("*a")
+      handle:close()
+      return content
+    end
+    local forbidden = {
+      "difficultyID%s*[=~]=%s*%d",
+      "DIFFICULTY_IDS?%s*=%s*{%s*%[%d",
+      "DIFFICULTY_ID%s*=%s*%d",
+      'categoryID"?%)*%s*[=~]=%s*%d',
+      '%[%d+%]%s*=%s*"DUNGEON_DIFF_',
+    }
+    local checked = 0
+    for line in ReadText("isiLive.toc"):gmatch("[^\r\n]+") do
+      local path = line:match("^%s*([%w_/]+%.lua)%s*$")
+      if path and not path:match("^libs/") and not path:match("^data/") then
+        checked = checked + 1
+        local content = ReadText(path):gsub("%-%-[^\r\n]*", "")
+        for _, pattern in ipairs(forbidden) do
+          Assert.Nil(
+            content:find(pattern),
+            path .. " keeps a literal difficulty or LFG category ID; use data/isiLive_difficulties.lua"
+          )
+        end
+      end
+    end
+    Assert.True(checked > 50, "the scan must cover the runtime files listed in the TOC")
+  end)
+
   test("Sync channel resolution survives a missing party-category constant", function()
     -- Regression: without a numeric fallback the instance-group check is
     -- skipped, the resolver falls through to PARTY, and Blizzard rejects the

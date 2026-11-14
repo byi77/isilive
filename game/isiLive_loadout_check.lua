@@ -23,7 +23,7 @@ local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 
 -- 23 = Mythic party difficulty, the state of a keystone dungeon before the key
 -- is inserted. 8 (Mythic Keystone) means the key is already running.
-local MYTHIC_PARTY_DIFFICULTY_ID = 23
+local Difficulties = addonTable.Difficulties
 local EVALUATE_DELAY_SECONDS = 2
 local MAX_CHARACTER_ENTRIES = 200
 -- Timer retries of an entry evaluation without a readable spec; spec and talent
@@ -245,7 +245,7 @@ end
 local function DefaultResolveSeasonDungeon()
   local validators = addonTable.Validators
   local ok, instanceInfo = validators.GetInstanceInfoSafe()
-  if not ok or type(instanceInfo) ~= "table" or instanceInfo.difficultyID ~= MYTHIC_PARTY_DIFFICULTY_ID then
+  if not ok or type(instanceInfo) ~= "table" or not Difficulties.IsParty("mythic", instanceInfo.difficultyID) then
     return nil
   end
   local currentInstanceID = validators.GetPartyInstanceIDFromInfo(ok, instanceInfo)

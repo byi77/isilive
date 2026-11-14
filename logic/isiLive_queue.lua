@@ -155,7 +155,8 @@ local function GetActivityContext(activityID)
   end
 
   local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
-  local isDungeonLike = rawget(activityInfo, "isMythicPlusActivity") == true or rawget(activityInfo, "categoryID") == 2
+  local isDungeonLike = rawget(activityInfo, "isMythicPlusActivity") == true
+    or rawget(activityInfo, "categoryID") == addonTable.Difficulties.GetLfgCategory("dungeons")
   return mapID, isDungeonLike
 end
 

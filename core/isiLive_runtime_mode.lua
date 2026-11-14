@@ -35,10 +35,16 @@ RuntimeMode.KEY = "KEY"
 -- full profile; that is the cheaper of the two errors.
 --
 -- Deliberately absent: 24 (Timewalking), 1 (Normal), 2 (Heroic). Those are IDLE.
-local FULL_PROFILE_PARTY_DIFFICULTY_IDS = {
-  [8] = true,
-  [23] = true,
-}
+-- Both sets come from data/isiLive_difficulties.lua (loaded first, TOC order).
+local FULL_PROFILE_PARTY_DIFFICULTY_IDS = {}
+do
+  local difficulties = addonTable.Difficulties
+  for _, group in ipairs({ "mythicKeystone", "mythic" }) do
+    for id in pairs(difficulties.GetPartySet(group)) do
+      FULL_PROFILE_PARTY_DIFFICULTY_IDS[id] = true
+    end
+  end
+end
 
 local RAID_GROUP_SIZE_THRESHOLD = 5
 

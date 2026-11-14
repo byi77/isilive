@@ -9,6 +9,7 @@ local FILE_PATHS = {
   ["ChatThrottleLib.lua"] = "libs/ChatThrottleLib/ChatThrottleLib.lua",
   -- core
   ["isiLive_validation_helpers.lua"] = "core/isiLive_validation_helpers.lua",
+  ["isiLive_difficulties.lua"] = "data/isiLive_difficulties.lua",
   ["isiLive_runtime_mode.lua"] = "core/isiLive_runtime_mode.lua",
   ["isiLive_string_utils.lua"] = "core/isiLive_string_utils.lua",
   ["isiLive_sound_registry.lua"] = "core/isiLive_sound_registry.lua",
@@ -199,6 +200,7 @@ Harness.FILE_PATHS = FILE_PATHS
 -- Modules loaded before any other module in LoadAddonModules (shared utilities).
 local UNIVERSAL_DEPENDENCIES = {
   "isiLive_validation_helpers.lua",
+  "isiLive_difficulties.lua",
   "isiLive_runtime_mode.lua",
   "isiLive_string_utils.lua",
   "isiLive_context_helpers.lua",

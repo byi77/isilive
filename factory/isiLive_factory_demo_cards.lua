@@ -180,13 +180,6 @@ local function ReadCurrentInstance()
   return { name = name, instanceType = instanceType, difficultyID = difficultyID }
 end
 
-local RAID_DIFFICULTY_KEYS = {
-  [14] = "DUNGEON_DIFF_RAID_NORMAL",
-  [15] = "DUNGEON_DIFF_RAID_HEROIC",
-  [16] = "DUNGEON_DIFF_RAID_MYTHIC",
-  [17] = "DUNGEON_DIFF_RAID_LFR",
-}
-
 --- Center-notice payload of the instance-entry card ("party" or "raid"),
 --- built by the live Status builder. Inside a matching instance it names that
 --- instance; otherwise the dungeon is the preview target on Normal and the raid
@@ -201,7 +194,7 @@ function FactoryDemoCards.BuildInstanceEntryNotice(ctx, instanceType)
   local name, difficultyText
   if current and current.instanceType == instanceType then
     name = status.ResolveInstanceDisplayName(current.name)
-    local raidKey = instanceType == "raid" and RAID_DIFFICULTY_KEYS[current.difficultyID] or nil
+    local raidKey = instanceType == "raid" and addonTable.Difficulties.GetRaidLabelKey(current.difficultyID) or nil
     difficultyText = raidKey and L[raidKey] or nil
   end
   if instanceType == "raid" then
