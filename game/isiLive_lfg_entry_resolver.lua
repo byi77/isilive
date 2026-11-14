@@ -32,7 +32,17 @@ function Resolver.MapIDFromActivityID(activityID)
   local lfgList = rawget(_G, "C_LFGList")
   if type(lfgList) == "table" and type(lfgList.GetActivityInfoTable) == "function" then
     local ok, info = pcall(lfgList.GetActivityInfoTable, numID)
-    if ok and type(info) == "table" and rawget(info, "isMythicPlusActivity") == true then
+    -- Rule 252: besides Mythic+ activities, any dungeon-category listing
+    -- (M0, heroic, normal) resolves when its instance is a dungeon of the
+    -- active season, so M0 and heroic groups get the same target, portal
+    -- highlight and entrance navigation. Other instances stay unresolved.
+    local isDungeonActivity = ok
+      and type(info) == "table"
+      and (
+        rawget(info, "isMythicPlusActivity") == true
+        or tonumber(rawget(info, "categoryID")) == addonTable.Difficulties.GetLfgCategory("dungeons")
+      )
+    if isDungeonActivity then
       local instanceID = rawget(info, "mapID") or rawget(info, "mapId")
       local mapID = type(seasonData) == "table"
         and type(seasonData.GetMapIDByInstanceID) == "function"

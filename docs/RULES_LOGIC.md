@@ -334,6 +334,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 249. Das Hauptfenster ist fest auf das Layout M+ gestellt (`RI.LAYOUT_LOCKED_TO_MPLUS`): die Modusbuttons M+/H/V erscheinen nicht, gespeicherte V-/H-/M-Werte wirken als M+, die Layoutwahl in den Einstellungen und im Bearbeitungsmodus-Dialog ist gesperrt; der Code der anderen Layouts bleibt und kehrt mit dem Flag zurueck.
 250. isiLive leitet aus Blizzards Challenge-Map-Liste einen Saisonzustand ab (`unknown`; `active` bei exaktem, bereitem Satz; `offseason` bei leerer Liste nach `CHALLENGE_MODE_MAPS_UPDATE`; `unrecognized` bei einem Satz, den keine konfigurierte Season kennt): in der Saisonpause nennt die Statuszeile die Saisonpause, die Dungeon-Karte ist ein ruhiger 30-Sekunden-Hinweis und Heroisch laeuft im vollen Profil; bei unbekannter Season meldet isiLive einmal pro Sitzung im Chat, dass ein Update noetig ist, und Zeit- und Forces-Tempo lernen nicht.
 251. `/isilive selftest` prueft fuer den Patch-Tag, ob die Blizzard-APIs, die isiLive liest, noch vorhanden sind und zwei nebenwirkungsfreie Proben (Challenge-Map-Liste, Curve-Objekt) antworten; es listet fehlende APIs und gescheiterte Proben mit dem betroffenen Feature und schliesst mit einer Zusammenfassung, `selftest all` listet jede Pruefung.
+252. Eine LFG-Aktivitaet der Kategorie Dungeons (M0, Heroisch, Normal) wird wie eine Mythic+-Aktivitaet ueber ihre Instanz-ID in eine Challenge-Map der aktiven Season aufgeloest; M0- und Heroisch-Gruppen eines Season-Dungeons bekommen so Zieldungeon, Portal-Hervorhebung und Navigation, alle anderen Instanzen und Kategorien bleiben unaufgeloest.
 
 ## Regelbloecke
 
@@ -3871,3 +3872,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - ApiHealth reports a clean client with every Blizzard API present
   - ApiHealth lists missing APIs and failed probes first and every check in verbose mode
   - Commands selftest delegates to printSelfTest with optional verbose mode
+
+### RULE-LFG-DUNGEON-KATEGORIE-ZIEL
+- Regelnummer: 252
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-14 (Wartbarkeits-Audit: in der Saisonpause und fuer M0-Wochengruppen bekam eine Dungeon-Gruppe kein Ziel). `LFGEntryResolver.MapIDFromActivityID` loest eine Aktivitaet, die nicht im statischen Season-Manifest steht, ueber `C_LFGList.GetActivityInfoTable` auf, wenn `isMythicPlusActivity == true` gilt oder `categoryID` die Dungeon-Kategorie aus `data/isiLive_difficulties.lua` ist (`lfgCategory.dungeons`, 2). In beiden Faellen ist `mapID` der Aktivitaet eine Instanz-ID (Regel 1), die nur ueber `SeasonData.GetMapIDByInstanceID` gegen die Maps der aktiven Season in eine Challenge-Map uebersetzt wird; eine Instanz ausserhalb der aktiven Season (Anhaengerdungeon, alter Dungeon) und jede andere Kategorie bleiben unaufgeloest. Raid-Aktivitaeten (Kategorie 3) bleiben unveraendert ausserhalb der Zielpipeline (Regel 85).
+- Erforderliche Tests:
+  - LFGDetect resolves an M0 or heroic dungeon listing of the active season
+  - AcceptedRaidInviteNotice stays silent for a Raid LFG listing with categoryID=3
