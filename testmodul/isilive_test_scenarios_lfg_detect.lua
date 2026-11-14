@@ -1,62 +1,11 @@
 ---@diagnostic disable: undefined-global
 
--- Builds the minimal WoW global stubs needed to load isiLive_lfg_detect.lua.
--- Returns a fire(event, ...) helper that invokes the captured OnEvent handler.
-local function BuildLFGDetectEnv(overrides)
-  overrides = overrides or {}
-
-  local onEvent = nil
-  local prints = {}
-
-  local globals = {
-    CreateFrame = function()
-      return {
-        RegisterEvent = function() end,
-        SetScript = function(_, scriptType, fn)
-          if scriptType == "OnEvent" then
-            onEvent = fn
-          end
-        end,
-      }
-    end,
-    C_Timer = {
-      -- Suppress the 5s ticker so tests control when CheckActiveGroup runs.
-      NewTicker = function() end,
-    },
-    DEFAULT_CHAT_FRAME = {
-      AddMessage = function(_, msg)
-        table.insert(prints, tostring(msg))
-      end,
-    },
-    IsInGroup = overrides.IsInGroup or function()
-      return false
-    end,
-    IsInRaid = overrides.IsInRaid or function()
-      return false
-    end,
-    GetNumGroupMembers = overrides.GetNumGroupMembers or function()
-      return 0
-    end,
-  }
-
-  -- Merge any extra globals the caller needs.
-  if overrides.globals then
-    for k, v in pairs(overrides.globals) do
-      globals[k] = v
-    end
-  end
-
-  return globals,
-    function(event, ...)
-      local addon = rawget(_G, "__isilive_last_loaded_addon")
-      if addon and addon.LFGDetect and type(addon.LFGDetect.HandleEvent) == "function" then
-        addon.LFGDetect.HandleEvent(event, ...)
-      elseif onEvent then
-        onEvent(nil, event, ...)
-      end
-    end,
-    prints
+-- Shared with isilive_test_scenarios_lfg_dungeon_category.lua.
+local envChunk, envErr = loadfile("testmodul/isilive_test_lfg_detect_env.lua")
+if not envChunk then
+  error("cannot load LFG detect env: " .. tostring(envErr))
 end
+local BuildLFGDetectEnv = envChunk()
 
 -- Builds a minimal C_LFGList stub for invite scenarios.
 -- searchResults maps searchResultID -> info table returned by GetSearchResultInfo.
@@ -2486,64 +2435,6 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 50, "inviteaccepted")
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 2773, "cached lookup must still resolve")
       Assert.Equal(activityCalls, callsAfterFirst, "GetActivityInfoTable must NOT be called again (cache hit)")
-    end)
-  end)
-
-  test("LFGDetect resolves an M0 or heroic dungeon listing of the active season", function()
-    -- Den of Nalorakk (586) is a midnight_s2 dungeon; its instance is 2825
-    -- in this stub. A follower or old dungeon (instance 1234) is no season map.
-    local activities = {
-      [7701] = { mapID = 2825, isMythicPlusActivity = false, categoryID = 2 },
-      [7702] = { mapID = 1234, isMythicPlusActivity = false, categoryID = 2 },
-      [7703] = { mapID = 2825, isMythicPlusActivity = false, categoryID = 1 },
-    }
-    local listings = {
-      [61] = { activityID = 7701, name = "M0 Den weekly", leaderName = "Lead" },
-      [62] = { activityID = 7702, name = "Normal follower", leaderName = "Lead" },
-      [63] = { activityID = 7703, name = "Questing", leaderName = "Lead" },
-    }
-    local globals, fire = BuildLFGDetectEnv({
-      IsInGroup = function()
-        return true
-      end,
-      globals = {
-        C_ChallengeMode = {
-          GetMapUIInfo = function(mapID)
-            local instanceID = mapID == 586 and 2825 or (5000 + mapID)
-            return "Dungeon", mapID, 1800, nil, nil, instanceID
-          end,
-        },
-        C_LFGList = {
-          GetSearchResultInfo = function(id)
-            return listings[id]
-          end,
-          GetActiveEntryInfo = function()
-            return nil
-          end,
-          GetActivityFullName = function()
-            return nil
-          end,
-          GetActivityInfoTable = function(activityID)
-            return activities[activityID]
-          end,
-        },
-      },
-    })
-    WithGlobals(globals, function()
-      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 61, "invited")
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 61, "inviteaccepted")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 586, "an M0 listing of a season dungeon resolves its map")
-
-      addon.LFGDetect.ClearAllState()
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 62, "invited")
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 62, "inviteaccepted")
-      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "a dungeon outside the active season stays unresolved")
-
-      addon.LFGDetect.ClearAllState()
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 63, "invited")
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 63, "inviteaccepted")
-      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "a non-dungeon category never resolves a dungeon")
     end)
   end)
 
