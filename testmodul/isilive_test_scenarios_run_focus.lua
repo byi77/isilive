@@ -357,4 +357,63 @@ return function(test, ctx)
       globals.IsiLiveDB.rosterDefaultLayoutMode = "last_used"
     end)
   end)
+
+  test("Run focus uses a key countdown that started before the key start", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local _, _, runFocus = Parts(session)
+      local fullHeight = EnterRunLayout(session)
+      -- Client order (probe log 2026-11-14): the countdown starts 2-3 s before
+      -- CHALLENGE_MODE_START.
+      session.DispatchToFrames("START_TIMER", 1, 10, 10)
+      PumpFrames(session, 2.5)
+      Assert.Equal(runFocus.GetPhase(), "idle", "a countdown alone does not collapse")
+      session.active = true
+      session.DispatchToFrames("CHALLENGE_MODE_START")
+      PumpFrames(session, 2.4)
+      Assert.Equal(runFocus.GetPhase(), "idle", "countdown 6: still full")
+      PumpFrames(session, 0.2)
+      Assert.Equal(runFocus.GetPhase(), "collapsing", "countdown 5 collapses from the earlier countdown")
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "client order")
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 1)
+      ExpectExpanded(Assert, session, "after the reset", fullHeight)
+      -- A countdown older than 12 s is stale; the M+ timer start is the fallback.
+      session.DispatchToFrames("START_TIMER", 1, 10, 10)
+      PumpFrames(session, 13)
+      session.active = true
+      session.DispatchToFrames("CHALLENGE_MODE_START")
+      PumpFrames(session, 6)
+      Assert.Equal(runFocus.GetPhase(), "idle", "a stale countdown is ignored")
+      session.DispatchToFrames("WORLD_STATE_TIMER_START", 1)
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "fallback after a stale countdown")
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 1)
+      -- The client fires a CHALLENGE_MODE_RESET ~0.25 s before every key
+      -- start, after the countdown began: the countdown must survive it.
+      session.DispatchToFrames("START_TIMER", 1, 10, 10)
+      PumpFrames(session, 2.25)
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 0.25)
+      session.active = true
+      session.DispatchToFrames("CHALLENGE_MODE_START")
+      PumpFrames(session, 2.6)
+      Assert.Equal(runFocus.GetPhase(), "collapsing", "the pre-start reset keeps the recorded countdown")
+      PumpFrames(session, 1)
+      ExpectCollapsed(Assert, session, "after the pre-start reset")
+      -- Leaving the instance drops a recorded countdown.
+      session.active = false
+      session.DispatchToFrames("CHALLENGE_MODE_RESET")
+      PumpFrames(session, 1)
+      session.DispatchToFrames("START_TIMER", 1, 10, 10)
+      session.DispatchToFrames("ZONE_CHANGED_NEW_AREA")
+      session.active = true
+      session.DispatchToFrames("CHALLENGE_MODE_START")
+      PumpFrames(session, 6)
+      Assert.Equal(runFocus.GetPhase(), "idle", "leaving the instance drops the recorded countdown")
+    end, Prepare(true))
+  end)
 end

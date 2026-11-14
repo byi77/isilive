@@ -957,10 +957,35 @@ return function(test, ctx)
     end, Prepare())
   end)
 
+  test("Probe mode logs a completed key once when the restriction lifts in the same frame", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      -- Order seen in game: the lifted ChallengeMode restriction arrives right
+      -- before CHALLENGE_MODE_COMPLETED, at the same timestamp.
+      session.active = false
+      session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 0)
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      session.Advance(0.1)
+      Assert.Nil(
+        FindLine(ProbeLines(session), "event=key_end trigger=restriction_lifted kind=left"),
+        "a completed key is not also logged as left"
+      )
+      Assert.NotNil(
+        FindLine(ProbeLines(session), "event=key_end trigger=CHALLENGE_MODE_COMPLETED kind=completed"),
+        "the completion is the key end"
+      )
+      Assert.Equal(select(2, ProbeLines(session, "event=key_end")), 1, "exactly one key end")
+      Assert.NotNil(
+        FindLine(ProbeLines(session, "event=meter"), "phase=post_key_restriction_lifted"),
+        "the lifted restriction still reads the meter"
+      )
+    end, Prepare())
+  end)
+
   test("Probe mode ends a key the group walked out of on the lifted ChallengeMode restriction", function()
     Stress.WithKey(ctx, FixtureWithSchema, function(session)
       session.active = false
       session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", 2, 0)
+      session.Advance(0.1)
       Assert.NotNil(
         FindLine(ProbeLines(session), "event=key_end trigger=restriction_lifted kind=left"),
         "leaving a running key fires no reset; the lifted restriction ends it"

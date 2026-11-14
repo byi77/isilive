@@ -826,13 +826,20 @@ function ProbeLog.OnRestrictionChanged(restrictionType, state)
     )
   end
   CheckChatLockdown("restriction_changed")
-  -- Leaving a running key: no CHALLENGE_MODE_RESET, only the lifted
-  -- ChallengeMode restriction marks its end.
+  -- Leaving a running key fires no reset; the lifted restriction ends it. A completed
+  -- key lifts it in its COMPLETED frame, so "left" waits one frame (rule 239).
   local typeName = DescribeEnumValue("AddOnRestrictionType", restrictionType)
   if keyRunning and typeName:find("^ChallengeMode%(") and stateName:find("^Inactive%(") and not IsKeyActive() then
-    keyRunning = false
     keyEndedAt = Now()
-    Append("[PROBE] event=key_end trigger=restriction_lifted kind=left")
+    local function EndAsLeft()
+      if keyRunning and not IsKeyActive() then
+        keyRunning = false
+        Append("[PROBE] event=key_end trigger=restriction_lifted kind=left")
+      end
+    end
+    if not TimerAfter(0, EndAsLeft) then
+      EndAsLeft()
+    end
   end
   if stateName:find("^Inactive%(") and not IsKeyActive() and IsInPostKeyWindow() then
     TryMeterSnapshot("post_key_restriction_lifted", LIMITS.postKeySnapshotsPerPhase)

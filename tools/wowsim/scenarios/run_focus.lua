@@ -80,6 +80,17 @@ local function ClickTitleToggle(sim)
   button:GetScript("OnClick")(button, "LeftButton", false)
 end
 
+-- [RUNFOCUS] lines in the runtime log ring (IsiLiveDB.runtimeLog).
+local function HasRunFocusLine(sim, pattern)
+  local ring = sim.Env().IsiLiveDB.runtimeLog
+  for _, line in pairs(type(ring) == "table" and ring or {}) do
+    if type(line) == "string" and line:find(pattern) then
+      return true
+    end
+  end
+  return false
+end
+
 local function ExpectCollapsed(sim, label)
   sim.Expect(Near(Height(sim), COMPACT_HEIGHT), label .. ": window height is the run zone (" .. Height(sim) .. ")")
   sim.Expect(not Visible(sim, "^Readycheck$"), label .. ": ready check button hidden")
@@ -159,11 +170,14 @@ return {
     -- Setting on: the key start only arms; the countdown (START_TIMER 1,
     -- 10 s) starts the collapse when it shows 5.
     sim.Env().IsiLiveDB.runFocusEnabled = true
-    sim.StartKey({ mapID = KR, level = 14, timerStartDelay = 10 })
+    sim.Env().IsiLiveDB.runtimeLogEnabled = true
+    -- Client order: StartKey fires START_TIMER(1, 10, 10) 2.5 s before
+    -- CHALLENGE_MODE_START and returns at the key start (countdown 7.5).
+    sim.StartKey({ mapID = KR, level = 14 })
     sim.Wait(0.1, 0.05)
-    sim.Step("Key start: armed, countdown 10")
+    sim.Step("Key start: armed, countdown 7.4")
     ExpectExpanded(sim, "right after the key start", fullHeight)
-    sim.Wait(3.8, 0.05)
+    sim.Wait(1.3, 0.05)
     sim.Step("Countdown 6: still full")
     ExpectExpanded(sim, "countdown at 6", fullHeight)
     sim.Wait(1.35, 0.05)
@@ -172,6 +186,18 @@ return {
     sim.Wait(1)
     sim.Step("Key running: run zone only")
     ExpectCollapsed(sim, "key running")
+    sim.Expect(
+      HasRunFocusLine(sim, "%[RUNFOCUS%] event=start_timer type=1 remaining=10 total=10 armed=no"),
+      "trace: the countdown before the key start is recorded"
+    )
+    sim.Expect(
+      HasRunFocusLine(sim, "%[RUNFOCUS%] event=armed pendingCountdown=yes remainingNow=7%.5"),
+      "trace: the key start finds the running countdown"
+    )
+    sim.Expect(
+      HasRunFocusLine(sim, "%[RUNFOCUS%] event=collapse trigger=countdown anchor=bottom inCombat=no"),
+      "trace: collapse at countdown 5"
+    )
     sim.Expect(Near(Bottom(sim), bottom), "bottom edge unchanged after collapse")
 
     sim.Wait(5)
@@ -184,6 +210,7 @@ return {
     sim.Reload()
     sim.Wait(1)
     sim.Step("/reload mid-key")
+    sim.Env().IsiLiveDB.runtimeLogEnabled = true -- admin logs are off after every load
     ExpectCollapsed(sim, "after reload")
     local reloadBottom = Bottom(sim)
 
@@ -200,7 +227,7 @@ return {
     local expandedHeight = Height(sim)
 
     -- A reset during the countdown cancels the pending collapse.
-    sim.StartKey({ mapID = KR, level = 15, timerStartDelay = 10 })
+    sim.StartKey({ mapID = KR, level = 15, countdownOrder = "after_start", timerStartDelay = 10 })
     sim.Wait(2)
     sim.ResetKey()
     sim.Wait(10)
@@ -217,12 +244,17 @@ return {
     sim.Wait(2)
     sim.Step("M+ timer start: collapsed (fallback)")
     ExpectCollapsed(sim, "timer start fallback")
+    sim.Expect(
+      HasRunFocusLine(sim, "%[RUNFOCUS%] event=start_timer type=2 remaining=10 total=10 armed=yes"),
+      "trace: the pull timer is seen"
+    )
+    sim.Expect(HasRunFocusLine(sim, "%[RUNFOCUS%] event=collapse trigger=fallback"), "trace: fallback collapse")
     sim.ResetKey()
     sim.Wait(1)
 
     -- Key start in combat: content hides at countdown 5, the shrink waits.
     sim.Combat(true)
-    sim.StartKey({ mapID = KR, level = 15, timerStartDelay = 10 })
+    sim.StartKey({ mapID = KR, level = 15, countdownOrder = "after_start", timerStartDelay = 10 })
     sim.Wait(6)
     sim.Step("Countdown 5 in combat")
     sim.Expect(not Visible(sim, "^Readycheck$"), "combat: buttons hidden at once")
@@ -232,6 +264,10 @@ return {
     sim.Wait(1)
     sim.Step("Combat over: shrunk")
     ExpectCollapsed(sim, "after combat")
+    sim.Expect(
+      HasRunFocusLine(sim, "%[RUNFOCUS%] event=deferred reason=combat action=collapse_geometry"),
+      "trace: the combat collapse defers its geometry"
+    )
     sim.Expect(Near(Bottom(sim), expandedBottom), "bottom edge unchanged after combat shrink")
 
     -- Reset (abandoned) key: expands at once.
@@ -239,13 +275,14 @@ return {
     sim.Wait(1)
     sim.Step("Key reset: expanded")
     ExpectExpanded(sim, "after reset")
+    sim.Expect(HasRunFocusLine(sim, "%[RUNFOCUS%] event=expand trigger=reset"), "trace: reset expand")
 
     -- Anchor "top": the top edge stays, the run zone moves up with the
     -- bottom edge while the rest fades.
     local env = sim.Env()
     env.IsiLiveDB.runFocusAnchor = "top"
     local fullTop, fullBottom = Top(sim), Bottom(sim)
-    sim.StartKey({ mapID = KR, level = 16, timerStartDelay = 10 })
+    sim.StartKey({ mapID = KR, level = 16, countdownOrder = "after_start", timerStartDelay = 10 })
     sim.Wait(5.25, 0.05)
     sim.Step("Top anchor: collapsing")
     sim.Expect(Height(sim) < 150, "top anchor: countdown 5 starts the collapse")
@@ -277,7 +314,7 @@ return {
     env.IsiLiveDB.runFocusAnchor = nil
 
     -- Option off (default): leaving combat inside the key keeps the run zone.
-    sim.StartKey({ mapID = KR, level = 16, timerStartDelay = 10 })
+    sim.StartKey({ mapID = KR, level = 16, countdownOrder = "after_start", timerStartDelay = 10 })
     sim.Wait(6.5)
     ExpectCollapsed(sim, "key for the combat cycle")
     sim.Combat(true)

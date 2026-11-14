@@ -31,6 +31,8 @@ addonTable.RunFocus = RunFocus
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local LAYOUT_MODE_RUN = "compact_main_horizontal"
 local COLLAPSE_SECONDS = 0.45
 local EXPAND_SECONDS = 0.5
@@ -46,6 +48,10 @@ local COMPLETED_EXPAND_DELAY_SECONDS = 4
 -- runFocusExpandOutOfCombat: seconds out of combat before the window opens,
 -- so chain pulls do not flap.
 local PEEK_DEBOUNCE_SECONDS = 1.5
+-- The client starts the key countdown (START_TIMER) 2-3 s before
+-- CHALLENGE_MODE_START; a countdown recorded up to this long before the key
+-- start still schedules the collapse.
+local COUNTDOWN_RECORD_MAX_AGE_SECONDS = 12
 -- The collapse starts when the key countdown shows this second.
 local COUNTDOWN_COLLAPSE_AT_SECONDS = 5
 -- Enum.StartTimerType.ChallengeModeCountdown; type 2 is the leader's pull
@@ -165,6 +171,33 @@ local ANCHOR_POINTS = { bottom = "BOTTOMLEFT", top = "TOPLEFT" }
 
 function RunFocus.NormalizeAnchor(value)
   return value == "top" and "top" or "bottom"
+end
+
+local function Now()
+  local getTime = rawget(_G, "GetTime")
+  if type(getTime) ~= "function" then
+    return nil
+  end
+  local ok, now = pcall(getTime)
+  if not ok or IsSecretValue(now) or type(now) ~= "number" then
+    return nil
+  end
+  return now
+end
+
+-- Runtime log line ([RUNFOCUS] event=...); built only when the log is on.
+local function Trace(f, formatText, ...)
+  if type(f.trace) ~= "function" then
+    return
+  end
+  local args = { ... }
+  for index = 1, select("#", ...) do
+    local value = args[index]
+    args[index] = IsSecretValue(value) and "secret" or tostring(value)
+  end
+  f.trace(function()
+    return string.format(formatText, unpack(args))
+  end)
 end
 
 local function GetCompactHeight()
@@ -475,9 +508,18 @@ local function Collapse(f, animate)
   if state.phase == PHASE_COLLAPSED or state.phase == PHASE_COLLAPSING then
     return
   end
+  local inCombat = IsInCombat()
+  Trace(
+    f,
+    "[RUNFOCUS] event=collapse trigger=%s anchor=%s inCombat=%s",
+    state.trigger or "layout",
+    RunFocus.NormalizeAnchor(f.getAnchor()),
+    inCombat and "yes" or "no"
+  )
   StopDriver(f)
   RestoreFadeAlpha(f)
-  if IsInCombat() then
+  if inCombat then
+    Trace(f, "[RUNFOCUS] event=deferred reason=combat action=collapse_geometry")
     state.phase = PHASE_COLLAPSED
     state.geometryPending = true
     HideAll(f)
@@ -503,9 +545,13 @@ local function Expand(f, animate)
     return
   end
   if IsInCombat() then
+    if not state.expandPending then
+      Trace(f, "[RUNFOCUS] event=deferred reason=combat action=expand trigger=%s", state.trigger or "layout")
+    end
     state.expandPending = true
     return
   end
+  Trace(f, "[RUNFOCUS] event=expand trigger=%s", state.trigger or "layout")
   StopDriver(f)
   RestoreFadeAlpha(f)
   local hadGeometry = not state.geometryPending
@@ -537,7 +583,10 @@ local function IsWanted(f)
   return f.isEnabled() and (state.keyRunning or state.holdAfterCompletion) and not state.peek
 end
 
-local function Evaluate(f, animate)
+local function Evaluate(f, animate, trigger)
+  if trigger then
+    f.state.trigger = trigger
+  end
   if IsWanted(f) then
     Collapse(f, animate)
   else
@@ -557,11 +606,13 @@ local function Pass(f)
   end
   if phase == PHASE_IDLE then
     if IsWanted(f) then
+      f.state.trigger = "layout"
       Collapse(f, false)
     end
     return
   end
   if not IsWanted(f) then
+    f.state.trigger = "layout"
     Expand(f, false)
     return
   end
@@ -580,15 +631,23 @@ local function EndKey(f)
   state.peekToken = state.peekToken + 1
 end
 
+-- The recorded countdown survives a CHALLENGE_MODE_RESET on purpose: the
+-- client fires one ~0.25 s before every key start, between the countdown and
+-- CHALLENGE_MODE_START (probe log 2026-11-14). It ends when it goes stale, on
+-- a completed key, when the player leaves and when the setting turns off.
+local function DropCountdown(f)
+  f.state.countdown = nil
+end
+
 -- The countdown is over (or about to be): the key counts as running.
-local function CollapseForRunningKey(f)
+local function CollapseForRunningKey(f, trigger)
   local state = f.state
   if not state.armed then
     return
   end
   state.armed = false
   state.keyRunning = true
-  Evaluate(f, true)
+  Evaluate(f, true, trigger)
 end
 
 local function ChallengeCountdownType()
@@ -610,19 +669,16 @@ local function SecondsUntilCollapse(timeRemaining)
   return ok and type(delay) == "number" and delay or nil
 end
 
--- START_TIMER: only the key countdown of an armed key counts; the collapse
--- starts when it shows 5. A masked payload waits for the timer start.
-local function OnStartTimer(f, timerType, timeRemaining)
+-- Schedules the collapse for the moment the countdown shows 5, from the
+-- seconds the countdown still has; at once when it is already there.
+local function ScheduleCountdownCollapse(f, remaining)
   local state = f.state
-  if not state.armed or IsSecretValue(timerType) or timerType ~= ChallengeCountdownType() then
-    return
-  end
-  local delay = SecondsUntilCollapse(timeRemaining)
+  local delay = SecondsUntilCollapse(remaining)
   if delay == nil then
     return
   end
   if delay <= 0 then
-    CollapseForRunningKey(f)
+    CollapseForRunningKey(f, "countdown")
     return
   end
   local timer = rawget(_G, "C_Timer")
@@ -633,9 +689,53 @@ local function OnStartTimer(f, timerType, timeRemaining)
   local token = state.holdToken
   after(delay, function()
     if token == state.holdToken then
-      CollapseForRunningKey(f)
+      CollapseForRunningKey(f, "countdown")
     end
   end)
+end
+
+-- START_TIMER: every key countdown is recorded, also before the key start
+-- (the client starts the countdown 2-3 s before CHALLENGE_MODE_START); an
+-- armed key schedules its collapse at once. A pull timer (type 2) or a masked
+-- payload never counts; the timer start then is the fallback.
+local function OnStartTimer(f, timerType, timeRemaining, totalTime)
+  local state = f.state
+  Trace(
+    f,
+    "[RUNFOCUS] event=start_timer type=%s remaining=%s total=%s armed=%s",
+    timerType,
+    timeRemaining,
+    totalTime,
+    state.armed and "yes" or "no"
+  )
+  if IsSecretValue(timerType) or timerType ~= ChallengeCountdownType() then
+    return
+  end
+  if SecondsUntilCollapse(timeRemaining) == nil then
+    return
+  end
+  local now = Now()
+  state.countdown = now and { at = now, remaining = timeRemaining } or nil
+  if state.armed then
+    state.countdown = nil
+    ScheduleCountdownCollapse(f, timeRemaining)
+  end
+end
+
+-- The seconds left on a countdown recorded before the key start, or nil
+-- when there is none or it is older than COUNTDOWN_RECORD_MAX_AGE_SECONDS.
+local function TakeRecordedCountdown(f)
+  local record = f.state.countdown
+  f.state.countdown = nil
+  local now = Now()
+  if type(record) ~= "table" or not now then
+    return nil
+  end
+  local age = now - record.at
+  if age < 0 or age > COUNTDOWN_RECORD_MAX_AGE_SECONDS then
+    return nil
+  end
+  return record.remaining - age
 end
 
 -- A completed key keeps the run zone for a moment, so the end banner and the
@@ -644,8 +744,9 @@ end
 local function HoldAfterCompletion(f)
   local state = f.state
   EndKey(f)
+  DropCountdown(f)
   if state.phase ~= PHASE_COLLAPSED and state.phase ~= PHASE_COLLAPSING then
-    Evaluate(f, true)
+    Evaluate(f, true, "completed")
     return
   end
   state.holdAfterCompletion = true
@@ -654,7 +755,7 @@ local function HoldAfterCompletion(f)
   local after = type(timer) == "table" and timer.After or nil
   if type(after) ~= "function" then
     state.holdAfterCompletion = false
-    Evaluate(f, true)
+    Evaluate(f, true, "completed")
     return
   end
   after(COMPLETED_EXPAND_DELAY_SECONDS, function()
@@ -662,7 +763,7 @@ local function HoldAfterCompletion(f)
       return
     end
     state.holdAfterCompletion = false
-    Evaluate(f, true)
+    Evaluate(f, true, "completed")
   end)
 end
 
@@ -688,7 +789,7 @@ local function SchedulePeek(f)
       return
     end
     state.peek = true
-    Evaluate(f, true)
+    Evaluate(f, true, "out_of_combat")
   end)
 end
 
@@ -700,7 +801,7 @@ local function OnCombatStarted(f)
   state.peekToken = state.peekToken + 1
   if state.peek then
     state.peek = false
-    Evaluate(f, false)
+    Evaluate(f, false, "combat")
   end
 end
 
@@ -745,8 +846,9 @@ ReapplyAnchor = function(f)
     return true
   end
   state.anchorPending = false
+  state.trigger = "anchor"
   Expand(f, false)
-  Evaluate(f, false)
+  Evaluate(f, false, "anchor")
   return true
 end
 
@@ -759,21 +861,31 @@ local function BuildController(f)
   -- Key start only arms: the collapse waits for the countdown (START_TIMER)
   -- or, as a fallback, for the M+ timer start.
   function controller.OnKeyStart()
+    local remainingNow = TakeRecordedCountdown(f)
     EndKey(f)
     state.armed = true
+    Trace(
+      f,
+      "[RUNFOCUS] event=armed pendingCountdown=%s remainingNow=%s",
+      remainingNow and "yes" or "no",
+      remainingNow and string.format("%.1f", remainingNow) or "-"
+    )
+    if remainingNow then
+      ScheduleCountdownCollapse(f, remainingNow)
+    end
   end
-  function controller.OnStartTimer(timerType, timeRemaining)
-    OnStartTimer(f, timerType, timeRemaining)
+  function controller.OnStartTimer(timerType, timeRemaining, totalTime)
+    OnStartTimer(f, timerType, timeRemaining, totalTime)
   end
   function controller.OnKeyTimerStarted()
-    CollapseForRunningKey(f)
+    CollapseForRunningKey(f, "fallback")
   end
   function controller.OnKeyCompleted()
     HoldAfterCompletion(f)
   end
   function controller.OnKeyReset()
     EndKey(f)
-    Evaluate(f, true)
+    Evaluate(f, true, "reset")
   end
   -- Login, /reload or a zone change. Only a login or reload may start the
   -- focus (instantly); a zone change only ends it once the key is gone.
@@ -781,10 +893,11 @@ local function BuildController(f)
     local active = IsKeyActive()
     if isLoginOrReload then
       state.keyRunning = active
-      Evaluate(f, false)
-    elseif (state.keyRunning or state.armed) and not active then
+      Evaluate(f, false, "reload")
+    elseif not active and (state.keyRunning or state.armed or state.countdown) then
       EndKey(f)
-      Evaluate(f, false)
+      DropCountdown(f)
+      Evaluate(f, false, "left")
     end
   end
   function controller.OnCombatStarted()
@@ -803,6 +916,7 @@ local function BuildController(f)
   function controller.Refresh()
     if not f.isEnabled() then
       state.holdToken = state.holdToken + 1
+      DropCountdown(f)
     end
     if state.peek and not f.expandOutOfCombat() then
       state.peek = false
@@ -814,11 +928,11 @@ local function BuildController(f)
     if ReapplyAnchor(f) then
       return
     end
-    Evaluate(f, true)
+    Evaluate(f, true, "setting")
   end
   function controller.SetTestMode(active)
     state.testMode = active == true
-    Evaluate(f, true)
+    Evaluate(f, true, "test")
     return state.testMode
   end
   function controller.ToggleTestMode()
@@ -868,6 +982,7 @@ function RunFocus.Create(deps)
     expandOutOfCombat = Fn(deps.expandOutOfCombat, function()
       return false
     end),
+    trace = Fn(deps.trace, nil),
     getRequestedHeight = Fn(deps.getRequestedHeight, nil),
     hooked = setmetatable({}, { __mode = "k" }),
     state = {
@@ -940,9 +1055,9 @@ local function WrapRosterPanel(rosterPanel, controller)
 end
 
 local function RegisterEvents(events, controller)
-  events:SetScript("OnEvent", function(_self, event, isInitialLogin, isReloadingUi)
+  events:SetScript("OnEvent", function(_self, event, isInitialLogin, isReloadingUi, extra)
     if event == "START_TIMER" then
-      controller.OnStartTimer(isInitialLogin, isReloadingUi)
+      controller.OnStartTimer(isInitialLogin, isReloadingUi, extra)
     elseif event == "WORLD_STATE_TIMER_START" then
       controller.OnKeyTimerStarted()
     elseif event == "CHALLENGE_MODE_START" then
@@ -1025,6 +1140,7 @@ function RunFocus.Install(opts)
     end,
     getText = opts.getText,
     onEnabledToggled = opts.onEnabledToggled,
+    trace = opts.trace,
   })
   if not controller then
     rosterPanel.AttachRunFocus(nil)

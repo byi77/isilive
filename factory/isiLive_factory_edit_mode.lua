@@ -105,6 +105,14 @@ function FactoryEditMode.InstallLate(ctx)
       onEnabledToggled = function()
         RefreshSettingsPanel(ctx)
       end,
+      -- [RUNFOCUS] lines in the runtime log ring (on with the runtime log or
+      -- probe mode).
+      trace = function(buildMessage)
+        local runtimeLog = ctx.runtimeLogController
+        if runtimeLog and type(runtimeLog.Trace) == "function" then
+          runtimeLog.Trace(buildMessage)
+        end
+      end,
       refreshOwners = function()
         local panel = ctx.rosterPanelController
         if type(panel) == "table" then

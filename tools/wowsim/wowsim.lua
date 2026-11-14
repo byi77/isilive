@@ -620,6 +620,21 @@ function sim.LeaveDungeon()
   world.FireAll("ZONE_CHANGED_NEW_AREA")
 end
 
+-- Key start as the client delivers it (in-game probe 2026-11-14): the 10 s
+-- key countdown (START_TIMER 1, 10, 10; type 1 =
+-- Enum.StartTimerType.ChallengeModeCountdown) starts first,
+-- CHALLENGE_MODE_START follows COUNTDOWN_LEAD seconds later, and
+-- WORLD_STATE_TIMER_START comes when the countdown ends. StartKey advances
+-- the clock by that lead. Options:
+--   countdownOrder = "after_start": the older order (START_TIMER right after
+--     CHALLENGE_MODE_START, no lead)
+--   startTimer = false: no countdown event at all
+--   timerStartDelay = n: WORLD_STATE_TIMER_START n seconds after
+--     CHALLENGE_MODE_START (0 = at once); default: the end of the countdown
+local COUNTDOWN_SECONDS = 10
+local COUNTDOWN_LEAD = 2.5
+local PRE_START_RESET_LEAD = 0.25
+
 function sim.StartKey(opts)
   opts = opts or {}
   local mapID = opts.mapID or (world.instance and world.instance.mapID)
@@ -627,11 +642,22 @@ function sim.StartKey(opts)
   if not world.instance then
     sim.EnterDungeon(mapID)
   end
+  local clientOrder = opts.startTimer ~= false and opts.countdownOrder ~= "after_start"
+  local countdownLeft = COUNTDOWN_SECONDS
+  if clientOrder then
+    world.FireAll("START_TIMER", 1, COUNTDOWN_SECONDS, COUNTDOWN_SECONDS)
+    world.Advance(COUNTDOWN_LEAD - PRE_START_RESET_LEAD)
+    -- The client also fires a CHALLENGE_MODE_RESET right before every key
+    -- start (probe log: 238-258 ms before CHALLENGE_MODE_START).
+    world.FireAll("CHALLENGE_MODE_RESET", 0)
+    world.Advance(PRE_START_RESET_LEAD)
+    countdownLeft = COUNTDOWN_SECONDS - COUNTDOWN_LEAD
+  end
   world.challenge = {
     mapID = mapID,
     level = opts.level or 10,
     affixes = opts.affixes or { 9, 10, 147 },
-    startedAt = world.t + 10, -- the 10 s countdown before the timer runs
+    startedAt = world.t + countdownLeft, -- the timer runs once the countdown ends
     deaths = 0,
     timeLost = 0,
     deathPenalty = opts.deathPenalty or 15,
@@ -644,12 +670,8 @@ function sim.StartKey(opts)
   world.scenario = { title = info.name, bosses = bosses, forcesTotal = info.forcesTotal, forcesCurrent = 0 }
   world.Log("note", string.format("key start %s +%d", info.name, world.challenge.level))
   world.FireAll("CHALLENGE_MODE_START", mapID)
-  -- The client shows the 10 s key countdown (START_TIMER, type 1 =
-  -- Enum.StartTimerType.ChallengeModeCountdown) right after the key start.
-  -- opts.startTimer = false leaves it out; opts.timerStartDelay delays
-  -- WORLD_STATE_TIMER_START to the end of the countdown (default: at once).
-  if opts.startTimer ~= false then
-    world.FireAll("START_TIMER", 1, 10, 10)
+  if opts.startTimer ~= false and not clientOrder then
+    world.FireAll("START_TIMER", 1, COUNTDOWN_SECONDS, COUNTDOWN_SECONDS)
   end
   local challenge = world.challenge
   local function StartWorldTimer()
@@ -661,9 +683,13 @@ function sim.StartKey(opts)
     world.FireAll("SCENARIO_UPDATE")
     world.FireAll("SCENARIO_CRITERIA_UPDATE", 999)
   end
-  if (opts.timerStartDelay or 0) > 0 then
+  local delay = opts.timerStartDelay
+  if delay == nil then
+    delay = countdownLeft
+  end
+  if delay > 0 then
     world.FireAll("SCENARIO_UPDATE")
-    world.clock.after(opts.timerStartDelay, StartWorldTimer)
+    world.clock.after(delay, StartWorldTimer)
   else
     StartWorldTimer()
   end

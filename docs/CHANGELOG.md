@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fix: run focus collapses at countdown 5 again (rule 248). The in-game probe of 0.9.518 (+16) showed the window collapsing at ~1 s via the timer-start fallback: the client starts the key countdown (`START_TIMER` type 1) 2-3 s before `CHALLENGE_MODE_START`, so the countdown arrived before run focus was armed. Every key countdown is now recorded with `GetTime()`; the key start uses one recorded within the last 12 s and schedules the collapse for `remaining - age - 5` s. The record survives the `CHALLENGE_MODE_RESET` the client fires ~0.25 s before every key start, and ends when stale, on completion, on leaving the instance or when the setting is switched off. The `START_TIMER`-after-arming path and the timer-start fallback stay.
+- Feature: `[RUNFOCUS]` lines in the runtime log ring (on with the runtime log or probe mode): `event=start_timer`, `event=armed pendingCountdown= remainingNow=`, `event=collapse trigger= anchor= inCombat=`, `event=expand trigger=`, `event=deferred reason=combat`.
+- Fix: probe mode (rule 239) no longer writes `key_end trigger=restriction_lifted kind=left` right before `key_end trigger=CHALLENGE_MODE_COMPLETED kind=completed` on a completed key; the "left" line waits one frame and is dropped when the completion arrived. The instance reset was already armed as `completed`.
+- Test: wowsim `sim.StartKey` follows the client order by default: `START_TIMER(1, 10, 10)`, 2.25 s later the pre-start `CHALLENGE_MODE_RESET`, 0.25 s later `CHALLENGE_MODE_START`, and `WORLD_STATE_TIMER_START` at the end of the countdown (the call advances the clock by 2.5 s). `countdownOrder = "after_start"` keeps the older order; `run_focus` covers both.
+
 ## 2026-11-14 - Version 0.9.519 (patch)
 
 - Change: the main window is fixed to the M+ layout (rule 249, `RI.LAYOUT_LOCKED_TO_MPLUS`). The M+, H and V title-bar buttons are no longer shown, saved V / H / M layouts open as M+ (the saved values stay), the *Default UI on Open* choice and the Edit Mode layout option are disabled with M+ selected (new text `SETTINGS_LAYOUT_LOCKED_DESC` in all five languages). The run focus switch takes the place of the mode buttons left of Re-Sync. The layout code stays; the flag brings switching back. Tests that cover the other layouts lift the lock explicitly; a new test asserts the lock.
