@@ -205,9 +205,46 @@ local function AppendLfgInfo(lines)
   end
 end
 
+-- Rule 250 probe: what Blizzard reports about the running Mythic+ season.
+-- The off-season detection reads only the map list; the other values are
+-- printed so the next season break can verify them in a live client.
+local REWARD_PROBE_KEY_LEVELS = { 2, 6, 10 }
+
+local function AppendBlizzardSeasonInfo(lines)
+  local seasonData = addonTable.SeasonData
+  local state = type(seasonData) == "table"
+      and type(seasonData.GetBlizzardSeasonState) == "function"
+      and seasonData.GetBlizzardSeasonState()
+    or nil
+  lines[#lines + 1] = "[SEASON] blizzardSeasonState=" .. ValueText(state)
+
+  local okMaps, mapResult = SafeCallTable("C_ChallengeMode", "GetMapTable")
+  if okMaps then
+    local maps = mapResult[1]
+    local count = (not IsSecretValue(maps) and type(maps) == "table") and #maps or nil
+    lines[#lines + 1] = string.format("[SEASON] challengeMapTable count=%s maps=%s", ValueText(count), ListText(maps))
+  else
+    lines[#lines + 1] = "[SEASON] challengeMapTable=" .. tostring(mapResult)
+  end
+
+  for _, fnName in ipairs({ "GetCurrentSeason", "GetCurrentUIDisplaySeason" }) do
+    local ok, result = SafeCallTable("C_MythicPlus", fnName)
+    lines[#lines + 1] =
+      string.format("[SEASON] C_MythicPlus.%s=%s", fnName, ok and ValueText(result[1]) or tostring(result))
+  end
+
+  local rewardParts = {}
+  for _, keyLevel in ipairs(REWARD_PROBE_KEY_LEVELS) do
+    local ok, result = SafeCallTable("C_MythicPlus", "GetRewardLevelFromKeystoneLevel", keyLevel)
+    rewardParts[#rewardParts + 1] = string.format("+%d=%s", keyLevel, ok and ValueText(result[1]) or tostring(result))
+  end
+  lines[#lines + 1] = "[SEASON] rewardLevels " .. table.concat(rewardParts, " ")
+end
+
 function SeasonDebug.BuildDumpLines()
   local lines = {}
   AppendReadiness(lines)
+  AppendBlizzardSeasonInfo(lines)
   AppendInstanceInfo(lines)
   AppendMapInfo(lines)
   AppendChallengeInfo(lines)

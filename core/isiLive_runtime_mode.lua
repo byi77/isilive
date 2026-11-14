@@ -145,7 +145,19 @@ local function IsFullProfileContextOutsideRaid()
   if instanceType ~= "party" then
     return false
   end
-  return FULL_PROFILE_PARTY_DIFFICULTY_IDS[difficultyID] == true
+  if FULL_PROFILE_PARTY_DIFFICULTY_IDS[difficultyID] == true then
+    return true
+  end
+  -- Rule 250 (user decision 2026-11-14): while Blizzard runs no Mythic+
+  -- season, heroic is main content and gets the full profile too. Run
+  -- tracking (IsFullProfileDifficulty) stays on the static table.
+  if addonTable.Difficulties.IsParty("heroic", difficultyID) then
+    local seasonData = addonTable.SeasonData
+    return type(seasonData) == "table"
+      and type(seasonData.IsOffSeason) == "function"
+      and seasonData.IsOffSeason() == true
+  end
+  return false
 end
 
 --- True in a mythic party dungeon: active keystone or M0 / pre-insert.

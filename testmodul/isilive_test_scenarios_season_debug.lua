@@ -12,6 +12,39 @@ return function(test, ctx)
     Assert.True(joined:find("GetInstanceInfo=unavailable", 1, true) ~= nil, "missing instance API is surfaced")
     Assert.True(joined:find("activeChallengeMapID=unavailable", 1, true) ~= nil, "missing challenge API is surfaced")
     Assert.True(joined:find("activeLfgEntry=unavailable", 1, true) ~= nil, "missing LFG API is surfaced")
+    Assert.True(joined:find("blizzardSeasonState=unknown", 1, true) ~= nil, "the Blizzard season state is printed")
+    Assert.True(joined:find("challengeMapTable=unavailable", 1, true) ~= nil, "a missing map table is surfaced")
+  end)
+
+  test("SeasonDebug dump prints the Blizzard season probe for the off-season check", function()
+    local joined = nil
+    WithGlobals({
+      C_ChallengeMode = {
+        GetMapTable = function()
+          return {}
+        end,
+      },
+      C_MythicPlus = {
+        GetCurrentSeason = function()
+          return -1
+        end,
+        GetRewardLevelFromKeystoneLevel = function(level)
+          return level == 10 and 0 or nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_season_debug.lua" })
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({}, { serverConfirmed = true })
+      joined = table.concat(addon.SeasonDebug.BuildDumpLines(), "\n")
+    end)
+    Assert.True(joined:find("blizzardSeasonState=offseason", 1, true) ~= nil, "the off-season state is printed")
+    Assert.True(joined:find("challengeMapTable count=0 maps=", 1, true) ~= nil, "an empty map table is printed")
+    Assert.True(joined:find("C_MythicPlus.GetCurrentSeason=-1", 1, true) ~= nil, "the season number is printed")
+    Assert.True(
+      joined:find("C_MythicPlus.GetCurrentUIDisplaySeason=unavailable", 1, true) ~= nil,
+      "a missing season API is surfaced"
+    )
+    Assert.True(joined:find("rewardLevels +2=nil +6=nil +10=0", 1, true) ~= nil, "the reward levels are printed")
   end)
 
   test("SeasonDebug dump prints observed instance challenge map and active LFG data", function()

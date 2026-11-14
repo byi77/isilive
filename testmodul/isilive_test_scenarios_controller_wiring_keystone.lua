@@ -323,9 +323,11 @@ return function(test, ctx)
   test("ControllerWiring sendOwnKeystoneToChat uses ContextHelpers loaded after wiring", function()
     local addon = {}
     local validationChunk = assert(loadfile("core/isiLive_validation_helpers.lua"))
+    local seasonRefreshChunk = assert(loadfile("factory/isiLive_season_refresh.lua"))
     local wiringChunk = assert(loadfile("factory/isiLive_controller_wiring.lua"))
     local helpersChunk = assert(loadfile("core/isiLive_context_helpers.lua"))
     assert(pcall(validationChunk, "isiLive", addon))
+    assert(pcall(seasonRefreshChunk, "isiLive", addon))
     assert(pcall(wiringChunk, "isiLive", addon))
     assert(pcall(helpersChunk, "isiLive", addon))
 

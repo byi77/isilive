@@ -79,6 +79,12 @@ local function ResolveSeasonID()
   if type(seasonData) ~= "table" or type(seasonData.GetActiveSeasonID) ~= "function" then
     return nil
   end
+  -- Rule 250: while Blizzard runs a season the addon does not know, the active
+  -- season id is stale. No season id means no learning and no references, so
+  -- the new season's runs do not land under the previous season.
+  if type(seasonData.IsSeasonUnrecognized) == "function" and seasonData.IsSeasonUnrecognized() == true then
+    return nil
+  end
   local ok, seasonID = pcall(seasonData.GetActiveSeasonID)
   if not ok then
     return nil

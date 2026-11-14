@@ -191,6 +191,33 @@ Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `do
 
 Das optionale Manifest-Feld `upcomingSeasonID` benennt die gerade vorbereitete Season. `SeasonData.GetToolDefaultSeasonID()` liefert sie, sonst `activeSeasonID`; `inspect_mdt_season_preview.lua` und der Preview-Workflow (`--print-default-season`) nutzen diesen Default statt einer festen Season-ID. Eine unbekannte ID ist ein Manifest-Fehler (`SeasonData.MANIFEST_ERRORS`) und laesst das Intake-Gate scheitern. Die Runtime liest das Feld nie; `sync_mdt_forces.lua` bleibt bei `activeSeasonID`, weil die Runtime-DB zur aktiven Season passen muss.
 
+### 3.4a Saisonzustand und Saisonpause (Regel 250)
+
+Zwischen zwei Seasons laeuft 1 bis 2 Wochen keine Mythic+-Season; spielbar sind nur N, HC und M0.
+`SeasonData` leitet dafuer aus `C_ChallengeMode.GetMapTable()` einen Zustand ab
+(`SeasonData.GetBlizzardSeasonState()`):
+
+| Zustand | Ausloeser | Wirkung |
+| --- | --- | --- |
+| `unknown` | Start, ungueltige/mehrdeutige Liste | wie bisher |
+| `active` | exakter Satz einer bereiten Season | wie bisher |
+| `offseason` | leere Liste direkt nach `CHALLENGE_MODE_MAPS_UPDATE` | Statuszeile `Ziel-Dungeon: - (Saisonpause)`, ruhige 30-s-Dungeon-Karte, Heroisch im vollen Profil |
+| `unrecognized` | nicht leerer Satz, den keine Season kennt | einmal pro Sitzung Chat-Hinweis "bitte aktualisieren", Zeit-/Forces-Tempo lernen nicht |
+
+`activeSeasonID` bleibt in allen Faellen der Fallback; Portale, Navigator und LFG-Zuordnung zeigen weiter
+die zuletzt aktive Season. Die Erkennung der Saisonpause beruht auf der Annahme, dass Blizzard in der Pause
+eine leere Map-Liste liefert. Das ist **noch nicht ingame belegt**. In der naechsten Saisonpause pruefen:
+
+1. `/isilive seasondump` ausfuehren und die Zeilen `blizzardSeasonState`, `challengeMapTable`,
+   `C_MythicPlus.GetCurrentSeason`, `GetCurrentUIDisplaySeason` und `rewardLevels` sichern.
+2. Liefert Blizzard eine leere Liste, muss `blizzardSeasonState=offseason` stehen.
+3. Liefert Blizzard noch die alte Liste, bleibt der Zustand `active` und isiLive verhaelt sich wie in der
+   Season; liefert es schon die neue, gilt `unrecognized` (neue Season fehlt im Manifest) oder `active`
+   (neue Season vorbereitet). In beiden Faellen die Regel 250 und diese Tabelle mit dem Befund
+   nachziehen; `GetCurrentSeason` waere dann ein moeglicher zweiter Ausloeser (User-Entscheidung).
+
+Im Runtime-Log (`/isilive log on`) traegt jede `[SEASON] auto_select`-Zeile `state=`.
+
 ### 3.5 BR-/Bloodlust-Combat-Events und Addon-Message-Transport
 
 Pruefen:

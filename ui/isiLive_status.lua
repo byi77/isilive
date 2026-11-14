@@ -262,6 +262,10 @@ local function BuildTargetDungeonText(deps)
 
   local info = deps.getTargetDungeonInfo and deps.getTargetDungeonInfo() or nil
   if type(info) ~= "table" then
+    -- Rule 250: Blizzard runs no Mythic+ season (empty map list).
+    if type(deps.isOffSeason) == "function" and deps.isOffSeason() == true then
+      return L.STATUS_TARGET_DUNGEON_OFFSEASON or emptyText
+    end
     if type(deps.hasActiveDungeons) == "function" and deps.hasActiveDungeons() == false then
       local seasonLabel = type(deps.getActiveSeasonLabel) == "function" and deps.getActiveSeasonLabel() or nil
       if type(seasonLabel) == "string" and seasonLabel ~= "" then
@@ -585,6 +589,16 @@ local function JoinNameAndDifficulty(name, difficultyText)
   return name
 end
 
+-- Rule 250: while Blizzard runs no Mythic+ season a party dungeon card is a
+-- calm hint (no warning colour, no blink, shorter) instead of a warning.
+local OFFSEASON_NOTICE_SECONDS = 30
+local DEFAULT_NOTICE_SECONDS = 120
+
+local function IsOffSeason()
+  local seasonData = addonTable.SeasonData
+  return type(seasonData) == "table" and type(seasonData.IsOffSeason) == "function" and seasonData.IsOffSeason() == true
+end
+
 local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanceName)
   local template
   local showOpts
@@ -601,6 +615,7 @@ local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanc
       },
     }
   else
+    local offSeason = IsOffSeason()
     template = L.NON_MYTHIC_ENTERED or "Non-Mythic: %s"
     showOpts = {
       eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
@@ -613,7 +628,10 @@ local function BuildInstanceEntryNotice(L, instanceType, difficultyText, instanc
             difficultyText
           ),
         },
-        {
+        offSeason and {
+          label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
+          value = L.NON_MYTHIC_NOTICE_HINT_OFFSEASON or "Season break - no Mythic+ possible",
+        } or {
           label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
           value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
           warning = true,
@@ -688,7 +706,9 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
         local displayName = ResolveInstanceDisplayName(cInstanceName)
         local template, showOpts = BuildInstanceEntryNotice(labels, cInstanceType, text, displayName)
         showOpts.rebuild = BuildNotice
-        return { message = string.format(template, text), durationSeconds = 120, showOptions = showOpts }
+        local seconds = (cInstanceType == "party" and IsOffSeason()) and OFFSEASON_NOTICE_SECONDS
+          or DEFAULT_NOTICE_SECONDS
+        return { message = string.format(template, text), durationSeconds = seconds, showOptions = showOpts }
       end
       local notice = BuildNotice()
       deps.showCenterNotice(notice.message, notice.durationSeconds, nil, nil, notice.showOptions)
@@ -912,6 +932,9 @@ function Status.CreateController(opts)
     end,
     getActiveSeasonLabel = opts.getActiveSeasonLabel or function()
       return nil
+    end,
+    isOffSeason = opts.isOffSeason or function()
+      return false
     end,
     printFn = opts.printFn or print,
     printHighlighted = opts.printHighlighted or opts.printFn or print,

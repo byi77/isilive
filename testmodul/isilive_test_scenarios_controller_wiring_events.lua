@@ -439,6 +439,102 @@ return function(test, ctx)
     end)
   end)
 
+  test("ControllerWiring season refresh marks the off season only after a server map update", function()
+    local mapTable = {}
+    local requests = 0
+    WithGlobals({
+      InCombatLockdown = function()
+        return false
+      end,
+      C_ChallengeMode = {
+        GetMapTable = function()
+          return mapTable
+        end,
+      },
+      C_MythicPlus = {
+        RequestMapInfo = function()
+          requests = requests + 1
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_controller_wiring.lua" })
+      local repaints = 0
+      local module, getCaptured = CaptureEventModule()
+      local deps = BuildMinimalEventDeps()
+      deps.callbacks.updateUI = function()
+        repaints = repaints + 1
+      end
+      addon.ControllerWiring.CreateEventHandlersController(module, deps)
+      local refresh = getCaptured().refreshActiveSeasonFromBlizzard
+
+      refresh("PLAYER_LOGIN")
+      Assert.Equal(requests, 1, "login requests the map data once")
+      Assert.Equal(
+        addon.SeasonData.GetBlizzardSeasonState(),
+        "unknown",
+        "an empty list at login is not yet an off season"
+      )
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.True(addon.SeasonData.IsOffSeason(), "an empty list after the server answer is the off season")
+      Assert.Equal(repaints, 1, "entering the off season repaints once")
+      refresh("PLAYER_REGEN_ENABLED")
+      Assert.True(addon.SeasonData.IsOffSeason(), "a catch-up without server answer keeps the off season")
+      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "the off season never changes the season")
+
+      mapTable = addon.SeasonData.GetOrderedMapIDs("midnight_s2")
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(addon.SeasonData.GetBlizzardSeasonState(), "active", "the season map set ends the off season")
+      Assert.Equal(repaints, 2, "leaving the off season repaints once")
+      refresh("PLAYER_LOGIN")
+      Assert.Equal(requests, 1, "map data is requested once per session")
+    end)
+  end)
+
+  test("ControllerWiring season refresh prints the unknown-season notice once per session", function()
+    local mapTable = { 9991, 9992 }
+    local printed = {}
+    WithGlobals({
+      InCombatLockdown = function()
+        return false
+      end,
+      C_ChallengeMode = {
+        GetMapTable = function()
+          return mapTable
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_controller_wiring.lua" })
+      local module, getCaptured = CaptureEventModule()
+      addon.ControllerWiring.CreateEventHandlersControllerFromContext(
+        module,
+        BuildEventContext({
+          getL = function()
+            return { SEASON_UNRECOGNIZED_NOTICE = "unknown season, update" }
+          end,
+          printFn = function(line)
+            printed[#printed + 1] = line
+          end,
+        })
+      )
+      local refresh = getCaptured().refreshActiveSeasonFromBlizzard
+
+      refresh("PLAYER_LOGIN")
+      Assert.True(addon.SeasonData.IsSeasonUnrecognized(), "an unknown map set marks the season unrecognized")
+      Assert.Equal(#printed, 1, "the unknown season prints one chat line")
+      Assert.True(printed[1]:find("unknown season, update", 1, true) ~= nil, "the line carries the localized text")
+      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "the active season stays the fallback")
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(#printed, 1, "an unchanged state prints nothing")
+
+      mapTable = addon.SeasonData.GetOrderedMapIDs("midnight_s2")
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      mapTable = { 9991, 9992 }
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.True(addon.SeasonData.IsSeasonUnrecognized(), "the unknown set is recognized as unknown again")
+      Assert.Equal(#printed, 1, "the notice appears at most once per session")
+    end)
+  end)
+
   test("ControllerWiring CreateEventHandlersController processAddonMessage feeds sync module", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()

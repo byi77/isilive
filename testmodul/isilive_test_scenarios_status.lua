@@ -20,6 +20,7 @@ local function BuildLocale()
     NON_MYTHIC_NOTICE_LABEL_RAID = "Raid:",
     NON_MYTHIC_NOTICE_LABEL_HINT = "Hint:",
     NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
+    NON_MYTHIC_NOTICE_HINT_OFFSEASON = "Season break - no Mythic+ possible",
     RAID_ENTERED = "Entered raid: %s",
     PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
@@ -44,6 +45,7 @@ local function BuildLocale()
     STATUS_TARGET_DUNGEON_TEXT = "Target Dungeon: %s",
     STATUS_TARGET_DUNGEON_NONE = "Target Dungeon: -",
     STATUS_TARGET_DUNGEON_PRESEASON = "Target Dungeon: Pre-Season (%s)",
+    STATUS_TARGET_DUNGEON_OFFSEASON = "Target Dungeon: - (season break)",
     STATUS_STATE_RUNNING = "State: Running",
     STATUS_STATE_PAUSED = "State: Paused",
     STATUS_STATE_STOPPED = "State: Stopped",
@@ -543,6 +545,56 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
         "non-mythic dungeon notice hint must blink for emphasis"
       )
       Assert.Equal(#notices[1].showOptions.fields, 2, "the card keeps two rows (no source row)")
+    end)
+  end)
+
+  test("Status dungeon entry card turns calm during the off season", function()
+    local notices = {}
+    local current = { instanceName = "Den of Nalorakk", instanceType = "none", difficultyID = 0 }
+    WithGlobals({
+      GetInstanceInfo = function()
+        return current.instanceName, current.instanceType, current.difficultyID, "Outside"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+      C_Timer = {
+        After = function(_delay, fn)
+          fn()
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({}, { serverConfirmed = true })
+      Assert.True(addon.SeasonData.IsOffSeason(), "an empty server map list is the off season")
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        showCenterNotice = function(message, duration, _dungeon, _activity, showOptions)
+          table.insert(notices, { message = message, duration = duration, showOptions = showOptions })
+        end,
+        hideCenterNotice = function() end,
+      })
+
+      controller.MaybeShowNonMythicDungeonEntryNotice()
+      current.instanceType = "party"
+      current.difficultyID = 2
+      controller.MaybeShowNonMythicDungeonEntryNotice()
+
+      Assert.Equal(#notices, 1, "a heroic dungeon still shows the entry card")
+      local hint = notices[1].showOptions.fields[2]
+      Assert.Equal(hint.value, "Season break - no Mythic+ possible", "the hint names the season break")
+      Assert.Nil(hint.warning, "the off-season hint is no warning row")
+      Assert.Nil(hint.blink, "the off-season hint does not blink")
+      Assert.Equal(notices[1].duration, 30, "the off-season card stays 30 seconds instead of 120")
+
+      -- A raid keeps its card unchanged.
+      current.instanceType = "raid"
+      current.difficultyID = 14
+      controller.MaybeShowNonMythicDungeonEntryNotice()
+      Assert.Equal(#notices, 2, "a raid still shows its card")
+      Assert.Equal(notices[2].duration, 120, "the raid card keeps its duration")
     end)
   end)
 end
@@ -1759,6 +1811,37 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
         string.find(text, "M+: Inactive", 1, true) ~= nil,
         "status line should keep M+ inactive when the Blizzard challenge API is missing"
       )
+    end)
+  end)
+
+  test("Status line names the season break when Blizzard runs no Mythic+ season", function()
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Outside", "none", 0, "Unknown"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local offSeason = true
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        isOffSeason = function()
+          return offSeason
+        end,
+      })
+      local text = controller.BuildStatusLineText({})
+      Assert.True(
+        string.find(text, "Target Dungeon: - (season break)", 1, true) ~= nil,
+        "the status line names the season break while no target is known"
+      )
+      offSeason = false
+      text = controller.BuildStatusLineText({})
+      Assert.True(string.find(text, "Target Dungeon: -", 1, true) ~= nil, "outside the break the placeholder stays")
+      Assert.Nil(string.find(text, "season break", 1, true), "outside the break the hint is gone")
     end)
   end)
 

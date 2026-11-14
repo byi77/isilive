@@ -573,7 +573,7 @@ return function(test, ctx)
   end)
 
   test("Architecture automatic season wiring uses Blizzard map table and rebuilds teleport buttons", function()
-    local wiring = ReadFile("factory/isiLive_controller_wiring.lua")
+    local wiring = ReadFile("factory/isiLive_season_refresh.lua")
     Assert.True(
       wiring:find('rawget(challengeMode, "GetMapTable")', 1, true) ~= nil,
       "automatic season wiring must read Blizzard's challenge-map table through the guarded API cache"

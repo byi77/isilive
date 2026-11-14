@@ -727,6 +727,34 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
     Assert.False(Retryable({ 77 }), "a matched but unready season is a conclusive rejection")
   end)
 
+  test("SeasonData Blizzard season state follows the challenge map list", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local seasonData = addon.SeasonData
+    local s2Maps = seasonData.GetOrderedMapIDs("midnight_s2")
+    Assert.Equal(seasonData.GetBlizzardSeasonState(), "unknown", "nothing observed yet")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs({})
+    Assert.Equal(seasonData.GetBlizzardSeasonState(), "unknown", "an unconfirmed empty list is no off season")
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs({}, { serverConfirmed = true })
+    Assert.True(seasonData.IsOffSeason(), "a server-confirmed empty list is the off season")
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs(nil)
+    Assert.True(seasonData.IsOffSeason(), "a missing list keeps the state")
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs({})
+    Assert.True(seasonData.IsOffSeason(), "an unconfirmed empty list keeps the off season")
+    Assert.Equal(seasonData.GetActiveSeasonID(), "midnight_s2", "the off season never changes the active season")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs(s2Maps)
+    Assert.Equal(seasonData.GetBlizzardSeasonState(), "active", "an exact ready set is an active season")
+    Assert.False(seasonData.IsOffSeason(), "an active season ends the off season")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 9991, 9992 })
+    Assert.True(seasonData.IsSeasonUnrecognized(), "a non-empty unknown set is an unrecognized season")
+    Assert.Equal(seasonData.GetActiveSeasonID(), "midnight_s2", "an unrecognized season keeps the fallback")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 9991, 9991 })
+    Assert.Equal(seasonData.GetBlizzardSeasonState(), "unknown", "a malformed list is inconclusive")
+  end)
+
   test("SeasonData auto-selection ignores missing stale or mismatched forces data", function()
     local addon = LoadSeasonDataWithFixture(LoadAddonModules)
     addon.SeasonData.SEASONS.test_forces = {

@@ -22,7 +22,9 @@
 -- Run from repo root:
 --   lua tools/check_dead_locale_keys.lua
 
-local SCAN_DIRS = { "core", "factory", "game", "locale", "logic", "ui" }
+-- `data` holds manifests that name locale keys (raid difficulty labels in
+-- data/isiLive_difficulties.lua).
+local SCAN_DIRS = { "core", "data", "factory", "game", "locale", "logic", "ui" }
 
 -- Overrides for keys that ARE alive but only via a fully-dynamic lookup
 -- (e.g. composed from runtime data and impossible to grep). Each entry

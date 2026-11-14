@@ -296,6 +296,27 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
+  test("TimePace and ForcesPace learn nothing while the running season is unrecognized", function()
+    local env = BuildEnv()
+    WithGlobals(env.globals, function()
+      local addon = Load(LoadAddonModules)
+      -- Blizzard ships a map set no configured season knows (addon outdated).
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 9991, 9992 })
+      Assert.True(addon.SeasonData.IsSeasonUnrecognized(), "an unknown map set marks the season unrecognized")
+      PlayRun(addon, env, 1500)
+      local timeRoot = env.db.timePace
+      Assert.True(type(timeRoot) ~= "table" or next(timeRoot) == nil, "no time reference under the stale season")
+      local forcesRoot = env.db.forcesPace
+      Assert.True(type(forcesRoot) ~= "table" or next(forcesRoot) == nil, "no forces route under the stale season")
+
+      -- Once the season is known again, learning resumes.
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(addon.SeasonData.GetOrderedMapIDs("midnight_s2"))
+      env.clock = 6000
+      PlayRun(addon, env, 1500)
+      Assert.NotNil(GetReference(addon, env.db), "a recognized season learns again")
+    end)
+  end)
+
   test("TimePace does not learn a reset, mismatched or already started run", function()
     local env = BuildEnv()
     WithGlobals(env.globals, function()

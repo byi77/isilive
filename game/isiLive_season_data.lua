@@ -694,10 +694,12 @@ end
 -- The third return value marks a failure as transient: Blizzard has not
 -- delivered the map list yet, so a later evaluation can still succeed. Every
 -- other failure is a verdict on the delivered list itself and only changes
--- with a new list (CHALLENGE_MODE_MAPS_UPDATE) or a new addon build.
+-- with a new list (CHALLENGE_MODE_MAPS_UPDATE) or a new addon build. The
+-- fourth return value names the failure (`unavailable`, `invalid`,
+-- `duplicate`, `empty`, `ambiguous`, `no_match`) for the Blizzard season state.
 function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   if type(mapIDs) ~= "table" then
-    return nil, "Blizzard challenge map list is unavailable", true
+    return nil, "Blizzard challenge map list is unavailable", true, "unavailable"
   end
 
   local observed = {}
@@ -705,16 +707,16 @@ function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   for _, rawMapID in ipairs(mapIDs) do
     local mapID = NormalizeMapIDInput(rawMapID)
     if not mapID or mapID <= 0 or mapID ~= math.floor(mapID) then
-      return nil, "Blizzard challenge map list contains an invalid map id"
+      return nil, "Blizzard challenge map list contains an invalid map id", false, "invalid"
     end
     if observed[mapID] then
-      return nil, string.format("Blizzard challenge map list contains duplicate map id %d", mapID)
+      return nil, string.format("Blizzard challenge map list contains duplicate map id %d", mapID), false, "duplicate"
     end
     observed[mapID] = true
     observedCount = observedCount + 1
   end
   if observedCount == 0 then
-    return nil, "Blizzard challenge map list is empty", true
+    return nil, "Blizzard challenge map list is empty", true, "empty"
   end
 
   local match
@@ -731,7 +733,7 @@ function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
         end
         if exact then
           if match then
-            return nil, "Blizzard challenge map list matches more than one configured season"
+            return nil, "Blizzard challenge map list matches more than one configured season", false, "ambiguous"
           end
           match = seasonID
         end
@@ -740,25 +742,75 @@ function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   end
 
   if not match then
-    return nil, "Blizzard challenge map list does not exactly match a configured season"
+    return nil, "Blizzard challenge map list does not exactly match a configured season", false, "no_match"
   end
   return match, nil
+end
+
+-- Blizzard season state (rule 250), observed from the challenge map list:
+--   unknown      -- nothing conclusive observed yet (default, login).
+--   active       -- the list exactly matches a ready configured season.
+--   offseason    -- the server answered (CHALLENGE_MODE_MAPS_UPDATE) with an
+--                   empty list: no Mythic+ season runs, only N/HC/M0.
+--   unrecognized -- a non-empty list matches no configured season: the
+--                   addon does not know the running season (needs an update).
+-- It is never derived from a date and never changes ACTIVE_SEASON_ID.
+SeasonData.SEASON_STATE_UNKNOWN = "unknown"
+SeasonData.SEASON_STATE_ACTIVE = "active"
+SeasonData.SEASON_STATE_OFFSEASON = "offseason"
+SeasonData.SEASON_STATE_UNRECOGNIZED = "unrecognized"
+
+local blizzardSeasonState = SeasonData.SEASON_STATE_UNKNOWN
+
+function SeasonData.GetBlizzardSeasonState()
+  return blizzardSeasonState
+end
+
+function SeasonData.IsOffSeason()
+  return blizzardSeasonState == SeasonData.SEASON_STATE_OFFSEASON
+end
+
+function SeasonData.IsSeasonUnrecognized()
+  return blizzardSeasonState == SeasonData.SEASON_STATE_UNRECOGNIZED
+end
+
+-- Maps one evaluation onto the state. An empty list only counts as an off
+-- season when the server delivered it (`serverConfirmed`): on a cold login the
+-- list is empty until the map data arrives. A missing list and an empty list
+-- without confirmation keep the previous state.
+local function NoteEvaluation(failureCode, resolvedReady, opts)
+  if resolvedReady ~= nil then
+    blizzardSeasonState = resolvedReady and SeasonData.SEASON_STATE_ACTIVE or SeasonData.SEASON_STATE_UNKNOWN
+  elseif failureCode == "empty" then
+    if type(opts) == "table" and opts.serverConfirmed == true then
+      blizzardSeasonState = SeasonData.SEASON_STATE_OFFSEASON
+    end
+  elseif failureCode == "no_match" then
+    blizzardSeasonState = SeasonData.SEASON_STATE_UNRECOGNIZED
+  elseif failureCode ~= "unavailable" then
+    blizzardSeasonState = SeasonData.SEASON_STATE_UNKNOWN
+  end
 end
 
 -- Returns ok, changed, message, retryable. `retryable` is true only for a
 -- transient failure (see ResolveSeasonIDFromChallengeMapIDs); callers use it
 -- to decide whether a later catch-up evaluation is worth running.
+-- `opts.serverConfirmed` marks a list read right after
+-- CHALLENGE_MODE_MAPS_UPDATE; only then does an empty list mean off season.
 function SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, opts)
-  local seasonID, resolveError, retryable = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
+  local seasonID, resolveError, retryable, failureCode = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   if not seasonID then
+    NoteEvaluation(failureCode, nil, opts)
     return false, false, resolveError, retryable == true
   end
 
   local readiness = SeasonData.GetSeasonReadiness(seasonID, opts)
   if not readiness.isReady then
+    NoteEvaluation(nil, false, opts)
     local reason = readiness.errors[1] or readiness.warnings[1] or "season data is incomplete"
     return false, false, string.format("Season '%s' is not ready: %s", seasonID, reason), false
   end
+  NoteEvaluation(nil, true, opts)
   if SeasonData.ACTIVE_SEASON_ID == seasonID then
     return true, false, string.format("Active season already matches %s", seasonID), false
   end

@@ -206,6 +206,12 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
       end
       return true
     end,
+    isOffSeason = function()
+      local seasonData = ctx.addonTable.SeasonData
+      return type(seasonData) == "table"
+        and type(seasonData.IsOffSeason) == "function"
+        and seasonData.IsOffSeason() == true
+    end,
     getActiveSeasonLabel = function()
       local seasonData = ctx.addonTable.SeasonData
       if type(seasonData) == "table" and type(seasonData.GetSeasonLabel) == "function" then

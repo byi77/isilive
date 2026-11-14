@@ -48,6 +48,7 @@ ui/isiLive_bindings.lua
 core/isiLive_event_utils.lua
 core/isiLive_runtime_state.lua
 core/isiLive_bootstrap.lua
+factory/isiLive_season_refresh.lua
 factory/isiLive_controller_wiring.lua
 logic/isiLive_leader_watch.lua
 factory/isiLive_config_builders.lua

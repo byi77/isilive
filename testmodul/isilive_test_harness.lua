@@ -161,6 +161,7 @@ local FILE_PATHS = {
   ["isiLive_perf_probe.lua"] = "logic/isiLive_perf_probe.lua",
   ["isiLive_commands.lua"] = "logic/isiLive_commands.lua",
   -- factory
+  ["isiLive_season_refresh.lua"] = "factory/isiLive_season_refresh.lua",
   ["isiLive_controller_wiring.lua"] = "factory/isiLive_controller_wiring.lua",
   ["isiLive_config_builders.lua"] = "factory/isiLive_config_builders.lua",
   ["isiLive_frame_bridge.lua"] = "factory/isiLive_frame_bridge.lua",
@@ -207,6 +208,8 @@ local UNIVERSAL_DEPENDENCIES = {
 }
 
 local IMPLICIT_DEPENDENCIES = {
+  -- The event-handler wiring builds its season refresh from SeasonRefresh at load.
+  ["isiLive_controller_wiring.lua"] = { "isiLive_season_refresh.lua" },
   ["isiLive_sync.lua"] = {
     "isiLive_spells.lua",
     "isiLive_sync_receive.lua",

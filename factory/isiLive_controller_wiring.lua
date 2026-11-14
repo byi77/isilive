@@ -409,80 +409,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return nil
     end
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
-  -- PLAYER_LOGIN and CHALLENGE_MODE_MAPS_UPDATE own the season evaluation;
-  -- PLAYER_REGEN_ENABLED only catches up an evaluation that is still pending
-  -- (skipped in combat, or no usable map table yet). It used to re-run the
-  -- full season validation at the end of every single fight. A conclusive
-  -- rejection (no exact match, ambiguous set, season not ready) is not pending:
-  -- its inputs only change with a new map list, which fires
-  -- CHALLENGE_MODE_MAPS_UPDATE, or with a new addon build.
-  local seasonRefreshPending = true
-  config.refreshActiveSeasonFromBlizzard = function(eventName)
-    if eventName == "PLAYER_REGEN_ENABLED" and not seasonRefreshPending then
-      return false
-    end
-    local seasonData = addonTable.SeasonData
-    -- The roster's item level colours hang on the season reward curve, which
-    -- arrives (or changes) with this event. Repaint only when the scale moved.
-    local itemLevelBands = addonTable.ItemLevelBands
-    if
-      eventName == "CHALLENGE_MODE_MAPS_UPDATE"
-      and type(itemLevelBands) == "table"
-      and type(itemLevelBands.Refresh) == "function"
-      and itemLevelBands.Refresh()
-      and type(callbacks.updateUI) == "function"
-    then
-      callbacks.updateUI()
-    end
-    local challengeMode = rawget(_G, "C_ChallengeMode")
-    local getMapTable = type(challengeMode) == "table" and rawget(challengeMode, "GetMapTable") or nil
-    if
-      type(seasonData) ~= "table"
-      or type(seasonData.TryAutoSelectSeasonFromChallengeMapIDs) ~= "function"
-      or type(getMapTable) ~= "function"
-    then
-      return false
-    end
-
-    local inCombatLockdown = rawget(_G, "InCombatLockdown")
-    if type(inCombatLockdown) == "function" then
-      local okCombat, inCombat = pcall(inCombatLockdown)
-      if not okCombat or inCombat == true then
-        seasonRefreshPending = true
-        return false
-      end
-    end
-
-    local okMaps, mapIDs = pcall(getMapTable)
-    if not okMaps or type(mapIDs) ~= "table" then
-      seasonRefreshPending = true
-      return false
-    end
-
-    local ok, changed, message, retryable = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs)
-    seasonRefreshPending = ok ~= true and retryable == true
-    if type(config.logRuntimeTracef) == "function" then
-      config.logRuntimeTracef(
-        "[SEASON] auto_select event=%s ok=%s changed=%s active=%s reason=%s",
-        tostring(eventName),
-        tostring(ok),
-        tostring(changed),
-        tostring(seasonData.GetActiveSeasonID and seasonData.GetActiveSeasonID() or nil),
-        tostring(message)
-      )
-    end
-    if not (ok and changed) then
-      return false
-    end
-
-    if controllers.teleport and type(controllers.teleport.BuildButtons) == "function" then
-      controllers.teleport.BuildButtons()
-    end
-    if type(callbacks.updateUI) == "function" then
-      callbacks.updateUI()
-    end
-    return true
-  end
+  -- Season evaluation (rules 97 and 250): factory/isiLive_season_refresh.lua.
+  config.refreshActiveSeasonFromBlizzard = addonTable.SeasonRefresh.Create(config, deps, controllers, callbacks)
   config.maybeShowNonMythicDungeonEntryNotice = function()
     local seasonData = addonTable.SeasonData
     if type(seasonData) == "table" and type(seasonData.HasActiveDungeons) == "function" then
@@ -799,6 +727,7 @@ end
 local function BuildEventHandlersDepsFromContext(ctx)
   return {
     versionNotice = BuildVersionNotice(ctx),
+    showSeasonUnrecognizedNotice = addonTable.SeasonRefresh.BuildUnrecognizedNotice(ctx),
     addonName = ctx.addonName,
     isRosterCollapsed = ctx.isRosterCollapsed,
     defaultLocale = ctx.defaultLocale,

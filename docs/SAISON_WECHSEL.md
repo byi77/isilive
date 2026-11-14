@@ -78,6 +78,20 @@ Live-Client: mit `/isilive probe on` schreibt jeder Ready-Check die Spell-IDs de
 Buffs (`[PROBE] event=ready_check ... spellIDs=...`); einen Ready-Check mit Essen, Flask und
 Rune aufnehmen und mit den Listen vergleichen.
 
+## 3c. Saisonpause (zwischen zwei Seasons)
+
+- [ ] In der Pause `/isilive seasondump` ausfuehren und den Befund in `docs/WARTUNG.md`
+  Abschnitt 3.4a eintragen (liefert Blizzard eine leere Map-Liste? Wert von
+  `C_MythicPlus.GetCurrentSeason`?).
+- [ ] Pruefen: Statuszeile `Ziel-Dungeon: - (Saisonpause)`, ruhige Dungeon-Karte ohne
+  Blinken (30 s), in Heroisch laufen Kick-Tracker und CD-Zeile (volles Profil, Regel 250).
+- [ ] Erscheint stattdessen der Chat-Hinweis "isiLive kennt die aktuelle Mythic+-Season
+  nicht", liefert Blizzard bereits den neuen Mapsatz: die neue Season vorbereiten
+  (Abschnitte 1 und 2) und releasen; bis dahin lernen Zeit- und Forces-Tempo nicht.
+- [ ] Scheitert der MDT-Sync, weil MDT sein Verzeichnis umbaut, laufen die Mobprozente im
+  Client weiter (kein Laufzeit-Ablauf); ein Hotfix-Release braucht dann
+  `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
+
 ## 4. Aktivierung
 
 - [ ] `lua tools/inspect_season_readiness.lua` ausfuehren und alle gemeldeten
