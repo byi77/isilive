@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.519`.
+Current version: `0.9.520`.
+
+Version 0.9.520: run focus now folds the window when the key countdown shows
+5, as intended; before, it only folded at the very end of the countdown.
 
 Version 0.9.519: run focus can fold up or down (Settings > Behavior > Run
 focus edge) and can open the full window between pulls (Run focus: open out
@@ -275,7 +278,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.519 -->
+<!-- highlights-reviewed-for: 0.9.520 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit

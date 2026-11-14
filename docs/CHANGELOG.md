@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-14 - Version 0.9.520 (patch)
 
 - Fix: run focus collapses at countdown 5 again (rule 248). The in-game probe of 0.9.518 (+16) showed the window collapsing at ~1 s via the timer-start fallback: the client starts the key countdown (`START_TIMER` type 1) 2-3 s before `CHALLENGE_MODE_START`, so the countdown arrived before run focus was armed. Every key countdown is now recorded with `GetTime()`; the key start uses one recorded within the last 12 s and schedules the collapse for `remaining - age - 5` s. The record survives the `CHALLENGE_MODE_RESET` the client fires ~0.25 s before every key start, and ends when stale, on completion, on leaving the instance or when the setting is switched off. The `START_TIMER`-after-arming path and the timer-start fallback stay.
 - Feature: `[RUNFOCUS]` lines in the runtime log ring (on with the runtime log or probe mode): `event=start_timer`, `event=armed pendingCountdown= remainingNow=`, `event=collapse trigger= anchor= inCombat=`, `event=expand trigger=`, `event=deferred reason=combat`.
