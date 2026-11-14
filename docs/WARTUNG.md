@@ -206,7 +206,7 @@ Zwischen zwei Seasons laeuft 1 bis 2 Wochen keine Mythic+-Season; spielbar sind 
 | --- | --- | --- |
 | `unknown` | Start, ungueltige/mehrdeutige Liste | wie bisher |
 | `active` | exakter Satz einer bereiten Season | wie bisher |
-| `offseason` | leere Liste direkt nach `CHALLENGE_MODE_MAPS_UPDATE` | Statuszeile `Ziel-Dungeon: - (Saisonpause)`, ruhige 30-s-Dungeon-Karte, Heroisch im vollen Profil |
+| `offseason` | leere Liste direkt nach `CHALLENGE_MODE_MAPS_UPDATE` | einmal pro Sitzung Chat-Hinweis "Saisonpause", ruhige 30-s-Dungeon-Karte, Heroisch im vollen Profil, Statuszeile `Ziel-Dungeon: - (Saisonpause)` (nur in Layouts mit Statuszeile; im festen M+-Layout verborgen) |
 | `unrecognized` | nicht leerer Satz, den keine Season kennt | einmal pro Sitzung Chat-Hinweis "bitte aktualisieren", Zeit-/Forces-Tempo lernen nicht |
 
 `activeSeasonID` bleibt in allen Faellen der Fallback; Portale, Navigator und LFG-Zuordnung zeigen weiter
@@ -221,7 +221,9 @@ eine leere Map-Liste liefert. Das ist **noch nicht ingame belegt**. In der naech
    (neue Season vorbereitet). In beiden Faellen die Regel 250 und diese Tabelle mit dem Befund
    nachziehen; `GetCurrentSeason` waere dann ein moeglicher zweiter Ausloeser (User-Entscheidung).
 
-Im Runtime-Log (`/isilive log on`) traegt jede `[SEASON] auto_select`-Zeile `state=`.
+Im Runtime-Log (`/isilive log on`) traegt jede `[SEASON] auto_select`-Zeile `state=`. Ohne Spiel pruefen:
+`lua tools/wowsim/wowsim.lua offseason` (Saisonpause, unbekannte Season, Rueckkehr; `world.mapTable` ersetzt
+dort die Challenge-Map-Liste).
 
 ### 3.5 BR-/Bloodlust-Combat-Events und Addon-Message-Transport
 

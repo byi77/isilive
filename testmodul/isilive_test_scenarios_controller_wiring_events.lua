@@ -459,10 +459,14 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_controller_wiring.lua" })
       local repaints = 0
+      local breakNotices = 0
       local module, getCaptured = CaptureEventModule()
       local deps = BuildMinimalEventDeps()
       deps.callbacks.updateUI = function()
         repaints = repaints + 1
+      end
+      deps.showSeasonBreakNotice = function()
+        breakNotices = breakNotices + 1
       end
       addon.ControllerWiring.CreateEventHandlersController(module, deps)
       local refresh = getCaptured().refreshActiveSeasonFromBlizzard
@@ -477,6 +481,7 @@ return function(test, ctx)
       refresh("CHALLENGE_MODE_MAPS_UPDATE")
       Assert.True(addon.SeasonData.IsOffSeason(), "an empty list after the server answer is the off season")
       Assert.Equal(repaints, 1, "entering the off season repaints once")
+      Assert.Equal(breakNotices, 1, "entering the off season prints one chat line")
       refresh("PLAYER_REGEN_ENABLED")
       Assert.True(addon.SeasonData.IsOffSeason(), "a catch-up without server answer keeps the off season")
       Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "the off season never changes the season")
@@ -487,6 +492,10 @@ return function(test, ctx)
       Assert.Equal(repaints, 2, "leaving the off season repaints once")
       refresh("PLAYER_LOGIN")
       Assert.Equal(requests, 1, "map data is requested once per session")
+      mapTable = {}
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.True(addon.SeasonData.IsOffSeason(), "a second break is detected again")
+      Assert.Equal(breakNotices, 1, "the season-break line appears at most once per session")
     end)
   end)
 

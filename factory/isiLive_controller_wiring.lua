@@ -728,6 +728,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
   return {
     versionNotice = BuildVersionNotice(ctx),
     showSeasonUnrecognizedNotice = addonTable.SeasonRefresh.BuildUnrecognizedNotice(ctx),
+    showSeasonBreakNotice = addonTable.SeasonRefresh.BuildSeasonBreakNotice(ctx),
     addonName = ctx.addonName,
     isRosterCollapsed = ctx.isRosterCollapsed,
     defaultLocale = ctx.defaultLocale,

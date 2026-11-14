@@ -345,6 +345,7 @@ addonTable.TextsLocales.ruRU = {
   SETTINGS_VERSION_NOTICE_ENABLED_DESC = "Сообщает в чате, если участник группы или гильдии использует более новую версию isiLive.",
   VERSION_NOTICE_NEWER = "isiLive %s доступен на CurseForge - у вас %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive не знает текущий сезон «Мифик+» - обновите isiLive.",
+  SEASON_BREAK_NOTICE = "isiLive: межсезонье - сезон «Мифик+» не идет, доступны только обычный, героический и мифический 0.",
   TESTALL_DUMMY_GROUP = "Демонстрационные ключи",
   TESTALL_DUMMY_DUNGEON = "Сияющий Рассвет",
   TESTALL_CHAT_ACTIVE = "Включен демо-предпросмотр (полный интерфейс).",

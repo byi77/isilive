@@ -345,6 +345,7 @@ addonTable.TextsLocales.deDE = {
   SETTINGS_VERSION_NOTICE_ENABLED_DESC = "Meldet im Chat, wenn ein Gruppen- oder Gildenmitglied eine neuere isiLive-Version nutzt.",
   VERSION_NOTICE_NEWER = "isiLive %s ist auf CurseForge verfügbar - du hast %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive kennt die aktuelle Mythic+-Season nicht - bitte isiLive aktualisieren.",
+  SEASON_BREAK_NOTICE = "isiLive: Saisonpause - keine Mythic+-Season aktiv, nur Normal, Heroisch und Mythisch 0.",
   TESTALL_DUMMY_GROUP = "Dummy-Keys",
   TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",
   TESTALL_CHAT_ACTIVE = "Dummy-Vorschau aktiv (volle UI).",

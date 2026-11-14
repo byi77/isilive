@@ -9,7 +9,8 @@ local SeasonRefresh = {}
 addonTable.SeasonRefresh = SeasonRefresh
 
 -- `config` is the event-handler config (logRuntimeTracef is read at call
--- time), `deps` the wiring deps (showSeasonUnrecognizedNotice), `controllers`
+-- time), `deps` the wiring deps (showSeasonUnrecognizedNotice,
+-- showSeasonBreakNotice), `controllers`
 -- and `callbacks` the wiring tables (teleport rebuild, updateUI).
 function SeasonRefresh.Create(config, deps, controllers, callbacks)
   -- PLAYER_LOGIN and CHALLENGE_MODE_MAPS_UPDATE own the season evaluation;
@@ -25,6 +26,7 @@ function SeasonRefresh.Create(config, deps, controllers, callbacks)
   -- without it the event only arrives when something else requests the data.
   local mapInfoRequested = false
   local seasonUnrecognizedNoticeShown = false
+  local seasonBreakNoticeShown = false
   return function(eventName)
     if eventName == "PLAYER_REGEN_ENABLED" and not seasonRefreshPending then
       return false
@@ -103,6 +105,17 @@ function SeasonRefresh.Create(config, deps, controllers, callbacks)
       seasonUnrecognizedNoticeShown = true
       deps.showSeasonUnrecognizedNotice()
     end
+    -- The status line is hidden in the locked M+ layout (rule 249), so the
+    -- season break also gets one chat line per session.
+    if
+      stateChanged
+      and stateAfter == "offseason"
+      and not seasonBreakNoticeShown
+      and type(deps.showSeasonBreakNotice) == "function"
+    then
+      seasonBreakNoticeShown = true
+      deps.showSeasonBreakNotice()
+    end
     if not (ok and changed) then
       if stateChanged and type(callbacks.updateUI) == "function" then
         callbacks.updateUI()
@@ -120,17 +133,34 @@ function SeasonRefresh.Create(config, deps, controllers, callbacks)
   end
 end
 
--- Rule 250: one chat line per session when Blizzard's challenge map list
--- matches no configured season (the addon needs an update).
-function SeasonRefresh.BuildUnrecognizedNotice(ctx)
+local function BuildChatNotice(ctx, key, fallback)
   return function()
     local L = type(ctx.getL) == "function" and ctx.getL() or nil
-    local line = type(L) == "table" and L.SEASON_UNRECOGNIZED_NOTICE or nil
+    local line = type(L) == "table" and L[key] or nil
     if type(line) ~= "string" or line == "" then
-      line = "isiLive does not know the current Mythic+ season - please update isiLive."
+      line = fallback
     end
     if type(ctx.printFn) == "function" then
       ctx.printFn("|cffffd200" .. line .. "|r")
     end
   end
+end
+
+-- Rule 250: one chat line per session when Blizzard's challenge map list
+-- matches no configured season (the addon needs an update).
+function SeasonRefresh.BuildUnrecognizedNotice(ctx)
+  return BuildChatNotice(
+    ctx,
+    "SEASON_UNRECOGNIZED_NOTICE",
+    "isiLive does not know the current Mythic+ season - please update isiLive."
+  )
+end
+
+-- Rule 250: one chat line per session when the season break starts.
+function SeasonRefresh.BuildSeasonBreakNotice(ctx)
+  return BuildChatNotice(
+    ctx,
+    "SEASON_BREAK_NOTICE",
+    "isiLive: season break - no Mythic+ season is running, only Normal, Heroic and Mythic 0."
+  )
 end

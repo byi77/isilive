@@ -1892,6 +1892,15 @@ local function InstallChallengeMode(ctx)
     end,
     GetMapTable = function()
       local list = {}
+      -- world.mapTable overrides the season map list (scenario `offseason`:
+      -- an empty list for the season break, an unknown set for a season the
+      -- addon does not know); map names still come from world.challengeMaps.
+      if type(world.mapTable) == "table" then
+        for i, mapID in ipairs(world.mapTable) do
+          list[i] = mapID
+        end
+        return list
+      end
       for mapID in pairs(world.challengeMaps or {}) do
         list[#list + 1] = mapID
       end

@@ -345,6 +345,7 @@ addonTable.TextsLocales.trTR = {
   SETTINGS_VERSION_NOTICE_ENABLED_DESC = "Bir grup veya lonca üyesi daha yeni bir isiLive sürümü kullandığında sohbete bir satır yazar.",
   VERSION_NOTICE_NEWER = "isiLive %s CurseForge'da mevcut - sizdeki sürüm %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive güncel Mythic+ sezonunu tanımıyor - lütfen isiLive'ı güncelleyin.",
+  SEASON_BREAK_NOTICE = "isiLive: sezon arası - Mythic+ sezonu yok, yalnızca Normal, Heroic ve Mythic 0.",
   TESTALL_DUMMY_GROUP = "Kukla Anahtarlar",
   TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",
   TESTALL_CHAT_ACTIVE = "Kukla onizleme aktif (tam UI).",

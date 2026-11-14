@@ -83,8 +83,9 @@ Rune aufnehmen und mit den Listen vergleichen.
 - [ ] In der Pause `/isilive seasondump` ausfuehren und den Befund in `docs/WARTUNG.md`
   Abschnitt 3.4a eintragen (liefert Blizzard eine leere Map-Liste? Wert von
   `C_MythicPlus.GetCurrentSeason`?).
-- [ ] Pruefen: Statuszeile `Ziel-Dungeon: - (Saisonpause)`, ruhige Dungeon-Karte ohne
-  Blinken (30 s), in Heroisch laufen Kick-Tracker und CD-Zeile (volles Profil, Regel 250).
+- [ ] Pruefen: Chat-Hinweis "isiLive: Saisonpause ..." (einmal pro Sitzung), ruhige
+  Dungeon-Karte ohne Blinken (30 s), in Heroisch laufen Kick-Tracker und CD-Zeile (volles
+  Profil, Regel 250). Ohne Spiel: `lua tools/wowsim/wowsim.lua offseason`.
 - [ ] Erscheint stattdessen der Chat-Hinweis "isiLive kennt die aktuelle Mythic+-Season
   nicht", liefert Blizzard bereits den neuen Mapsatz: die neue Season vorbereiten
   (Abschnitte 1 und 2) und releasen; bis dahin lernen Zeit- und Forces-Tempo nicht.
