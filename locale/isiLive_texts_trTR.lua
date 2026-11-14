@@ -171,6 +171,7 @@ addonTable.TextsLocales.trTR = {
   HELP_TPTEST = "  /isilive tptest - Kukla isinlanma hedefi zorla",
   HELP_TPDEBUG = "  /isilive tpdebug - Isinlanma dugmesi hata ayiklama bilgisi",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Doğrulanmış sezon ve bölge verilerini döker",
+  HELP_SELFTEST = "  /isilive selftest [all] - isiLive'ın okuduğu Blizzard API'lerini denetler (yamadan sonra)",
   HELP_HEARTHDUMP = "  /isilive hearthdump - Doğrulanmış Hearthstone oyuncak verilerini döker",
   HELP_NPTEST = "  /isilive nptest - İsim levhası test modunu açar veya kapatır",
   HELP_TTKTEST = "  /isilive ttktest - TTK test modu: ölme süresini her savaşta göster (antrenman kuklası), yeniden yüklemeye kadar",

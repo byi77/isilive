@@ -171,6 +171,7 @@ addonTable.TextsLocales.ruRU = {
   HELP_TPTEST = "  /isilive tptest - Принудительно задать демо-цель телепортации",
   HELP_TPDEBUG = "  /isilive tpdebug - Показать отладочную информацию кнопки телепорта",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Выгрузить проверенные данные сезона и подземелья",
+  HELP_SELFTEST = "  /isilive selftest [all] - Проверить API Blizzard, которые читает isiLive (после патча)",
   HELP_HEARTHDUMP = "  /isilive hearthdump - Выгрузить проверенные данные об игрушках-камнях возвращения",
   HELP_NPTEST = "  /isilive nptest - Включить или выключить тестовый режим индикаторов здоровья",
   HELP_TTKTEST = "  /isilive ttktest - Тестовый режим TTK: показывать время до смерти в любом бою (манекен) до перезагрузки",

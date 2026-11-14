@@ -22,6 +22,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_spell_utils.lua",
   "testmodul/isilive_test_scenarios_season_data.lua",
   "testmodul/isilive_test_scenarios_season_debug.lua",
+  "testmodul/isilive_test_scenarios_api_health.lua",
   "testmodul/isilive_test_scenarios_season_workflows.lua",
   "testmodul/isilive_test_scenarios_teleport.lua",
   "testmodul/isilive_test_scenarios_teleport_ui.lua",

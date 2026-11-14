@@ -39,6 +39,7 @@ local function BuildDeps(opts)
     forceTeleportTestTarget = opts.forceTeleportTestTarget or function() end,
     printTeleportDebug = opts.printTeleportDebug or function() end,
     printSeasonDebug = opts.printSeasonDebug or function() end,
+    printSelfTest = opts.printSelfTest or function(_verbose) end,
     printHearthstoneDebug = opts.printHearthstoneDebug or function() end,
     printStatsDebug = opts.printStatsDebug or function() end,
     printLustDebug = opts.printLustDebug or function() end,
@@ -166,6 +167,7 @@ local ADMIN_HELP_KEYS = {
   "HELP_TPTEST",
   "HELP_TPDEBUG",
   "HELP_SEASONDUMP",
+  "HELP_SELFTEST",
   "HELP_HEARTHDUMP",
   "HELP_NPTEST",
   "HELP_NPSTATE",
@@ -573,6 +575,12 @@ local function TryHandleUtilityCommands(ctx, cmd)
 
   if cmd == "seasondump" or cmd == "s2d" then
     ctx.printSeasonDebug()
+    return true
+  end
+
+  -- Rule 251: patch-day check of the Blizzard APIs isiLive reads.
+  if cmd == "selftest" or cmd == "selftest all" then
+    ctx.printSelfTest(cmd == "selftest all")
     return true
   end
 

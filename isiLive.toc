@@ -61,6 +61,7 @@ data/isiLive_seasons.lua
 game/isiLive_season_data.lua
 game/isiLive_ilvl_bands.lua
 game/isiLive_season_debug.lua
+game/isiLive_api_health.lua
 game/isiLive_dungeon_location.lua
 data/isiLive_mplus_forces.lua
 data/isiLive_forces_seed.lua

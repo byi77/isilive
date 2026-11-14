@@ -171,6 +171,7 @@ addonTable.TextsLocales.enUS = {
   HELP_TPTEST = "  /isilive tptest - Force dummy teleport target",
   HELP_TPDEBUG = "  /isilive tpdebug - Show teleport button debug info",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Dump verified season and instance data",
+  HELP_SELFTEST = "  /isilive selftest [all] - Check the Blizzard APIs isiLive reads (after a patch)",
   HELP_HEARTHDUMP = "  /isilive hearthdump - Dump verified Hearthstone toy data",
   HELP_NPTEST = "  /isilive nptest - Toggle nameplate test mode",
   HELP_TTKTEST = "  /isilive ttktest - TTK test mode: show the time to kill in every fight (training dummy) until reload",

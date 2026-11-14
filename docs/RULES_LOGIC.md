@@ -333,6 +333,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 248. Mit `runFocusEnabled` (Pattern B) zeigt das M+-Layout waehrend eines Keys nur die Run-Zone (CD-Zeile mit Kampfrez, Kampfrausch, M+-Timer und Toden; Killtracker-Zeile); alles andere faehrt animiert weg, sobald der Key-Countdown 5 zeigt (spaetestens beim Start des M+-Timers), je nach `runFocusAnchor` bleibt der untere (Standard) oder der obere Fensterrand stehen, und es kommt 4 Sekunden nach einem abgeschlossenen Key, sofort nach einem Reset oder beim Verlassen der Instanz zurueck; im Kampf warten Groesse und Anker bis Kampfende.
 249. Das Hauptfenster ist fest auf das Layout M+ gestellt (`RI.LAYOUT_LOCKED_TO_MPLUS`): die Modusbuttons M+/H/V erscheinen nicht, gespeicherte V-/H-/M-Werte wirken als M+, die Layoutwahl in den Einstellungen und im Bearbeitungsmodus-Dialog ist gesperrt; der Code der anderen Layouts bleibt und kehrt mit dem Flag zurueck.
 250. isiLive leitet aus Blizzards Challenge-Map-Liste einen Saisonzustand ab (`unknown`; `active` bei exaktem, bereitem Satz; `offseason` bei leerer Liste nach `CHALLENGE_MODE_MAPS_UPDATE`; `unrecognized` bei einem Satz, den keine konfigurierte Season kennt): in der Saisonpause nennt die Statuszeile die Saisonpause, die Dungeon-Karte ist ein ruhiger 30-Sekunden-Hinweis und Heroisch laeuft im vollen Profil; bei unbekannter Season meldet isiLive einmal pro Sitzung im Chat, dass ein Update noetig ist, und Zeit- und Forces-Tempo lernen nicht.
+251. `/isilive selftest` prueft fuer den Patch-Tag, ob die Blizzard-APIs, die isiLive liest, noch vorhanden sind und zwei nebenwirkungsfreie Proben (Challenge-Map-Liste, Curve-Objekt) antworten; es listet fehlende APIs und gescheiterte Proben mit dem betroffenen Feature und schliesst mit einer Zusammenfassung, `selftest all` listet jede Pruefung.
 
 ## Regelbloecke
 
@@ -3861,3 +3862,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - RuntimeMode resolves KEY for heroic dungeons only during the off season
   - TimePace and ForcesPace learn nothing while the running season is unrecognized
   - SeasonDebug dump prints the Blizzard season probe for the off-season check
+
+### RULE-PATCHTAG-SELBSTTEST
+- Regelnummer: 251
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-14 (Wartbarkeits-Audit, Befund P4: nach einem Patch fallen fail-closed gebaute Features still aus). `game/isiLive_api_health.lua` (`ApiHealth`) fuehrt in `ApiHealth.CHECKS` je Eintrag Feature, Namespace (oder `nil` fuer eine globale Funktion) und Funktionsname der Blizzard-APIs, die docs/WARTUNG.md Abschnitt 3 als zuerst brechende Stellen nennt. `ApiHealth.Run` prueft je Eintrag nur, ob die Funktion existiert (`rawget`, kein Aufruf); einzig `C_ChallengeMode.GetMapTable` (Tabelle erwartet, Detail `<n> maps`) und `C_CurveUtil.CreateCurve` (jeder Rueckgabewert ausser `nil` gilt, im Client ist das Curve-Objekt Userdata) werden unter `pcall` als nebenwirkungsfreie Probe aufgerufen. Status je Zeile: `ok`, `missing` (Funktion fehlt) oder `error` (Probe wirft oder liefert nichts Verwertbares; maskierte Werte zaehlen als nicht verwertbar). `/isilive selftest` (Admin-Hilfe `HELP_SELFTEST`, in allen fuenf Sprachen) schreibt zuerst die fehlenden, dann die gescheiterten Pruefungen als `[SELFTEST] MISSING|ERROR <API> - <Feature> (<Detail>)` und zum Schluss `[SELFTEST] <ok> ok, <missing> missing, <error> error of <n> Blizzard APIs`; `/isilive selftest all` listet zusaetzlich jede bestandene Pruefung als `[SELFTEST] ok ...`. Der Selbsttest aendert keinen Zustand und laeuft nie automatisch.
+- Erforderliche Tests:
+  - ApiHealth reports a clean client with every Blizzard API present
+  - ApiHealth lists missing APIs and failed probes first and every check in verbose mode
+  - Commands selftest delegates to printSelfTest with optional verbose mode

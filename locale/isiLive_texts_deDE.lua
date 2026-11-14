@@ -171,6 +171,7 @@ addonTable.TextsLocales.deDE = {
   HELP_TPTEST = "  /isilive tptest - Dummy-Teleportziel setzen",
   HELP_TPDEBUG = "  /isilive tpdebug - Teleport-Button Debug anzeigen",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - verifizierte Season- und Instanzdaten ausgeben",
+  HELP_SELFTEST = "  /isilive selftest [all] - Blizzard-APIs prüfen, die isiLive liest (nach einem Patch)",
   HELP_HEARTHDUMP = "  /isilive hearthdump - verifizierte Ruhestein-Toydaten ausgeben",
   HELP_NPTEST = "  /isilive nptest - Nameplate-Testmodus umschalten",
   HELP_TTKTEST = "  /isilive ttktest - TTK-Testmodus: Restlebenszeit in jedem Kampf zeigen (Trainingspuppe), bis zum Reload",

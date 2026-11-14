@@ -434,6 +434,14 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       end
       seasonDebug.PrintDump(ctx.printFn)
     end,
+    printSelfTest = function(verbose)
+      local apiHealth = addonTable.ApiHealth
+      if type(apiHealth) ~= "table" or type(apiHealth.PrintReport) ~= "function" then
+        ctx.printFn("[SELFTEST] ApiHealth module unavailable.")
+        return
+      end
+      apiHealth.PrintReport(ctx.printFn, verbose == true)
+    end,
     printHearthstoneDebug = function()
       local hearthstoneDebug = addonTable.HearthstoneDebug
       if type(hearthstoneDebug) ~= "table" or type(hearthstoneDebug.PrintDump) ~= "function" then

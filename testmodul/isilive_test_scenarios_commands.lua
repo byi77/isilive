@@ -141,6 +141,10 @@ local function BuildCommandDeps(state, L)
     printSeasonDebug = function()
       state.seasonDumpCalls = state.seasonDumpCalls + 1
     end,
+    printSelfTest = function(verbose)
+      state.selfTestCalls = (state.selfTestCalls or 0) + 1
+      state.selfTestVerbose = verbose
+    end,
     printHearthstoneDebug = function()
       state.hearthDumpCalls = state.hearthDumpCalls + 1
     end,
@@ -361,6 +365,16 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("seasondump")
     Assert.Equal(state.seasonDumpCalls, 1, "seasondump must call printSeasonDebug")
+  end)
+
+  test("Commands selftest delegates to printSelfTest with optional verbose mode", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("selftest")
+    Assert.Equal(state.selfTestCalls, 1, "selftest must call printSelfTest")
+    Assert.False(state.selfTestVerbose, "plain selftest lists only failures")
+    state._execute("SelfTest All")
+    Assert.Equal(state.selfTestCalls, 2, "selftest all must call printSelfTest again")
+    Assert.True(state.selfTestVerbose, "selftest all lists every check")
   end)
 
   test("Commands s2d delegates to printSeasonDebug", function()

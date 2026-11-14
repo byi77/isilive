@@ -101,6 +101,11 @@ Vorbeugen: `## Interface` darf mehrere kommagetrennte Werte tragen (`## Interfac
 zusaetzlich eintragen, dann ist das Addon am Patch-Tag nicht als veraltet markiert. Die Interface-Nummer
 wird nur auf ausdruecklichen Auftrag geaendert.
 
+Am Patch-Tag zuerst `/isilive selftest` ausfuehren (Regel 251): Es meldet je benutzter Blizzard-API
+`MISSING` oder `ERROR` mit dem betroffenen Feature und zeigt so sofort, welches Feature still ausgefallen
+ist (`/isilive selftest all` listet auch alle bestandenen Pruefungen). Neue API-Flaechen eines Features in
+`ApiHealth.CHECKS` (`game/isiLive_api_health.lua`) nachtragen.
+
 ### 3.2 Dungeon-/Schwierigkeits-Kontext
 
 Pruefen:

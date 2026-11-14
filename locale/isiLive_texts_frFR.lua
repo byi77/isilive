@@ -171,6 +171,7 @@ addonTable.TextsLocales.frFR = {
   HELP_TPTEST = "  /isilive tptest - Forcer une cible de teleportation factice",
   HELP_TPDEBUG = "  /isilive tpdebug - Afficher les infos de debogage du bouton de teleportation",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Exporte les données vérifiées de saison et d'instance",
+  HELP_SELFTEST = "  /isilive selftest [all] - Vérifie les API Blizzard lues par isiLive (après un patch)",
   HELP_HEARTHDUMP = "  /isilive hearthdump - Exporte les données vérifiées des jouets de Pierre de foyer",
   HELP_NPTEST = "  /isilive nptest - Active/désactive le mode test des barres d'unité",
   HELP_TTKTEST = "  /isilive ttktest - Mode test TTK : afficher le temps avant la mort dans chaque combat (mannequin) jusqu’au rechargement",
