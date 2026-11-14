@@ -11,6 +11,7 @@
 - Feature: `/isilive seasondump` also prints the Blizzard season state, the challenge map list with its count, `C_MythicPlus.GetCurrentSeason`, `GetCurrentUIDisplaySeason` and the reward levels for +2, +6 and +10, to verify the season-break detection in the next break.
 - Feature: `/isilive selftest` (rule 251, admin help). A patch-day check of the Blizzard APIs isiLive reads: it lists every missing API and every failed probe (challenge map list, curve object) with the feature it breaks (`[SELFTEST] MISSING C_DamageMeter.GetCombatSessionFromType - DPS / kicks`) and ends with a summary; `/isilive selftest all` also lists every passing check. Features that fail closed no longer go dark unnoticed after a patch.
 - Feature: M0 and heroic group listings of a current-season dungeon now get the same target dungeon, portal highlight and entrance navigation as a Mythic+ listing (rule 252). The LFG resolver accepted only Mythic+ activities; it now also maps dungeon-category activities through their instance to the active season's dungeons. Other instances (follower or old dungeons) and other categories stay unresolved; raids stay out of the target pipeline.
+- Fix: the roster item level colours no longer require reward levels of at least 200. An item level squish at an expansion start would have switched them off without notice; only a zero or negative reward level now counts as no data, and degenerate curves are still caught by the strictly descending anchor check.
 
 ## 2026-11-14 - Version 0.9.520 (patch)
 

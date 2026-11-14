@@ -21,8 +21,12 @@ local IsSecretValue = addonTable.Validators.IsSecretValue
 local ILVL_BAND_KEY_LEVELS = { 10, 6, 2 }
 local ILVL_BAND_QUALITIES = { 4, 3, 2 } -- epic, rare, uncommon
 local ILVL_BELOW_FLOOR_QUALITY = 0 -- poor
--- A zero or a near-zero reward level means "no data", never "everyone is epic".
-local ILVL_REWARD_PLAUSIBLE_MIN = 200
+-- A zero or negative reward level means "no data", never "everyone is epic".
+-- There is deliberately no absolute item level floor: it used to be 200, and
+-- an item level squish at an expansion start would have switched the colours
+-- off without notice. Degenerate data is caught by the strictly descending
+-- anchor check in BuildItemLevelBands instead.
+local ILVL_REWARD_PLAUSIBLE_MIN = 1
 -- On a cold login the reward levels are not loaded yet. Retry at most this
 -- often, a bounded number of times; CHALLENGE_MODE_MAPS_UPDATE resets the
 -- budget once the server delivers the season data.
