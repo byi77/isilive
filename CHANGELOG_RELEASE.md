@@ -3,7 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.518`.
+Current version: `0.9.519`.
+
+Version 0.9.519: run focus can fold up or down (Settings > Behavior > Run
+focus edge) and can open the full window between pulls (Run focus: open out
+of combat). An hourglass button in the title bar switches run focus on and
+off. The window now always uses the M+ layout; the M+, H and V buttons are
+gone.
 
 Version 0.9.518: new run focus (Settings > Behavior, off by default). While a
 key runs, the M+ window slides down to Battle Res, Bloodlust, the M+ timer and
@@ -269,7 +275,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.518 -->
+<!-- highlights-reviewed-for: 0.9.519 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit

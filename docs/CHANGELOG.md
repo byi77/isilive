@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-11-14 - Version 0.9.519 (patch)
 
 - Change: the main window is fixed to the M+ layout (rule 249, `RI.LAYOUT_LOCKED_TO_MPLUS`). The M+, H and V title-bar buttons are no longer shown, saved V / H / M layouts open as M+ (the saved values stay), the *Default UI on Open* choice and the Edit Mode layout option are disabled with M+ selected (new text `SETTINGS_LAYOUT_LOCKED_DESC` in all five languages). The run focus switch takes the place of the mode buttons left of Re-Sync. The layout code stays; the flag brings switching back. Tests that cover the other layouts lift the lock explicitly; a new test asserts the lock.
 - Feature: *Run focus: open out of combat* (`runFocusExpandOutOfCombat`, Pattern B, default off, Behavior section below the edge choice; rule 248). Inside a running key, after the countdown collapse, the full window opens (animated) 1.5 s after `PLAYER_REGEN_ENABLED` and folds back without animation in `PLAYER_REGEN_DISABLED`, which fires before the combat lockdown, so the protected main frame can still be resized there. A new fight inside the 1.5 s cancels the opening, so chain pulls do not flap. Texts in all five languages.
