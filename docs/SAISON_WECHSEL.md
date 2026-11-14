@@ -80,9 +80,24 @@ Rune aufnehmen und mit den Listen vergleichen.
 
 ## 3c. Saisonpause (zwischen zwei Seasons)
 
-- [ ] In der Pause `/isilive seasondump` ausfuehren und den Befund in `docs/WARTUNG.md`
-  Abschnitt 3.4a eintragen (liefert Blizzard eine leere Map-Liste? Wert von
-  `C_MythicPlus.GetCurrentSeason`?).
+Die Erkennung der Saisonpause (Regel 250) setzt voraus, dass Blizzard in der Pause eine
+leere Challenge-Map-Liste liefert. Das ist noch nicht ingame belegt und muss in der ersten
+Pause nachgewiesen werden.
+
+- [ ] In der Pause einloggen, einmal den Mythic+-Reiter oeffnen (fordert die Map-Daten an)
+  und `/isilive seasondump` ausfuehren. Diese Zeilen notieren:
+  - `[SEASON] blizzardSeasonState=` (erwartet: `offseason`)
+  - `[SEASON] challengeMapTable count= maps=` (erwartet: `count=0`)
+  - `[SEASON] C_MythicPlus.GetCurrentSeason=` und `GetCurrentUIDisplaySeason=`
+  - `[SEASON] rewardLevels +2= +6= +10=`
+  - `[SEASON] activeSeasonID=`
+- [ ] Befund mit Datum in `docs/WARTUNG.md` Abschnitt 3.4a eintragen.
+- [ ] Je nach Befund:
+  - `count=0` und `offseason`: Erkennung bestaetigt, nichts weiter zu tun.
+  - `count=8` mit den Maps der alten Season: Blizzard liefert die alte Liste weiter,
+    isiLive verhaelt sich wie in der Season. Regel 250 und WARTUNG 3.4a anpassen; ob
+    `GetCurrentSeason` als zweiter Ausloeser dient, entscheidet der User.
+  - Maps der neuen Season und `unrecognized`: neue Season vorbereiten (Abschnitte 1 und 2).
 - [ ] Pruefen: Chat-Hinweis "isiLive: Saisonpause ..." (einmal pro Sitzung), ruhige
   Dungeon-Karte ohne Blinken (30 s), in Heroisch laufen Kick-Tracker und CD-Zeile (volles
   Profil, Regel 250). Ohne Spiel: `lua tools/wowsim/wowsim.lua offseason`.
