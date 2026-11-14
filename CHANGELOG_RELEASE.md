@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.517`.
+Current version: `0.9.518`.
+
+Version 0.9.518: new run focus (Settings > Behavior, off by default). While a
+key runs, the M+ window slides down to Battle Res, Bloodlust, the M+ timer and
+the killtracker when the key countdown shows 5, and comes back after the key.
+Try it without a key with demo action C13 or /isilive runfocus.
 
 Version 0.9.517: isiLive tells you in chat when a group or guild member runs
 a newer version, so you know an update is waiting on CurseForge (Settings >
@@ -264,7 +269,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.517 -->
+<!-- highlights-reviewed-for: 0.9.518 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
