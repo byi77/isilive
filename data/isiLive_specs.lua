@@ -356,7 +356,7 @@ local function BuildSpecIconLookup()
     return nil
   end
   local validators = addonTable.Validators
-  local isSecret = validators and validators.IsSecretValue or function()
+  local isSecret = validators and validators.IsSecretValue or function(_)
     return false
   end
   local lookup = {}
