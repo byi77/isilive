@@ -93,7 +93,10 @@ local function NpcIdFromGuid(guid)
   if type(guid) ~= "string" or IsSecretValue(guid) or guid == "" then
     return nil
   end
-  local kind, _, _, _, _, npcStr = guid:match("^(%a+)%-(%d+)%-(%d+)%-(%d+)%-(%d+)%-(%d+)%-")
+  -- Creature-0-<server>-<instance>-<zone>-<npc>-<spawn>. Patch 12.1.7 replaces
+  -- the server and spawn parts with obfuscated values, so only the NPC id is
+  -- read as a number; the other fields may hold any non-dash text.
+  local kind, npcStr = guid:match("^(%a+)%-[^%-]+%-[^%-]+%-[^%-]+%-[^%-]+%-(%d+)%-")
   if kind ~= "Creature" and kind ~= "Vehicle" then
     return nil
   end

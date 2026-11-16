@@ -1602,6 +1602,28 @@ local function RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonM
     end)
   end)
 
+  test("MobNameplate reads the NPC id from a 12.1.7 GUID with obfuscated server and spawn parts", function()
+    local globals = BuildEnv({
+      mapID = 161,
+      units = { nameplate1 = { guid = "Creature-0-a7Fz9-161-12345-76132-x0Q3k9", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      C_ScenarioInfo = {},
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules, {
+        MPlusForces = {
+          byNpcId = { [76132] = { mapID = 161, count = 25 } },
+          dungeonTotal = { [161] = { total = 1000 } },
+        },
+      })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      local frame =
+        Assert.NotNil(addon.MobNameplate._Test_GetFrames()["nameplate1"], "an obfuscated GUID still resolves")
+      Assert.Equal(frame.text._text, "2.50%", "the NPC id survives obfuscated server and spawn fields")
+    end)
+  end)
+
   test(
     "MobNameplate ResolveMobContributionFromDB returns nil when DB entry's mapID does not match active key",
     function()

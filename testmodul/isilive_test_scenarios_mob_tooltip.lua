@@ -121,6 +121,18 @@ local function RegisterTooltipRenderTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("MobTooltip reads the NPC id from a 12.1.7 GUID with obfuscated server and spawn parts", function()
+    local tooltipLines = {}
+    local tooltip = MakeGameTooltip(tooltipLines)
+    SetupTooltipEnv(WithGlobals, { GameTooltip = tooltip }, function(postCalls)
+      local addon = LoadAddonModules({ "isiLive_mob_tooltip.lua" }, { MPlusForces = NewMplusForcesDB() })
+      addon.MobTooltip.Register()
+      postCalls[1].callback(tooltip, { guid = "Creature-0-a7Fz9-161-12345-76132-x0Q3k9" })
+      Assert.Equal(#tooltipLines, 1, "an obfuscated GUID still gets its forces line")
+      Assert.True(tooltipLines[1]:find("1.16", 1, true) ~= nil, "the NPC id survives the obfuscated fields")
+    end)
+  end)
+
   test("MobTooltip skips creatures belonging to a different dungeon than the active key", function()
     local tooltipLines = {}
     local tooltip = MakeGameTooltip(tooltipLines)
