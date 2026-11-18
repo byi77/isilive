@@ -383,6 +383,46 @@ function SettingsSupport.BuildResetSection(canvas, yOffset, labels, config, cont
   return yOffset
 end
 
+-- Rule 254: last section of the settings page, the bug report export.
+function SettingsSupport.BuildSupportSection(canvas, yOffset, labels, controls)
+  controls.supportHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_SUPPORT or "Support")
+  if controls.supportHeader then
+    controls.supportHeader._sectionKey = "SETTINGS_SECTION_SUPPORT"
+  end
+  controls.supportHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_SUPPORT_HINT
+      or "Found a bug? Create a bug report, paste it on the report page and click Send."
+  )
+  if controls.supportHint then
+    controls.supportHint._sectionKey = "SETTINGS_SECTION_SUPPORT"
+  end
+
+  -- Same copy window as /isilive report.
+  controls.bugReportBtn, yOffset = CreateSettingsActionButton(
+    canvas,
+    yOffset,
+    labels.SETTINGS_BUG_REPORT or "Create bug report",
+    240,
+    function()
+      local bugReport = addonTable.BugReport
+      if type(bugReport) == "table" then
+        bugReport.HandleCommand({
+          getL = function()
+            return labels
+          end,
+          printFn = print,
+        })
+      end
+    end,
+    "SETTINGS_BUG_REPORT",
+    nil
+  )
+
+  return yOffset
+end
+
 function SettingsSupport.BuildBetaSection(canvas, yOffset, labels, controls)
   controls.betaHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_BETA_NOTICE or "Beta")
 
@@ -590,6 +630,18 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
 
   if controls.betaHeader then
     controls.betaHeader:SetText(labels.SETTINGS_BETA_NOTICE or "Beta")
+  end
+  if controls.supportHeader then
+    controls.supportHeader:SetText(labels.SETTINGS_SECTION_SUPPORT or "Support")
+  end
+  if controls.supportHint then
+    controls.supportHint:SetText(
+      labels.SETTINGS_SECTION_SUPPORT_HINT
+        or "Found a bug? Create a bug report, paste it on the report page and click Send."
+    )
+  end
+  if controls.bugReportBtn and controls.bugReportBtn.label then
+    controls.bugReportBtn.label:SetText(labels.SETTINGS_BUG_REPORT or "Create bug report")
   end
   if controls.betaNoticeText then
     controls.betaNoticeText:SetText(labels.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")

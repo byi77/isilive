@@ -54,8 +54,9 @@ return function(test, ctx)
         Assert.Equal(button:GetWidth(), 126, "navigation tabs must keep their width budget")
         Assert.Equal(button._parent, panel.canvas, "navigation must stay outside the scroll child")
       end
-      Assert.Equal(count, 11, "all settings sections need a navigation tab")
+      Assert.Equal(count, 12, "all settings sections need a navigation tab")
       Assert.True(nav.offsets.vip > nav.offsets.general, "section offsets must follow content order")
+      Assert.True(nav.offsets.support > nav.offsets.vip, "support is the last section (rule 254)")
       Assert.True(nav.offsets.raid > nav.offsets.sounds, "the raid section must follow the sounds section")
       Assert.True(nav.offsets.chat > nav.offsets.raid, "the raid section must come before chat")
 

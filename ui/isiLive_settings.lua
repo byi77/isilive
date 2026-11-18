@@ -27,6 +27,7 @@ local NAV_SECTIONS = {
   { key = "admin", labelKey = "SETTINGS_NAV_ADMIN", fallback = "Admin" },
   { key = "reset", labelKey = "SETTINGS_NAV_RESET", fallback = "Reset" },
   { key = "vip", labelKey = "SETTINGS_NAV_VIP", fallback = "VIP" },
+  { key = "support", labelKey = "SETTINGS_NAV_SUPPORT", fallback = "Support" },
 }
 local NAV_ROWS = math.ceil(#NAV_SECTIONS / NAV_COLUMNS)
 local NAV_HEIGHT = (NAV_BUTTON_HEIGHT * NAV_ROWS) + (NAV_BUTTON_GAP * (NAV_ROWS - 1)) + (NAV_TOP * 2)
@@ -50,6 +51,7 @@ local RefreshVIPGuestControls = addonTable.SettingsSound.RefreshVIPGuestControls
 local BuildChatSettingsSection = addonTable.SettingsSupport.BuildChatSection
 local BuildDebugSettingsSection = addonTable.SettingsSupport.BuildDebugSection
 local BuildResetSection = addonTable.SettingsSupport.BuildResetSection
+local BuildSupportSection = addonTable.SettingsSupport.BuildSupportSection
 local BuildBetaSection = addonTable.SettingsSupport.BuildBetaSection
 local RefreshSupportControls = addonTable.SettingsSupport.RefreshControls
 
@@ -417,6 +419,9 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
   y = y - SECTION_GAP
   nav.offsets.vip = -y
   y = BuildVIPGuestSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  nav.offsets.support = -y
+  y = BuildSupportSection(content, y, L, controls)
 
   local originalOffsets = {}
   for key, offset in pairs(nav.offsets) do

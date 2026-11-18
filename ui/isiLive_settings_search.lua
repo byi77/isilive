@@ -37,6 +37,7 @@ SettingsSearch.SECTION_TAGS = {
   admin = { "admin", "debug", "log" },
   reset = { "reset", "default" },
   vip = { "vip", "mute" },
+  support = { "support", "bug", "report" },
 }
 
 -- English keywords per control key (GetSearchEntries keys).

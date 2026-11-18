@@ -155,6 +155,7 @@ logic/isiLive_event_handlers_cd_coalescer.lua
 logic/isiLive_event_handlers_runtime.lua
 logic/isiLive_event_handlers.lua
 logic/isiLive_perf_probe.lua
+logic/isiLive_bug_report.lua
 logic/isiLive_commands.lua
 ui/isiLive_ui_main_frame.lua
 ui/isiLive_edit_mode.lua
@@ -172,6 +173,7 @@ ui/isiLive_settings_controls.lua
 ui/isiLive_settings_nameplates.lua
 ui/isiLive_settings_behavior.lua
 ui/isiLive_settings_sound.lua
+ui/isiLive_bug_report_window.lua
 ui/isiLive_settings_support.lua
 ui/isiLive_settings_general.lua
 ui/isiLive_settings_sections.lua

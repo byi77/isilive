@@ -350,6 +350,9 @@ return function(test, ctx)
         -- "Design" and "Modern" are the German words as well.
         SETTINGS_UI_DESIGN = true,
         SETTINGS_UI_DESIGN_MODERN = true,
+        -- "Support" is the German word as well.
+        SETTINGS_NAV_SUPPORT = true,
+        SETTINGS_SECTION_SUPPORT = true,
       },
       frFR = {
         SETTINGS_NAMEPLATE_POSITION = true,
@@ -357,6 +360,9 @@ return function(test, ctx)
         SETTINGS_NAV_RAID = true,
         SETTINGS_SECTION_RAID = true,
         SETTINGS_UI_DESIGN = true,
+        -- French uses "Support" as well.
+        SETTINGS_NAV_SUPPORT = true,
+        SETTINGS_SECTION_SUPPORT = true,
       },
       trTR = {
         -- Turkish "Modern" is spelled like the English word.

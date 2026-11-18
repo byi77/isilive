@@ -150,6 +150,7 @@ local HELP_KEYS = {
   "HELP_TTKTEST",
   "HELP_RUNFOCUS",
   "HELP_KEYEND",
+  "HELP_REPORT",
   "HELP_ADMIN",
 }
 
@@ -623,6 +624,15 @@ local function TryHandleUtilityCommands(ctx, cmd)
     local perfProbe = addonTable.PerfProbe
     if type(perfProbe) == "table" then
       perfProbe.HandleCommand(ctx, cmd)
+    end
+    return true
+  end
+
+  -- Rule 254: bug report export (copy window for the report page).
+  if cmd == "report" or cmd == "bugreport" then
+    local bugReport = addonTable.BugReport
+    if type(bugReport) == "table" then
+      bugReport.HandleCommand(ctx)
     end
     return true
   end

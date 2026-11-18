@@ -33,6 +33,7 @@ local function BuildFactoryModules(tbl)
     queueDebug = tbl and tbl.QueueDebug,
     runtimeLog = tbl and tbl.RuntimeLog,
     probeLog = tbl and tbl.ProbeLog,
+    bugReport = tbl and tbl.BugReport,
     rosterPanel = tbl and tbl.RosterPanel,
     spellUtils = tbl and tbl.SpellUtils,
     cdTracker = tbl and tbl.CdTracker,
@@ -206,6 +207,16 @@ local function CreateFactoryContext(addonName, tbl)
       readLog = ctx.runtimeLogController.GetLinesContaining,
       getAddonVersion = ctx.GetAddonVersionRaw,
       setRuntimeLogEnabled = ctx.runtimeLogController.SetEnabled,
+    })
+  end
+
+  -- Bug report export (rule 254) reads the same ring.
+  if modules.bugReport and type(modules.bugReport.Attach) == "function" then
+    modules.bugReport.Attach({
+      readLog = ctx.runtimeLogController.GetLinesContaining,
+      getAddonVersion = ctx.GetAddonVersionRaw,
+      getRuntimeLogEnabled = ctx.runtimeLogController.IsEnabled,
+      getRuntimeLogLevel = ctx.runtimeLogController.GetLevel,
     })
   end
 

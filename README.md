@@ -435,7 +435,21 @@ bonus plus signs, death alert, ready-check sound, and sound preview.
 /isilive lock         — lock window position
 /isilive unlock       — unlock window position
 /isilive resetui      — recenter window and reset scale + opacity (asks for confirmation)
+/isilive report       — create a bug report to send on the report page
 ```
+
+### Bug reports
+
+`/isilive report` (or **Settings → Support → Create bug report**) opens a
+small window with the address of the report page
+(https://byi77.github.io/isilive-report/) and the report text, already
+selected: press Ctrl+C, open the page, paste and click **Send**. The report
+contains the Lua error log and the runtime log, with every character name
+replaced in game (`SELF` for you, `P1`, `P2`, ... for everyone else, `REALM`
+for your realm). The page unpacks the text in your browser, shows exactly what
+will be sent and mails it to the developer. Reports are only used to fix bugs;
+nothing is counted or kept after the fix. For a useful runtime log, turn it on
+with `/isilive log on` before reproducing the bug.
 
 Administrative commands shown by `/isilive admin` include the full preview mode,
 runtime / queue / Lua error logs, teleport, season (`/isilive s2d`),
@@ -514,7 +528,7 @@ ESC panel. In **Escape → Options → AddOns → isiLive** (also found by typin
 "isiLive" into Blizzard's settings search) a button opens the same window.
 Drag the window by its title bar; the position is saved. ESC or the × closes
 it, and it also opens during combat. Everything takes effect immediately.
-The fixed two-row section navigation stays visible while you scroll; select a
+The fixed three-row section navigation stays visible while you scroll; select a
 section to jump directly to its settings. The active section follows manual scrolling.
 
 The search box in the title bar filters the window as you type: only the
@@ -537,6 +551,7 @@ closing the window always clears the search.
 - **Chat Announcements** — announce Battle Res / announce Bloodlust / announce an instance reset done through the isiLive button
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), probe mode (persistent, see [Probe mode](#probe-mode-diagnostics)), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak (mount and, separately, its two vendor voices), and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder
+- **Support** — create a bug report (copy window for the report page, same as `/isilive report`)
 
 ### Languages and translations
 
