@@ -966,6 +966,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
       if
         frame.OnEnter ~= nil
         and frame.ShowCooldownRemaining == nil
+        and frame._isiLiveTimePaceBadge == nil
         and readyCheckHoverFrame == nil
         and type(frame._textures) == "table"
         and frame._textures[1] ~= nil

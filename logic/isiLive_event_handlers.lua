@@ -34,6 +34,7 @@ local function BuildContext(opts)
 
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   ctx.versionNotice = type(opts.versionNotice) == "table" and opts.versionNotice or nil
+  ctx.whatsNew = type(opts.whatsNew) == "table" and opts.whatsNew or nil
   ctx.isRaidGroup = OptionalFunction(opts.isRaidGroup, function()
     return false
   end)

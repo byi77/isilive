@@ -63,6 +63,7 @@ local FILE_PATHS = {
   ["isiLive_time_seed.lua"] = "data/isiLive_time_seed.lua",
   ["isiLive_forces_pace.lua"] = "game/isiLive_forces_pace.lua",
   ["isiLive_time_pace.lua"] = "game/isiLive_time_pace.lua",
+  ["isiLive_time_pace_announce.lua"] = "game/isiLive_time_pace_announce.lua",
   ["isiLive_ttk.lua"] = "game/isiLive_ttk.lua",
   ["isiLive_aggro_alert.lua"] = "game/isiLive_aggro_alert.lua",
   ["isiLive_consumable_check.lua"] = "game/isiLive_consumable_check.lua",
@@ -163,6 +164,7 @@ local FILE_PATHS = {
   ["isiLive_event_handlers.lua"] = "logic/isiLive_event_handlers.lua",
   ["isiLive_perf_probe.lua"] = "logic/isiLive_perf_probe.lua",
   ["isiLive_bug_report.lua"] = "logic/isiLive_bug_report.lua",
+  ["isiLive_whats_new.lua"] = "logic/isiLive_whats_new.lua",
   ["isiLive_commands.lua"] = "logic/isiLive_commands.lua",
   -- factory
   ["isiLive_season_refresh.lua"] = "factory/isiLive_season_refresh.lua",
@@ -283,6 +285,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_roster_panel_helpers.lua",
     "isiLive_roster_panel_kill_row_run_end.lua",
     "isiLive_roster_panel_kill_row_time_pace.lua",
+    "isiLive_time_pace_announce.lua",
   },
   -- KillTrack hands every scenario snapshot to ForcesPace and TimePace (TOC order).
   ["isiLive_killtrack.lua"] = {
@@ -290,6 +293,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_time_seed.lua",
     "isiLive_forces_pace.lua",
     "isiLive_time_pace.lua",
+    "isiLive_time_pace_announce.lua",
   },
   ["isiLive_factory.lua"] = {
     "isiLive_factory_frame_bridge.lua",

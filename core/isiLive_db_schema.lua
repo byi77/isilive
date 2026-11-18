@@ -321,6 +321,9 @@ local SCHEMA = {
   acceptedInviteNoticeEnabled = { type = "boolean", default = true },
   groupJoinNoticeEnabled = { type = "boolean", default = true },
   versionNoticeEnabled = { type = "boolean", default = true },
+  -- What's new (rule 256): ID of the last feature card shown; "" until the
+  -- first card. Not a setting, never reset by the user.
+  whatsNewSeen = { type = "string", default = "" },
   -- Chat history (rule 253): Up / Down walk the sent lines; the last lines
   -- (oldest first) survive reloads. The module caps the list at 100.
   chatHistoryEnabled = { type = "boolean", default = true },

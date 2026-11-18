@@ -400,6 +400,7 @@ end
 
 local function ExtendEventHandlersConfig(config, deps, state, refs, controllers, callbacks, modules)
   config.versionNotice = type(deps.versionNotice) == "table" and deps.versionNotice or nil
+  config.whatsNew = type(deps.whatsNew) == "table" and deps.whatsNew or nil
   config.getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm")
   config.getUnitRole = type(deps.getUnitRole) == "function" and deps.getUnitRole or function(_unit)
     return nil
@@ -724,9 +725,26 @@ local function BuildVersionNotice(ctx)
   })
 end
 
+-- What's new (rule 256): the card of the newest feature, once after login.
+local function BuildWhatsNew(ctx)
+  local whatsNewModule = addonTable.WhatsNew
+  if type(whatsNewModule) ~= "table" or type(whatsNewModule.Create) ~= "function" then
+    return nil
+  end
+  return whatsNewModule.Create({
+    getDB = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) == "table" and db or nil
+    end,
+    getL = ctx.getL,
+    showCenterNotice = ctx.showCenterNotice,
+  })
+end
+
 local function BuildEventHandlersDepsFromContext(ctx)
   return {
     versionNotice = BuildVersionNotice(ctx),
+    whatsNew = BuildWhatsNew(ctx),
     showSeasonUnrecognizedNotice = addonTable.SeasonRefresh.BuildUnrecognizedNotice(ctx),
     showSeasonBreakNotice = addonTable.SeasonRefresh.BuildSeasonBreakNotice(ctx),
     addonName = ctx.addonName,

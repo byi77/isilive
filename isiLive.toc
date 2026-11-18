@@ -119,6 +119,7 @@ ui/isiLive_roster_layout.lua
 game/isiLive_mplus_timer.lua
 game/isiLive_forces_pace.lua
 game/isiLive_time_pace.lua
+game/isiLive_time_pace_announce.lua
 game/isiLive_ttk.lua
 game/isiLive_aggro_alert.lua
 game/isiLive_consumable_check.lua
@@ -156,6 +157,7 @@ logic/isiLive_event_handlers_runtime.lua
 logic/isiLive_event_handlers.lua
 logic/isiLive_perf_probe.lua
 logic/isiLive_bug_report.lua
+logic/isiLive_whats_new.lua
 logic/isiLive_commands.lua
 ui/isiLive_ui_main_frame.lua
 ui/isiLive_edit_mode.lua

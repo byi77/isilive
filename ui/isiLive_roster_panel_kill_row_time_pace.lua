@@ -140,6 +140,8 @@ local function UpdateTimePaceText(row, data)
   SetReadableText(fontString, text or "")
   local badge = row.killTrackTimePaceBadge
   ShowRegion(badge, text ~= nil)
+  -- The click posts exactly the status the badge shows (rule 255).
+  row.killTrackTimePaceStatus = text and data.timePace or nil
   if not text then
     return
   end
@@ -154,10 +156,114 @@ local function UpdateTimePaceText(row, data)
   end
 end
 
+local function PrintLocal(message)
+  local printFn = rawget(_G, "print")
+  if type(printFn) == "function" and type(message) == "string" then
+    pcall(printFn, message)
+  end
+end
+
+-- Pace announce (rule 255): left click posts the badge's expectation to the
+-- group chat (game/isiLive_time_pace_announce.lua). Without a running key
+-- (demo) the line is only printed locally as a preview.
+local function AnnounceTimePace(row)
+  local announce = addonTable.TimePaceAnnounce
+  if type(announce) ~= "table" or type(announce.Announce) ~= "function" then
+    return nil
+  end
+  local outcome, line = announce.Announce(row.killTrackTimePaceStatus)
+  if outcome == "no_key" and line then
+    PrintLocal(string.format(LocalizedText("TIME_PACE_ANNOUNCE_PREVIEW_FMT", "isiLive preview: %s"), line))
+  elseif outcome == "no_group" then
+    PrintLocal(LocalizedText("TIME_PACE_ANNOUNCE_NO_GROUP", "isiLive: pace not posted - you are not in a group."))
+  end
+  return outcome
+end
+
+local function ShowTimePaceTooltip(row, badge, tooltipFrame)
+  local anchor = RI.AnchorRosterHoverTooltip
+  local tooltip = type(anchor) == "function" and tooltipFrame and anchor(tooltipFrame, badge) or nil
+  if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
+    return
+  end
+  tooltip:SetText(LocalizedText("TIME_PACE_ANNOUNCE_TOOLTIP_TITLE", "Time pace"), 1, 1, 1) -- i18n-ok
+  if type(tooltip.AddLine) == "function" then
+    tooltip:AddLine(
+      LocalizedText("TIME_PACE_ANNOUNCE_TOOLTIP_HINT", "Click: post the expectation to the group chat"),
+      0.46,
+      0.94,
+      1,
+      true
+    )
+    local announce = addonTable.TimePaceAnnounce
+    local line = type(announce) == "table"
+      and type(announce.BuildLine) == "function"
+      and announce.BuildLine(row.killTrackTimePaceStatus)
+    if type(line) == "string" then
+      tooltip:AddLine(line, 0.75, 0.75, 0.75, true)
+    end
+  end
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+end
+
+-- Hover: a calm blue ADD-blended wash over the pill (CLAUDE.md highlight style).
+local function CreateTimePaceHover(badge)
+  if type(badge.CreateTexture) ~= "function" then
+    return nil
+  end
+  local hover = badge:CreateTexture(nil, "ARTWORK")
+  if type(hover.SetAllPoints) == "function" then
+    hover:SetAllPoints(badge)
+  end
+  if type(hover.SetTexture) == "function" then
+    hover:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(hover.SetBlendMode) == "function" then
+    hover:SetBlendMode("ADD")
+  end
+  local colors = UICommon.Colors or {}
+  SetRegionColor(hover, "SetVertexColor", colors.BLUE_HOVER_GLOW or { 0.3, 0.65, 1, 0.2 })
+  if type(hover.Hide) == "function" then
+    hover:Hide()
+  end
+  return hover
+end
+
+local function AttachTimePaceClick(row, badge, tooltipFrame)
+  if type(badge.EnableMouse) == "function" then
+    badge:EnableMouse(true)
+  end
+  if type(badge.SetScript) ~= "function" then
+    return
+  end
+  local hover = CreateTimePaceHover(badge)
+  row.killTrackTimePaceHover = hover
+  badge:SetScript("OnEnter", function(self)
+    ShowRegion(hover, true)
+    ShowTimePaceTooltip(row, self, tooltipFrame)
+  end)
+  badge:SetScript("OnLeave", function()
+    ShowRegion(hover, false)
+    local hide = RI.HideRosterHoverTooltip
+    if type(hide) == "function" then
+      hide(tooltipFrame)
+    end
+  end)
+  badge:SetScript("OnMouseUp", function(_self, button)
+    if button == nil or button == "LeftButton" then
+      AnnounceTimePace(row)
+    end
+  end)
+end
+
 -- Builds the badge on the bar overlay: its own frame, so it draws above
 -- fill, gap and strip; the key end banner stays above it.
-local function CreateTimePaceBadge(row, barOverlay)
+local function CreateTimePaceBadge(row, barOverlay, tooltipFrame)
   local timePaceBadge = CreateFrame("Frame", nil, barOverlay)
+  -- Marks the clickable pill for frame scans (tests look for roster hover frames).
+  timePaceBadge._isiLiveTimePaceBadge = true
   timePaceBadge:SetPoint("RIGHT", barOverlay, "RIGHT", -TIME_PACE_RIGHT_INSET, 0)
   if type(timePaceBadge.SetHeight) == "function" then
     timePaceBadge:SetHeight(TIME_PACE_BADGE_HEIGHT)
@@ -194,7 +300,9 @@ local function CreateTimePaceBadge(row, barOverlay)
   row.killTrackTimePaceText = timePaceText
   row.killTrackTimePaceBadge = timePaceBadge
   row.killTrackTimePaceBadgeBg = timePaceBadgeBg
+  AttachTimePaceClick(row, timePaceBadge, tooltipFrame)
 end
 
 RI.CreateKillTrackTimePaceBadge = CreateTimePaceBadge
 RI.UpdateKillTrackTimePace = UpdateTimePaceText
+RI.AnnounceKillTrackTimePace = AnnounceTimePace

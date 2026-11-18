@@ -628,7 +628,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     tooltipFrame = rosterTooltip,
     getL = uiDeps.getL,
   })
-  local killTrackRow = CreateKillTrackRow(mainFrame)
+  local killTrackRow = CreateKillTrackRow(mainFrame, { tooltipFrame = rosterTooltip })
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
 

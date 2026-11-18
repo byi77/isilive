@@ -11,6 +11,11 @@ local PLATES = 8
 local BURST = 1000
 
 local function Prepare(globals, session)
+  -- The what's-new card (rule 256) opens 8 s after login, inside a measured
+  -- phase; its one-time frames are no workload of this regression.
+  local whatsNewAddon = {}
+  assert(loadfile("logic/isiLive_whats_new.lua"))("isiLive", whatsNewAddon)
+  globals.IsiLiveDB.whatsNewSeen = whatsNewAddon.WhatsNew.GetLatest().id
   session.protectedCalls = 0
   session.failedProtectedCalls = 0
   local function RecordResult(ok, ...)

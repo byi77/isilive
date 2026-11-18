@@ -895,6 +895,17 @@ local function NoteSyncPeerVersion(ctx, syncResult)
   return false
 end
 
+-- Login-time notices: the guild version ping (rule 247) and the what's-new
+-- card (rule 256).
+local function StartLoginNotices(ctx)
+  if ctx.versionNotice then
+    ctx.versionNotice.OnLogin()
+  end
+  if ctx.whatsNew then
+    ctx.whatsNew.OnLogin()
+  end
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -970,9 +981,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ApplyStartupMainFrameVisibility(ctx)
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
-    if ctx.versionNotice then
-      ctx.versionNotice.OnLogin()
-    end
+    StartLoginNotices(ctx)
     TracePlayerLogin(ctx, playerName, playerRealm)
   end
 
