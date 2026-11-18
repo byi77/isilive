@@ -72,6 +72,53 @@ function ChatHistory.Remember(_box, line)
   end
 end
 
+local function ApplyArrowMode(box)
+  if type(box.SetAltArrowKeyMode) == "function" then
+    -- false: Up / Down without Alt walk the history, Left / Right move the cursor.
+    pcall(box.SetAltArrowKeyMode, box, not IsEnabled())
+  end
+end
+
+-- Own walk through the saved list: a client may reset the edit box's arrow
+-- mode or not walk its history at all, so Up / Down set the text themselves.
+-- walkPos = index into chatHistoryLines, nil = not walking (empty line).
+local walkPos = setmetatable({}, { __mode = "k" })
+local lastStep = setmetatable({}, { __mode = "k" })
+
+function ChatHistory.Step(box, key)
+  if not IsEnabled() or (key ~= "UP" and key ~= "DOWN") then
+    return
+  end
+  -- OnArrowPressed and OnKeyDown can both report the same key press.
+  local getTime = rawget(_G, "GetTime")
+  local now = type(getTime) == "function" and getTime() or nil
+  if now ~= nil and lastStep[box] == now then
+    return
+  end
+  lastStep[box] = now
+  local list = dbRef.chatHistoryLines
+  if type(list) ~= "table" or #list == 0 then
+    return
+  end
+  local position = walkPos[box]
+  if key == "UP" then
+    position = math.max(1, (position or #list + 1) - 1)
+  elseif position then
+    position = position + 1
+    if position > #list then
+      position = nil
+    end
+  else
+    return
+  end
+  walkPos[box] = position
+  local text = position and list[position] or ""
+  pcall(box.SetText, box, text)
+  if type(box.SetCursorPosition) == "function" then
+    pcall(box.SetCursorPosition, box, #text)
+  end
+end
+
 -- Slash commands the game does not put into the history itself (e.g.
 -- /console) are taken from the text that was in the box when Enter was
 -- pressed. The game's clearing of the box is not user input, so the typed
@@ -89,23 +136,23 @@ function ChatHistory.HookEnter(box)
   end)
   box:HookScript("OnEditFocusGained", function(self)
     typed[self] = nil
+    walkPos[self] = nil
     addedByGame = false
+    ApplyArrowMode(self) -- a client may reset it when the box opens
   end)
+  box:HookScript("OnArrowPressed", ChatHistory.Step)
+  if type(box.HasScript) == "function" and box:HasScript("OnKeyDown") then
+    box:HookScript("OnKeyDown", ChatHistory.Step)
+  end
   box:HookScript("OnEnterPressed", function(self)
     local text = typed[self]
     typed[self] = nil
+    walkPos[self] = nil
     if not addedByGame and type(text) == "string" and IsEnabled() then
       pcall(self.AddHistoryLine, self, text)
     end
     addedByGame = false
   end)
-end
-
-local function ApplyArrowMode(box)
-  if type(box.SetAltArrowKeyMode) == "function" then
-    -- false: Up / Down without Alt walk the history, Left / Right move the cursor.
-    pcall(box.SetAltArrowKeyMode, box, not IsEnabled())
-  end
 end
 
 -- Saved lines go back into each edit box history (oldest

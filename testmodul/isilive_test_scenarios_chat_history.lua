@@ -38,6 +38,11 @@ return function(test, ctx)
         fn(self)
       end
     end
+    function box:FireKey(script, key)
+      for _, fn in ipairs(self.hooks[script] or {}) do
+        fn(self, key)
+      end
+    end
     return box
   end
 
@@ -115,6 +120,53 @@ return function(test, ctx)
       box:SetText("", true)
       box:Fire("OnEnterPressed")
       Assert.Equal(db.chatHistoryLines[#db.chatHistoryLines], "hello", "text deleted by hand is not saved")
+    end)
+  end)
+
+  test("ChatHistory walks the saved lines with Up and Down itself", function()
+    local box = NewEditBox()
+    local db = { chatHistoryLines = { "first", "second", "third" } }
+    local clock = 0
+    WithGlobals({
+      GetTime = function()
+        clock = clock + 1
+        return clock
+      end,
+    }, function()
+      WithChat(box, function(ChatHistory)
+        ChatHistory.Setup(db)
+        box.altArrow = true -- a client resets the mode when the box opens
+        box:Fire("OnEditFocusGained")
+        Assert.Equal(box.altArrow, false, "arrow mode set again on open")
+        box:FireKey("OnArrowPressed", "UP")
+        Assert.Equal(box.text, "third", "Up shows the newest line")
+        box:FireKey("OnArrowPressed", "UP")
+        Assert.Equal(box.text, "second", "Up again shows the one before")
+        box:FireKey("OnArrowPressed", "DOWN")
+        Assert.Equal(box.text, "third", "Down goes back")
+        box:FireKey("OnArrowPressed", "DOWN")
+        Assert.Equal(box.text, "", "Down past the newest line empties the box")
+        box:FireKey("OnArrowPressed", "LEFT")
+        Assert.Equal(box.text, "", "Left / Right stay with the cursor")
+      end)
+    end)
+  end)
+
+  test("ChatHistory steps once when one key press is reported twice", function()
+    local box = NewEditBox()
+    local db = { chatHistoryLines = { "first", "second" } }
+    WithGlobals({
+      GetTime = function()
+        return 5
+      end,
+    }, function()
+      WithChat(box, function(ChatHistory)
+        ChatHistory.Setup(db)
+        box:FireKey("OnArrowPressed", "UP")
+        box:FireKey("OnKeyDown", "UP")
+        box:FireKey("OnArrowPressed", "UP")
+        Assert.Equal(box.text, "second", "same frame -> one step")
+      end)
     end)
   end)
 
