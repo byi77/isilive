@@ -321,6 +321,16 @@ local SCHEMA = {
   acceptedInviteNoticeEnabled = { type = "boolean", default = true },
   groupJoinNoticeEnabled = { type = "boolean", default = true },
   versionNoticeEnabled = { type = "boolean", default = true },
+  -- Chat history (rule 253): Up / Down walk the sent lines; the last lines
+  -- (oldest first) survive reloads. The module caps the list at 100.
+  chatHistoryEnabled = { type = "boolean", default = true },
+  chatHistoryLines = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 200,
+  },
   runFocusEnabled = { type = "boolean", default = false },
   runFocusAnchor = { type = "string", default = "bottom", enum = { "bottom", "top" } },
   runFocusExpandOutOfCombat = { type = "boolean", default = false },

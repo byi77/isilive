@@ -79,6 +79,7 @@ SettingsSearch.CONTROL_TAGS = {
   acceptedInviteNotice = { "invite", "lfg" },
   groupJoinNotice = { "invite", "lfg", "target" },
   versionNotice = { "update", "version", "curseforge", "guild" },
+  chatHistory = { "chat", "history", "arrow" },
   sync = { "sync", "share" },
   lockMainFramePosition = { "lock", "move", "position" },
   editModeIntegration = { "edit mode", "move", "position", "layout", "scale" },

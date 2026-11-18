@@ -47,6 +47,7 @@ local FILE_PATHS = {
   ["isiLive_specs.lua"] = "data/isiLive_specs.lua",
   ["isiLive_season_debug.lua"] = "game/isiLive_season_debug.lua",
   ["isiLive_api_health.lua"] = "game/isiLive_api_health.lua",
+  ["isiLive_chat_history.lua"] = "game/isiLive_chat_history.lua",
   ["isiLive_teleport.lua"] = "game/isiLive_teleport.lua",
   ["isiLive_teleport_debug.lua"] = "ui/isiLive_teleport_debug.lua",
   ["isiLive_units.lua"] = "game/isiLive_units.lua",

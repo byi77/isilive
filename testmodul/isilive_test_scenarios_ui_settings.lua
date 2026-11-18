@@ -2860,12 +2860,13 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        72,
+        73,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls (and the retired reduced-motion option)"
           .. " while keeping the startup/key-end, navigator, sound,"
           .. " incoming-summon loop, chat/text-announce, combat-fade, nameplate-subtoggle,"
-          .. " accepted-invite/group-join/update notices, LFG class-bonus, stats-box toggles/detail rows,"
+          .. " accepted-invite/group-join/update notices, the chat history, LFG class-bonus,"
+          .. " stats-box toggles/detail rows,"
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " the Blizzard Edit Mode switch, the aggro alert and its sound, the live kicks, the consumable check,"
@@ -2879,11 +2880,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        72,
+        73,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
-          .. " accepted-invite/group-join/update notices, LFG class-bonus, stats-box toggles/detail rows,"
+          .. " accepted-invite/group-join/update notices, the chat history, LFG class-bonus,"
+          .. " stats-box toggles/detail rows,"
           .. " VIP sound toggles,"
           .. " the VIP DK Soul Reaper and Putrefy warnings,"
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"

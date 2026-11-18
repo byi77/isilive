@@ -577,6 +577,7 @@ local DISPLAY_DEFAULTS = {
   acceptedInviteNoticeEnabled = true,
   groupJoinNoticeEnabled = true,
   versionNoticeEnabled = true,
+  chatHistoryEnabled = true,
 }
 
 local DISPLAY_CALLBACKS = {
@@ -632,6 +633,7 @@ local DISPLAY_DEFAULT_ORDER = {
   "acceptedInviteNoticeEnabled",
   "groupJoinNoticeEnabled",
   "versionNoticeEnabled",
+  "chatHistoryEnabled",
 }
 
 local function RestoreDisplayDefaults(config)
@@ -681,6 +683,37 @@ local function CreateVersionNoticeCheckbox(canvas, yOffset, labels, config)
         or "Prints a chat line when a group or guild member runs a newer isiLive version."
     )
   )
+end
+
+-- Chat history toggle (rule 253).
+local function CreateChatHistoryCheckbox(canvas, yOffset, labels, config)
+  return CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_CHAT_HISTORY or "Chat history",
+    function()
+      local db = config.getDB()
+      return db.chatHistoryEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.chatHistoryEnabled = checked
+      if addonTable.ChatHistory then
+        addonTable.ChatHistory.Apply()
+      end
+    end,
+    "SETTINGS_CHAT_HISTORY",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_CHAT_HISTORY_DESC
+        or "Up / Down in the chat input step through the lines you sent, also after a reload."
+    )
+  )
+end
+
+local function CreateDisplayTailCheckboxes(canvas, yOffset, labels, config, controls)
+  controls.versionNotice, yOffset = CreateVersionNoticeCheckbox(canvas, yOffset, labels, config)
+  controls.chatHistory, yOffset = CreateChatHistoryCheckbox(canvas, yOffset, labels, config)
+  return yOffset
 end
 
 local function CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
@@ -1205,7 +1238,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     )
   )
 
-  controls.versionNotice, yOffset = CreateVersionNoticeCheckbox(canvas, yOffset, labels, config)
+  yOffset = CreateDisplayTailCheckboxes(canvas, yOffset, labels, config, controls)
   controls.displayReset, yOffset = CreateDisplayResetAction(canvas, yOffset, labels, config, controls)
 
   return yOffset
@@ -1452,5 +1485,14 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
         or "Prints a chat line when a group or guild member runs a newer isiLive version."
     )
     controls.versionNotice.check:SetChecked(db.versionNoticeEnabled ~= false)
+  end
+  if controls.chatHistory then
+    controls.chatHistory.label:SetText(labels.SETTINGS_CHAT_HISTORY or "Chat history")
+    SetCheckboxDescription(
+      controls.chatHistory,
+      labels.SETTINGS_CHAT_HISTORY_DESC
+        or "Up / Down in the chat input step through the lines you sent, also after a reload."
+    )
+    controls.chatHistory.check:SetChecked(db.chatHistoryEnabled ~= false)
   end
 end

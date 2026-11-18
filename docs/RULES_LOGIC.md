@@ -3880,3 +3880,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - LFGDetect resolves an M0 or heroic dungeon listing of the active season
   - AcceptedRaidInviteNotice stays silent for a Raid LFG listing with categoryID=3
+
+### RULE-CHAT-VERLAUF
+- Regelnummer: 253
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-18 (Chat-Verlauf mit den Pfeiltasten, uebernommen aus isiStatsForever; Standard an; auch `/console`-Befehle). `game/isiLive_chat_history.lua` (`ChatHistory`) setzt beim `PLAYER_LOGIN` (eigener Login-Frame wie beim Minimap-Button) fuer jedes Chat-Eingabefeld `ChatFrame<n>EditBox` die Verlaufslaenge auf `ChatHistory.MAX_LINES` (100), fuellt die gespeicherten Zeilen aus `IsiLiveDB.chatHistoryLines` (aelteste zuerst, damit Pfeil hoch mit der neuesten beginnt) wieder in den Verlauf des Spiels und schaltet `SetAltArrowKeyMode(false)`, damit Pfeil hoch / runter ohne Alt durch den Verlauf blaettern. Jede Zeile, die das Spiel ueber `AddHistoryLine` in den Verlauf schreibt (per `hooksecurefunc`, nichts wird ersetzt), wird getrimmt gespeichert; eine Wiederholung rueckt ans Ende, die Liste haelt hoechstens 100 Zeilen und verwirft die aelteste. Slash-Befehle, die das Spiel ohne Verlaufszeile ausfuehrt (z. B. `/console`), werden aus dem zuletzt nicht leeren Text des Eingabefelds beim Enter-Druck uebernommen (`HookScript` auf `OnTextChanged`, `OnEditFocusGained`, `OnEnterPressed`); hat das Spiel die Zeile schon selbst eingetragen, wird sie nicht doppelt eingetragen, und ein von Hand geloeschter Text wird nicht gespeichert. Maskierte Werte werden nie gespeichert. Die Einstellung `chatHistoryEnabled` (Pattern A, Standard an; Einstellungen > Anzeige > Chat-Verlauf, Texte in allen fuenf Sprachen) schaltet alles: aus = nichts wird gespeichert oder wiederhergestellt und der Alt-Modus des Spiels bleibt; das Umschalten wirkt sofort auf den Pfeiltasten-Modus.
+- Erforderliche Tests:
+  - ChatHistory saves sent lines, moves repeats to the end and caps the list
+  - ChatHistory restores saved lines and walks them without Alt
+  - ChatHistory keeps slash commands the game sends without a history line
+  - ChatHistory saves nothing and keeps Alt mode with the setting off
