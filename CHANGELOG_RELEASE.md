@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.521`.
+Current version: `0.9.522`.
+
+Version 0.9.522: tell your group the pace with one click: click the time pace
+badge on the killtracker bar and isiLive posts one short English line to the
+group chat, e.g. "KR +15 expected: INTIME - 1:12 spare. Go for it!", also in
+combat. A what's new card after login introduces each new feature once.
 
 Version 0.9.521: send a bug report in a few clicks: /isilive report (or
 Settings > Support > Create bug report) shows the report page address and the
@@ -286,7 +291,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.521 -->
+<!-- highlights-reviewed-for: 0.9.522 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
