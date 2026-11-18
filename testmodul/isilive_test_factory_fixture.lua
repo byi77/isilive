@@ -213,7 +213,14 @@ local function BuildFrameStub()
     function fs:GetText()
       return self._text
     end
-    function fs:SetFont(_path, _size, _flags) end
+    -- Keeps the font like the client, so size changes are observable.
+    fs._font = { "Fonts\\FRIZQT__.TTF", 12, "" }
+    function fs:SetFont(path, size, flags)
+      self._font = { path, size, flags }
+    end
+    function fs:GetFont()
+      return self._font[1], self._font[2], self._font[3]
+    end
     function fs:SetTextColor(_r, _g, _b, _a) end
     function fs:SetJustifyH(_j) end
     function fs:SetJustifyV(_j) end

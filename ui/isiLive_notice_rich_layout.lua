@@ -404,6 +404,36 @@ local function ApplyRichHeader(state, payload, innerWidth)
   return cursorY + 1
 end
 
+-- Compact fields (field.compact, e.g. the what's-new card) draw their value
+-- this many pixels smaller. Rows are pooled across cards, so the base font is
+-- remembered on the first compact use and restored for the next normal field.
+local FIELD_COMPACT_FONT_DELTA = 2
+local FIELD_COMPACT_MIN_SIZE = 8
+
+local function ApplyFieldValueSize(value, compact)
+  if type(value.GetFont) ~= "function" or type(value.SetFont) ~= "function" then
+    return
+  end
+  local base = value._isiLiveBaseFont
+  if not compact then
+    if base then
+      value:SetFont(base[1], base[2], base[3])
+      value._isiLiveBaseFont = nil
+    end
+    return
+  end
+  if not base then
+    local path, size, flags = value:GetFont()
+    size = tonumber(size)
+    if not path or not size then
+      return
+    end
+    base = { path, size, flags }
+    value._isiLiveBaseFont = base
+  end
+  value:SetFont(base[1], math.max(FIELD_COMPACT_MIN_SIZE, base[2] - FIELD_COMPACT_FONT_DELTA), base[3])
+end
+
 -- One field row on the hairline grid: label column, wrapping value, and for a
 -- warning field a tinted strip with a warning bar on its left edge. Returns
 -- the row height.
@@ -431,6 +461,7 @@ local function ApplyRichFieldRow(state, row, field, contentWidth, rowTopY, showD
   row.value:ClearAllPoints()
   row.value:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX + FIELD_LABEL_WIDTH + lineGap, -textY)
   row.value:SetWidth(valueWidth)
+  ApplyFieldValueSize(row.value, field.compact == true)
   SetReadableText(row.value, type(field.value) == "string" and field.value or "")
   row.value:SetTextColor(valueR, valueG, valueB, 1)
   row.value:Show()

@@ -20,6 +20,17 @@ local function ShownTexts(session)
   return texts
 end
 
+local function FindFontString(session, text)
+  for _, frame in ipairs(session.frames) do
+    for _, fontString in ipairs(frame._fontStrings or {}) do
+      if type(fontString.GetText) == "function" and fontString:GetText() == text then
+        return fontString
+      end
+    end
+  end
+  return nil
+end
+
 local function SeenBefore(id)
   return function(globals)
     globals.IsiLiveDB.whatsNewSeen = id
@@ -38,6 +49,13 @@ return function(test, ctx)
       Assert.Nil(ShownTexts(session)[TITLE_EN], "the card waits for the login delay")
       session.Advance(WhatsNew.LOGIN_DELAY_SECONDS)
       Assert.True(ShownTexts(session)[TITLE_EN] == true, "the card appears after the login delay")
+      local label = FindFontString(session, "What")
+      local value = FindFontString(session, "KR +15 expected: INTIME - 1:12 spare. Go for it! (via isiLive M+Addon)")
+      Assert.NotNil(label, "the card shows the What label")
+      Assert.NotNil(value, "the card shows the English example line")
+      local _, labelSize = label:GetFont()
+      local _, valueSize = value:GetFont()
+      Assert.True(valueSize < labelSize, "description values use the smaller compact font")
       Assert.Equal(db.whatsNewSeen, WhatsNew.GetLatest().id, "the shown card is marked seen")
     end)
   end)

@@ -22,13 +22,28 @@ WhatsNew.ENTRIES = {
         labelKey = "WHATS_NEW_LABEL_WHAT",
         labelFallback = "What",
         valueKey = "WHATS_NEW_PACE_ANNOUNCE_WHAT",
-        valueFallback = "Click the pace badge in the killtracker to post INTIME / OUT-OF-TIME to the group chat.",
+        valueFallback = "Click the time pace badge (ON TIME / CLOSE / TOO SLOW) on the right of the killtracker bar. "
+          .. "isiLive posts one short line to your group chat: INTIME or OUT-OF-TIME, the time to spare or "
+          .. "over the timer, and a short call-out for the group.",
+      },
+      {
+        labelKey = "WHATS_NEW_LABEL_EXAMPLE",
+        labelFallback = "Example",
+        -- The chat line itself is English in every language (rule 255).
+        valueFallback = "KR +15 expected: INTIME - 1:12 spare. Go for it! (via isiLive M+Addon)", -- i18n-ok
       },
       {
         labelKey = "WHATS_NEW_LABEL_WHEN",
         labelFallback = "When",
         valueKey = "WHATS_NEW_PACE_ANNOUNCE_WHEN",
-        valueFallback = "During a running key, also in combat.",
+        valueFallback = "While a key runs, also in combat, at most once every 10 seconds. The line is always "
+          .. "in English, so everyone in the group can read it.",
+      },
+      {
+        labelKey = "WHATS_NEW_LABEL_TIP",
+        labelFallback = "Tip",
+        valueKey = "WHATS_NEW_PACE_ANNOUNCE_TIP",
+        valueFallback = "Hover the badge to see the line before you post it.",
       },
     },
   },
@@ -65,9 +80,11 @@ end
 function WhatsNew.BuildNoticeOptions(entry, L)
   local fields = {}
   for _, field in ipairs(entry.fields or {}) do
+    -- Description values use the smaller compact field font.
     fields[#fields + 1] = {
       label = Text(L, field.labelKey, field.labelFallback),
-      value = Text(L, field.valueKey, field.valueFallback),
+      value = field.valueKey and Text(L, field.valueKey, field.valueFallback) or field.valueFallback,
+      compact = true,
     }
   end
   return {
