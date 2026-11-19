@@ -120,8 +120,10 @@ local function ReadActiveKey()
   if type(getMapID) ~= "function" or type(getKeystone) ~= "function" then
     return nil
   end
-  local okMap, mapID = pcall(getMapID)
-  local okLevel, level = pcall(getKeystone)
+  -- Both results are rejected by IsSecret (Validators.IsSecretValue) on the
+  -- next line before any other use.
+  local okMap, mapID = pcall(getMapID) -- secret-value-ok
+  local okLevel, level = pcall(getKeystone) -- secret-value-ok
   if not okMap or not okLevel or IsSecret(mapID) or IsSecret(level) then
     return nil
   end
