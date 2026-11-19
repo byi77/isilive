@@ -3914,6 +3914,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - TimePaceAnnounce builds the short English expectation line
   - TimePace badge click posts the expectation to the group chat, also in combat
+  - TimePace badge hover shows the announce tooltip with the line and hides it again
   - TimePace badge click outside a group posts nothing and says why
 
 ### RULE-WHATS-NEW

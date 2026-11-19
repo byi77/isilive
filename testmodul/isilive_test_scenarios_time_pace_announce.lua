@@ -140,6 +140,40 @@ return function(test, ctx)
     end, Prepare)
   end)
 
+  test("TimePace badge hover shows the announce tooltip with the line and hides it again", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      local addon = session.addon
+      local row = ShowBadge(ctx, session)
+      local badge = row.killTrackTimePaceBadge
+      local hover = Assert.NotNil(row.killTrackTimePaceHover, "the badge carries its hover highlight")
+      local expected = addon.TimePaceAnnounce.BuildLine(row.killTrackTimePaceStatus)
+
+      badge:GetScript("OnEnter")(badge)
+      Assert.True(hover._shown == true, "hover shows the highlight")
+      local tooltip = nil
+      for _, frame in ipairs(session.frames) do
+        if type(frame) == "table" and frame._isiLiveTooltipOwner == badge then
+          tooltip = frame
+        end
+      end
+      tooltip = Assert.NotNil(tooltip, "the roster tooltip is anchored to the badge")
+      Assert.True(tooltip._shown == true, "the tooltip is shown")
+      local texts = {}
+      for _, line in ipairs(tooltip._isiLiveTooltipLines or {}) do
+        if type(line) == "table" and type(line.GetText) == "function" then
+          texts[#texts + 1] = tostring(line:GetText())
+        end
+      end
+      Assert.True(#texts >= 3, "title, hint and the line that would be posted")
+      Assert.Equal(texts[3], expected, "the tooltip previews the posted line")
+
+      badge:GetScript("OnLeave")(badge)
+      Assert.True(hover._shown ~= true, "leaving hides the highlight")
+      Assert.True(tooltip._shown ~= true, "leaving hides the tooltip")
+      Assert.Equal(#session.chat, 0, "hovering posts nothing")
+    end, Prepare)
+  end)
+
   test("TimePace badge click outside a group posts nothing and says why", function()
     Stress.WithKey(ctx, Fixture, function(session)
       local row = ShowBadge(ctx, session)
