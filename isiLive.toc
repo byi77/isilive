@@ -4,6 +4,8 @@
 ## Author: mematiWoW
 ## Version: 0.9.522
 ## SavedVariables: IsiLiveDB
+## OptionalDependencies: WagoAnalytics
+## X-Wago-ID: rN4r1zKD
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 ## AddonCompartmentFunc: isiLive_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: isiLive_OnAddonCompartmentEnter
@@ -63,6 +65,7 @@ game/isiLive_ilvl_bands.lua
 game/isiLive_season_debug.lua
 game/isiLive_api_health.lua
 game/isiLive_chat_history.lua
+game/isiLive_wago_stats.lua
 game/isiLive_dungeon_location.lua
 data/isiLive_mplus_forces.lua
 data/isiLive_forces_seed.lua

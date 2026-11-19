@@ -338,6 +338,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 254. `/isilive report` und der Button `Fehlerbericht erstellen` (Einstellungen > Support, letzte Rubrik) packen Fehlerlog und Laufzeit-Log ohne Charakternamen in einen kopierbaren String (`!isiLive:1!` + Base64(Gzip) + `!End:isiLive:1!`) und zeigen ihn mit der Adresse der Bericht-Seite markiert in einem Kopierfenster; nur fuer die Fehlersuche, nichts wird gezaehlt oder aufbewahrt.
 255. Ein Linksklick auf das Zeit-Pace-Badge im Killtracker postet die Erwartung des Badges als eine englische Zeile in den Gruppenchat (`<Kuerzel> +<Stufe> expected: INTIME|OUT-OF-TIME[ (close)] - <m:ss> spare|over. <Zuruf> (via isiLive M+Addon)`), nur in Gruppe, auch im Kampf, hoechstens einmal pro 10 Sekunden; ohne laufenden Key nur als lokale Vorschau.
 256. Nach dem Login zeigt isiLive einmalig eine What's-New-Karte (bestehende Center-Notice-Karte) fuer den neuesten Eintrag in `WhatsNew.ENTRIES`; die gesehene ID steht in `IsiLiveDB.whatsNewSeen`, und die Karte kommt erst mit einem neuen Eintrag wieder.
+257. Ist das Addon `WagoAnalytics` der Wago App geladen, meldet isiLive beim Login unter seiner `X-Wago-ID` einmal pro Sitzung anonym einen Sitzungszaehler, das aktive Design und ob TTK an ist; ohne das Addon oder die ID passiert nichts, Namen und Lua-Fehler werden nie gemeldet.
 
 ## Regelbloecke
 
@@ -3923,3 +3924,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - WhatsNew shows the newest feature card once after login and marks it seen
   - WhatsNew stays silent after login when the newest card was seen
   - WhatsNew shows again only for a newer entry
+
+### RULE-WAGO-STATISTIK
+- Regelnummer: 257
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-19 (Nutzungsstatistik ueber Wago Analytics; nur Statistik, keine Nutzerdaten; Wago-Projekt-ID `rN4r1zKD`). `isiLive.toc` traegt `## X-Wago-ID: rN4r1zKD` und `## OptionalDependencies: WagoAnalytics`. `game/isiLive_wago_stats.lua` (`WagoStats`) registriert isiLive beim `PLAYER_LOGIN` (eigener Login-Frame wie beim Chat-Verlauf) ueber das globale `WagoAnalytics:Register(<X-Wago-ID>, { reportErrors = false })`; die ID wird aus den TOC-Metadaten gelesen (`C_AddOns.GetAddOnMetadata`). Fehlt das Addon `WagoAnalytics` (es kommt mit der Wago App, nicht mit isiLive) oder die ID, passiert nichts (fail-closed, kein Ersatz). Pro Sitzung meldet isiLive einmal: Zaehler `sessions` +1, Schalter `design_modern` / `design_classic` nach `IsiLiveDB.uiDesign` (Standard modern) und `ttk_enabled` nach `IsiLiveDB.ttkEnabled` (Pattern A). isiLive meldet keine Namen und keine Lua-Fehler; alle Aufrufe laufen ueber `pcall`, ein Fehler der Bibliothek beruehrt isiLive nicht. Die Daten speichert und uebertraegt die Wago App; das Abschalten liegt dort beim Nutzer.
+- Erforderliche Tests:
+  - WagoStats reports one session, the design and TTK under the TOC Wago ID
+  - WagoStats defaults to modern design and TTK on for a fresh database
+  - WagoStats does nothing without the Wago addon or the Wago ID
