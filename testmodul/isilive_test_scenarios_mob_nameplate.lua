@@ -1533,7 +1533,7 @@ local function RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonM
           end,
         },
         MPlusForces = {
-          season = "midnight_s1",
+          season = "fixture_other",
           byNpcId = { [76132] = { mapID = 588, count = 5 } },
           dungeonTotal = { [588] = { total = 100 } },
         },

@@ -78,14 +78,27 @@ Paket 3 (P0/P1):
   `/isilive selftest` pruefen.
 
 Paket 4 (P1):
-- [ ] G: Test rendert alle 32 Belegungen der Navigator-Slots ueber den echten
-  Layout-Builder (Clipping/Ueberlappung). Anlass: Clipping-Fix am S2-Starttag,
-  weil erstmals der mittlere Slot belegt war.
-- [ ] H: Generisches `wowsim season_smoke --season=<id>`, Erwartungswerte aus
-  `docs/SEASON_INTAKE.md` statt kopierter Tabelle je Season.
-- [ ] I: Season-ID-Literale aus `testmodul/` entfernen (Stand: 85x die aktive
-  Season-ID). Tests auf Produktionsdaten lesen `activeSeasonID` und das Intake,
-  Verhaltenstests nutzen die Fixture-Season; Gate gegen neue Literale.
+- [x] G: wowsim-Szenario `navigator_layouts` rendert alle 32 Belegungen der
+  Navigator-Slots mit den laengsten Dungeonnamen und prueft: jeder Text in der
+  Karte, keine Ueberlappung, kein abgeschnittener einzeiliger Text (Regel 263,
+  alle fuenf UI-Sprachen, in der CI). wowsim schaetzt dafuer jetzt auch
+  Zeilenumbrueche. Gegenprobe: mit der alten zu knappen Kartenhoehe meldet es
+  112 Funde, genau den S2-Starttag-Fehler.
+- [x] H: wowsim-Szenario `season_smoke` fuer jede Season (`--season <id>`,
+  Standard `upcomingSeasonID`, sonst `activeSeasonID`). Blizzard fuehrt im
+  Simulator die gewaehlte Season, isiLive muss zur Laufzeit umschalten (echte
+  Tag-0-Probe); IDs kommen aus `docs/SEASON_INTAKE.md`. Ersetzt
+  `season_s2_smoke`. In der CI in enUS und deDE.
+- [x] I: Tests laufen auf einem eingefrorenen Referenz-Stand der Season-Daten
+  (`testmodul/isilive_test_reference_seasons.lua`,
+  `testmodul/isilive_test_reference_forces.lua`). Ein Saisonwechsel bricht
+  statt 105 nur noch 2 Tests, beide gewollte Erinnerungen (Forces-DB neu
+  erzeugen, `docs/WARTUNG.md` auf die neue aktive Season umstellen). Gate:
+  nur fest gelistete Testdateien lesen die echten `data/`-Season-Dateien.
+- Notiz aus G/H: Drei wowsim-Szenarien schlagen schon vor Paket 4 fehl, weil
+  wowsim bisher nicht in der CI lief: `card_stack` (1), `language_dungeon_names`
+  (9), `offseason` (1). `PORTAL_NAVIGATOR_UNOCCUPIED` ist in frFR, ruRU und
+  trTR nicht uebersetzt ("Unoccupied").
 
 Paket 5 (P1/P2):
 - [ ] J: Hartkodierte IDs ausserhalb `data/` in Manifeste verschieben und per
@@ -301,6 +314,11 @@ Pause nachgewiesen werden.
 - [ ] Maintainer spiegeln dauerhafte interne Wartungs-Learnings zusaetzlich in
   den dafuer vorgesehenen privaten Workspace; externe Beitragende ueberspringen
   diesen internen Schritt.
+- [ ] Nach dem Umstellen von `activeSeasonID`: genau zwei Tests duerfen
+  fehlschlagen und erinnern an Pflicht-Schritte ("Season readiness inspect ..."
+  -> Forces-DB fuer die neue aktive Season erzeugen; "Maintenance doc names
+  only the manifest activeSeasonID ..." -> `docs/WARTUNG.md` 3.4 umstellen).
+  Jeder weitere Fehlschlag ist ein Fehler.
 - [ ] Den vollstaendigen lokalen CI-Lauf starten:
   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1`.
 - [ ] Erst abschliessen, wenn CI, Coverage-Gates und alle Simulatoren gruen sind.

@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local REFERENCE_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
+
 -- Scenarios for the EventHandlers wiring surface of
 -- factory/isiLive_controller_wiring.lua. The existing
 -- isilive_test_scenarios_controller_wiring.lua file focuses on
@@ -484,9 +487,13 @@ return function(test, ctx)
       Assert.Equal(breakNotices, 1, "entering the off season prints one chat line")
       refresh("PLAYER_REGEN_ENABLED")
       Assert.True(addon.SeasonData.IsOffSeason(), "a catch-up without server answer keeps the off season")
-      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "the off season never changes the season")
+      Assert.Equal(
+        addon.SeasonData.GetActiveSeasonID(),
+        REFERENCE_ACTIVE_SEASON_ID,
+        "the off season never changes the season"
+      )
 
-      mapTable = addon.SeasonData.GetOrderedMapIDs("midnight_s2")
+      mapTable = addon.SeasonData.GetOrderedMapIDs(REFERENCE_ACTIVE_SEASON_ID)
       refresh("CHALLENGE_MODE_MAPS_UPDATE")
       Assert.Equal(addon.SeasonData.GetBlizzardSeasonState(), "active", "the season map set ends the off season")
       Assert.Equal(repaints, 2, "leaving the off season repaints once")
@@ -531,11 +538,15 @@ return function(test, ctx)
       Assert.True(addon.SeasonData.IsSeasonUnrecognized(), "an unknown map set marks the season unrecognized")
       Assert.Equal(#printed, 1, "the unknown season prints one chat line")
       Assert.True(printed[1]:find("unknown season, update", 1, true) ~= nil, "the line carries the localized text")
-      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "the active season stays the fallback")
+      Assert.Equal(
+        addon.SeasonData.GetActiveSeasonID(),
+        REFERENCE_ACTIVE_SEASON_ID,
+        "the active season stays the fallback"
+      )
       refresh("CHALLENGE_MODE_MAPS_UPDATE")
       Assert.Equal(#printed, 1, "an unchanged state prints nothing")
 
-      mapTable = addon.SeasonData.GetOrderedMapIDs("midnight_s2")
+      mapTable = addon.SeasonData.GetOrderedMapIDs(REFERENCE_ACTIVE_SEASON_ID)
       refresh("CHALLENGE_MODE_MAPS_UPDATE")
       mapTable = { 9991, 9992 }
       refresh("CHALLENGE_MODE_MAPS_UPDATE")

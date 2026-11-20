@@ -16,7 +16,7 @@ end
 
 local function NewMplusForcesDB()
   return {
-    season = "midnight_s1",
+    season = "fixture_other",
     mdtVersion = "test",
     generatedAt = "2026-04-21",
     expiresAt = "2026-05-06",

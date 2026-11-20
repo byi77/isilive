@@ -74,7 +74,7 @@ return {
       #sim.FindLog("print", "does not know the current Mythic%+ season", nil, since) == 1,
       "the update notice appears once per session"
     )
-    sim.Expect(addon.SeasonData.GetActiveSeasonID() == "midnight_s2", "the active season stays the fallback")
+    sim.Expect(addon.SeasonData.GetActiveSeasonID() == sim.world.seasonID, "the active season stays the fallback")
     -- Rule 259: the fallback is kept, but none of its data is served.
     sim.Expect(addon.SeasonData.GetServedSeasonID() == nil, "no season is served")
     sim.Expect(next(addon.SeasonData.GetMapToTeleport()) == nil, "no portals of the previous season")

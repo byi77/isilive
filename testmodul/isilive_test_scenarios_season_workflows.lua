@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local SHIPPED_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ShippedActiveSeasonID()
+
 local ioLib = rawget(_G, "io")
 local osLib = rawget(_G, "os")
 
@@ -59,7 +62,7 @@ return function(test, ctx)
       "season readiness inspect must emit a markdown heading"
     )
     Assert.True(
-      summary:find("- Active season: midnight_s2", 1, true) ~= nil,
+      summary:find("- Active season: " .. SHIPPED_ACTIVE_SEASON_ID, 1, true) ~= nil,
       "season readiness inspect must report the persisted active season"
     )
     Assert.True(

@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local REFERENCE_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
+
 -- Scenarios for the central runtime-profile resolver in
 -- core/isiLive_runtime_mode.lua plus the two contracts that depend on it:
 -- the raid hard-off at event-registration level, and the group chat / addon
@@ -115,7 +118,9 @@ return function(test, ctx)
       Assert.Equal(addon.RuntimeMode.Resolve(), "KEY", "heroic runs the full profile during the off season")
       Assert.False(addon.RuntimeMode.IsActiveChallenge(), "the off season never fakes a running key")
       Assert.False(addon.RuntimeMode.IsFullProfileDifficulty(2), "run tracking keeps heroic out")
-      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(addon.SeasonData.GetOrderedMapIDs("midnight_s2"))
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(
+        addon.SeasonData.GetOrderedMapIDs(REFERENCE_ACTIVE_SEASON_ID)
+      )
       Assert.Equal(addon.RuntimeMode.Resolve(), "IDLE", "a season map set ends the heroic full profile")
     end)
     WithGlobals(BuildInstanceGlobals("party", 1, nil), function()

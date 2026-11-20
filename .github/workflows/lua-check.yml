@@ -234,6 +234,20 @@ jobs:
         run: |
           lua tools/simulate_mplus_timer_lifecycle.lua
 
+      # Rule 263 (package 4 G/H): the season smoke checks the runtime switch,
+      # portal buttons, LFG detection and navigator against the verified intake;
+      # the navigator layouts render all 32 slot combinations per UI language.
+      - name: wowsim Season Smoke
+        run: |
+          lua tools/wowsim/wowsim.lua season_smoke --locale enUS --quiet
+          lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet
+
+      - name: wowsim Navigator Layouts
+        run: |
+          for locale in enUS deDE frFR ruRU trTR; do
+            lua tools/wowsim/wowsim.lua navigator_layouts --locale "${locale}" --quiet
+          done
+
       # Twelve simulators used to exist without any pipeline calling them, and
       # five of those were failing unnoticed -- three since 2026-07-23, broken
       # by a runtime-hardening commit. A simulator no gate runs is dead weight

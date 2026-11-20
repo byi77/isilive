@@ -77,6 +77,36 @@ local function CountLines(text)
   return n + 1
 end
 
+-- Lines a font string renders: explicit line breaks, and with word wrap on
+-- and a set width, a greedy break at spaces like the client's (rule 263,
+-- package 4 G: a long dungeon name wraps onto a second line in the portal
+-- navigator). A single word wider than the width stays on one line.
+local function CountRenderedLines(text, size, width, wrap)
+  if not wrap or not width or width <= 0 then
+    return CountLines(text)
+  end
+  local glyph = (size or 12) * 0.55
+  local spaceWidth = glyph
+  local total = 0
+  local s = StripEscapes(tostring(text or ""):gsub("|n", "\n"))
+  for paragraph in (s .. "\n"):gmatch("(.-)\n") do
+    local lines, lineWidth = 1, 0
+    for word in paragraph:gmatch("%S+") do
+      local wordWidth = Utf8Len(word) * glyph
+      if lineWidth == 0 then
+        lineWidth = wordWidth
+      elseif lineWidth + spaceWidth + wordWidth <= width then
+        lineWidth = lineWidth + spaceWidth + wordWidth
+      else
+        lines = lines + 1
+        lineWidth = wordWidth
+      end
+    end
+    total = total + lines
+  end
+  return math.max(1, total)
+end
+
 local function CopyColor(r, g, b, a)
   if type(r) == "table" then
     return { r.r or r[1] or 1, r.g or r[2] or 1, r.b or r[3] or 1, r.a or r[4] or 1 }
@@ -604,14 +634,15 @@ local function DefineFonts(engine, M)
   end
   function FontString:GetStringHeight()
     local _, size = self:GetFont()
-    return CountLines(self._text) * (size or 12) * 1.15
+    return CountRenderedLines(self._text, size, self._w, self._wrap ~= false) * (size or 12) * 1.15
   end
   function FontString:GetLineHeight()
     local _, size = self:GetFont()
     return size or 12
   end
   function FontString:GetNumLines()
-    return CountLines(self._text)
+    local _, size = self:GetFont()
+    return CountRenderedLines(self._text, size, self._w, self._wrap ~= false)
   end
   function FontString:IsTruncated()
     local w = self._w
@@ -1789,7 +1820,7 @@ local function DefineLayoutAndSnapshot(engine, M)
         w = EstimateTextWidth(obj._text, size)
       end
       if not h or h == 0 then
-        h = CountLines(obj._text) * (size or 12) * 1.15
+        h = CountRenderedLines(obj._text, size, obj._w, obj._wrap ~= false) * (size or 12) * 1.15
       end
     end
     return w, h

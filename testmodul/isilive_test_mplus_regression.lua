@@ -32,7 +32,7 @@ local function Prepare(globals, session)
   -- Recorded file-backed DB, frozen at its generation date. The independent
   -- lifetime gate still checks the real current date in both CI paths.
   local data = {}
-  assert(loadfile("data/isiLive_mplus_forces.lua"))("isiLive", data)
+  assert(loadfile("testmodul/isilive_test_reference_forces.lua"))("isiLive", data)
   session.forcesDB = data.MPlusForces
   globals.date = function()
     return session.forcesDB.generatedAt

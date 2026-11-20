@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local REFERENCE_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
+
 -- Time pace for the M+ killtracker (rule 208).
 --
 -- End-to-end through the real modules: KillTrack reads the scenario criteria
@@ -310,7 +313,9 @@ local function RegisterLearningTests(test, Assert, WithGlobals, LoadAddonModules
       Assert.True(type(forcesRoot) ~= "table" or next(forcesRoot) == nil, "no forces route under the stale season")
 
       -- Once the season is known again, learning resumes.
-      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(addon.SeasonData.GetOrderedMapIDs("midnight_s2"))
+      addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(
+        addon.SeasonData.GetOrderedMapIDs(REFERENCE_ACTIVE_SEASON_ID)
+      )
       env.clock = 6000
       PlayRun(addon, env, 1500)
       Assert.NotNil(GetReference(addon, env.db), "a recognized season learns again")

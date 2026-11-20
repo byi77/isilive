@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local REFERENCE_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
+
 -- Branch-coverage scenarios for game/isiLive_season_data.lua. Targets the
 -- readiness validator (every error/warning branch), the data-shape error
 -- paths in SetActiveSeasonID, and the locale fallbacks in GetDungeonName /
@@ -18,7 +21,8 @@ local function LoadSeasonDataWithFixture(LoadAddonModules)
   return FixtureSeasons.Install(LoadSeasonData(LoadAddonModules))
 end
 
--- The harness always loads data/isiLive_seasons.lua as a dependency, which
+-- The harness always loads the season manifest (the frozen test reference
+-- testmodul/isilive_test_reference_seasons.lua) as a dependency, which
 -- replaces a seeded SeasonManifest. Recompile SeasonData against the given
 -- manifest on top of the loaded modules instead.
 local function LoadSeasonDataWithManifest(LoadAddonModules, manifest)
@@ -730,7 +734,7 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
   test("SeasonData Blizzard season state follows the challenge map list", function()
     local addon = LoadSeasonData(LoadAddonModules)
     local seasonData = addon.SeasonData
-    local s2Maps = seasonData.GetOrderedMapIDs("midnight_s2")
+    local s2Maps = seasonData.GetOrderedMapIDs(REFERENCE_ACTIVE_SEASON_ID)
     Assert.Equal(seasonData.GetBlizzardSeasonState(), "unknown", "nothing observed yet")
 
     seasonData.TryAutoSelectSeasonFromChallengeMapIDs({})
@@ -741,7 +745,11 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
     Assert.True(seasonData.IsOffSeason(), "a missing list keeps the state")
     seasonData.TryAutoSelectSeasonFromChallengeMapIDs({})
     Assert.True(seasonData.IsOffSeason(), "an unconfirmed empty list keeps the off season")
-    Assert.Equal(seasonData.GetActiveSeasonID(), "midnight_s2", "the off season never changes the active season")
+    Assert.Equal(
+      seasonData.GetActiveSeasonID(),
+      REFERENCE_ACTIVE_SEASON_ID,
+      "the off season never changes the active season"
+    )
 
     seasonData.TryAutoSelectSeasonFromChallengeMapIDs(s2Maps)
     Assert.Equal(seasonData.GetBlizzardSeasonState(), "active", "an exact ready set is an active season")
@@ -749,7 +757,11 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
 
     seasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 9991, 9992 })
     Assert.True(seasonData.IsSeasonUnrecognized(), "a non-empty unknown set is an unrecognized season")
-    Assert.Equal(seasonData.GetActiveSeasonID(), "midnight_s2", "an unrecognized season keeps the fallback")
+    Assert.Equal(
+      seasonData.GetActiveSeasonID(),
+      REFERENCE_ACTIVE_SEASON_ID,
+      "an unrecognized season keeps the fallback"
+    )
 
     seasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 9991, 9991 })
     Assert.Equal(seasonData.GetBlizzardSeasonState(), "unknown", "a malformed list is inconclusive")
@@ -1023,7 +1035,10 @@ local function RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
     local addon = LoadSeasonData(LoadAddonModules)
     local manifest = addon.SeasonData.MANIFEST
     local source = manifest and manifest.seasons and manifest.seasons.midnight_s2
-    Assert.Equal(manifest.activeSeasonID, "midnight_s2", "manifest must own the active season id")
+    Assert.True(
+      type(manifest.activeSeasonID) == "string" and manifest.seasons[manifest.activeSeasonID] ~= nil,
+      "manifest must own the active season id"
+    )
     Assert.Equal(#source.dungeons, 8, "S2 must be maintained as eight normalized dungeon records")
     Assert.Equal(
       addon.SeasonData.GetMapIDByActivityID(1933, "midnight_s2"),
@@ -1304,6 +1319,53 @@ end
 
 -- Rule 259: while Blizzard runs a map set no configured season knows, the
 -- runtime serves no season data instead of the previous season's portals.
+-- Maintenance package 4 I: behavior tests run on the frozen test reference, so
+-- a season change in data/ breaks no behavior test. Only the files below read
+-- the shipped season data on purpose (production checks and the fixtures that
+-- build on it). A new file that reads it would couple its tests to the next
+-- season change again.
+local SHIPPED_DATA_READERS = {
+  ["testmodul/isilive_test_fixture_seasons.lua"] = "shipped active season id, reference active season id",
+  ["testmodul/isilive_test_fixture_seasons_manifest.lua"] = "shipped manifest plus the fixture season for tools",
+  ["testmodul/isilive_test_scenarios_mplus_db_lifetime.lua"] = "lifetime gate on the shipped forces DB",
+  ["testmodul/isilive_test_scenarios_season_workflows.lua"] = "intake, readiness and MDT tools on the shipped data",
+}
+
+local function RegisterTestReferenceTests(test, Assert)
+  test("Behavior tests read the frozen season reference, not the shipped season data", function()
+    local handle = assert(io.popen(package.config:sub(1, 1) == "\\" and "dir /b testmodul\\*.lua" or "ls testmodul"))
+    local offenders = {}
+    for name in handle:lines() do
+      if name:match("%.lua$") then
+        local path = "testmodul/" .. name
+        local file = assert(io.open(path, "rb"))
+        local content = file:read("*a")
+        file:close()
+        local reads = false
+        for _, reader in ipairs({ "loadfile", "dofile", "io%.open", "ioLib%.open", "ReadFile" }) do
+          for _, dataFile in ipairs({ "isiLive_seasons", "isiLive_mplus_forces" }) do
+            reads = reads or content:find(reader .. '%(%s*"data/' .. dataFile .. '%.lua"') ~= nil
+          end
+        end
+        if reads and not SHIPPED_DATA_READERS[path] then
+          offenders[#offenders + 1] = path
+        end
+      end
+    end
+    handle:close()
+    table.sort(offenders)
+    Assert.Equal(table.concat(offenders, ", "), "", "only the listed files read data/ season files")
+
+    local harness = assert(io.open("testmodul/isilive_test_harness.lua", "rb"))
+    local harnessText = harness:read("*a")
+    harness:close()
+    Assert.True(
+      harnessText:find('["isiLive_seasons.lua"] = "testmodul/isilive_test_reference_seasons.lua"', 1, true) ~= nil,
+      "the harness loads the frozen reference for the season manifest"
+    )
+  end)
+end
+
 -- Rule 260: the forces DB holds one section per season, so a prepared season
 -- has its mob percentages as soon as Blizzard ships it.
 local function RegisterForcesSectionTests(test, Assert, LoadAddonModules)
@@ -1407,4 +1469,5 @@ return function(test, ctx)
   RegisterLocalizedNameTests(test, Assert, LoadAddonModules, ctx.with_globals)
   RegisterUnrecognizedSeasonTests(test, Assert, LoadAddonModules, ctx.with_globals)
   RegisterForcesSectionTests(test, Assert, LoadAddonModules)
+  RegisterTestReferenceTests(test, Assert)
 end

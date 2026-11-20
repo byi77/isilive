@@ -587,7 +587,7 @@ local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddon
           end,
         },
         MPlusForces = {
-          season = "midnight_s1",
+          season = "fixture_other",
           dungeonTotal = { [588] = { total = 999 } },
           byNpcId = {},
         },
@@ -605,7 +605,7 @@ local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddon
     WithGlobals(env.globals, function()
       local reads = 0
       local seasonData = {
-        ACTIVE_SEASON_ID = "midnight_s1",
+        ACTIVE_SEASON_ID = "fixture_first",
         GetMatchingForcesData = function()
           reads = reads + 1
           return nil
@@ -618,7 +618,7 @@ local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddon
       end
       Assert.Equal(reads, 1, "one run must resolve the Forces DB once, including a miss")
 
-      seasonData.ACTIVE_SEASON_ID = "midnight_s2"
+      seasonData.ACTIVE_SEASON_ID = "fixture_second"
       addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
       Assert.Equal(reads, 2, "a season switch must re-resolve the Forces DB")
 

@@ -20,6 +20,9 @@
 --     <scenario>          name in tools/wowsim/scenarios/ or a path to a .lua file
 --     --out <dir>         output directory (default tools/wowsim/out)
 --     --locale <tag>      client locale for the focus client (default from scenario / enUS)
+--     --season <id>       season Blizzard runs in the simulation (its dungeons form the
+--                         challenge-map list; default: scenario `season` or activeSeasonID)
+--     --param key=value   free scenario parameter, read with sim.Param(key)
 --     --screen <WxH>      UI size in UI units (default 1920x1080)
 --     --savedvars <path>  load IsiLiveDB from a WTF SavedVariables file ("auto" = first found)
 --     --quiet             do not echo the log to stdout
@@ -164,7 +167,7 @@ end
 -------------------------------------------------------------------------------
 -- Argument parsing
 -------------------------------------------------------------------------------
-local args = { out = SCRIPT_DIR .. "/out" }
+local args = { out = SCRIPT_DIR .. "/out", params = {} }
 do
   local i = 1
   while arg and i <= #arg do
@@ -181,6 +184,15 @@ do
       i = i + 1
     elseif a == "--savedvars" then
       args.savedvars = arg[i + 1]
+      i = i + 1
+    elseif a == "--season" then
+      args.params.season = arg[i + 1]
+      i = i + 1
+    elseif a == "--param" then
+      local key, value = tostring(arg[i + 1]):match("^([%w_]+)=(.*)$")
+      if key then
+        args.params[key] = value
+      end
       i = i + 1
     elseif a == "--quiet" then
       args.quiet = true
@@ -228,15 +240,23 @@ local scenarioName = scenario.name or args.scenario:match("([^/\\]+)%.lua$") or 
 local tocFiles, tocMeta = ReadToc()
 local specManifest = LoadAddonData("data/isiLive_specs.lua").SpecManifest.specs
 local seasonManifest = LoadAddonData("data/isiLive_seasons.lua").SeasonManifest
-local forcesDB = LoadAddonData("data/isiLive_mplus_forces.lua").MPlusForces
+local forcesData = LoadAddonData("data/isiLive_mplus_forces.lua")
 
 local world = World.New({ specManifest = specManifest, zone = scenario.zone })
 
--- Challenge maps of the active season. Time limits are not part of the
--- addon's data; the scenario may override them, otherwise 30 minutes.
+-- The season Blizzard "runs" in this simulation: `--season <id>`, else the
+-- scenario's `season` field, else the manifest's activeSeasonID. Its dungeons
+-- become the challenge-map list, so a prepared season switches at runtime
+-- exactly as on launch day (scenario `season_smoke`). Time limits are not
+-- part of the addon's data; the scenario may override them, otherwise 30 min.
+world.seasonID = args.params.season or scenario.season or seasonManifest.activeSeasonID
+assert(seasonManifest.seasons[world.seasonID], "unknown season " .. tostring(world.seasonID))
+local forcesDB = (type(forcesData.MPlusForcesBySeason) == "table" and forcesData.MPlusForcesBySeason[world.seasonID])
+  or forcesData.MPlusForces
+  or {}
 world.challengeMaps = {}
 do
-  local season = seasonManifest.seasons[seasonManifest.activeSeasonID]
+  local season = seasonManifest.seasons[world.seasonID]
   for _, d in ipairs(season and season.dungeons or {}) do
     local total = forcesDB.dungeonTotal and forcesDB.dungeonTotal[d.mapID]
     world.challengeMaps[d.mapID] = {
@@ -474,6 +494,11 @@ end
 
 function sim.Fire(event, ...)
   world.FireAll(event, ...)
+end
+
+-- Command-line parameter (`--param key=value`, `--season <id>`) or nil.
+function sim.Param(key)
+  return args.params[key]
 end
 
 function sim.Slash(text, name)

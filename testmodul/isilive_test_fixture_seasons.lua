@@ -103,4 +103,23 @@ end
 -- for offline tools that take a manifest path, e.g. tools/check_mplus_db_lifetime.lua.
 FixtureSeasons.MANIFEST_PATH = "testmodul/isilive_test_fixture_seasons_manifest.lua"
 
+-- The activeSeasonID of the frozen test reference manifest, which the harness
+-- loads for `isiLive_seasons.lua`. Tests on modules loaded through the harness
+-- compare against this one.
+function FixtureSeasons.ReferenceActiveSeasonID()
+  local addon = {}
+  assert(loadfile("testmodul/isilive_test_reference_seasons.lua"))("isiLive", addon)
+  return addon.SeasonManifest.activeSeasonID
+end
+
+-- The activeSeasonID of the shipped data/isiLive_seasons.lua. Tests that check
+-- "the active season" read it here instead of naming a season, so switching
+-- activeSeasonID at a season change breaks no test (maintainability package
+-- 4 I; the gate is "Tests name shipped season IDs only within their budget").
+function FixtureSeasons.ShippedActiveSeasonID()
+  local addon = {}
+  assert(loadfile("data/isiLive_seasons.lua"))("isiLive", addon)
+  return addon.SeasonManifest.activeSeasonID
+end
+
 return FixtureSeasons

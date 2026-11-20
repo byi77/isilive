@@ -1,3 +1,6 @@
+local REFERENCE_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
+
 local function BuildCreateFrameStub()
   local createdFrames = {}
 
@@ -123,7 +126,11 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_teleport.lua",
       })
 
-      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "runtime should default to midnight_s2")
+      Assert.Equal(
+        addon.SeasonData.GetActiveSeasonID(),
+        REFERENCE_ACTIVE_SEASON_ID,
+        "runtime defaults to the shipped active season"
+      )
       Assert.True(
         addon.SeasonData.HasActiveDungeons(),
         "runtime should expose the active Midnight Season 2 portal pool"

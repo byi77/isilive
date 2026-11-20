@@ -1498,6 +1498,18 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       workflowContent,
+      "lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet",
+      "workflow must keep the wowsim season smoke gate (rule 263)"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "lua tools/wowsim/wowsim.lua navigator_layouts",
+      "workflow must keep the wowsim navigator layouts gate (rule 263)"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
       "lua tools/check_sound_channel.lua",
       "workflow must keep the sound-channel gate"
     )
@@ -1965,6 +1977,18 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Invoke-CheckedCommand "Reload-Storm Simulator" "lua tools/simulate_reload_storm.lua"',
       "local preflight must run the reload-storm simulator gate"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      "lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet",
+      "local preflight must run the wowsim season smoke gate (rule 263)"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      "lua tools/wowsim/wowsim.lua navigator_layouts",
+      "local preflight must run the wowsim navigator layouts gate (rule 263)"
     )
     AssertContains(
       Assert,

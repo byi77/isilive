@@ -398,7 +398,7 @@ local function RegisterSpellUtilsBranchTests(test, Assert, WithGlobals, LoadAddo
       local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
       addon.SeasonData = {
         SEASONS = {
-          midnight_s1 = {
+          fixture_other = {
             mapToTeleport = {
               [556] = 1254555,
             },

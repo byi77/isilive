@@ -16,7 +16,7 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
 
   test("LFGDetect resolves an M0 or heroic dungeon listing of the active season", function()
-    -- Den of Nalorakk (586) is a midnight_s2 dungeon; its instance is 2825
+    -- Den of Nalorakk (586) is a shipped season dungeon; its instance is 2825
     -- in this stub. A follower or old dungeon (instance 1234) is no season map.
     local activities = {
       [7701] = { mapID = 2825, isMythicPlusActivity = false, categoryID = 2 },

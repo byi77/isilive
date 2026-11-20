@@ -8,7 +8,8 @@
 local Fixture = dofile("testmodul/isilive_test_factory_fixture.lua")
 local Stress = dofile("testmodul/isilive_test_mplus_stress_helpers.lua")
 
--- King's Rest, a dungeon of the active season (data/isiLive_seasons.lua).
+-- King's Rest, a dungeon of the active season of the frozen test reference
+-- (testmodul/isilive_test_reference_seasons.lua).
 local SEASON_MAP_ID = 249
 -- The stress fixture's own key map: not part of the active season.
 local OFF_SEASON_MAP_ID = 2662

@@ -215,6 +215,12 @@ try {
   Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
   Invoke-CheckedCommand "M+ Regression Budget Simulator" "lua tools/simulate_mplus_regression.lua"
   Invoke-CheckedCommand "M+ Timer Lifecycle Simulator" "lua tools/simulate_mplus_timer_lifecycle.lua"
+  # Rule 263 (package 4 G/H): season smoke and the 32 navigator layouts in wowsim.
+  Invoke-CheckedCommand "wowsim Season Smoke enUS" "lua tools/wowsim/wowsim.lua season_smoke --locale enUS --quiet"
+  Invoke-CheckedCommand "wowsim Season Smoke deDE" "lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet"
+  foreach ($navigatorLocale in @("enUS", "deDE", "frFR", "ruRU", "trTR")) {
+    Invoke-CheckedCommand "wowsim Navigator Layouts $navigatorLocale" "lua tools/wowsim/wowsim.lua navigator_layouts --locale $navigatorLocale --quiet"
+  }
   # Twelve simulators used to exist without any pipeline calling them, and five
   # of those were failing unnoticed -- three since 2026-07-23, broken by a
   # runtime-hardening commit. A simulator no gate runs is dead weight rather

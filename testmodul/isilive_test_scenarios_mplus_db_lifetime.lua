@@ -1,5 +1,8 @@
 ---@diagnostic disable: undefined-global
 
+local SHIPPED_ACTIVE_SEASON_ID =
+  assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ShippedActiveSeasonID()
+
 local TOOL_PATH = "tools/check_mplus_db_lifetime.lua"
 
 local function LoadTool()
@@ -14,7 +17,7 @@ local function WriteDBFixture(path, expiresAt)
   local f = assert(io.open(path, "w"))
   f:write("local _, addonTable = ...\n")
   f:write("addonTable.MPlusForces = {\n")
-  f:write('  season = "midnight_s2",\n')
+  f:write(string.format("  season = %q,\n", SHIPPED_ACTIVE_SEASON_ID))
   f:write('  sourceCommit = "0123456789abcdef0123456789abcdef01234567",\n')
   f:write(string.format("  expiresAt = %q,\n", tostring(expiresAt)))
   f:write("  dungeonTotal = {},\n")
@@ -122,7 +125,10 @@ return function(test, ctx)
     WriteRawFixture(
       path,
       "local _, addonTable = ...\n"
-        .. 'addonTable.MPlusForces = { season = "midnight_s2", sourceCommit = "01234567", '
+        .. string.format(
+          'addonTable.MPlusForces = { season = %q, sourceCommit = "01234567", ',
+          SHIPPED_ACTIVE_SEASON_ID
+        )
         .. 'expiresAt = "2030-01-01", dungeonTotal = {}, byNpcId = {} }\n'
     )
     local code, msg = tool.Check(path, { today = "2026-04-21" })
@@ -135,7 +141,9 @@ return function(test, ctx)
     local tool = LoadTool()
     local path = TempPath("isilive_mplus_db_noexpiry.lua")
     WriteRawFixture(path, "local _, addonTable = ...\naddonTable.MPlusForces = { dungeonTotal = {}, byNpcId = {} }\n")
-    local code = tool.Check(path, { today = "2026-04-21" })
+    -- An empty active season id skips the season match, so the expiry check
+    -- runs whatever the shipped manifest's active season requires.
+    local code = tool.Check(path, { today = "2026-04-21", activeSeasonID = "" })
     Assert.Equal(2, code, "absent expiresAt must be a structural error")
     os.remove(path)
   end)
@@ -146,10 +154,11 @@ return function(test, ctx)
     WriteRawFixture(
       path,
       "local _, addonTable = ...\n"
-        .. 'addonTable.MPlusForces = { season = "midnight_s1", expiresAt = "2030-01-01", '
+        .. 'addonTable.MPlusForces = { season = "fixture_other", expiresAt = "2030-01-01", '
         .. "dungeonTotal = {}, byNpcId = {} }\n"
     )
-    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2", requiresForces = true })
+    local code, msg =
+      tool.Check(path, { today = "2026-04-21", activeSeasonID = "fixture_active", requiresForces = true })
     Assert.Equal(2, code, "season mismatch must be a structural error")
     Assert.True(tostring(msg):find("season mismatch", 1, true) ~= nil, "message must name the season mismatch")
     os.remove(path)
@@ -163,10 +172,11 @@ return function(test, ctx)
     WriteRawFixture(
       path,
       "local _, addonTable = ...\n"
-        .. 'addonTable.MPlusForces = { season = "midnight_s1", expiresAt = "2030-01-01", '
+        .. 'addonTable.MPlusForces = { season = "fixture_other", expiresAt = "2030-01-01", '
         .. "dungeonTotal = {}, byNpcId = {} }\n"
     )
-    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2", requiresForces = false })
+    local code, msg =
+      tool.Check(path, { today = "2026-04-21", activeSeasonID = "fixture_active", requiresForces = false })
     Assert.Equal(0, code, "a requiresForces = false season must not be blocked by a foreign DB: " .. tostring(msg))
     Assert.True(tostring(msg):find("requiresForces", 1, true) ~= nil, "message must name the skipped gate")
     os.remove(path)
@@ -182,7 +192,29 @@ return function(test, ctx)
 
     local path = TempPath("isilive_mplus_db_structure.lua")
     WriteDBFixture(path, "2030-01-01")
-    local code, msg = tool.CheckStructure(path, { activeSeasonID = "midnight_s2" })
+    -- A requiresForces = true season from a fixture manifest, so the check does
+    -- not depend on what the shipped active season requires.
+    local manifestPath = TempPath("isilive_mplus_db_structure_manifest.lua")
+    WriteRawFixture(
+      manifestPath,
+      table.concat({
+        "local _, addonTable = ...",
+        'local F = assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))()',
+        "local season = F.BuildSeason()",
+        "season.requiresForces = true",
+        'season.mdtDirectory = "Fixture"',
+        'addonTable.SeasonManifest = { activeSeasonID = "fixture_forces", seasons = { fixture_forces = season } }',
+        "",
+      }, "\n")
+    )
+    WriteRawFixture(
+      path,
+      "local _, addonTable = ...\n"
+        .. 'addonTable.MPlusForces = { season = "fixture_forces", expiresAt = "2030-01-01", '
+        .. "dungeonTotal = {}, byNpcId = {} }\n"
+    )
+    local code, msg = tool.CheckStructure(path, { activeSeasonID = "fixture_forces", seasonDataPath = manifestPath })
+    os.remove(manifestPath)
     Assert.Equal(2, code, "an empty DB for a requiresForces season must fail the structure gate")
     Assert.True(tostring(msg):find("missing a positive total", 1, true) ~= nil, "message must name the gap")
 
@@ -211,7 +243,7 @@ return function(test, ctx)
     -- filtering by season. That folder held exactly the Season 1 dungeons for
     -- one upstream generation and then started carrying Season 1 and Season 2
     -- side by side, which produced a 16-dungeon DB stamped
-    -- season = "midnight_s2". SeasonData rejects every out-of-season map id,
+    -- season = <active season>. SeasonData rejects every out-of-season map id,
     -- so the active season turned "not ready" and both SetActiveSeasonID and
     -- the automatic season switch would have refused to run -- while the
     -- lifetime gate above stayed green, because it only read the header.
