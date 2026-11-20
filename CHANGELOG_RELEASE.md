@@ -3,7 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.524`.
+Current version: `0.9.525`.
+
+Version 0.9.525: ready for patch day and season start. If a patch removes an
+event isiLive listens to, the rest of the addon keeps working. If Blizzard
+starts a season isiLive does not know yet, the portals of the previous season
+are no longer shown. A prepared season gets its mob percentages from launch
+day. After every client update isiLive checks itself once and writes one chat
+line only if something broke (details: /isilive selftest).
 
 Version 0.9.522: tell your group the pace with one click: click the time pace
 badge on the killtracker bar and isiLive posts one short English line to the
