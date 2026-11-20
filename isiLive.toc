@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.523
+## Version: 0.9.524
 ## SavedVariables: IsiLiveDB
 ## OptionalDependencies: WagoAnalytics
 ## X-Wago-ID: rN4r1zKD

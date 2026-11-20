@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.524 (patch)
+
+- Refactor: the composition root builds its controller contexts from small named dependency contracts per feature (`factory/isiLive_factory_contracts.lua`) instead of one hand-filled table; a key two contracts would both provide fails at load. Context assembly, the settings panel wiring and the IsiLiveDB migrations moved into their own factory files, `factory/isiLive_factory.lua` keeps the orchestration. No behavior change: the group and event-handler contexts carry the same keys and values.
+- Refactor: `logic/isiLive_sync.lua` is split into the wire codec (`isiLive_sync_codec.lua`), the transport (`isiLive_sync_transport.lua`) and the received peer data (`isiLive_sync_peer_state.lua`); the `Sync` facade and its public functions stay. No wire format change.
+- Fix: `Validators.IsFiniteNumber` treats a secret value as not finite instead of comparing it, so a caller without its own secret check can no longer raise a Lua error.
+- Test: the test harness fails the run when a shared dependency raises while loading instead of ignoring the error.
+
 ## 2026-11-20 - Version 0.9.523 (patch)
 
 - Internal audit.
