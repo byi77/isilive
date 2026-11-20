@@ -50,6 +50,10 @@ local function BuildBindingsEnv(overrides)
     tickerFn = nil,
     tickerInterval = nil,
     tickerCancelCalls = 0,
+    -- Counts NewTicker calls. Tests assert on this instead of comparing the
+    -- callback functions: Lua 5.2/5.3 may reuse a closure with identical
+    -- upvalues, so a fresh callback is not guaranteed to be a new function.
+    tickerCreateCalls = 0,
     inCombat = overrides.inCombat or false,
     bindingActions = overrides.bindingActions or {},
   }
@@ -72,6 +76,7 @@ local function BuildBindingsEnv(overrides)
     end,
     C_Timer = {
       NewTicker = function(interval, fn)
+        state.tickerCreateCalls = state.tickerCreateCalls + 1
         state.tickerInterval = interval
         state.tickerFn = fn
         local ticker = {}
@@ -182,9 +187,8 @@ return function(test, ctx)
       Assert.NotNil(state.tickerFn)
 
       -- Second call must not replace the ticker.
-      local firstFn = state.tickerFn
       controller.StartBindingWatchdog()
-      Assert.Equal(state.tickerFn, firstFn, "existing ticker must not be replaced")
+      Assert.Equal(state.tickerCreateCalls, 1, "existing ticker must not be replaced")
 
       -- Tick with no registered bindings -> must reapply.
       state.bindingActions = {}
@@ -230,11 +234,12 @@ return function(test, ctx)
         onToggleTestMode = function() end,
       })
       controller.StartBindingWatchdog()
-      local firstTicker = state.tickerFn
+      Assert.Equal(state.tickerCreateCalls, 1, "first start creates one ticker")
       controller.StopBindingWatchdog()
       Assert.Equal(state.tickerCancelCalls, 1, "stop must cancel the owned ticker exactly once")
       controller.StartBindingWatchdog()
-      Assert.True(state.tickerFn ~= firstTicker, "restart must create a fresh ticker callback")
+      Assert.Equal(state.tickerCreateCalls, 2, "restart must create a fresh ticker")
+      Assert.Equal(state.tickerCancelCalls, 1, "restart must not cancel the new ticker")
     end)
   end)
 
