@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.527 (patch)
+
+- Tools: weekly patch watch (rule 262, `.github/workflows/patch-watch.yml`, Wednesday 05:00 UTC). `tools/check_toc_interface.lua` reads Blizzard's product version tables and reports an interface number of a client newer than live (PTR, xPTR, beta) that is missing from `## Interface:`; it never edits the TOC. `tools/check_api_surface.lua` compares the Blizzard functions, events and enums isiLive uses between the live and the newer test clients' generated API documentation (`Gethe/wow-ui-source`) and reports `removed`, `changed`, `extended` (fields appended at the end) and `acknowledged` rows. One issue per report opens on findings and closes when the report is clean.
+- Tools: `tools/patch_watch_ack.lua` acknowledges checked findings by their exact detail text. First entry: 12.1.7 inserts `isCrossShard` in the middle of the `PARTY_INVITE_REQUEST` payload; isiLive's handler reads no payload value. Checked against 12.1.7 (70986): `GetInstanceInfo` gains a trailing return value (compatible), nothing isiLive uses is removed.
+- Docs: patch 12.1.7 goes live on 2026-12-02 (patch only, no new season); `## Interface: 120105, 120107` already covers it.
+
 ## 2026-11-20 - Version 0.9.526 (patch)
 
 - Fix: `/isilive selftest` and `/isilive selftest all` printed nothing, and `/isilive errorlog` always reported `NOT installed | entries: 0 / 0` (since 0.9.521). `Bootstrap.RegisterSlashCommands` passed a hand-kept list of options to the command module and dropped `printSelfTest` and the error log accessors; it now forwards every option the factory builds. Test: both commands through the real `/isilive` handler after login.

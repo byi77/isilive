@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.526`.
+Current version: `0.9.527`.
+
+Version 0.9.527: maintenance release without visible changes. A weekly check
+now warns ahead of every WoW patch when isiLive needs a new interface number or
+when a game function it uses changes on the test realm.
 
 Version 0.9.526: /isilive selftest and /isilive errorlog work again (they
 printed nothing or an empty log). The self test also checks interrupt spells
