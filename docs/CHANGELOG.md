@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.528 (patch)
+
+- Test: behavior tests run on a frozen reference of the season manifest and forces DB (`testmodul/isilive_test_reference_seasons.lua`, `testmodul/isilive_test_reference_forces.lua`, rule 263). Switching `activeSeasonID` in `data/` now fails 2 reminder tests (regenerate the forces DB, update `docs/WARTUNG.md`) instead of 105; a gate keeps other test files from reading the shipped season data.
+- Tools: wowsim takes `--season <id>` (the season Blizzard runs: its dungeons form the challenge-map list and its forces section is used) and `--param key=value` (`sim.Param`), and estimates word wrap of font strings with a set width.
+- Tools: wowsim scenario `season_smoke` checks any season (default: the prepared one, else the active one): runtime switch on the season's map set, portal buttons, LFG detection per dungeon and the portal navigator, with the technical IDs taken from `docs/SEASON_INTAKE.md`. It replaces `season_s2_smoke`.
+- Tools: wowsim scenario `navigator_layouts` renders all 32 occupied/empty combinations of the portal navigator with the season's longest dungeon names and checks that every text stays inside the card, nothing overlaps and no single-line label is cut (the Season 2 launch-day clipping would have failed it).
+- CI: the Lua Check workflow and `tools/validate_ci_local.ps1` run `season_smoke` (enUS, deDE) and `navigator_layouts` (all five UI languages).
+
 ## 2026-11-20 - Version 0.9.527 (patch)
 
 - Tools: weekly patch watch (rule 262, `.github/workflows/patch-watch.yml`, Wednesday 05:00 UTC). `tools/check_toc_interface.lua` reads Blizzard's product version tables and reports an interface number of a client newer than live (PTR, xPTR, beta) that is missing from `## Interface:`; it never edits the TOC. `tools/check_api_surface.lua` compares the Blizzard functions, events and enums isiLive uses between the live and the newer test clients' generated API documentation (`Gethe/wow-ui-source`) and reports `removed`, `changed`, `extended` (fields appended at the end) and `acknowledged` rows. One issue per report opens on findings and closes when the report is clean.

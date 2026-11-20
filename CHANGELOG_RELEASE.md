@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.527`.
+Current version: `0.9.528`.
+
+Version 0.9.528: maintenance release without visible changes. The automatic
+checks now run every season through a simulated launch day and render every
+layout of the portal navigator in all five languages.
 
 Version 0.9.527: maintenance release without visible changes. A weekly check
 now warns ahead of every WoW patch when isiLive needs a new interface number or
@@ -307,7 +311,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.522 -->
+<!-- highlights-reviewed-for: 0.9.528 -->
 
 Highlights:
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
@@ -321,7 +325,9 @@ Highlights:
 - **Time pace during fights.** The ON TIME / CLOSE / TOO SLOW badge keeps
   moving in combat: every kill updates it at the pull's kill tempo, so long
   chain pulls no longer freeze it.
-- **Spec icons in the roster.** Each member's specialization shows as an
-  icon in the role badge style; the name column is wider.
+- **Ready for patch day and season start.** After every client update
+  isiLive checks itself once and tells you in chat only if something broke
+  (details: /isilive selftest); a season it does not know yet no longer shows
+  the previous season's portals.
 - **Update notice.** The chat tells you once per session when a group or
   guild member runs a newer isiLive.
