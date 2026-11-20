@@ -95,6 +95,8 @@ local PORTAL_SCRIM_BOTTOM_ALPHA = 0.8
 local PORTAL_SCRIM_TOP_ALPHA = 0.25
 -- Matches the 27 px title bar of CreatePanelChrome.
 local HEADER_GLOW_HEIGHT = 28
+-- Strength of the white top-down sheen at its brightest (top) edge.
+local SHEEN_TOP_ALPHA = 0.035
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local function NewColor(color, alpha)
@@ -355,8 +357,23 @@ local function BuildMainFrameDecor(frame)
   local sheen = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
   sheen:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -radius)
   sheen:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, radius)
-  PaintGradient(sheen, "VERTICAL", colors.WHITE_RGB, 0, 0.035)
+  PaintGradient(sheen, "VERTICAL", colors.WHITE_RGB, 0, SHEEN_TOP_ALPHA)
   regions[#regions + 1] = sheen
+  -- The sheen is brightest at its top edge. Starting it below the corner arcs
+  -- left an unlit strip of one radius above it, so the title band looked as
+  -- if it stopped short of the window edge. Continue it at full strength up
+  -- to the edge: a strip between the arcs plus a rounded piece per top corner.
+  local sheenTop = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+  sheenTop:SetPoint("TOPLEFT", frame, "TOPLEFT", radius, -1)
+  sheenTop:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -radius, -1)
+  sheenTop:SetHeight(radius - 1)
+  sheenTop:SetColorTexture(colors.WHITE_RGB[1], colors.WHITE_RGB[2], colors.WHITE_RGB[3], SHEEN_TOP_ALPHA)
+  regions[#regions + 1] = sheenTop
+  for _, corner in ipairs({ "TOPLEFT", "TOPRIGHT" }) do
+    local sheenCorner = NewCorner(frame, "BACKGROUND", 1, CORNER_DISC, corner, radius)
+    sheenCorner:SetVertexColor(colors.WHITE_RGB[1], colors.WHITE_RGB[2], colors.WHITE_RGB[3], SHEEN_TOP_ALPHA)
+    regions[#regions + 1] = sheenCorner
+  end
 
   -- Cool accent glow behind the title row, strongest at the brand on the
   -- left: a strip between the corner arcs plus the band below them.

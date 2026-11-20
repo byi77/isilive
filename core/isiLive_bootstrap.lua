@@ -57,7 +57,24 @@ function Bootstrap.RegisterSlashCommands(opts)
   local printStatsDebug = type(opts.printStatsDebug) == "function" and opts.printStatsDebug or function() end
   local printLustDebug = type(opts.printLustDebug) == "function" and opts.printLustDebug or function() end
 
-  commands.RegisterSlashCommands({
+  -- Every option the factory builds reaches the commands module unless it is
+  -- unpacked below. A hand-kept key list here silently dropped printSelfTest
+  -- (rule 251) and the error log accessors, so `/isilive selftest` printed
+  -- nothing and `/isilive errorlog` always reported an empty, uninstalled log.
+  local forwarded = {}
+  for key, value in pairs(opts) do
+    forwarded[key] = value
+  end
+  for _, key in ipairs({
+    "commands",
+    "teleportDebugController",
+    "queueDebugController",
+    "runtimeLogController",
+    "traceChatFrameController",
+  }) do
+    forwarded[key] = nil
+  end
+  local explicit = {
     printFn = printFn,
     printNoLogFn = type(opts.printNoLogFn) == "function" and opts.printNoLogFn or nil,
     getL = getL,
@@ -107,7 +124,11 @@ function Bootstrap.RegisterSlashCommands(opts)
     printStatsDebug = printStatsDebug,
     printLustDebug = printLustDebug,
     logRuntimeTracef = runtimeLogController.Logf,
-  })
+  }
+  for key, value in pairs(explicit) do
+    forwarded[key] = value
+  end
+  commands.RegisterSlashCommands(forwarded)
 end
 
 -- Units whose auras and health the addon consumes: PiTracker, DeathWatch, the

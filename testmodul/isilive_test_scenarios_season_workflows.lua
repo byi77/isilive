@@ -342,6 +342,57 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     Assert.Equal(single[1].id, "fixture_next", "--season names the section")
   end)
 
+  test("MDT forces sync writes a prepared season once MDT ships it and leaves it out before", function()
+    local tool = LoadTool("tools/sync_mdt_forces.lua")
+    local sep = IsWindows() and "\\" or "/"
+    local root = "tools" .. sep .. "cache" .. sep .. "test_mdt_two_seasons"
+    EnsureDir(root .. sep .. "Active")
+    EnsureDir(root .. sep .. "Next")
+    local function DungeonFile(mapID, npcID)
+      return string.format(
+        [[local dungeonIndex = %d
+MDT.mapInfo[dungeonIndex] = { mapID = %d, englishName = "Dungeon %d" }
+MDT.dungeonTotalCount[dungeonIndex] = { normal = 100 }
+MDT.dungeonEnemies[dungeonIndex] = { { id = %d, count = 5, name = "Mob" } }
+]],
+        mapID,
+        mapID,
+        mapID,
+        npcID
+      )
+    end
+    WriteFile(root .. sep .. "Active" .. sep .. "ActiveDungeon.lua", DungeonFile(42, 7))
+    os.remove(root .. sep .. "Next" .. sep .. "NextDungeon.lua")
+    local manifest = {
+      activeSeasonID = "fixture_active",
+      upcomingSeasonID = "fixture_next",
+      seasons = {
+        fixture_active = { requiresForces = true, mdtDirectory = "Active", dungeons = { { mapID = 42 } } },
+        fixture_next = { requiresForces = true, mdtDirectory = "Next", dungeons = { { mapID = 43 } } },
+      },
+    }
+    local args = { mdt = root, source_commit = "0123456789abcdef0123456789abcdef01234567" }
+
+    local before = tool.Generate(args, manifest)
+    Assert.NotNil(before, "the active season alone still generates")
+    Assert.Equal(table.concat(before.seasons, ","), "fixture_active", "the unpublished season is left out")
+    Assert.True(before.notes[1]:find("upcoming season left out", 1, true) ~= nil, "the gap is reported")
+
+    WriteFile(root .. sep .. "Next" .. sep .. "NextDungeon.lua", DungeonFile(43, 8))
+    local after = tool.Generate(args, manifest)
+    Assert.Equal(table.concat(after.seasons, ","), "fixture_active,fixture_next", "both seasons are written")
+    local addonTable = {}
+    assert(loadstring and loadstring(after.text) or load(after.text))("isiLive", addonTable)
+    Assert.Equal(addonTable.MPlusForcesBySeason.fixture_next.byNpcId[8].mapID, 43, "the prepared section has its NPCs")
+    Assert.Nil(addonTable.MPlusForcesBySeason.fixture_active.byNpcId[8], "sections never mix season maps")
+    Assert.True(addonTable.MPlusForces == addonTable.MPlusForcesBySeason.fixture_active, "alias is the active season")
+
+    manifest.seasons.fixture_active.mdtDirectory = "Missing"
+    local failed, message, exitCode = tool.Generate(args, manifest)
+    Assert.Nil(failed, "a gap in the active season still fails the run")
+    Assert.Equal(exitCode, 2, "with the missing-source exit code: " .. tostring(message))
+  end)
+
   test("Season intake check accepts current planned dungeon intake progress", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local ok, result = tool.Check()

@@ -752,6 +752,32 @@ local function CreateMissedKickState(getTime)
   return state
 end
 
+--- Every interrupt spell ID the tracker knows (spec primaries, class
+-- alternatives and extras), sorted and unique. Read by the self test data
+-- check (rule 261) so a spell a patch removed shows up on patch day.
+function KickTracker.GetInterruptSpellIDs()
+  local seen, ids = {}, {}
+  local function Add(spellID)
+    if type(spellID) == "number" and not seen[spellID] then
+      seen[spellID] = true
+      ids[#ids + 1] = spellID
+    end
+  end
+  for _, specData in pairs(SPEC_DATA) do
+    Add(type(specData) == "table" and specData.spellID or nil)
+  end
+  for _, spellIDs in pairs(CLASS_INTERRUPT_LIST) do
+    for _, spellID in ipairs(spellIDs) do
+      Add(spellID)
+    end
+  end
+  for spellID in pairs(EXTRA_KICK_CD) do
+    Add(spellID)
+  end
+  table.sort(ids)
+  return ids
+end
+
 function KickTracker.CreateController(opts)
   opts = opts or {}
   local getTime = type(opts.getTime) == "function" and opts.getTime or GetTime

@@ -817,6 +817,8 @@ local function GetAllIsiLiveFiles()
     "isiLive_runtime_setup.lua",
     "isiLive_log_buffer.lua",
     "isiLive_runtime_log.lua",
+    -- Always-on Lua error capture behind /isilive errorlog (loaded by the TOC too).
+    "isiLive_error_log.lua",
     "isiLive_guards.lua",
     "realm_language_data.lua",
     "isiLive_languages.lua",

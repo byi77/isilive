@@ -91,11 +91,20 @@ function ContextHelpers.BuildDummyRoster(opts)
   })
 end
 
+-- Mythic Keystone item ID from data/isiLive_items.lua; nil fails closed.
+local function KeystoneItemID()
+  local manifest = addonTable.ItemManifest
+  local itemID = type(manifest) == "table" and manifest.mythicKeystone or nil
+  return type(itemID) == "number" and itemID or nil
+end
+
 local function IsUsableKeystoneChatLink(link)
   if type(link) ~= "string" or link == "" then
     return false
   end
-  return link:find("|Hkeystone:", 1, true) ~= nil or link:find("|Hitem:180653", 1, true) ~= nil
+  local keystoneItemID = KeystoneItemID()
+  return link:find("|Hkeystone:", 1, true) ~= nil
+    or (keystoneItemID ~= nil and link:find("|Hitem:" .. keystoneItemID, 1, true) ~= nil)
 end
 
 ---@param mapID integer|string
@@ -109,7 +118,7 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
   end
 
   -- GetOwnedKeystoneLink was removed from retail. Scan bags for the Mythic
-  -- Keystone item (itemID 180653) and return its observed Blizzard link.
+  -- Keystone item (ItemManifest.mythicKeystone) and return its observed Blizzard link.
   -- Some clients expose it as |Hkeystone:...|h, others as the Keystone item hyperlink.
   -- manually constructed |Hkeystone:...|h links are silently dropped by the chat server.
   local containerApi = rawget(_G, "C_Container")
@@ -124,7 +133,7 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
       if okSlots and type(numSlots) == "number" and numSlots > 0 then
         for slotID = 1, numSlots do
           local okID, itemID = pcall(containerApi.GetContainerItemID, bagID, slotID)
-          if okID and itemID == 180653 then
+          if okID and itemID ~= nil and itemID == KeystoneItemID() then
             local okBagLink, bagLink = pcall(containerApi.GetContainerItemLink, bagID, slotID)
             if okBagLink and IsUsableKeystoneChatLink(bagLink) then
               return bagLink

@@ -37,14 +37,18 @@ end
 -- Fallback for when C_MythicPlus.GetOwnedKeystone* returns nil/0 (observed
 -- on receivers after SHAREKEYS broadcast: API is present but returns empty
 -- because the per-client cache has not been populated yet). The bag link
--- itself carries mapID and level: |Hkeystone:180653:<mapID>:<level>:...|h.
+-- itself carries mapID and level: |Hkeystone:<keystone item>:<mapID>:<level>:...|h
+-- (keystone item ID from ItemManifest.mythicKeystone, data/isiLive_items.lua).
 -- C_Container.GetContainerItemLink is "AllowedWhenUntainted" — safe to call
 -- in combat and during M+ keystones from untainted callers (button click,
 -- CHAT_MSG_ADDON dispatch).
 local function ScanBagsForKeystoneSnapshot()
   local containerApi = rawget(_G, "C_Container")
+  local itemManifest = addonTable.ItemManifest
+  local keystoneItemID = type(itemManifest) == "table" and itemManifest.mythicKeystone or nil
   if
-    not containerApi
+    type(keystoneItemID) ~= "number"
+    or not containerApi
     or type(containerApi.GetContainerNumSlots) ~= "function"
     or type(containerApi.GetContainerItemID) ~= "function"
     or type(containerApi.GetContainerItemLink) ~= "function"
@@ -56,10 +60,10 @@ local function ScanBagsForKeystoneSnapshot()
     if okSlots and type(numSlots) == "number" and numSlots > 0 then
       for slotID = 1, numSlots do
         local okID, itemID = pcall(containerApi.GetContainerItemID, bagID, slotID)
-        if okID and itemID == 180653 then
+        if okID and itemID ~= nil and itemID == keystoneItemID then
           local okLink, link = pcall(containerApi.GetContainerItemLink, bagID, slotID)
           if okLink and type(link) == "string" then
-            local mapID, level = link:match("|Hkeystone:180653:(%d+):(%d+)")
+            local mapID, level = link:match("|Hkeystone:" .. keystoneItemID .. ":(%d+):(%d+)")
             mapID = tonumber(mapID)
             level = tonumber(level)
             if mapID and level and mapID > 0 and level > 0 then

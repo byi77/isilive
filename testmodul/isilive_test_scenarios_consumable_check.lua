@@ -121,7 +121,8 @@ return function(test, ctx)
       local midnight = data.sets.midnight
       Assert.Equal(#midnight.food, 2, "Well Fed and Hearty Well Fed")
       Assert.Equal(#midnight.flask, 5, "one buff per Midnight flask")
-      Assert.Equal(#midnight.augmentRune, 2, "both Midnight augment runes")
+      -- 1295329 was removed on 2026-11-20: unknown to the live client (selftest).
+      Assert.Equal(#midnight.augmentRune, 1, "the Midnight augment rune the client knows")
       Assert.True(midnight.disabled.food and midnight.disabled.augmentRune, "food and rune are off for now")
 
       local active = data.ResolveSet(session.addon.SeasonData.GetActiveSeasonID())

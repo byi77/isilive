@@ -34,14 +34,28 @@ Paket 2 (P0/P1):
   LFG-Activities (inkl. Instanz-Abgleich) der bedienten Season, das
   Spell-Manifest und die Consumables. Auf dem PTR ausgefuehrt ist das die
   Datenpruefung der neuen Season in einem Befehl.
-- [ ] Offen aus F: Kick-Spells (`SPEC_DATA`) und das Keystone-Item kommen in
-  die Datenpruefung, sobald sie in Paket 5 (J) in Manifeste unter `data/`
-  gezogen sind. In-Game bestaetigen, dass `GetMapUIInfo` und
-  `GetActivityInfoTable` direkt nach dem Login ohne vorherige Anfrage antworten
-  (sonst meldet der Patch-Waechter faelschlich `MISSING`).
+- [x] Kick-Spells (`KickTracker.GetInterruptSpellIDs()`) und das Keystone-Item
+  (neu `data/isiLive_items.lua`, `ItemManifest.mythicKeystone`) sind in der
+  Datenpruefung; das Keystone-Literal steht nur noch dort (Test "Item manifest
+  owns the keystone item ID"). Das Verschieben von `SPEC_DATA` nach `data/`
+  bleibt Paket 5 (J).
+- [x] Generator mit echtem MDT-Lauf geprueft (2026-11-20, MDT-Cache 6.3.31):
+  aktive plus kommende Season ergibt zwei Abschnitte, ohne MDT-Daten der
+  kommenden Season nur die aktive mit Hinweis; dauerhaft gepinnt mit einem
+  kleinen MDT-Baum im Test "MDT forces sync writes a prepared season once MDT
+  ships it and leaves it out before".
+- [x] In-Game bestaetigt (User, 2026-11-20, Build 70961): der Patch-Waechter
+  meldete 2 Probleme, beide geklaert. `C_Item.GetAverageItemLevel` fehlt in
+  12.1, die Laufzeit nutzt das globale `GetAverageItemLevel` (Selbsttest kennt
+  jetzt Ausweich-APIs); Rune-Buff 1295329 kennt der Client nicht und wurde auf
+  User-Entscheidung entfernt. Danach `/isilive selftest`: 35/35 APIs, 74/74
+  Daten-IDs ok. Nebenbei gefunden und behoben: `/isilive selftest` und
+  `/isilive errorlog` liefen seit 0.9.521 ins Leere (Bootstrap reichte die
+  Optionen nicht weiter); `errorlog status` zeigt jetzt `installed`.
 
 Paket 3 (P0/P1):
-- [ ] D: Taeglicher Workflow liest die Build-Versionen von Live/PTR/Beta aus
+- [ ] D: Woechentlicher Workflow (User-Entscheidung 2026-11-20: mittwochs
+  morgens) liest die Build-Versionen von Live/PTR/Beta aus
   Blizzards Versions-Endpunkt (URL vor Umsetzung pruefen) und oeffnet ein Issue,
   wenn die Interface-Nummer in `isiLive.toc` fehlt. Die TOC selbst wird nur auf
   ausdruecklichen Auftrag geaendert.

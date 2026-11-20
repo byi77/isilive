@@ -255,7 +255,17 @@ return function(test, ctx)
           ringCorners = ringCorners + 1
         end
       end
-      Assert.Equal(corners, 5, "the window fill rounds all four corners plus the glow corner")
+      Assert.Equal(corners, 7, "the window fill rounds all four corners, the glow corner and two sheen corners")
+      -- The white sheen continues up to the window edge (title band strip
+      -- plus both top corners), so the title band does not look cut short.
+      local sheenTopPieces = 0
+      for _, region in ipairs(mainDecor.mainFrame) do
+        local color = region.colorTexture or region.vertexColor
+        if color and color[1] == 1 and color[2] == 1 and color[3] == 1 and color[4] == 0.035 then
+          sheenTopPieces = sheenTopPieces + 1
+        end
+      end
+      Assert.Equal(sheenTopPieces, 3, "the sheen covers the strip above the corner arcs and both top corners")
       Assert.Equal(ringCorners, 4, "the window hairline must round all four corners")
       local cardDecor = Assert.NotNil(runCard._isiLiveDesignDecor, "modern must decorate run cards")
       local cardCorners = 0

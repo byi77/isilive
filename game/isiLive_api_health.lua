@@ -13,7 +13,9 @@ addonTable.ApiHealth = ApiHealth
 
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
--- { feature, root, function }. `root = nil` names a global function. The list
+-- { feature, root, function [, { altRoot, altFunction }] }. `root = nil` names
+-- a global function. The optional fourth entry is the fallback the runtime
+-- uses when the first API is missing; the check passes when either exists. The list
 -- covers the Blizzard surfaces docs/WARTUNG.md section 3 names as the first to
 -- break after a patch; extend it with every new API surface a feature needs.
 ApiHealth.CHECKS = {
@@ -46,7 +48,9 @@ ApiHealth.CHECKS = {
   { "Auras", "C_UnitAuras", "GetAuraDataByIndex" },
   { "Auras", "C_UnitAuras", "GetPlayerAuraBySpellID" },
   { "Keystone link", "C_Container", "GetContainerItemLink" },
-  { "Item level", "C_Item", "GetAverageItemLevel" },
+  -- The runtime reads C_Item.GetAverageItemLevel and falls back to the global
+  -- (logic/isiLive_keysync.lua); 12.1 ships only the global (selftest 2026-11-20).
+  { "Item level", "C_Item", "GetAverageItemLevel", { nil, "GetAverageItemLevel" } },
   { "Inspect", "C_PaperDollInfo", "GetInspectItemLevel" },
   { "Invite navigation", "C_EncounterJournal", "GetDungeonEntrancesForMap" },
   { "Timers", "C_Timer", "After" },
@@ -134,8 +138,14 @@ function ApiHealth.Run()
     local feature, rootName, fnName = check[1], check[2], check[3]
     local name = QualifiedName(rootName, fnName)
     local status, detail = "ok", nil
+    local fallback = check[4]
     if type(ResolveFunction(rootName, fnName)) ~= "function" then
-      status = "missing"
+      local altName = type(fallback) == "table" and fallback[2] or nil
+      if altName and type(ResolveFunction(fallback[1], altName)) == "function" then
+        detail = "via " .. QualifiedName(fallback[1], altName)
+      else
+        status = "missing"
+      end
     else
       local probe = PROBES[name]
       if probe then
@@ -311,6 +321,37 @@ local function CheckSeasonData(rows, counts, readSpell)
   end
 end
 
+local function CollectKickSpellIDs()
+  local kickTracker = addonTable.KickTracker
+  if type(kickTracker) ~= "table" or type(kickTracker.GetInterruptSpellIDs) ~= "function" then
+    return {}
+  end
+  return kickTracker.GetInterruptSpellIDs()
+end
+
+-- Item IDs from data/isiLive_items.lua through C_Item.GetItemInfoInstant,
+-- which answers from static client data without an item request.
+local function CheckItems(rows, counts)
+  local manifest = addonTable.ItemManifest
+  local itemInfo = ResolveFunction("C_Item", "GetItemInfoInstant")
+  if type(manifest) ~= "table" or type(itemInfo) ~= "function" then
+    return
+  end
+  local keys = {}
+  for key in pairs(manifest) do
+    keys[#keys + 1] = key
+  end
+  table.sort(keys)
+  for _, key in ipairs(keys) do
+    local itemID = manifest[key]
+    if type(itemID) == "number" then
+      local ok, resolvedID = pcall(itemInfo, itemID)
+      local found = ok and ReadPlainNumber(resolvedID) == itemID
+      AddDataRow(rows, counts, "Items", string.format("item %d", itemID), found and "ok" or "missing", key)
+    end
+  end
+end
+
 --- Runs every data check. Returns the rows and counts like ApiHealth.Run.
 function ApiHealth.RunDataChecks()
   local rows = {}
@@ -325,7 +366,9 @@ function ApiHealth.RunDataChecks()
         and seasonData.GetActiveSeasonID()
       or nil
     CheckSpellList(rows, counts, readSpell, "Consumables", "buff", CollectConsumableIDs(seasonID))
+    CheckSpellList(rows, counts, readSpell, "Kicks", "interrupt spell", CollectKickSpellIDs())
   end
+  CheckItems(rows, counts)
   return rows, counts
 end
 

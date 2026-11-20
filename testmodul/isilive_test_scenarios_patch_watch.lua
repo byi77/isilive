@@ -50,6 +50,36 @@ return function(test, ctx)
     end, Prepare("69999"))
   end)
 
+  -- The slash command reaches the real ApiHealth and ErrorLog through the
+  -- factory and Bootstrap.RegisterSlashCommands. Its hand-kept option list
+  -- used to drop printSelfTest and the error log accessors, so both commands
+  -- answered with nothing or an empty log in the client.
+  test("Slash commands selftest and errorlog reach the real modules after login", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local slash = session.globals.SlashCmdList.ISILIVE
+      Assert.Equal(type(slash), "function", "the /isilive handler is registered")
+      local before = #session.chat
+      slash("selftest")
+      local report = table.concat(session.chat, "\n", before + 1)
+      Assert.True(report:find("[SELFTEST]", 1, true) ~= nil, "/isilive selftest prints the report")
+      Assert.True(report:find("of %d+ Blizzard APIs") ~= nil, "the report ends the API block with its summary")
+      Assert.True(report:find("data IDs", 1, true) ~= nil, "the report includes the data checks")
+
+      before = #session.chat
+      slash("selftest all")
+      Assert.True(#session.chat - before > 10, "/isilive selftest all lists every check")
+
+      before = #session.chat
+      slash("errorlog status")
+      local status = table.concat(session.chat, "\n", before + 1)
+      Assert.True(status:find("Error log:", 1, true) ~= nil, "/isilive errorlog status answers")
+      Assert.Nil(
+        status:find("/ 0", 1, true),
+        "the status reads the real error log cap, not the empty fallback: " .. status
+      )
+    end, Prepare(BUILD))
+  end)
+
   test("Patch watch stays silent after login when the build was already checked", function()
     Stress.WithParty(ctx, Fixture, function(session)
       session.Advance(session.addon.ApiHealth.PATCH_WATCH_DELAY_SECONDS + 5)

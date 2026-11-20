@@ -109,8 +109,10 @@ ist (`/isilive selftest all` listet auch alle bestandenen Pruefungen). Neue API-
 Der Selbsttest laeuft zusaetzlich automatisch (Regel 261): einmal pro Client-Build 20 s nach dem Login,
 still, mit einer Chatzeile nur bei Problemen; der gepruefte Build steht in `IsiLiveDB.selftestBuild`. Er
 prueft auch die Daten: Portal-Spells, Challenge-Maps und LFG-Activities der bedienten Season (mit
-Instanz-Abgleich), das Spell-Manifest und die Consumables. Neue ID-Listen unter `data/` dort in
-`ApiHealth.RunDataChecks` aufnehmen.
+Instanz-Abgleich), das Spell-Manifest, die Consumables, die Interrupt-Spells des Kick-Trackers und die
+Item-IDs aus `data/isiLive_items.lua` (Keystone). Neue ID-Listen unter `data/` dort in
+`ApiHealth.RunDataChecks` aufnehmen. Bringt eine neue Erweiterung ein neues Keystone-Item, nur
+`ItemManifest.mythicKeystone` aendern.
 
 Entfernt oder benennt ein Patch ein Event um, bleibt der Rest von isiLive registriert (Regel 258): jede
 Registrierung laeuft ueber `EventUtils.SafeRegisterEvent`/`SafeRegisterUnitEvent`, und der Selbsttest meldet

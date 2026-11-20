@@ -41,7 +41,9 @@ local ConsumableData = {
       },
       augmentRune = {
         1264426, -- Void-Touched Augment Rune
-        1295329, -- Tidesworn Augment Rune
+        -- 1295329 ("Tidesworn Augment Rune") removed 2026-11-20 (user decision):
+        -- the live client does not know the spell (selftest data check, build
+        -- 70961) and no source was recorded. Re-add only from /isilive probe.
       },
       -- User decision 2026-11-12: food (needs the name match) and rune stay
       -- off until they are confirmed in the live client.

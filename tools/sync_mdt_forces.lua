@@ -37,8 +37,6 @@ if manifestLoader then
   manifestLoader("isiLive", manifestAddon)
 end
 local SEASON_MANIFEST = manifestAddon.SeasonManifest or {}
-local SEASON_ACTIVE = SEASON_MANIFEST.activeSeasonID or ""
-local SEASON_UPCOMING = SEASON_MANIFEST.upcomingSeasonID
 local LIFETIME_DAYS = 15
 local MAX_DUNGEON_SOURCE_BYTES = 8 * 1024 * 1024
 local MAX_DUNGEON_INSTRUCTIONS = 1000000
@@ -300,8 +298,8 @@ end
 -- nil, a message and the exit code a required season fails with. A season
 -- without an mdtDirectory and requiresForces = false is not an error
 -- (exit code 0): MDT upstream has not published it yet.
-local function extractSeason(seasonID, args, sourceCommit)
-  local season = type(SEASON_MANIFEST.seasons) == "table" and SEASON_MANIFEST.seasons[seasonID] or nil
+local function extractSeason(seasonID, args, sourceCommit, manifest)
+  local season = type(manifest.seasons) == "table" and manifest.seasons[seasonID] or nil
   if type(season) ~= "table" then
     return nil, string.format("unknown season %q", tostring(seasonID)), 2
   end
@@ -451,61 +449,75 @@ end
 
 -- Target seasons: the explicit --season alone (required), otherwise the active
 -- season (required) plus a different upcomingSeasonID (best effort).
-local function resolveTargets(args)
+local function resolveTargets(args, manifest)
+  manifest = manifest or SEASON_MANIFEST
   if type(args.season) == "string" and args.season ~= "" then
     return { { id = args.season, required = true } }
   end
-  local targets = { { id = SEASON_ACTIVE, required = true } }
-  if type(SEASON_UPCOMING) == "string" and SEASON_UPCOMING ~= "" and SEASON_UPCOMING ~= SEASON_ACTIVE then
-    targets[#targets + 1] = { id = SEASON_UPCOMING, required = false }
+  local active = manifest.activeSeasonID or ""
+  local upcoming = manifest.upcomingSeasonID
+  local targets = { { id = active, required = true } }
+  if type(upcoming) == "string" and upcoming ~= "" and upcoming ~= active then
+    targets[#targets + 1] = { id = upcoming, required = false }
   end
   return targets
 end
 
-local function main(argv)
-  local args = parseArgs(argv)
+-- Builds the DB text for `args` against `manifest` (default: the shipped
+-- manifest). Returns { text, seasons, notes } on success. On failure returns
+-- nil, message, exitCode; exitCode 0 means a required season legitimately has
+-- no MDT data and the existing file stays untouched.
+local function generate(args, manifest)
+  manifest = manifest or SEASON_MANIFEST
   local sourceCommit = normalizeSourceCommit(args.source_commit)
   if not sourceCommit then
-    io.stderr:write("[sync_mdt_forces] --source_commit must be the exact 40-character MDT git commit\n")
-    os.exit(2)
+    return nil, "--source_commit must be the exact 40-character MDT git commit", 2
   end
 
-  local targets = resolveTargets(args)
-  local sections = {}
+  local targets = resolveTargets(args, manifest)
+  local sections, written, notes = {}, {}, {}
   for _, target in ipairs(targets) do
-    local data, message, exitCode = extractSeason(target.id, args, sourceCommit)
+    local data, message, exitCode = extractSeason(target.id, args, sourceCommit, manifest)
     if data then
       sections[#sections + 1] = data
-    elseif target.required and exitCode ~= 0 then
-      io.stderr:write("[sync_mdt_forces] " .. message .. "\n")
-      os.exit(exitCode)
+      written[#written + 1] = data.season
     elseif target.required then
-      -- A required season that legitimately has no MDT data: keep the file.
-      print(string.format("[sync_mdt_forces] %s, leaving %s untouched.", message, args.out))
-      os.exit(0)
+      return nil, message, exitCode
     else
-      print(string.format("[sync_mdt_forces] upcoming season left out: %s", message))
+      notes[#notes + 1] = "upcoming season left out: " .. message
     end
   end
+  return { text = formatDbLua(sections, targets[1].id), seasons = written, notes = notes }
+end
 
-  local out = formatDbLua(sections, targets[1].id)
+local function main(argv)
+  local args = parseArgs(argv)
+  local result, message, exitCode = generate(args)
+  if not result then
+    if exitCode == 0 then
+      print(string.format("[sync_mdt_forces] %s, leaving %s untouched.", message, args.out))
+    else
+      io.stderr:write("[sync_mdt_forces] " .. message .. "\n")
+    end
+    os.exit(exitCode)
+  end
+  for _, note in ipairs(result.notes) do
+    print("[sync_mdt_forces] " .. note)
+  end
+
   local outFile, werr = io.open(args.out, "wb")
   if not outFile then
     io.stderr:write(string.format("[sync_mdt_forces] cannot open %s: %s\n", args.out, tostring(werr)))
     os.exit(4)
   end
-  outFile:write(out)
+  outFile:write(result.text)
   outFile:close()
 
-  local written = {}
-  for _, data in ipairs(sections) do
-    written[#written + 1] = data.season
-  end
   print(
     string.format(
       "[sync_mdt_forces] wrote %s seasons=%s (expires %s)",
       args.out,
-      table.concat(written, ","),
+      table.concat(result.seasons, ","),
       isoDate(LIFETIME_DAYS)
     )
   )
@@ -518,6 +530,7 @@ if ... == "module" then
     NormalizeSourceCommit = normalizeSourceCommit,
     FormatDbLua = formatDbLua,
     ResolveTargets = resolveTargets,
+    Generate = generate,
   }
 end
 
