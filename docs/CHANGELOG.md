@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.523 (patch)
+
+- Internal audit.
+
 ## 2026-11-19 - Version 0.9.522 (patch)
 
 - Feature: pace announce (rule 255). A left click on the time pace badge in the killtracker posts its expectation to the group chat as one short English line in every UI language, e.g. `KR +15 expected: INTIME - 1:12 spare. Go for it! (via isiLive M+Addon)` or `KR +15 expected: OUT-OF-TIME - 2:30 over. Sorry boys and girls. (via isiLive M+Addon)`; a close call (within 30 s) adds `(close)` on the side the forecast lies, with `Push it!` / `Every second counts!`. Group chat only (instance or party), also in combat, at most one post per 10 s; outside a group nothing is sent and a local hint says why; without a running key (demo) the line is only printed locally as a preview. Hover shows a tooltip with the line that would be posted. Texts in all five languages.

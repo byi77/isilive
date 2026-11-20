@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.522`.
+Current version: `0.9.523`.
 
 Version 0.9.522: tell your group the pace with one click: click the time pace
 badge on the killtracker bar and isiLive posts one short English line to the
