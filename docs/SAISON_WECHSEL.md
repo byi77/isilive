@@ -54,15 +54,28 @@ Paket 2 (P0/P1):
   Optionen nicht weiter); `errorlog status` zeigt jetzt `installed`.
 
 Paket 3 (P0/P1):
-- [ ] D: Woechentlicher Workflow (User-Entscheidung 2026-11-20: mittwochs
-  morgens) liest die Build-Versionen von Live/PTR/Beta aus
-  Blizzards Versions-Endpunkt (URL vor Umsetzung pruefen) und oeffnet ein Issue,
-  wenn die Interface-Nummer in `isiLive.toc` fehlt. Die TOC selbst wird nur auf
-  ausdruecklichen Auftrag geaendert.
-- [ ] E: Workflow gleicht die von isiLive genutzten APIs, Events und
-  `Enum`-Felder mit `Gethe/wow-ui-source` (Branches `live`/`ptr`/`beta`,
-  `Blizzard_APIDocumentationGenerated`) ab und meldet entfernte oder geaenderte
-  Signaturen per Issue (PTR-Vorlauf als Warnzeit).
+- [x] D: Woechentlicher Workflow `.github/workflows/patch-watch.yml`
+  (User-Entscheidung 2026-11-20: mittwochs morgens, 05:00 UTC) prueft mit
+  `tools/check_toc_interface.lua`, ob die Interface-Nummer von Live und jedem
+  neueren Test-Client (PTR, xPTR, Beta) in `isiLive.toc` steht; fehlt eine,
+  oeffnet er das Issue "Patch Watch: TOC interface". Die TOC aendert er nie
+  (Regel 262). Stand 2026-11-20: Live 12.1.5 (120105) und PTR 12.1.7 (120107)
+  stehen beide in der TOC.
+- [x] E: Derselbe Workflow vergleicht mit `tools/check_api_surface.lua` die von
+  isiLive genutzten Blizzard-Funktionen, Events und Enums zwischen Live und
+  PTR/PTR2/Beta (generierte API-Doku aus `Gethe/wow-ui-source`) und oeffnet bei
+  `removed`/`changed` das Issue "Patch Watch: API surface". Geprueft gegen
+  12.1.7 (70986): `GetInstanceInfo` bekommt hinten `instanceServerID`
+  (kompatibel); `PARTY_INVITE_REQUEST` bekommt `isCrossShard` in der Mitte
+  des Payloads, der isiLive-Handler liest kein Payload, deshalb in
+  `tools/patch_watch_ack.lua` quittiert. Ein geprueft harmloser Fund wird dort
+  mit exaktem Detailtext und Begruendung eingetragen; nach dem Patch-Tag
+  wieder entfernen.
+- Termin (User, 2026-11-20): Patch 12.1.7 kommt am 2026-12-02, nur ein Patch,
+  keine neue Season. `## Interface: 120105, 120107` deckt ihn bereits ab.
+  Danach: Quittierung `PARTY_INVITE_REQUEST` aus `tools/patch_watch_ack.lua`
+  entfernen und am Patch-Tag die Patch-Waechter-Chatzeile bzw.
+  `/isilive selftest` pruefen.
 
 Paket 4 (P1):
 - [ ] G: Test rendert alle 32 Belegungen der Navigator-Slots ueber den echten

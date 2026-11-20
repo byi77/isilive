@@ -1,0 +1,162 @@
+name: Patch Watch
+
+# Rule 262: weekly early warning for the next WoW patch (user decision
+# 2026-11-20: Wednesday morning). Two reports, one issue each:
+#   * TOC interface: every client build newer than live (PTR, xPTR, beta) needs
+#     its `## Interface` number in isiLive.toc before its patch day. The TOC
+#     itself is only changed on an explicit user order; the issue reminds.
+#   * API surface: functions, events and enums isiLive uses, compared between
+#     the live and the newer test clients' generated API documentation
+#     (github.com/Gethe/wow-ui-source). Removed or changed surface opens the issue.
+# An issue closes itself once its report is clean again.
+
+on:
+  schedule:
+    - cron: "0 5 * * 3"
+  workflow_dispatch:
+
+concurrency:
+  group: patch-watch
+  cancel-in-progress: false
+
+jobs:
+  patch-watch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
+        with:
+          luaVersion: "5.1"
+
+      - name: TOC interface check
+        id: toc
+        run: |
+          out=tools/cache/patch_watch
+          mkdir -p "${out}/versions"
+          for product in wow wowt wowxptr wow_beta; do
+            curl -fsS -m 30 "http://us.patch.battle.net:1119/${product}/versions" -o "${out}/versions/${product}.txt" \
+              || echo "::warning::version table for ${product} unavailable"
+          done
+          set +e
+          lua tools/check_toc_interface.lua "--versions=${out}/versions" > "${out}/toc-interface.md"
+          status=$?
+          set -e
+          cat "${out}/toc-interface.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+
+      - name: API surface check
+        id: api
+        run: |
+          out=tools/cache/patch_watch
+          docs=Interface/AddOns/Blizzard_APIDocumentationGenerated
+          fetch() {
+            git clone -q --depth 1 --branch "$1" --filter=blob:none --sparse \
+              https://github.com/Gethe/wow-ui-source "${out}/ui-$1" \
+              && git -C "${out}/ui-$1" sparse-checkout set "${docs}"
+          }
+          if ! fetch live; then
+            printf '## API surface\n\n- Status: unresolved\n- Reason: live documentation unavailable\n' > "${out}/api-surface.md"
+            echo "status=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          live_version="$(git -C "${out}/ui-live" log -1 --format=%s)"
+          status=0
+          : > "${out}/api-surface.md"
+          for branch in ptr ptr2 beta; do
+            if ! fetch "${branch}"; then
+              printf '## API surface: live vs %s\n\n- Status: branch unavailable\n\n' "${branch}" >> "${out}/api-surface.md"
+              continue
+            fi
+            target_version="$(git -C "${out}/ui-${branch}" log -1 --format=%s)"
+            set +e
+            lua tools/check_api_surface.lua "--live=${out}/ui-live/${docs}" "--target=${out}/ui-${branch}/${docs}" \
+              "--label=${branch}" "--live-version=${live_version}" "--target-version=${target_version}" \
+              >> "${out}/api-surface.md"
+            branch_status=$?
+            set -e
+            printf '\n' >> "${out}/api-surface.md"
+            if [ "${branch_status}" -gt "${status}" ]; then
+              status="${branch_status}"
+            fi
+          done
+          cat "${out}/api-surface.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+
+      - name: Open, update or close patch watch issues
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          TOC_STATUS: ${{ steps.toc.outputs.status }}
+          API_STATUS: ${{ steps.api.outputs.status }}
+        with:
+          script: |
+            const fs = require("fs");
+            const { owner, repo } = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "all",
+              per_page: 100,
+            });
+            const reports = [
+              {
+                key: "toc-interface",
+                title: "Patch Watch: TOC interface",
+                file: "tools/cache/patch_watch/toc-interface.md",
+                status: process.env.TOC_STATUS,
+                intro: "A client build newer than live needs its interface number in `## Interface:` of isiLive.toc before its patch day (rule 262). Change the TOC only on an explicit user order.",
+              },
+              {
+                key: "api-surface",
+                title: "Patch Watch: API surface",
+                file: "tools/cache/patch_watch/api-surface.md",
+                status: process.env.API_STATUS,
+                intro: "Blizzard API surface isiLive uses, live compared with the newer test clients (rule 262). Check every `removed` and `changed` row against the code that reads it; `extended` rows are compatible.",
+              },
+            ];
+            for (const report of reports) {
+              const marker = `<!-- isiLive:patch-watch:${report.key} -->`;
+              let text = "- Status: unresolved (report missing)";
+              try {
+                text = fs.readFileSync(report.file, "utf8");
+              } catch (error) {
+                core.warning(report.file + ": " + error.message);
+              }
+              const body = [marker, "", "This issue is updated by the Patch Watch workflow.", "", report.intro, "", text].join("\n");
+              const existing = issues.find((issue) => !issue.pull_request && (issue.body || "").includes(marker));
+              const findings = report.status !== "0";
+              if (!findings) {
+                if (existing && existing.state === "open") {
+                  await github.rest.issues.update({ owner, repo, issue_number: existing.number, body, state: "closed" });
+                  core.notice("Closed " + report.title + " #" + existing.number);
+                }
+                continue;
+              }
+              if (existing) {
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, body, state: "open" });
+                core.notice("Updated " + report.title + " #" + existing.number);
+              } else {
+                const created = await github.rest.issues.create({ owner, repo, title: report.title, body });
+                core.notice("Created " + report.title + " #" + created.data.number);
+              }
+            }
+
+      - name: Fail on unresolved input
+        if: steps.toc.outputs.status == '2' || steps.api.outputs.status == '2'
+        run: exit 1
+
+      - name: Upload patch watch reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: patch-watch
+          path: |
+            tools/cache/patch_watch/*.md
+            tools/cache/patch_watch/versions/

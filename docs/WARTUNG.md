@@ -106,6 +106,14 @@ Am Patch-Tag zuerst `/isilive selftest` ausfuehren (Regel 251): Es meldet je ben
 ist (`/isilive selftest all` listet auch alle bestandenen Pruefungen). Neue API-Flaechen eines Features in
 `ApiHealth.CHECKS` (`game/isiLive_api_health.lua`) nachtragen.
 
+Vor dem Patch-Tag warnt der Workflow `.github/workflows/patch-watch.yml` (Regel 262, mittwochs morgens):
+Issue "Patch Watch: TOC interface", wenn die Interface-Nummer eines neueren Test-Clients in der TOC fehlt
+(eintragen nur auf ausdruecklichen Auftrag), und Issue "Patch Watch: API surface", wenn auf dem PTR eine
+genutzte Funktion, ein Event oder ein Enum-Wert entfernt oder inkompatibel geaendert wird. Jeden Fund gegen den
+lesenden Code pruefen; harmlose Funde mit exaktem Detailtext in `tools/patch_watch_ack.lua` quittieren. Lokal:
+`lua tools/check_toc_interface.lua --versions=<dir>` bzw. `lua tools/check_api_surface.lua --live=<dir>
+--target=<dir>` (Aufruf wie im Workflow).
+
 Der Selbsttest laeuft zusaetzlich automatisch (Regel 261): einmal pro Client-Build 20 s nach dem Login,
 still, mit einer Chatzeile nur bei Problemen; der gepruefte Build steht in `IsiLiveDB.selftestBuild`. Er
 prueft auch die Daten: Portal-Spells, Challenge-Maps und LFG-Activities der bedienten Season (mit

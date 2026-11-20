@@ -76,6 +76,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_time_pace_announce.lua",
   "testmodul/isilive_test_scenarios_whats_new.lua",
   "testmodul/isilive_test_scenarios_patch_watch.lua",
+  "testmodul/isilive_test_scenarios_patch_tools.lua",
   "testmodul/isilive_test_scenarios_ttk.lua",
   "testmodul/isilive_test_scenarios_mplus_db_lifetime.lua",
   "testmodul/isilive_test_scenarios_roster_panel_wrapping.lua",
