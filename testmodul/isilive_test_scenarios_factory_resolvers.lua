@@ -74,4 +74,51 @@ return function(test, ctx)
     Assert.Equal(fn({ raidTransitionBehavior = "show" }), "hide", "setting is intentionally frozen to hide")
     Assert.Equal(fn("not-a-table"), "hide")
   end)
+
+  test("factory contracts: Compose merges contracts and rejects a key two contracts provide", function()
+    local addon = Load(LoadAddonModules)
+    local Compose = addon._FactoryInternal.FactoryContracts.Compose
+    local first = function() end
+    local merged = Compose("ctx", { a = first }, { b = 2 })
+    Assert.Equal(merged.a, first, "contract values are carried over unchanged")
+    Assert.Equal(merged.b, 2)
+    local ok, err = pcall(Compose, "ctx", { a = 1 }, { a = 2 })
+    Assert.False(ok, "a duplicated key must not shadow silently")
+    Assert.True(tostring(err):find('key "a"', 1, true) ~= nil, "the error names the duplicated key")
+    Assert.False((pcall(Compose, "ctx", { a = 1 }, "not-a-table")), "a non-table contract is rejected")
+  end)
+
+  test("factory contracts: group and event-handler contexts share the group contracts", function()
+    local addon = Load(LoadAddonModules)
+    local FI = addon._FactoryInternal
+    local function Stub()
+      return setmetatable({}, {
+        __index = function(t, k)
+          local v = function() end
+          rawset(t, k, v)
+          return v
+        end,
+      })
+    end
+    local ctx = Stub()
+    ctx.modules = { sync = {}, events = {}, commands = {}, locale = { ResolveLocaleTag = function() end } }
+    ctx.queueDebugController = Stub()
+    ctx.runtimeLogController = Stub()
+    local runtimeState = Stub()
+    local group = FI.BuildRuntimeSetupGroupContext(ctx, runtimeState)
+    local handlers = FI.BuildRuntimeSetupEventHandlersContext(ctx, runtimeState)
+    -- Every group dependency except the group-only join hook reaches the
+    -- event handlers too; plain ctx handles are the identical value.
+    for key in pairs(group) do
+      if key ~= "onGroupJoined" then
+        Assert.NotNil(handlers[key], "event handlers also provide " .. key)
+      end
+    end
+    for _, key in ipairs({ "getRoster", "setWasInGroup", "enqueueInspect", "sendOwnKeySnapshot", "updateUI" }) do
+      Assert.Equal(handlers[key], group[key], "event handlers see the same " .. key)
+    end
+    Assert.Equal(handlers.teleportUIController, ctx.teleportUIController, "season switch needs the teleport UI")
+    Assert.Equal(handlers.refreshReadyCheckUI, ctx.RefreshReadyCheckUI)
+    Assert.Equal(group.captureQueueJoinCandidate, ctx.CaptureQueueJoinCandidate)
+  end)
 end

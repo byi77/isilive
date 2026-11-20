@@ -204,4 +204,27 @@ return function(test, ctx)
       Assert.False(addon.Validators.GetInstanceInfoSafe(), "secret instance metadata must fail closed")
     end)
   end)
+
+  test("Validators.IsFiniteNumber fails closed on a secret value without comparing it", function()
+    -- A secret stand-in that raises on every comparison, like the client does.
+    local secret = setmetatable({}, {
+      __eq = function()
+        error("compared a secret value")
+      end,
+    })
+    WithGlobals({
+      issecretvalue = function(value)
+        return rawequal(value, secret) or value == 42
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      local isFinite = addon.Validators.IsFiniteNumber
+      Assert.False(isFinite(secret), "a secret value is never finite")
+      Assert.False(isFinite(42), "a number flagged secret is never finite")
+      Assert.True(isFinite(7), "a plain finite number stays finite")
+      Assert.False(isFinite(0 / 0), "NaN is not finite")
+      Assert.False(isFinite(math.huge), "infinity is not finite")
+      Assert.False(isFinite("7"), "a numeric string is not a number")
+    end)
+  end)
 end

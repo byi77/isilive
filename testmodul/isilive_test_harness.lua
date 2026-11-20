@@ -142,6 +142,9 @@ local FILE_PATHS = {
   ["isiLive_leader_watch.lua"] = "logic/isiLive_leader_watch.lua",
   ["isiLive_demo.lua"] = "logic/isiLive_demo.lua",
   ["isiLive_test_mode.lua"] = "logic/isiLive_test_mode.lua",
+  ["isiLive_sync_codec.lua"] = "logic/isiLive_sync_codec.lua",
+  ["isiLive_sync_transport.lua"] = "logic/isiLive_sync_transport.lua",
+  ["isiLive_sync_peer_state.lua"] = "logic/isiLive_sync_peer_state.lua",
   ["isiLive_sync_receive.lua"] = "logic/isiLive_sync_receive.lua",
   ["isiLive_sync.lua"] = "logic/isiLive_sync.lua",
   ["isiLive_version_notice.lua"] = "logic/isiLive_version_notice.lua",
@@ -196,6 +199,10 @@ local FILE_PATHS = {
   ["isiLive_factory_minimap.lua"] = "factory/isiLive_factory_minimap.lua",
   ["isiLive_factory_edit_mode.lua"] = "factory/isiLive_factory_edit_mode.lua",
   ["isiLive_factory_live_kicks.lua"] = "factory/isiLive_factory_live_kicks.lua",
+  ["isiLive_factory_contracts.lua"] = "factory/isiLive_factory_contracts.lua",
+  ["isiLive_factory_db_settings.lua"] = "factory/isiLive_factory_db_settings.lua",
+  ["isiLive_factory_runtime_contexts.lua"] = "factory/isiLive_factory_runtime_contexts.lua",
+  ["isiLive_factory_settings_wiring.lua"] = "factory/isiLive_factory_settings_wiring.lua",
   ["isiLive_factory.lua"] = "factory/isiLive_factory.lua",
 }
 
@@ -219,6 +226,9 @@ local IMPLICIT_DEPENDENCIES = {
   ["isiLive_controller_wiring.lua"] = { "isiLive_season_refresh.lua" },
   ["isiLive_sync.lua"] = {
     "isiLive_spells.lua",
+    "isiLive_sync_codec.lua",
+    "isiLive_sync_transport.lua",
+    "isiLive_sync_peer_state.lua",
     "isiLive_sync_receive.lua",
   },
   ["isiLive_notice.lua"] = {
@@ -320,6 +330,10 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_edit_mode.lua",
     "isiLive_factory_edit_mode.lua",
     "isiLive_factory_live_kicks.lua",
+    "isiLive_factory_contracts.lua",
+    "isiLive_factory_db_settings.lua",
+    "isiLive_factory_runtime_contexts.lua",
+    "isiLive_factory_settings_wiring.lua",
     "isiLive_run_focus.lua",
     "isiLive_run_focus_title.lua",
   },
@@ -492,7 +506,10 @@ function Harness.LoadAddonModules(files, seedAddonTable)
       if not uChunk then
         Fail(string.format("cannot load universal dep %s: %s", universalFile, tostring(uLoadErr)))
       end
-      pcall(uChunk, "isiLive", addonTable)
+      local uOk, uRunErr = pcall(uChunk, "isiLive", addonTable)
+      if not uOk then
+        Fail(string.format("cannot execute universal dep %s: %s", universalFile, tostring(uRunErr)))
+      end
     end
   end
 

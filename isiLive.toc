@@ -94,6 +94,9 @@ ui/isiLive_status.lua
 game/isiLive_units.lua
 logic/isiLive_demo.lua
 logic/isiLive_test_mode.lua
+logic/isiLive_sync_codec.lua
+logic/isiLive_sync_transport.lua
+logic/isiLive_sync_peer_state.lua
 logic/isiLive_sync_receive.lua
 logic/isiLive_sync.lua
 logic/isiLive_version_notice.lua
@@ -208,5 +211,9 @@ factory/isiLive_factory_controllers.lua
 factory/isiLive_factory_minimap.lua
 factory/isiLive_factory_edit_mode.lua
 factory/isiLive_factory_live_kicks.lua
+factory/isiLive_factory_contracts.lua
+factory/isiLive_factory_db_settings.lua
+factory/isiLive_factory_runtime_contexts.lua
+factory/isiLive_factory_settings_wiring.lua
 factory/isiLive_factory.lua
 isiLive.lua

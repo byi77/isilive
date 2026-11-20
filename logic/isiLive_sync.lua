@@ -2,16 +2,22 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Sync facade: the public addonTable.Sync surface. Owns the outgoing message
+-- senders with their cooldown and dedupe state, the trace loggers and the
+-- canonical peer key. Wire encoding lives in logic/isiLive_sync_codec.lua,
+-- received peer data in logic/isiLive_sync_peer_state.lua, channel and
+-- dispatch in logic/isiLive_sync_transport.lua and the receive parser in
+-- logic/isiLive_sync_receive.lua.
 local Sync = {}
 addonTable.Sync = Sync
-local SeasonData = addonTable.SeasonData or {}
 local StringUtils = addonTable.StringUtils
+local SyncCodec = addonTable.SyncCodec
+local SyncTransport = addonTable.SyncTransport
 local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 
 local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local LIBKEYSTONE_SYNC_PREFIX = "LibKS"
 local LIBKEYSTONE_SOURCE = "libks"
-local ISILIVE_SYNC_PROTOCOL_VERSION = 2
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
@@ -20,63 +26,39 @@ local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 local ISILIVE_SHAREKEYS_CD_COOLDOWN = 1
 local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = 30
 local LIBKEYSTONE_REQUEST_COOLDOWN = 3
-local MAX_SAFE_INTEGER = 9007199254740991
 local POWER_INFUSION_SPELL_ID = addonTable.SpellManifest.powerInfusion
 
--- Upper sanity bounds for numeric peer payloads. These are NOT claims about
--- game limits -- they are display bounds. Without them a broken or hostile
--- peer can publish a key level or rating up to MAX_SAFE_INTEGER, which renders
--- into the roster and blows up the column layout for everyone in the group.
--- The rest of the ingest path is already strict this way (ParseKickPayload
--- rejects malformed suffixes outright, SKCD caps at 30s). Values above the
--- bound are treated as unresolved rather than clamped, per the fail-closed
--- contract: a silently clamped number would be a fabricated value.
---
--- Every numeric bucket that reaches a rendered surface is covered: KEY and
--- STATS, plus TARGET (carries its own key level, rendered as "+<level>" in the
--- kill row) and DPS (roster DPS column). TARGET and DPS were missed when the
--- first two were added, which left exactly the gap this comment claimed to
--- close -- so when adding a new numeric bucket, bound it here as well.
-local MAX_SYNC_KEY_LEVEL = 1000
-local MAX_SYNC_ILVL = 10000
-local MAX_SYNC_RIO = 100000
--- Roughly two orders of magnitude above realistic end-of-expansion dps, so it
--- only ever catches broken or hostile values, never a real parse.
-local MAX_SYNC_DPS = 100000000
--- Far above any interrupt or stun cooldown; the kick column renders this value.
-local MAX_SYNC_KICK_REMAIN = 3600
--- Own interrupt casts of one run (rule 238, KC suffix of the DPS bucket); far
--- above any real key, rendered in the kick column as "cast/landed".
-local MAX_SYNC_RUN_KICKS = 1000
-
-local function ToFiniteNumber(value)
-  local numericValue = tonumber(value)
-  if
-    numericValue == nil
-    or numericValue ~= numericValue
-    or numericValue == math.huge
-    or numericValue == -math.huge
-    or math.abs(numericValue) > MAX_SAFE_INTEGER
-  then
-    return nil
-  end
-  return numericValue
-end
-
-local function IsExplicitNonFiniteNumber(value)
-  return tonumber(value) ~= nil and ToFiniteNumber(value) == nil
-end
+local ToFiniteNumber = SyncCodec.ToFiniteNumber
+local FormatBytes = SyncCodec.FormatBytes
+local GetSyncTimestamp = SyncCodec.GetSyncTimestamp
+local NormalizeSyncSource = SyncCodec.NormalizeSyncSource
+local NormalizeSyncProtocolVersion = SyncCodec.NormalizeSyncProtocolVersion
+local NormalizeKeyPayload = SyncCodec.NormalizeKeyPayload
+local NormalizeStatsPayload = SyncCodec.NormalizeStatsPayload
+local NormalizeDpsPayload = SyncCodec.NormalizeDpsPayload
+local NormalizeRunKicksSuffix = SyncCodec.NormalizeRunKicksSuffix
+local NormalizeRunKicksMissedSuffix = SyncCodec.NormalizeRunKicksMissedSuffix
+local NormalizeLocPayload = SyncCodec.NormalizeLocPayload
+local NormalizeTargetPayload = SyncCodec.NormalizeTargetPayload
+local EncodeKickSpellSuffix = SyncCodec.EncodeKickSpellSuffix
+local EncodeKickExtrasSuffix = SyncCodec.EncodeKickExtrasSuffix
+local IsSyncEnabled = SyncTransport.IsSyncEnabled
+local SafeBooleanCall = SyncTransport.SafeBooleanCall
+local ResolveSendChannel = SyncTransport.ResolveSendChannel
+local DispatchAddonMessage = SyncTransport.DispatchAddonMessage
+local IsBlockedBySendGate = SyncTransport.IsBlockedBySendGate
+local IsAddonChatLockedDown = SyncTransport.IsAddonChatLockedDown
 
 -- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
 --
 -- Rationale: The addon runs exactly one Sync instance per session. Cooldown timestamps
 -- (lastIsiLive*At) are addon-wide send rate-limiters. Payload dedup trackers (last*PayloadSent)
--- suppress identical re-sends within the same session. User/key/stats/dps/loc lookup tables
--- (isiLiveUsersByKey, *InfoByPlayerKey) hold received peer data that must survive across
+-- suppress identical re-sends within the same session. Received peer data lives in the one
+-- peer-state store created below (logic/isiLive_sync_peer_state.lua) and must survive across
 -- controller re-creations during the same session.
 --
 -- Reset contract: ClearKnownUsers() resets ALL mutable state (cooldowns, dedup trackers,
--- and lookup tables) and is called by isiLive_controller_wiring.lua and isiLive_keysync.lua
+-- and the peer-state store) and is called by isiLive_controller_wiring.lua and isiLive_keysync.lua
 -- on group disband. This ensures a clean slate when the player joins a new group.
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
@@ -94,16 +76,6 @@ local lastDpsPayloadSent = nil
 local lastLocPayloadSent = nil
 local lastTargetPayloadSent = nil
 local lastKickPayloadSent = nil
-local isiLiveUsersByKey = {}
-local helloInfoByPlayerKey = {}
-local keyInfoByPlayerKey = {}
-local statsInfoByPlayerKey = {}
-local dpsInfoByPlayerKey = {}
-local locInfoByPlayerKey = {}
-local targetInfoByPlayerKey = {}
-local kickInfoByPlayerKey = {}
-local runKicksCastByPlayerKey = {}
-local kickInfoGeneration = 0
 -- send_kick trace state: the kick poll calls SendKick every 0.5 s while a
 -- cooldown runs, so the trace only records a change of what it reports (see
 -- TraceKickSend). kickSendLockedDown remembers a send skipped because addon
@@ -115,7 +87,6 @@ local kickSendLockedDown = false
 local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
-local snapshotWatermarks = {}
 local syncDebugTrace = nil
 local syncDebugTraceDeep = nil
 -- Optional "would this level be recorded" checks paired with the trace
@@ -185,249 +156,6 @@ end
 
 local function IsSyncLogDeepActive()
   return syncDebugTraceDeep ~= nil and IsTraceLoggerActive(syncDebugTraceDeep)
-end
-
-local function FormatBytes(value)
-  local text = tostring(value or "")
-  if text == "" then
-    return ""
-  end
-  local out = {}
-  for i = 1, #text do
-    out[#out + 1] = string.format("%02X", string.byte(text, i))
-  end
-  return table.concat(out, "-")
-end
-
-local function GetSyncTimestamp()
-  local getServerTime = rawget(_G, "GetServerTime")
-  if type(getServerTime) == "function" then
-    local ok, serverTime = pcall(getServerTime)
-    local numericServerTime = ok and ToFiniteNumber(serverTime) or nil
-    if numericServerTime and numericServerTime > 0 then
-      return math.floor(numericServerTime)
-    end
-  end
-
-  local timeFn = rawget(_G, "time")
-  if type(timeFn) == "function" then
-    local ok, unixTime = pcall(timeFn)
-    local numericUnixTime = ok and ToFiniteNumber(unixTime) or nil
-    if numericUnixTime and numericUnixTime > 0 then
-      return math.floor(numericUnixTime)
-    end
-  end
-
-  local getTime = rawget(_G, "GetTime")
-  if type(getTime) == "function" then
-    local ok, elapsed = pcall(getTime)
-    local numericElapsed = ok and ToFiniteNumber(elapsed) or nil
-    if numericElapsed and numericElapsed > 0 then
-      return math.floor(numericElapsed)
-    end
-  end
-
-  return nil
-end
-
-local function NormalizeSyncSource(source)
-  local text = StringUtils.Trim(source and tostring(source) or ""):lower()
-  text = text:gsub("%s+", "_"):gsub("[^%w_%-]", "")
-  if text == "" then
-    return nil
-  end
-  return text
-end
-
--- Peer-supplied version strings are rendered verbatim in the roster tooltip,
--- where WoW interprets `|c`, `|T` and `|H` escapes. Every other peer string
--- field is normalized before it is stored (see NormalizeSyncSource and the
--- levelText pattern check), so this one follows the same whitelist approach:
--- SemVer characters only, which drops any UI markup a modified client could
--- send. Length is capped so a peer cannot stretch the tooltip line.
-local MAX_SYNC_ADDON_VERSION_LENGTH = 32
-
-local function NormalizeSyncAddonVersion(addonVersion)
-  local text = StringUtils.Trim(addonVersion and tostring(addonVersion) or "")
-  text = text:gsub("[^%w%.%-_+]", "")
-  if text == "" then
-    return nil
-  end
-  return text:sub(1, MAX_SYNC_ADDON_VERSION_LENGTH)
-end
-
--- Peer-supplied player names that are not checked against the authenticated
--- sender (the Power Infusion recipient) are printed into the local chat frame,
--- which interprets the same `|` escapes. A real "Name-Realm" never contains a
--- pipe or a control character, so such a name is rejected rather than cleaned
--- up. The byte cap covers a 12-glyph UTF-8 name plus the longest realm suffix.
-local MAX_SYNC_PEER_NAME_LENGTH = 96
-
-local function IsPlainPeerName(text)
-  return type(text) == "string" and text ~= "" and #text <= MAX_SYNC_PEER_NAME_LENGTH and not text:find("[|%c]")
-end
-
-local function NormalizeSyncProtocolVersion(protocolVersion)
-  local numericVersion = ToFiniteNumber(protocolVersion)
-  if not numericVersion or numericVersion <= 0 then
-    return ISILIVE_SYNC_PROTOCOL_VERSION
-  end
-  return math.floor(numericVersion)
-end
-
-local MAX_PAYLOAD_FIELDS = 10
-
-local function SplitPayload(message)
-  local parts = {}
-  for part in (tostring(message or "") .. ":"):gmatch("(.-):") do
-    if #parts >= MAX_PAYLOAD_FIELDS then
-      break
-    end
-    parts[#parts + 1] = part
-  end
-  return parts
-end
-
-local function ParseKickPayload(message)
-  if type(message) ~= "string" then
-    return nil
-  end
-
-  local stateRaw, remainRaw, suffix = message:match("^KICK:([^:]+):([^:]+)(.*)$")
-  if not stateRaw or not remainRaw then
-    return nil
-  end
-
-  local numericState = ToFiniteNumber(stateRaw)
-  local numericRemain = ToFiniteNumber(remainRaw)
-  if
-    not (
-      (numericState == -1 or numericState == 0 or numericState == 1)
-      and numericRemain
-      and numericRemain >= 0
-      and numericRemain <= MAX_SYNC_KICK_REMAIN
-    )
-  then
-    return nil
-  end
-
-  local spellID = nil
-  local extras = nil
-  local sawExtras = false
-  while suffix ~= "" do
-    local spellRaw, afterSpell = suffix:match("^:S:(%d+)(.*)$")
-    if spellRaw then
-      if spellID ~= nil then
-        return nil
-      end
-      spellID = ToFiniteNumber(spellRaw)
-      if not spellID or spellID <= 0 then
-        return nil
-      end
-      suffix = afterSpell or ""
-    else
-      local extrasRaw, afterExtras = suffix:match("^:E:([^:]+)(.*)$")
-      if not extrasRaw or sawExtras then
-        return nil
-      end
-      sawExtras = true
-      if
-        extrasRaw:find("[^%d,;]")
-        or extrasRaw:sub(1, 1) == ";"
-        or extrasRaw:sub(-1) == ";"
-        or extrasRaw:find(";;", 1, true)
-      then
-        return nil
-      end
-
-      local count = 0
-      for entry in extrasRaw:gmatch("[^;]+") do
-        local sidStr, remainStr = entry:match("^(%d+),(%d+)$")
-        local sid = ToFiniteNumber(sidStr)
-        local rem = ToFiniteNumber(remainStr)
-        if not sid or not rem or rem <= 0 or rem > MAX_SYNC_KICK_REMAIN then
-          return nil
-        end
-        if count < 8 then
-          extras = extras or {}
-          extras[sid] = { cooldownRemain = rem }
-          count = count + 1
-        end
-      end
-
-      if count == 0 then
-        return nil
-      end
-      suffix = afterExtras or ""
-    end
-  end
-
-  if numericState == -1 and spellID ~= nil then
-    return nil
-  end
-
-  return {
-    state = numericState,
-    remain = numericRemain,
-    hasKick = numericState ~= -1,
-    spellID = spellID,
-    extras = extras,
-  }
-end
-
-local function EncodeKickSpellSuffix(spellID, hasKick)
-  if hasKick ~= true then
-    return ""
-  end
-  local sid = ToFiniteNumber(spellID)
-  if not sid or sid <= 0 then
-    return ""
-  end
-  return string.format(":S:%d", math.floor(sid))
-end
-
-local function EncodeKickExtrasSuffix(extras)
-  if type(extras) ~= "table" then
-    return ""
-  end
-
-  -- Collect (spellID, remain) tuples, then sort numerically by spellID so
-  -- the dedup-payload hash is deterministic regardless of pairs() order.
-  -- Numerical sort matters when spell IDs differ in digit count (e.g. 1766
-  -- Rogue Kick vs 119914 Axe Toss); a string-based sort would put "1766"
-  -- after "119914" lexicographically, breaking dedup if the same map is
-  -- emitted twice with shuffled pairs() order.
-  local entries = {}
-  for spellID, data in pairs(extras) do
-    if type(data) == "table" then
-      local sid = ToFiniteNumber(spellID)
-      local r = ToFiniteNumber(data.cooldownRemain)
-      if sid and r and r > 0 then
-        entries[#entries + 1] = { sid = sid, remain = math.ceil(r) }
-      end
-    end
-  end
-  if #entries == 0 then
-    return ""
-  end
-
-  table.sort(entries, function(a, b)
-    return a.sid < b.sid
-  end)
-  local pieces = {}
-  for _, e in ipairs(entries) do
-    pieces[#pieces + 1] = string.format("%d,%d", e.sid, e.remain)
-  end
-  return ":E:" .. table.concat(pieces, ";")
-end
-
--- The parser above is intentionally strict: every optional suffix segment
--- must be known and well-formed, otherwise the full KICK payload is dropped.
--- This preserves the no-guess contract for peer kick state.
-
-local function IsSyncEnabled()
-  local db = rawget(_G, "IsiLiveDB")
-  return not db or db.syncEnabled ~= false
 end
 
 --- Normalizes a name/realm pair into a stable, case-insensitive lookup key.
@@ -502,264 +230,63 @@ end
 --- Returns the current sync protocol version number (currently 2).
 -- @return number
 function Sync.GetProtocolVersion()
-  return ISILIVE_SYNC_PROTOCOL_VERSION
+  return SyncCodec.PROTOCOL_VERSION
 end
 
-local function NormalizeCapturedAtAndSource(capturedAt, source)
-  local ts = ToFiniteNumber(capturedAt)
-  if not ts or ts <= 0 then
-    ts = GetSyncTimestamp() or 0
-  end
-  return math.floor(ts), NormalizeSyncSource(source) or "local"
+-- Received peer data (known users, HELLO/ACK, KEY/STATS/DPS/LOC/TARGET,
+-- kick state and run kicks). The store keys peers through the facade, so a
+-- later NormalizePlayerKey change applies to every bucket.
+local peerState = addonTable.SyncPeerState
+peerState.Bind({
+  normalizePlayerKey = function(name, realm)
+    return Sync.NormalizePlayerKey(name, realm)
+  end,
+})
+for _, name in ipairs({
+  "MarkUser",
+  "IsUserKnown",
+  "IsUnitKnown",
+  "SetPlayerHelloInfo",
+  "SetPlayerHelloAckInfo",
+  "GetPlayerHelloInfo",
+  "HasPeerReported",
+  "SetPlayerKeyInfo",
+  "GetPlayerKeyInfo",
+  "SetPlayerStatsInfo",
+  "GetPlayerStatsInfo",
+  "SetPlayerDpsInfo",
+  "GetPlayerDpsInfo",
+  "SetPlayerRunKicksCast",
+  "GetPlayerRunKicksCast",
+  "SetPlayerKickInfo",
+  "GetPlayerKickInfo",
+  "ClearPlayerKickInfo",
+  "GetKickInfoGeneration",
+  "SetPlayerLocInfo",
+  "GetPlayerLocInfo",
+  "SetPlayerTargetInfo",
+  "GetPlayerTargetInfo",
+  "GetPlayerSyncSummary",
+}) do
+  Sync[name] = assert(peerState[name], "SyncPeerState is missing " .. name)
 end
 
-local function NormalizeKeyPayload(mapID, level, capturedAt, source)
-  local numericLevel = ToFiniteNumber(level)
-  local numericMapID = ToFiniteNumber(mapID)
-  if type(SeasonData.NormalizeMapID) == "function" then
-    numericMapID = SeasonData.NormalizeMapID(numericMapID)
-  end
-  numericLevel = numericLevel and math.floor(numericLevel)
-  numericMapID = numericMapID and math.floor(numericMapID)
-  if
-    not numericLevel
-    or numericLevel <= 0
-    or numericLevel > MAX_SYNC_KEY_LEVEL
-    or not numericMapID
-    or numericMapID <= 0
-  then
-    return string.format("KEY:0:0:%d:%s", GetSyncTimestamp() or 0, NormalizeSyncSource(source) or "local"),
-      nil,
-      nil,
-      nil,
-      nil
-  end
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  return string.format("KEY:%d:%d:%d:%s", numericMapID, numericLevel, normalizedCapturedAt, normalizedSource),
-    numericMapID,
-    numericLevel,
-    normalizedCapturedAt,
-    normalizedSource
-end
+--- Returns the current group addon sync channel, or nil when not in a group or raid.
+-- Priority: raid hard-off, then INSTANCE_CHAT > verified home PARTY.
+-- @return string|nil "INSTANCE_CHAT", "PARTY", or nil.
+Sync.GetAddonSyncChannel = SyncTransport.GetAddonSyncChannel
 
-local function NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
-  local numericSpecID = ToFiniteNumber(specID)
-  local numericIlvl = ToFiniteNumber(ilvl)
-  local numericRio = ToFiniteNumber(rio)
-
-  if not numericSpecID or numericSpecID <= 0 then
-    numericSpecID = 0
-  else
-    numericSpecID = math.floor(numericSpecID)
-  end
-
-  if not numericIlvl or numericIlvl <= 0 or numericIlvl > MAX_SYNC_ILVL then
-    numericIlvl = -1
-  else
-    numericIlvl = math.floor(numericIlvl)
-  end
-
-  if numericRio == nil or numericRio > MAX_SYNC_RIO then
-    numericRio = -1
-  else
-    numericRio = math.floor(numericRio)
-    if numericRio < 0 then
-      numericRio = -1
-    end
-  end
-
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  return string.format(
-    "STATS:%d:%d:%d:%d:%s",
-    numericSpecID,
-    numericIlvl,
-    numericRio,
-    normalizedCapturedAt,
-    normalizedSource
-  ),
-    numericSpecID,
-    numericIlvl,
-    numericRio,
-    normalizedCapturedAt,
-    normalizedSource
-end
-
-local function NormalizeDpsPayload(dps, capturedAt, source)
-  local numericDps = ToFiniteNumber(dps)
-  if not numericDps or numericDps < 0 or numericDps > MAX_SYNC_DPS then
-    numericDps = 0
-  else
-    numericDps = math.floor(numericDps + 0.5)
-  end
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  return string.format("DPS:%d:%d:%s", numericDps, normalizedCapturedAt, normalizedSource),
-    numericDps,
-    normalizedCapturedAt,
-    normalizedSource
-end
-
--- Run kicks ride on the DPS bucket as the tagged suffix ":KC:<cast>:<mapID>:<level>"
--- (rule 238). Clients up to 0.9.506 read only fields 2-4 of a DPS payload and
--- ignore the suffix. The map ID and key level bind the count to the run it
--- was cast in; a receiver pairs it only with its own snapshot of that run.
--- Returns the suffix and the three normalized numbers, or "" when any part is
--- missing or out of bounds.
-local function NormalizeRunKicksSuffix(cast, mapID, level)
-  local numericCast = ToFiniteNumber(cast)
-  local numericMapID = ToFiniteNumber(mapID)
-  local numericLevel = ToFiniteNumber(level)
-  if
-    not numericCast
-    or numericCast < 0
-    or numericCast > MAX_SYNC_RUN_KICKS
-    or numericCast ~= math.floor(numericCast)
-    or not numericMapID
-    or numericMapID <= 0
-    or numericMapID ~= math.floor(numericMapID)
-    or not numericLevel
-    or numericLevel < 0
-    or numericLevel > MAX_SYNC_KEY_LEVEL
-    or numericLevel ~= math.floor(numericLevel)
-  then
-    return "", nil, nil, nil
-  end
-  return string.format(":KC:%d:%d:%d", numericCast, numericMapID, numericLevel), numericCast, numericMapID, numericLevel
-end
-
--- The own missed kicks of the run (rule 240) follow the KC suffix as
--- ":KM:<missed>" (fields 9-10, inside the 10-field split). Clients up to
--- 0.9.508 read fields 5-8 only and ignore it. Returns the suffix and the
--- number, or "" when there is no KC suffix or the count is out of bounds
--- (negative, fractional or above the cast count).
-local function NormalizeRunKicksMissedSuffix(missed, numericCast)
-  local numericMissed = ToFiniteNumber(missed)
-  if
-    not numericCast
-    or not numericMissed
-    or numericMissed < 0
-    or numericMissed > numericCast
-    or numericMissed ~= math.floor(numericMissed)
-  then
-    return "", nil
-  end
-  return string.format(":KM:%d", numericMissed), numericMissed
-end
-
-local function NormalizePositiveLocID(value)
-  local numeric = ToFiniteNumber(value)
-  if not numeric or numeric <= 0 then
-    return nil
-  end
-  return math.floor(numeric)
-end
-
--- Wire format: LOC:<uiMapID>:<capturedAt>:<source>[:IN:<instanceID>]
--- Field 2 keeps the legacy UiMapID (C_Map.GetBestMapForUnit) so clients up to
--- 0.9.423, which read only fields 2-4, behave exactly as before. The party
--- instance ID (8th return of GetInstanceInfo) rides in the tagged "IN" suffix
--- (same extension style as the TARGET "LT" suffix). Every LOC-capable release
--- splits on ":" into at most 10 fields and ignores fields 5+ (rule 194).
-local function NormalizeLocPayload(mapID, capturedAt, source, instanceID)
-  local numericMapID = NormalizePositiveLocID(mapID)
-  local numericInstanceID = NormalizePositiveLocID(instanceID)
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  local payload = string.format("LOC:%d:%d:%s", numericMapID or 0, normalizedCapturedAt, normalizedSource)
-  if numericInstanceID then
-    payload = payload .. ":IN:" .. numericInstanceID
-  end
-  return payload, numericMapID, normalizedCapturedAt, normalizedSource, numericInstanceID
-end
-
-local function NormalizeTargetLevelText(levelText, numericLevel)
-  if numericLevel ~= nil then
-    return nil
-  end
-  if type(levelText) == "string" and levelText:match("^|Kk%d+|k$") then
-    return levelText
-  end
-  return nil
-end
-
-local function NormalizeTargetPayload(mapID, level, capturedAt, source, levelText)
-  local numericMapID = ToFiniteNumber(mapID)
-  local numericLevel = ToFiniteNumber(level)
-  local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
-  local normalizedLevelText = nil
-  if not numericMapID or numericMapID <= 0 then
-    return string.format("TARGET:0:0:%d:%s", normalizedCapturedAt, normalizedSource),
-      nil,
-      nil,
-      normalizedCapturedAt,
-      normalizedSource,
-      nil
-  end
-
-  numericMapID = math.floor(numericMapID)
-  -- An out-of-range level is dropped to unresolved, not clamped, and the entry
-  -- itself survives on its still-valid map id -- same handling as a missing
-  -- level. Bounded like KEY: TARGET renders "+<level>" into the kill row.
-  if not numericLevel or numericLevel <= 0 or numericLevel > MAX_SYNC_KEY_LEVEL then
-    numericLevel = nil
-    normalizedLevelText = NormalizeTargetLevelText(levelText, nil)
-  else
-    numericLevel = math.floor(numericLevel)
-  end
-
-  local payload =
-    string.format("TARGET:%d:%d:%d:%s", numericMapID, numericLevel or 0, normalizedCapturedAt, normalizedSource)
-  if normalizedLevelText then
-    payload = payload .. ":LT:" .. normalizedLevelText
-  end
-
-  return payload, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource, normalizedLevelText
-end
-
---- Records that a player has sent at least one sync message this session.
--- @param name string Player name.
--- @param realm string|nil Realm name.
-function Sync.MarkUser(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if key and key ~= "" then
-    isiLiveUsersByKey[key] = true
-  end
-end
-
---- Returns whether a player is a known sync peer (has sent at least one message this session).
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return boolean
-function Sync.IsUserKnown(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  return key and isiLiveUsersByKey[key] == true or false
-end
-
---- Returns whether the given WoW unit belongs to a known sync peer.
--- @param getUnitNameAndRealm function Callback returning (name, realm) for a unit token.
--- @param unit string WoW unit token (e.g. "party1").
--- @return boolean
-function Sync.IsUnitKnown(getUnitNameAndRealm, unit)
-  if type(getUnitNameAndRealm) ~= "function" then
-    return false
-  end
-  local name, realm = getUnitNameAndRealm(unit)
-  return Sync.IsUserKnown(name, realm)
+--- Registers ISILIVE and LibKS addon message prefixes with C_ChatInfo.
+-- Must be called once (on PLAYER_LOGIN) before addon messages can be received.
+function Sync.RegisterPrefix()
+  SyncTransport.RegisterPrefixes({ ISILIVE_SYNC_PREFIX, LIBKEYSTONE_SYNC_PREFIX })
 end
 
 --- Resets all session-wide sync state: known users, per-player caches, send cooldowns, and dedup trackers.
 -- Called on group disband to ensure a clean slate for the next group.
 -- @see isiLive_controller_wiring.lua, isiLive_keysync.lua
 function Sync.ClearKnownUsers()
-  isiLiveUsersByKey = {}
-  helloInfoByPlayerKey = {}
-  keyInfoByPlayerKey = {}
-  statsInfoByPlayerKey = {}
-  dpsInfoByPlayerKey = {}
-  locInfoByPlayerKey = {}
-  targetInfoByPlayerKey = {}
-  kickInfoByPlayerKey = {}
-  runKicksCastByPlayerKey = {}
-  kickInfoGeneration = kickInfoGeneration + 1
-  snapshotWatermarks = {}
+  peerState.Reset()
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
   lastIsiLiveStatsAt = 0
@@ -778,873 +305,6 @@ function Sync.ClearKnownUsers()
   lastKickPayloadSent = nil
   lastKickTrace = {}
   kickTraceRepeats = 0
-end
-
-local function GetEntrySyncStamp(entry)
-  if type(entry) ~= "table" then
-    return nil
-  end
-
-  local capturedAt = ToFiniteNumber(entry.capturedAt)
-  local receivedAt = ToFiniteNumber(entry.receivedAt)
-  return capturedAt or receivedAt
-end
-
-local function SetEntryPreviousSyncStamp(entry, previousStamp)
-  if type(entry) ~= "table" then
-    return
-  end
-
-  previousStamp = ToFiniteNumber(previousStamp)
-  local nextStamp = GetEntrySyncStamp(entry)
-  if previousStamp and nextStamp and nextStamp >= previousStamp then
-    entry.previousSyncStamp = previousStamp
-  else
-    entry.previousSyncStamp = nil
-  end
-end
-
---- Stores a received HELLO payload for a peer.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param addonVersion string Peer's addon version string.
--- @param protocolVersion number|nil Peer's declared protocol version.
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label (e.g. "refresh", "local").
--- @return boolean true if this is the first HELLO from this peer; false if updated in-place.
-function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, capturedAt, source)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local normalizedProtocolVersion = NormalizeSyncProtocolVersion(protocolVersion)
-  local normalizedCapturedAt = ToFiniteNumber(capturedAt)
-  if not normalizedCapturedAt or normalizedCapturedAt <= 0 then
-    normalizedCapturedAt = GetSyncTimestamp() or 0
-  end
-  local normalizedSource = NormalizeSyncSource(source) or "local"
-  local previous = helloInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local nextValue = {
-    addonVersion = NormalizeSyncAddonVersion(addonVersion) or "?",
-    protocolVersion = normalizedProtocolVersion,
-    capturedAt = math.floor(normalizedCapturedAt),
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-
-  if previous then
-    previous.addonVersion = nextValue.addonVersion
-    previous.protocolVersion = nextValue.protocolVersion
-    previous.capturedAt = nextValue.capturedAt
-    previous.source = nextValue.source
-    previous.receivedAt = nextValue.receivedAt
-    SetEntryPreviousSyncStamp(previous, previousStamp)
-    return false
-  end
-
-  helloInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Stores a received ACK (version-only hello acknowledgement) for a peer.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param addonVersion string Peer's addon version string.
--- @return boolean true if the stored version changed; false if unchanged or empty.
-function Sync.SetPlayerHelloAckInfo(name, realm, addonVersion)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local normalizedAddonVersion = NormalizeSyncAddonVersion(addonVersion)
-  if not normalizedAddonVersion then
-    return false
-  end
-
-  local previous = helloInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-
-  if previous then
-    local changed = previous.addonVersion ~= normalizedAddonVersion
-    previous.addonVersion = normalizedAddonVersion
-    previous.source = "ack"
-    previous.receivedAt = GetSyncTimestamp()
-    -- An ACK carries no capture time, so a stamped hello keeps its interval.
-    if ToFiniteNumber(previous.capturedAt) == nil then
-      SetEntryPreviousSyncStamp(previous, previousStamp)
-    end
-    return changed
-  end
-
-  local nextValue = {
-    addonVersion = normalizedAddonVersion,
-    protocolVersion = nil,
-    capturedAt = nil,
-    source = "ack",
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-  helloInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored HELLO/ACK info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {addonVersion, protocolVersion, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerHelloInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return helloInfoByPlayerKey[key]
-end
-
--- Monotonic per-peer gate for timestamped snapshots. Only stamps supplied by the
--- peer move the watermark, and only an older stamp is refused: stamps have
--- one-second resolution, so equal stamps keep their arrival order. An unstamped
--- snapshot carries no capture time and applies in arrival order, also after a
--- stamped clear, because LibKeystone data of a peer whose stamped sends are gated
--- is real. ClearKnownUsers drops all marks with the session.
--- A mark also records that the peer reported this bucket in the session.
--- @return boolean true when the snapshot may be applied.
--- @return boolean true when an unstamped snapshot arrives over a verified stamp;
---   an identical payload must then keep the stored capture metadata.
-local function AdmitSnapshot(kind, key, capturedAt)
-  local marks = snapshotWatermarks[kind]
-  if not marks then
-    marks = {}
-    snapshotWatermarks[kind] = marks
-  end
-  local mark = marks[key] or 0
-  local incomingStamp = ToFiniteNumber(capturedAt)
-  if not incomingStamp or incomingStamp <= 0 then
-    marks[key] = mark
-    return true, mark > 0
-  end
-  if incomingStamp < mark then
-    return false, false
-  end
-  marks[key] = incomingStamp
-  return true, false
-end
-
--- An identical payload only refreshes metadata. Over a verified stamp the
--- capture metadata stays, so the entry keeps its real sync interval.
-local function RefreshUnchangedEntry(entry, keepsVerifiedStamp, capturedAt, source, previousStamp)
-  entry.receivedAt = GetSyncTimestamp()
-  if keepsVerifiedStamp then
-    return
-  end
-  entry.capturedAt = capturedAt
-  entry.source = source
-  SetEntryPreviousSyncStamp(entry, previousStamp)
-end
-
---- Returns whether a peer reported a sync bucket since the last ClearKnownUsers.
--- @param kind string "key", "stats", "dps", "loc" or "target".
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return boolean
-function Sync.HasPeerReported(kind, name, realm)
-  local marks = snapshotWatermarks[kind]
-  local key = Sync.NormalizePlayerKey(name, realm)
-  return marks ~= nil and key ~= nil and marks[key] ~= nil
-end
-
---- Stores a received keystone payload for a peer. Clears the entry when mapID or level is invalid.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param mapID number|nil Dungeon map ID; 0 or nil clears the entry.
--- @param level number|nil Key level; 0 or nil clears the entry.
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label.
--- @return boolean true if the stored key changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource =
-    NormalizeKeyPayload(mapID, level, capturedAt, source)
-  local previous = keyInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("key", key, capturedAt)
-  if not isAdmitted then
-    return false
-  end
-  if not numericMapID or not numericLevel then
-    local hadValue = type(previous) == "table"
-    keyInfoByPlayerKey[key] = nil
-    return hadValue
-  end
-
-  if previous and previous.mapID == numericMapID and previous.level == numericLevel then
-    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
-    return false
-  end
-
-  local nextValue = {
-    mapID = numericMapID,
-    level = numericLevel,
-    capturedAt = normalizedCapturedAt,
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-  keyInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored keystone info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {mapID, level, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerKeyInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return keyInfoByPlayerKey[key]
-end
-
---- Stores a received stats payload (spec/ilvl/rio) for a peer. Clears the entry when all fields are invalid.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param specID number|nil Specialization ID (0 treated as missing).
--- @param ilvl number|nil Average item level (<=0 treated as missing).
--- @param rio number|nil Mythic+ rating (<0 treated as missing).
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label.
--- @return boolean true if stored stats changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, source)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local _, numericSpecID, numericIlvl, numericRio, normalizedCapturedAt, normalizedSource =
-    NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
-  local previous = statsInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("stats", key, capturedAt)
-  if not isAdmitted then
-    return false
-  end
-  local nextValue = {
-    specID = numericSpecID > 0 and numericSpecID or nil,
-    ilvl = numericIlvl > 0 and numericIlvl or nil,
-    rio = numericRio >= 0 and numericRio or nil,
-    capturedAt = normalizedCapturedAt,
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-
-  if nextValue.specID == nil and nextValue.ilvl == nil and nextValue.rio == nil then
-    local hadValue = type(statsInfoByPlayerKey[key]) == "table"
-    statsInfoByPlayerKey[key] = nil
-    return hadValue
-  end
-
-  if
-    previous
-    and previous.specID == nextValue.specID
-    and previous.ilvl == nextValue.ilvl
-    and previous.rio == nextValue.rio
-  then
-    RefreshUnchangedEntry(previous, keepsVerifiedStamp, nextValue.capturedAt, nextValue.source, previousStamp)
-    return false
-  end
-
-  statsInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored stats info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {specID, ilvl, rio, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerStatsInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return statsInfoByPlayerKey[key]
-end
-
---- Stores a received DPS payload for a peer. Clears the entry when dps <= 0.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param dps number Damage per second (rounded to nearest integer).
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label.
--- @return boolean true if stored DPS changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerDpsInfo(name, realm, dps, capturedAt, source)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local _, numericDps, normalizedCapturedAt, normalizedSource = NormalizeDpsPayload(dps, capturedAt, source)
-  local previous = dpsInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("dps", key, capturedAt)
-  if not isAdmitted then
-    return false
-  end
-  if not numericDps or numericDps <= 0 then
-    local hadValue = type(dpsInfoByPlayerKey[key]) == "table"
-    dpsInfoByPlayerKey[key] = nil
-    return hadValue
-  end
-
-  if previous and previous.dps == numericDps then
-    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
-    return false
-  end
-
-  local nextValue = {
-    dps = numericDps,
-    capturedAt = normalizedCapturedAt,
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-  dpsInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored DPS info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {dps, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerDpsInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return dpsInfoByPlayerKey[key]
-end
-
---- Stores a peer's own interrupt casts of its last run (KC suffix, rule 238)
--- and its own missed kicks (KM suffix, rule 240).
--- Out-of-bounds or incomplete casts are rejected and leave the entry as it
--- was; an invalid or missing missed count is stored as unknown (nil).
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param cast number Own interrupt casts of the run.
--- @param mapID number Challenge map ID of the run.
--- @param level number Key level of the run.
--- @param missed number|nil Own missed kicks of the run.
--- @return boolean true if the stored value changed.
-function Sync.SetPlayerRunKicksCast(name, realm, cast, mapID, level, missed)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-  local suffix, numericCast, numericMapID, numericLevel = NormalizeRunKicksSuffix(cast, mapID, level)
-  if suffix == "" then
-    return false
-  end
-  local _, numericMissed = NormalizeRunKicksMissedSuffix(missed, numericCast)
-  local previous = runKicksCastByPlayerKey[key]
-  if
-    previous
-    and previous.cast == numericCast
-    and previous.mapID == numericMapID
-    and previous.level == numericLevel
-    and previous.missed == numericMissed
-  then
-    return false
-  end
-  runKicksCastByPlayerKey[key] =
-    { cast = numericCast, mapID = numericMapID, level = numericLevel, missed = numericMissed }
-  return true
-end
-
---- Returns a peer's synced interrupt casts of its last run, or nil.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {cast, mapID, level, missed}
-function Sync.GetPlayerRunKicksCast(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return runKicksCastByPlayerKey[key]
-end
-
---- Stores a received kick/interrupt availability payload for a peer.
--- Rejected (returns false) when hasKick or onCooldown are not explicit booleans,
--- or when hasKick==true and cooldownRemain is nil or negative.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param onCooldown boolean Whether the kick spell is currently on cooldown.
--- @param cooldownRemain number Remaining cooldown seconds; required when hasKick==true.
--- @param capturedAt number|nil Timestamp from the payload.
--- @param hasKick boolean Whether the player has a kick spell at all.
--- @param extras table|nil Extra kick cooldowns keyed by spellID.
--- @param spellID number|nil Primary kick spell ID when explicitly synced.
--- @return boolean true if stored kick state changed; false if unchanged or rejected.
-function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt, hasKick, extras, spellID)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-  if hasKick ~= true and hasKick ~= false then
-    return false
-  end
-  if onCooldown ~= true and onCooldown ~= false then
-    return false
-  end
-  local now = GetSyncTimestamp()
-  local prev = kickInfoByPlayerKey[key]
-  local newOnCooldown = onCooldown == true
-  local newHasKick = hasKick == true
-  local numericRemain = ToFiniteNumber(cooldownRemain)
-  if newHasKick then
-    if numericRemain == nil or numericRemain < 0 then
-      return false
-    end
-  elseif newOnCooldown then
-    return false
-  end
-  local prevRemain = ToFiniteNumber(prev and prev.cooldownRemain) or 0
-  local remainChanged = newHasKick and newOnCooldown and math.abs(prevRemain - numericRemain) > 0.05
-  local numericSpellID = newHasKick and ToFiniteNumber(spellID) or nil
-  if numericSpellID then
-    if numericSpellID <= 0 then
-      return false
-    end
-    numericSpellID = math.floor(numericSpellID)
-  end
-  -- Extras: sanitize input map; only pass through {[spellID]={cooldownRemain}}
-  -- entries with a positive remain. Caller may pass nil to clear.
-  local sanitizedExtras = nil
-  if type(extras) == "table" then
-    for extraSpellID, data in pairs(extras) do
-      local sid = ToFiniteNumber(extraSpellID)
-      local r = type(data) == "table" and ToFiniteNumber(data.cooldownRemain) or nil
-      if sid and r and r > 0 then
-        sanitizedExtras = sanitizedExtras or {}
-        sanitizedExtras[sid] = { cooldownRemain = r }
-      end
-    end
-  end
-  local extrasChanged = false
-  local prevExtras = prev and prev.extras or nil
-  if (prevExtras == nil) ~= (sanitizedExtras == nil) then
-    extrasChanged = true
-  elseif sanitizedExtras and prevExtras then
-    -- Compare keys + remains; small drift (<0.6s) treated as unchanged.
-    for sid, d in pairs(sanitizedExtras) do
-      local pd = prevExtras[sid]
-      if not pd or math.abs((pd.cooldownRemain or 0) - d.cooldownRemain) > 0.6 then
-        extrasChanged = true
-        break
-      end
-    end
-    if not extrasChanged then
-      for sid in pairs(prevExtras) do
-        if not sanitizedExtras[sid] then
-          extrasChanged = true
-          break
-        end
-      end
-    end
-  end
-  local changed = not prev
-    or prev.onCooldown ~= newOnCooldown
-    or prev.hasKick ~= newHasKick
-    or prev.spellID ~= numericSpellID
-    or remainChanged
-    or extrasChanged
-  local getTime = rawget(_G, "GetTime")
-  kickInfoByPlayerKey[key] = {
-    hasKick = newHasKick,
-    spellID = numericSpellID,
-    onCooldown = newOnCooldown,
-    cooldownRemain = newHasKick and numericRemain or 0,
-    extras = sanitizedExtras,
-    capturedAt = ToFiniteNumber(capturedAt) or now,
-    receivedAt = now,
-    receivedAtGetTime = type(getTime) == "function" and getTime() or nil,
-  }
-  return changed
-end
-
---- Returns stored kick info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {hasKick, onCooldown, cooldownRemain, capturedAt, receivedAt, receivedAtGetTime}
-function Sync.GetPlayerKickInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return kickInfoByPlayerKey[key]
-end
-
---- Clears stored kick info for a peer (e.g. when the player leaves the group).
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return boolean true if an entry existed and was removed.
-function Sync.ClearPlayerKickInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-  local hadValue = type(kickInfoByPlayerKey[key]) == "table"
-  kickInfoByPlayerKey[key] = nil
-  if hadValue then
-    kickInfoGeneration = kickInfoGeneration + 1
-  end
-  return hadValue
-end
-
---- Counter that moves whenever stored kick entries are dropped (ClearKnownUsers,
--- ClearPlayerKickInfo). Lets the local kick poll skip rewriting an unchanged
--- own entry without missing that the entry itself was removed.
--- @return number
-function Sync.GetKickInfoGeneration()
-  return kickInfoGeneration
-end
-
---- Stores a received location (map) payload for a peer. Clears the entry when mapID is invalid.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param mapID number|nil Legacy UiMapID (wire field 2); never used for the target-dungeon marker.
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label.
--- @param instanceID number|nil Party instance ID from the "IN" suffix (rule 194).
---   The entry is cleared only when both mapID and instanceID are nil or 0.
--- @return boolean true if stored location changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source, instanceID)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local _, numericMapID, normalizedCapturedAt, normalizedSource, numericInstanceID =
-    NormalizeLocPayload(mapID, capturedAt, source, instanceID)
-  local previous = locInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("loc", key, capturedAt)
-  if not isAdmitted then
-    return false
-  end
-  if not numericMapID and not numericInstanceID then
-    local hadValue = type(locInfoByPlayerKey[key]) == "table"
-    locInfoByPlayerKey[key] = nil
-    return hadValue
-  end
-
-  if previous and previous.mapID == numericMapID and previous.instanceID == numericInstanceID then
-    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
-    return false
-  end
-
-  local nextValue = {
-    mapID = numericMapID,
-    instanceID = numericInstanceID,
-    capturedAt = normalizedCapturedAt,
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-  locInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored location info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {mapID, instanceID, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerLocInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return locInfoByPlayerKey[key]
-end
-
---- Stores a received target-keystone payload for a peer. Clears the entry when mapID is invalid.
--- @param name string Sender name.
--- @param realm string|nil Sender realm.
--- @param mapID number|nil Target dungeon map ID; nil or 0 clears the entry.
--- @param level number|nil Target key level (nil when unknown).
--- @param capturedAt number|nil Timestamp from the payload.
--- @param source string|nil Sync source label.
--- @param levelText string|nil Verified opaque Blizzard keystone level markup.
--- @return boolean true if stored target changed; false if deduplicated or cleared unchanged.
-function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source, levelText)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return false
-  end
-
-  local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource, normalizedLevelText =
-    NormalizeTargetPayload(mapID, level, capturedAt, source, levelText)
-  local previous = targetInfoByPlayerKey[key]
-  local previousStamp = GetEntrySyncStamp(previous)
-  local isAdmitted, keepsVerifiedStamp = AdmitSnapshot("target", key, capturedAt)
-  if not isAdmitted then
-    return false
-  end
-  if not numericMapID then
-    local hadValue = type(targetInfoByPlayerKey[key]) == "table"
-    targetInfoByPlayerKey[key] = nil
-    return hadValue
-  end
-
-  if
-    previous
-    and previous.mapID == numericMapID
-    and previous.level == numericLevel
-    and previous.levelText == normalizedLevelText
-  then
-    RefreshUnchangedEntry(previous, keepsVerifiedStamp, normalizedCapturedAt, normalizedSource, previousStamp)
-    return false
-  end
-
-  local nextValue = {
-    mapID = numericMapID,
-    level = numericLevel,
-    levelText = normalizedLevelText,
-    capturedAt = normalizedCapturedAt,
-    source = normalizedSource,
-    receivedAt = GetSyncTimestamp(),
-  }
-  SetEntryPreviousSyncStamp(nextValue, previousStamp)
-  targetInfoByPlayerKey[key] = nextValue
-  return true
-end
-
---- Returns stored target info for a peer, or nil if none received.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {mapID, level, levelText, capturedAt, source, receivedAt, previousSyncStamp}
-function Sync.GetPlayerTargetInfo(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  return targetInfoByPlayerKey[key]
-end
-
---- Returns a summary of the most recently received sync bucket for a peer.
--- Picks the bucket with the highest capturedAt/receivedAt timestamp across all data types.
--- Used to compute approximate sync intervals for tooltip display.
--- @param name string Player name.
--- @param realm string|nil Realm name.
--- @return table|nil {kind, capturedAt, receivedAt, previousSyncStamp,
---   intervalSeconds, source, addonVersion, protocolVersion}
-function Sync.GetPlayerSyncSummary(name, realm)
-  local key = Sync.NormalizePlayerKey(name, realm)
-  if StringUtils.IsBlank(key) then
-    return nil
-  end
-  local candidates = {
-    { kind = "hello", data = helloInfoByPlayerKey[key] },
-    { kind = "key", data = keyInfoByPlayerKey[key] },
-    { kind = "stats", data = statsInfoByPlayerKey[key] },
-    { kind = "dps", data = dpsInfoByPlayerKey[key] },
-    { kind = "loc", data = locInfoByPlayerKey[key] },
-    { kind = "target", data = targetInfoByPlayerKey[key] },
-  }
-
-  local best = nil
-  for _, candidate in ipairs(candidates) do
-    local data = candidate.data
-    if type(data) == "table" then
-      local capturedAt = ToFiniteNumber(data.capturedAt)
-      local receivedAt = ToFiniteNumber(data.receivedAt)
-      local previousSyncStamp = ToFiniteNumber(data.previousSyncStamp)
-      local sortStamp = capturedAt or receivedAt
-      if sortStamp then
-        local summary = {
-          kind = candidate.kind,
-          capturedAt = capturedAt,
-          receivedAt = receivedAt,
-          previousSyncStamp = previousSyncStamp,
-          intervalSeconds = previousSyncStamp and sortStamp >= previousSyncStamp and (sortStamp - previousSyncStamp)
-            or nil,
-          source = data.source,
-          addonVersion = data.addonVersion,
-          protocolVersion = data.protocolVersion,
-          sortStamp = sortStamp,
-        }
-        if not best or summary.sortStamp > best.sortStamp then
-          best = summary
-        end
-      end
-    end
-  end
-
-  if best then
-    best.sortStamp = nil
-  end
-
-  return best
-end
-
-local function SafeBooleanCall(fn, ...)
-  local ok, result = pcall(fn, ...)
-  return ok and not addonTable.Validators.IsSecretValue(result) and result == true
-end
-
--- Numeric fallbacks for the party-category constants. The bundled
--- ChatThrottleLib guards the same call the same way (`LE_PARTY_CATEGORY_INSTANCE
--- or 2`). Without the fallback a missing global skips the instance-group check
--- entirely and the resolver falls through to a PARTY answer -- which Blizzard
--- rejects with ERR_NOT_IN_GROUP while the player is only in an automatic
--- instance group, surfacing as a chat error nobody asked for.
-local PARTY_CATEGORY_HOME = 1
-local PARTY_CATEGORY_INSTANCE = 2
-
-local function ResolvePartyCategory(globalName, numericFallback)
-  local value = rawget(_G, globalName)
-  if value == nil then
-    return numericFallback
-  end
-  return value
-end
-
-local function IsVerifiedInstanceGroup()
-  local isInGroup = rawget(_G, "IsInGroup")
-  if type(isInGroup) ~= "function" then
-    return false
-  end
-  local instanceCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_INSTANCE", PARTY_CATEGORY_INSTANCE)
-  return SafeBooleanCall(isInGroup, instanceCategory)
-end
-
-local function IsVerifiedHomeParty()
-  local isInGroup = rawget(_G, "IsInGroup")
-  local homeCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_HOME", PARTY_CATEGORY_HOME)
-  if type(isInGroup) == "function" and SafeBooleanCall(isInGroup, homeCategory) then
-    return true
-  end
-
-  local unitInParty = rawget(_G, "UnitInParty")
-  if type(unitInParty) == "function" then
-    return SafeBooleanCall(unitInParty, "player")
-  end
-
-  return type(isInGroup) == "function" and SafeBooleanCall(isInGroup)
-end
-
-local function IsVerifiedRaid()
-  local isInRaid = rawget(_G, "IsInRaid")
-  return type(isInRaid) == "function" and SafeBooleanCall(isInRaid)
-end
-
---- Returns the current group addon sync channel, or nil when not in a group or raid.
--- Priority: raid hard-off, then INSTANCE_CHAT > verified home PARTY.
--- @return string|nil "INSTANCE_CHAT", "PARTY", or nil.
-function Sync.GetAddonSyncChannel()
-  if IsVerifiedRaid() then
-    return nil
-  end
-  if IsVerifiedInstanceGroup() then
-    return "INSTANCE_CHAT"
-  end
-  if IsVerifiedHomeParty() then
-    return "PARTY"
-  end
-  return nil
-end
-
---- Registers ISILIVE and LibKS addon message prefixes with C_ChatInfo.
--- Must be called once (on PLAYER_LOGIN) before addon messages can be received.
-function Sync.RegisterPrefix()
-  local chatInfo = rawget(_G, "C_ChatInfo")
-  if type(chatInfo) == "table" and type(chatInfo.RegisterAddonMessagePrefix) == "function" then
-    pcall(chatInfo.RegisterAddonMessagePrefix, ISILIVE_SYNC_PREFIX)
-    pcall(chatInfo.RegisterAddonMessagePrefix, LIBKEYSTONE_SYNC_PREFIX)
-  end
-end
-
--- Common pre-send guard shared by Send* functions: API availability, sync-enabled,
--- caller visibility, and channel resolution. Returns the outgoing channel string,
--- or nil when the send should be suppressed.
-local function ResolveSendChannel(opts)
-  local chatInfo = rawget(_G, "C_ChatInfo")
-  if type(chatInfo) ~= "table" or type(chatInfo.SendAddonMessage) ~= "function" then
-    return nil
-  end
-  if not IsSyncEnabled() then
-    return nil
-  end
-  if opts.isVisible == false and opts.allowHidden ~= true then
-    return nil
-  end
-  return Sync.GetAddonSyncChannel()
-end
-
--- Routes an addon message through ChatThrottleLib when the embedded lib is
--- present (priority-queued, fair-shared with other addons). Falls back to
--- raw C_ChatInfo.SendAddonMessage if the lib is unavailable. Returns true
--- if the message was accepted for dispatch (either enqueued by CTL or
--- handed to Blizzard), false if it was rejected outright. CTL reports a drop
--- through its callback: synchronously for an unavailable channel, later for a
--- queued message; onDropped covers the later case. CTL discards the Blizzard
--- send result, so a server rejection stays invisible on this path.
-local function DispatchAddonMessage(prefix, payload, channel, priority, target, onDropped)
-  local ctl = rawget(_G, "ChatThrottleLib")
-  if ctl and type(ctl.SendAddonMessage) == "function" then
-    local accepted = true
-    local function OnCtlResult(_, didSend)
-      if didSend == false then
-        accepted = false
-        if onDropped then
-          onDropped()
-        end
-      end
-    end
-    local ok =
-      pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel, target, nil, OnCtlResult)
-    return ok and accepted
-  end
-  local chatInfo = rawget(_G, "C_ChatInfo")
-  if type(chatInfo) == "table" and type(chatInfo.SendAddonMessage) == "function" then
-    local ok, result = pcall(chatInfo.SendAddonMessage, prefix, payload, channel, target)
-    -- Enum.SendAddonMessageResult.Success is 0. Every other numeric result
-    -- is an explicit rejection (including throttling), not a Lua exception.
-    return ok and result ~= false and (type(result) ~= "number" or result == 0)
-  end
-  return false
-end
-
--- Shared dedupe/cooldown gate for Send* functions that share the pattern
--- "skip if identical payload and still in cooldown window".
--- Returns (blocked:boolean, now:number). onBlocked, if provided, is called with
--- ("unchanged") or ("cooldown", remainSeconds) for deep-trace logging.
-local function IsBlockedBySendGate(opts, lastPayload, lastAt, dedupePayload, cooldown, onBlocked)
-  local getTimeFn = rawget(_G, "GetTime")
-  local now = type(getTimeFn) == "function" and getTimeFn() or 0
-  if opts.force then
-    return false, now
-  end
-  if opts.onlyIfChanged == true and dedupePayload == lastPayload then
-    if onBlocked then
-      onBlocked("unchanged", 0)
-    end
-    return true, now
-  end
-  if dedupePayload == lastPayload and (now - lastAt) < cooldown then
-    if onBlocked then
-      onBlocked("cooldown", cooldown - (now - lastAt))
-    end
-    return true, now
-  end
-  return false, now
 end
 
 --- Whispers the HELLO acknowledgement to one peer.
@@ -1853,19 +513,6 @@ function Sync.SendDps(opts)
     tostring(channel),
     tostring(sent)
   )
-end
-
--- C_ChatInfo.InChatMessagingLockdown() (12.0, warcraft.wiki.gg): true while
--- the client restricts addon chat. Missing API, error or a secret answer count
--- as "not locked": the send is attempted as before.
-local function IsAddonChatLockedDown()
-  local chatInfo = rawget(_G, "C_ChatInfo")
-  local inLockdown = type(chatInfo) == "table" and chatInfo.InChatMessagingLockdown or nil
-  if type(inLockdown) ~= "function" then
-    return false
-  end
-  local ok, restricted = pcall(inLockdown)
-  return ok and not addonTable.Validators.IsSecretValue(restricted) and restricted == true
 end
 
 --- Sends the update-notice version ping ("VER:<version>") to the guild.
@@ -2257,34 +904,8 @@ function Sync.SendLibKeystonePartyData(opts)
     return false
   end
 
-  local numericLevel = ToFiniteNumber(opts.level)
-  local numericMapID = ToFiniteNumber(opts.mapID)
-  if type(SeasonData.NormalizeMapID) == "function" then
-    numericMapID = SeasonData.NormalizeMapID(numericMapID)
-  end
-
-  if
-    not numericLevel
-    or numericLevel <= 0
-    or numericLevel > MAX_SYNC_KEY_LEVEL
-    or not numericMapID
-    or numericMapID <= 0
-  then
-    numericLevel = 0
-    numericMapID = 0
-  else
-    numericLevel = math.floor(numericLevel)
-    numericMapID = math.floor(numericMapID)
-  end
-
-  local numericRio = ToFiniteNumber(opts.rio)
-  if numericRio == nil or numericRio < 0 then
-    numericRio = 0
-  else
-    numericRio = math.floor(numericRio)
-  end
-
-  local payload = string.format("%d,%d,%d", numericLevel, numericMapID, numericRio)
+  local payload, numericLevel, numericMapID, numericRio =
+    SyncCodec.NormalizeLibKeystonePartyPayload(opts.mapID, opts.level, opts.rio)
   local sent = DispatchAddonMessage(LIBKEYSTONE_SYNC_PREFIX, payload, libKsChannel, "NORMAL")
   SyncLog(
     "send_libkeystone_party",
@@ -2359,15 +980,15 @@ if type(receiveFactory) == "function" then
     ISILIVE_SHAREKEYS_CD_MAX_SECONDS = ISILIVE_SHAREKEYS_CD_MAX_SECONDS,
     POWER_INFUSION_SPELL_ID = POWER_INFUSION_SPELL_ID,
     ToFiniteNumber = ToFiniteNumber,
-    IsExplicitNonFiniteNumber = IsExplicitNonFiniteNumber,
-    IsPlainPeerName = IsPlainPeerName,
+    IsExplicitNonFiniteNumber = SyncCodec.IsExplicitNonFiniteNumber,
+    IsPlainPeerName = SyncCodec.IsPlainPeerName,
     SyncLog = SyncLog,
     SyncLogDeep = SyncLogDeep,
     IsSyncLogActive = IsSyncLogActive,
     IsSyncLogDeepActive = IsSyncLogDeepActive,
     FormatBytes = FormatBytes,
-    SplitPayload = SplitPayload,
-    ParseKickPayload = ParseKickPayload,
+    SplitPayload = SyncCodec.SplitPayload,
+    ParseKickPayload = SyncCodec.ParseKickPayload,
     IsSyncEnabled = IsSyncEnabled,
   })
 end

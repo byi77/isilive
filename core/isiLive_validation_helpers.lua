@@ -19,11 +19,16 @@ function Validators.IsSecretValue(value)
   return ok and result == true
 end
 
---- True for a real number that is neither NaN nor infinite. Run the secret
---- check first: type() on a Secret Value is not trustworthy.
+--- True for a real number that is neither NaN nor infinite. A Secret Value
+--- is never finite here: the secret check runs first, because type() on a
+--- Secret Value is not trustworthy and the comparisons below would raise
+--- (and taint) on one. Callers need no separate IsSecretValue guard.
 --- @param value any
 --- @return boolean
 function Validators.IsFiniteNumber(value)
+  if Validators.IsSecretValue(value) then
+    return false
+  end
   return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
 

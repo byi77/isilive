@@ -876,6 +876,9 @@ local function GetAllIsiLiveFiles()
     "isiLive_leader_watch.lua",
     "isiLive_demo.lua",
     "isiLive_test_mode.lua",
+    "isiLive_sync_codec.lua",
+    "isiLive_sync_transport.lua",
+    "isiLive_sync_peer_state.lua",
     "isiLive_sync.lua",
     "isiLive_version_notice.lua",
     "isiLive_keysync.lua",
@@ -925,6 +928,10 @@ local function GetAllIsiLiveFiles()
     "isiLive_edit_mode.lua",
     "isiLive_factory_edit_mode.lua",
     "isiLive_factory_live_kicks.lua",
+    "isiLive_factory_contracts.lua",
+    "isiLive_factory_db_settings.lua",
+    "isiLive_factory_runtime_contexts.lua",
+    "isiLive_factory_settings_wiring.lua",
     "isiLive_factory.lua",
   }
 end

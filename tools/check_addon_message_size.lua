@@ -122,6 +122,9 @@ LoadFile("core/isiLive_string_utils.lua")
 LoadFile("locale/isiLive_languages.lua")
 LoadFile("data/isiLive_spells.lua")
 LoadFile("game/isiLive_season_data.lua")
+LoadFile("logic/isiLive_sync_codec.lua")
+LoadFile("logic/isiLive_sync_transport.lua")
+LoadFile("logic/isiLive_sync_peer_state.lua")
 LoadFile("logic/isiLive_sync.lua")
 
 local Sync = addonTable.Sync

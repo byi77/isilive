@@ -449,6 +449,10 @@ return function(test, ctx)
       "logic/isiLive_event_handlers_cd_coalescer.lua",
       "factory/isiLive_controller_init.lua",
       "factory/isiLive_factory.lua",
+      "factory/isiLive_factory_contracts.lua",
+      "factory/isiLive_factory_runtime_contexts.lua",
+      "factory/isiLive_factory_settings_wiring.lua",
+      "factory/isiLive_factory_db_settings.lua",
       "factory/isiLive_factory_refresh.lua",
       "factory/isiLive_factory_secondary_runtime.lua",
     }
@@ -504,11 +508,13 @@ return function(test, ctx)
       Assert.Nil(content:find("GetInstanceInfo(", 1, true), path .. " must not call bare GetInstanceInfo")
     end
 
-    local factoryContent = ReadFile("factory/isiLive_factory.lua"):gsub("%-%-[^\r\n]*", "")
-    Assert.Nil(
-      factoryContent:find("unitExists = UnitExists", 1, true),
-      "factory context must not capture a bare UnitExists handle"
-    )
+    for _, path in ipairs({ "factory/isiLive_factory.lua", "factory/isiLive_factory_contracts.lua" }) do
+      local factoryContent = ReadFile(path):gsub("%-%-[^\r\n]*", "")
+      Assert.Nil(
+        factoryContent:find("unitExists = UnitExists", 1, true),
+        path .. " must not capture a bare UnitExists handle"
+      )
+    end
   end)
 
   test("Architecture CTL wire-order simulator is enforced by local and GitHub CI", function()

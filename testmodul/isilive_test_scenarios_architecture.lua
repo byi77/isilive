@@ -44,6 +44,25 @@ local function ReadFile(path)
   return content or ""
 end
 
+-- The composition root is split into the orchestrator and its named wiring
+-- files (dependency contracts, RuntimeSetup contexts, settings panel, DB
+-- settings); wiring assertions read them as one source.
+local FACTORY_COMPOSITION_FILES = {
+  "isiLive_factory.lua",
+  "isiLive_factory_contracts.lua",
+  "isiLive_factory_runtime_contexts.lua",
+  "isiLive_factory_settings_wiring.lua",
+  "isiLive_factory_db_settings.lua",
+}
+
+local function ReadFactoryComposition()
+  local parts = {}
+  for _, path in ipairs(FACTORY_COMPOSITION_FILES) do
+    parts[#parts + 1] = ReadFile(path)
+  end
+  return table.concat(parts, "\n")
+end
+
 local function AssertContains(Assert, haystack, needle, message)
   Assert.True(haystack:find(needle, 1, true) ~= nil, message)
 end
@@ -55,7 +74,7 @@ end
 local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   test("Architecture root wires runtime through RuntimeState and RuntimeSetup", function()
     local contextContent = ReadFile("isiLive_factory_frame_bridge.lua")
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
 
     AssertContains(
       Assert,
@@ -203,7 +222,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture factory passes named runtime setup controller contexts", function()
-    local content = ReadFile("isiLive_factory.lua")
+    local content = ReadFactoryComposition()
 
     AssertContains(
       Assert,
@@ -601,7 +620,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture root omits removed auto-mark state from runtime setup and roster panel wiring", function()
-    local content = ReadFile("isiLive_factory.lua")
+    local content = ReadFactoryComposition()
 
     AssertNotContains(
       Assert,
@@ -1012,7 +1031,7 @@ end
 local function RegisterArchitectureQueueWiringTests(test, Assert)
   test("Architecture queue join callbacks stay wired through runtime setup and controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
     local helpersContent = ReadFile("isiLive_factory_status_helpers.lua")
 
     AssertContains(
@@ -1080,7 +1099,7 @@ end
 
 local function RegisterArchitectureTeleportWiringTests(test, Assert)
   test("Architecture teleport column refresh uses the shared teleport highlight path", function()
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
 
     AssertContains(
       Assert,
@@ -1108,7 +1127,7 @@ local function RegisterArchitectureTeleportWiringTests(test, Assert)
     -- the event-handler context exposes teleportUIController, so guard the field
     -- explicitly: without it the buttons stay stuck on the startup season while
     -- the portal navigator (a live-render path) already follows the new season.
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
 
     AssertContains(
       Assert,
@@ -1148,7 +1167,7 @@ end
 local function RegisterArchitectureReadyCheckWiringTests(test, Assert)
   test("Architecture ready check refresh stays wired through runtime setup and controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
     local helpersContent = ReadFile("isiLive_factory_primary.lua")
     local handlersContent = ReadFile("isiLive_event_handlers.lua")
 
@@ -1212,13 +1231,13 @@ end
 local function RegisterArchitectureLeaderMarkerWiringTests(test, Assert)
   test("Architecture leader marker stays wired through runtime setup and controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
-    local factoryContent = ReadFile("isiLive_factory.lua")
+    local factoryContent = ReadFactoryComposition()
     local groupContent = ReadFile("isiLive_group.lua")
 
     AssertContains(
       Assert,
       factoryContent,
-      "unitIsGroupLeader = function(unit)",
+      "unitIsGroupLeader = UnitIsGroupLeaderSafe,",
       "Factory runtime setup must expose the UnitIsGroupLeader wrapper"
     )
     AssertContains(

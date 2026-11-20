@@ -29,7 +29,8 @@
 local SCAN_DIRS = { "core", "factory", "game", "logic", "ui" }
 local SETTINGS_DIR = "ui"
 local SETTINGS_FILE_PATTERN = "^isiLive_settings.*%.lua$"
-local FACTORY_FILE = "factory/isiLive_factory.lua"
+-- One-time IsiLiveDB migrations (Pattern C) live in MigrateDBSettings.
+local FACTORY_FILE = "factory/isiLive_factory_db_settings.lua"
 local DB_SCHEMA_FILE = "core/isiLive_db_schema.lua"
 
 -- Settings that are deliberately exempt (e.g. computed booleans that derive
@@ -198,7 +199,7 @@ local function classifyReads(settings, files, settingsSourceFiles)
     result[name] = { patternA = false, patternB = false, hasMigration = false }
   end
 
-  -- Migration check (factory.lua only). Match "if <var>.X == nil then"
+  -- Migration check (FACTORY_FILE only). Match "if <var>.X == nil then"
   -- where <var> is any local-table reference (db, dbRef, IsiLiveDB, ...).
   local factoryContent = readFile(FACTORY_FILE)
   for name in pairs(settings) do
