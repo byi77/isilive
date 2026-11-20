@@ -77,6 +77,13 @@ local RULES = {
       .. "handle is invisible to the taint trap in testmodul/isilive_test_scenarios_taint.lua, "
       .. "so the gate is the only thing that catches it.",
   },
+  {
+    id = "raw-event-registration",
+    pattern = "[:%.]Register%a*Event[%(,]",
+    message = "Register events through addonTable.EventUtils.SafeRegisterEvent / SafeRegisterUnitEvent "
+      .. "(rule 258). A raw RegisterEvent raises on an event a patch removed or renamed and "
+      .. "aborts every registration after it; the helper skips it and reports it in /isilive selftest.",
+  },
 }
 
 local ok_lfs, lfs = pcall(require, "lfs")

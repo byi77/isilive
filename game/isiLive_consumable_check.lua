@@ -275,6 +275,6 @@ function ConsumableCheck.Install(opts)
       end)
     end
   end)
-  frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+  addonTable.EventUtils.SafeRegisterEvent(frame, "PLAYER_ENTERING_WORLD")
   return frame
 end

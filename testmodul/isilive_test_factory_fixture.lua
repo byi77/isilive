@@ -825,6 +825,8 @@ local function GetAllIsiLiveFiles()
     "isiLive_spell_utils.lua",
     "isiLive_cd_tracker.lua",
     "isiLive_season_data.lua",
+    -- Patch watch (rule 261) runs from the real login path.
+    "isiLive_api_health.lua",
     "isiLive_teleport.lua",
     "isiLive_teleport_debug.lua",
     "isiLive_units.lua",

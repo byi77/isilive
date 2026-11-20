@@ -75,4 +75,90 @@ return function(test, ctx)
     Assert.True(joined:find("ERROR C_CurveUtil.CreateCurve - TTK (no curve)", 1, true) ~= nil, "probe detail")
     Assert.Equal(#verboseLines, #checks + 1, "verbose mode lists every check and the summary")
   end)
+
+  -- Rule 261: data checks. The IDs come from the shipped manifest of the
+  -- active season (read at run time, no season literal).
+  test("ApiHealth data checks report season IDs the client no longer resolves", function()
+    local probe = LoadAddonModules({ "isiLive_season_data.lua" })
+    local season = probe.SeasonData.GetSeasonConfig()
+    local mapIDs = probe.SeasonData.GetOrderedMapIDs()
+    local firstMapID = mapIDs[1]
+    local removedSpellID = season.mapToTeleport[firstMapID]
+    removedSpellID = type(removedSpellID) == "table" and removedSpellID[1] or removedSpellID
+    local driftedActivityID
+    for activityID, mapID in pairs(season.activityToMap) do
+      if mapID == firstMapID then
+        driftedActivityID = activityID
+      end
+    end
+    local lines, dataCounts
+    WithGlobals({
+      C_Spell = {
+        GetSpellName = function(spellID)
+          return spellID ~= removedSpellID and ("Spell " .. spellID) or nil
+        end,
+      },
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          return "Map " .. mapID, mapID, 1800, nil, nil, mapID + 5000
+        end,
+      },
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          local mapID = season.activityToMap[activityID]
+          local instanceID = activityID == driftedActivityID and 1 or mapID + 5000
+          return { mapID = instanceID, fullName = "Activity " .. activityID }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_spells.lua",
+        "isiLive_consumables.lua",
+        "isiLive_api_health.lua",
+      })
+      local reportLines, _, reportDataCounts = addon.ApiHealth.BuildReportLines(false)
+      lines, dataCounts = reportLines, reportDataCounts
+    end)
+    local joined = table.concat(lines, "\n")
+    Assert.True(
+      joined:find(string.format("MISSING portal spell %d - Season data", removedSpellID), 1, true) ~= nil,
+      "a portal spell the client no longer knows is reported"
+    )
+    Assert.True(
+      joined:find(string.format("ERROR LFG activity %d - Season data (instance 1,", driftedActivityID), 1, true) ~= nil,
+      "an activity that moved to another instance is reported"
+    )
+    Assert.Equal(dataCounts.missing, 1, "exactly the removed spell is missing")
+    Assert.Equal(dataCounts.error, 1, "exactly the drifted activity is wrong")
+    Assert.True(joined:find("data IDs", 1, true) ~= nil, "the data checks end with their own summary")
+  end)
+
+  test("ApiHealth patch watch stays silent for a clean client and runs once per build", function()
+    local checks = LoadAddonModules({ "isiLive_api_health.lua" }).ApiHealth.CHECKS
+    local printed, build = {}, "70001"
+    local db = {}
+    WithGlobals(BuildAllPresentGlobals(checks), function()
+      local addon = LoadAddonModules({ "isiLive_api_health.lua" })
+      local watch = addon.ApiHealth.CreatePatchWatch({
+        getDB = function()
+          return db
+        end,
+        printFn = function(line)
+          printed[#printed + 1] = line
+        end,
+        getBuild = function()
+          return build
+        end,
+        after = function(_delay, fn)
+          fn()
+        end,
+      })
+      watch.OnLogin()
+      Assert.Equal(db.selftestBuild, "70001", "the checked build is stored")
+      Assert.Equal(#printed, 0, "a clean client prints nothing")
+      watch.OnLogin()
+      Assert.Nil(watch.CheckNow(), "the same build is not checked again")
+    end)
+  end)
 end

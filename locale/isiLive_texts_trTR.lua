@@ -355,6 +355,7 @@ addonTable.TextsLocales.trTR = {
   SETTINGS_CHAT_HISTORY_DESC = "Sohbet giriş alanında Yukarı / Aşağı ok tuşları gönderdiğiniz satırlar arasında gezinir (Alt gerekmez), yeniden yükleme veya yeniden başlatmadan sonra da.",
   VERSION_NOTICE_NEWER = "isiLive %s CurseForge'da mevcut - sizdeki sürüm %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive güncel Mythic+ sezonunu tanımıyor - lütfen isiLive'ı güncelleyin.",
+  SELFTEST_PATCH_NOTICE = "İstemci güncellemesinden sonra öz test (derleme %s) %d sorun buldu. Ayrıntılar: /isilive selftest",
   SEASON_BREAK_NOTICE = "isiLive: sezon arası - Mythic+ sezonu yok, yalnızca Normal, Heroic ve Mythic 0.",
   TESTALL_DUMMY_GROUP = "Kukla Anahtarlar",
   TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",

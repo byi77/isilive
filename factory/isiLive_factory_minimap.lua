@@ -153,7 +153,7 @@ local function CreateFactoryMinimapButton(ctx)
   -- Apply visibility on PLAYER_LOGIN when SavedVariables are available.
   -- Mimics LibDBIcon pattern: register once, then show/hide based on db setting.
   local loginFrame = CreateFrame("Frame")
-  loginFrame:RegisterEvent("PLAYER_LOGIN")
+  addonTable.EventUtils.SafeRegisterEvent(loginFrame, "PLAYER_LOGIN")
   loginFrame:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     minimapAngle = ReadStoredAngle()

@@ -339,6 +339,23 @@ local function ResolveCurrentDate(opts)
   return nil
 end
 
+-- Rule 260: the generated DB holds one section per season
+-- (`MPlusForcesBySeason`). `MPlusForces` is the legacy single-season table
+-- (and the alias of the active section); it counts only when its own `season`
+-- field names the requested season.
+local function ResolveForcesSection(seasonID)
+  local bySeason = addonTable.MPlusForcesBySeason
+  local section = type(bySeason) == "table" and seasonID ~= nil and bySeason[seasonID] or nil
+  if type(section) == "table" then
+    return section
+  end
+  local legacy = addonTable.MPlusForces
+  if type(legacy) == "table" and seasonID ~= nil and legacy.season == seasonID then
+    return legacy
+  end
+  return nil
+end
+
 local function AppendForcesReadinessErrors(errors, seasonID, season, opts)
   if season.requiresForces ~= true then
     return
@@ -346,7 +363,9 @@ local function AppendForcesReadinessErrors(errors, seasonID, season, opts)
 
   local forces = type(opts) == "table" and opts.forcesData or nil
   if forces == nil then
-    forces = addonTable.MPlusForces
+    -- Without a section of its own the legacy table still answers, so a DB
+    -- of another season reports the season mismatch below.
+    forces = ResolveForcesSection(seasonID) or addonTable.MPlusForces
   end
   if type(forces) ~= "table" then
     table.insert(errors, "matching M+ forces data is missing")
@@ -419,8 +438,18 @@ local function AppendForcesReadinessErrors(errors, seasonID, season, opts)
   end
 end
 
+-- Without an explicit seasonID every lookup reads the served season
+-- (GetServedSeasonID, rule 259): nil while Blizzard runs a season the
+-- manifest does not know, so no runtime consumer shows the previous
+-- season's portals, navigator or LFG mapping as if they were current.
 function SeasonData.GetSeasonConfig(seasonID)
-  local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
+  local resolvedSeasonID = seasonID
+  if resolvedSeasonID == nil then
+    resolvedSeasonID = SeasonData.GetServedSeasonID()
+  end
+  if resolvedSeasonID == nil then
+    return nil
+  end
   local seasons = SeasonData.SEASONS or {}
   return seasons[resolvedSeasonID]
 end
@@ -441,6 +470,17 @@ function SeasonData.GetActiveSeasonID()
   return SeasonData.ACTIVE_SEASON_ID
 end
 
+-- Rule 259: the season whose data the runtime serves. It is the active season,
+-- except while the Blizzard season state is `unrecognized` (a non-empty map set
+-- no configured season knows): then nil. ACTIVE_SEASON_ID itself stays the
+-- untouched fallback (rule 250) and returns as soon as a known set is seen.
+function SeasonData.GetServedSeasonID()
+  if SeasonData.IsSeasonUnrecognized() then
+    return nil
+  end
+  return SeasonData.ACTIVE_SEASON_ID
+end
+
 -- Tooling default: the season being prepared, otherwise the active one. An
 -- unknown `upcomingSeasonID` is a manifest error and never becomes the default.
 function SeasonData.GetToolDefaultSeasonID()
@@ -454,8 +494,11 @@ end
 -- mob percentages off in every client that skipped a release for 15 days,
 -- even mid-season with unchanged data. A DB of another season still closes.
 function SeasonData.GetMatchingForcesData(seasonID)
-  local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
-  local forces = addonTable.MPlusForces
+  local resolvedSeasonID = seasonID
+  if resolvedSeasonID == nil then
+    resolvedSeasonID = SeasonData.GetServedSeasonID()
+  end
+  local forces = ResolveForcesSection(resolvedSeasonID)
   if type(forces) ~= "table" or forces.season ~= resolvedSeasonID then
     return nil
   end
@@ -761,6 +804,9 @@ SeasonData.SEASON_STATE_OFFSEASON = "offseason"
 SeasonData.SEASON_STATE_UNRECOGNIZED = "unrecognized"
 
 local blizzardSeasonState = SeasonData.SEASON_STATE_UNKNOWN
+-- Rule 259: the map set of an unrecognized season, as a lookup set. Only its
+-- Blizzard-side facts are used (client names, instance IDs); nothing is guessed.
+local unrecognizedMapIDs = nil
 
 function SeasonData.GetBlizzardSeasonState()
   return blizzardSeasonState
@@ -774,11 +820,26 @@ function SeasonData.IsSeasonUnrecognized()
   return blizzardSeasonState == SeasonData.SEASON_STATE_UNRECOGNIZED
 end
 
+-- Rule 259: sorted challenge map IDs of the unrecognized season, {} otherwise.
+function SeasonData.GetUnrecognizedMapIDs()
+  local out = {}
+  for mapID in pairs(unrecognizedMapIDs or {}) do
+    out[#out + 1] = mapID
+  end
+  table.sort(out)
+  return out
+end
+
+local function IsUnrecognizedSeasonMap(mapID)
+  return unrecognizedMapIDs ~= nil and mapID ~= nil and unrecognizedMapIDs[mapID] == true
+end
+
 -- Maps one evaluation onto the state. An empty list only counts as an off
 -- season when the server delivered it (`serverConfirmed`): on a cold login the
 -- list is empty until the map data arrives. A missing list and an empty list
 -- without confirmation keep the previous state.
-local function NoteEvaluation(failureCode, resolvedReady, opts)
+local function NoteEvaluation(failureCode, resolvedReady, opts, mapIDs)
+  local servedBefore = SeasonData.GetServedSeasonID()
   if resolvedReady ~= nil then
     blizzardSeasonState = resolvedReady and SeasonData.SEASON_STATE_ACTIVE or SeasonData.SEASON_STATE_UNKNOWN
   elseif failureCode == "empty" then
@@ -790,6 +851,20 @@ local function NoteEvaluation(failureCode, resolvedReady, opts)
   elseif failureCode ~= "unavailable" then
     blizzardSeasonState = SeasonData.SEASON_STATE_UNKNOWN
   end
+  if blizzardSeasonState ~= SeasonData.SEASON_STATE_UNRECOGNIZED then
+    unrecognizedMapIDs = nil
+  elseif failureCode == "no_match" and type(mapIDs) == "table" then
+    unrecognizedMapIDs = {}
+    for _, rawMapID in ipairs(mapIDs) do
+      local mapID = NormalizeMapIDInput(rawMapID)
+      if mapID then
+        unrecognizedMapIDs[mapID] = true
+      end
+    end
+  end
+  if SeasonData.GetServedSeasonID() ~= servedBefore then
+    RefreshLegacyAliases()
+  end
 end
 
 -- Returns ok, changed, message, retryable. `retryable` is true only for a
@@ -800,7 +875,7 @@ end
 function SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, opts)
   local seasonID, resolveError, retryable, failureCode = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
   if not seasonID then
-    NoteEvaluation(failureCode, nil, opts)
+    NoteEvaluation(failureCode, nil, opts, mapIDs)
     return false, false, resolveError, retryable == true
   end
 
@@ -958,12 +1033,17 @@ end
 function SeasonData.GetMapIDByInstanceID(instanceID, seasonID)
   local numericInstanceID = tonumber(instanceID)
   local validators = addonTable.Validators
-  local mapToTeleport = SeasonData.GetMapToTeleport(seasonID)
-  if not numericInstanceID or type(validators) ~= "table" or type(mapToTeleport) ~= "table" then
+  local candidates = SeasonData.GetMapToTeleport(seasonID)
+  -- Rule 259: an unrecognized season has no manifest maps, but Blizzard's own
+  -- map list still says which challenge map an instance belongs to.
+  if seasonID == nil and SeasonData.GetServedSeasonID() == nil and unrecognizedMapIDs ~= nil then
+    candidates = unrecognizedMapIDs
+  end
+  if not numericInstanceID or type(validators) ~= "table" or type(candidates) ~= "table" then
     return nil
   end
   local resolved = nil
-  for mapID in pairs(mapToTeleport) do
+  for mapID in pairs(candidates) do
     if validators.ResolveChallengeMapInstanceID(mapID) == numericInstanceID then
       if resolved then
         return nil
@@ -1060,6 +1140,11 @@ function SeasonData.GetDungeonName(mapID, localeTag, seasonID)
 
   local season = SeasonData.GetSeasonConfig(seasonID)
   if type(season) ~= "table" then
+    -- Rule 259: a map of the unrecognized season has only Blizzard's
+    -- client-localized name, never a guessed one.
+    if seasonID == nil and IsUnrecognizedSeasonMap(numericMapID) and IsClientLocaleRequest(localeTag) then
+      return ReadChallengeMapUIName(numericMapID)
+    end
     return nil
   end
 

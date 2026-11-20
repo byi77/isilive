@@ -197,7 +197,7 @@ end
 local createFrame = rawget(_G, "CreateFrame")
 if type(createFrame) == "function" then
   local loginFrame = createFrame("Frame")
-  loginFrame:RegisterEvent("PLAYER_LOGIN")
+  addonTable.EventUtils.SafeRegisterEvent(loginFrame, "PLAYER_LOGIN")
   loginFrame:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     ChatHistory.Setup(rawget(_G, "IsiLiveDB"))

@@ -1122,8 +1122,8 @@ do
   if type(createFrame) == "function" then
     local ok, frame = pcall(createFrame, "Frame")
     if ok and type(frame) == "table" and type(frame.RegisterEvent) == "function" then
-      pcall(frame.RegisterEvent, frame, "ADDON_ACTION_BLOCKED")
-      pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
+      addonTable.EventUtils.SafeRegisterEvent(frame, "ADDON_ACTION_BLOCKED")
+      addonTable.EventUtils.SafeRegisterEvent(frame, "ADDON_ACTION_FORBIDDEN")
       if type(frame.SetScript) == "function" then
         frame:SetScript("OnEvent", function(_, event, addonName, functionName)
           ProbeLog.OnActionBlocked(event, addonName, functionName)

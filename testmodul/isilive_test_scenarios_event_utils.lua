@@ -958,6 +958,92 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
   end)
 end
 
+-- Rule 258: a patch that removes or renames one event must not take every
+-- later registration down with it.
+local function NewRefusingFrame(refused)
+  local frame = { registered = {}, unitRegistered = {}, attempts = {} }
+  function frame:RegisterEvent(event)
+    self.attempts[#self.attempts + 1] = event
+    if refused[event] then
+      error('Attempt to register unknown event "' .. event .. '"')
+    end
+    self.registered[event] = true
+  end
+  function frame:RegisterUnitEvent(event, ...)
+    self.attempts[#self.attempts + 1] = event
+    if refused[event] then
+      error('Attempt to register unknown event "' .. event .. '"')
+    end
+    self.registered[event] = true
+    self.unitRegistered[event] = { ... }
+  end
+  function frame:UnregisterEvent(event)
+    self.registered[event] = nil
+  end
+  return frame
+end
+
+local function RegisterPatchSafeRegistrationTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("EventUtils skips a removed event and keeps registering the rest", function()
+    local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
+    local frame = NewRefusingFrame({ GONE_EVENT = true })
+    local registered = addon.EventUtils.SafeRegisterEvents(frame, { "FIRST_EVENT", "GONE_EVENT", "LAST_EVENT" })
+    Assert.Equal(registered, 2, "the two existing events register")
+    Assert.True(frame.registered.LAST_EVENT == true, "the event after the removed one still registers")
+    Assert.False(addon.EventUtils.SafeRegisterUnitEvent(frame, "GONE_EVENT", "player"), "unit form never raises")
+    local failures = addon.EventUtils.GetRegistrationFailures()
+    Assert.Equal(#failures, 1, "the removed event is noted once")
+    Assert.Equal(failures[1].event, "GONE_EVENT", "the failure names the event")
+    Assert.True(failures[1].reason:find("unknown event", 1, true) ~= nil, "the failure keeps the client error")
+    Assert.False(addon.EventUtils.SafeRegisterEvent(nil, "FIRST_EVENT"), "a missing frame is refused quietly")
+  end)
+
+  test("EventUtils skips events the client reports invalid without calling RegisterEvent", function()
+    WithGlobals({
+      C_EventUtils = {
+        IsEventValid = function(event)
+          return event ~= "GONE_EVENT"
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
+      local frame = NewRefusingFrame({})
+      Assert.False(addon.EventUtils.SafeRegisterEvent(frame, "GONE_EVENT"), "an invalid event is refused")
+      Assert.True(addon.EventUtils.SafeRegisterEvent(frame, "KEPT_EVENT"), "a valid event registers")
+      Assert.Equal(#frame.attempts, 1, "RegisterEvent is never called for the invalid event")
+      Assert.Equal(addon.EventUtils.GetRegistrationFailures()[1].reason, "unknown event", "reason")
+    end)
+  end)
+
+  test("Bootstrap registers every dispatcher event after a removed one", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
+      local frame = NewRefusingFrame({ PLAYER_DIFFICULTY_CHANGED = true, UNIT_SPELLCAST_SUCCEEDED = true })
+      addon.Bootstrap.RegisterDispatcherEvents(frame)
+      Assert.True(frame.registered.ZONE_CHANGED == true, "the plain event after the removed one registers")
+      Assert.True(frame.registered.CHALLENGE_MODE_MAPS_UPDATE == true, "late plain events register")
+      Assert.True(frame.registered.UNIT_SPELLCAST_INTERRUPTED == true, "the unit event after a removed one registers")
+      Assert.True(frame.registered.PLAYER_DIFFICULTY_CHANGED == nil, "the removed event stays unregistered")
+      local names = {}
+      for _, failure in ipairs(addon.EventUtils.GetRegistrationFailures()) do
+        names[failure.event] = true
+      end
+      Assert.True(names.PLAYER_DIFFICULTY_CHANGED and names.UNIT_SPELLCAST_SUCCEEDED, "both failures are noted")
+    end)
+  end)
+
+  test("ApiHealth reports a refused event registration as missing", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_api_health.lua" })
+      addon.EventUtils.SafeRegisterEvent(NewRefusingFrame({ GONE_EVENT = true }), "GONE_EVENT")
+      local lines, counts = addon.ApiHealth.BuildReportLines(false)
+      Assert.True(counts.missing >= 1, "the refused event counts as missing")
+      local joined = table.concat(lines, "\n")
+      Assert.True(joined:find("MISSING event GONE_EVENT - Events", 1, true) ~= nil, "the row names event and feature")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -966,4 +1052,5 @@ return function(test, ctx)
   RegisterNegativeStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterEventGateTests(test, Assert, LoadAddonModules)
   RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
+  RegisterPatchSafeRegistrationTests(test, Assert, WithGlobals, LoadAddonModules)
 end

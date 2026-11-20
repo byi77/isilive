@@ -1276,7 +1276,7 @@ function LoadoutCheck.Install()
     LoadoutCheck.HandleEvent(event, arg1)
   end)
   for i = 1, #EVENTS do
-    frame:RegisterEvent(EVENTS[i])
+    addonTable.EventUtils.SafeRegisterEvent(frame, EVENTS[i])
   end
   eventFrame = frame
   return true

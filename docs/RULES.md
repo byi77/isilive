@@ -24,6 +24,14 @@
 - Zeitgebundene Aktivierungs- und Intake-Staende gehoeren in `README.md`,
   `docs/SEASON_INTAKE.md` und `docs/WARTUNG.md`, nicht in diese stabilen Regeln.
 
+## Wartbarkeit bei jeder Aenderung
+- Benutzerentscheidung vom 2026-11-20: Jedes neue Feature und jeder Fix wird vor dem Abschluss auf Wartbarkeit bei WoW-Patches und Saisonwechseln geprueft und entsprechend angepasst.
+- Neue Blizzard-IDs (Spell, Item, Map, Activity, Spec, Difficulty, NPC, Zone) stehen nur in einem Manifest unter `data/` mit Gate oder Test, nie als Literal im Code.
+- Events werden nur ueber `EventUtils.SafeRegisterEvent`/`SafeRegisterUnitEvent` registriert (Regel 258); neue Blizzard-APIs kommen in `ApiHealth.CHECKS` (Regel 251).
+- Season-abhaengige Daten kommen aus `SeasonData` (bediente Season, Regel 259), nie aus einer Season-ID im Code; Tests nutzen die Fixture-Season oder lesen `activeSeasonID`.
+- Am Patch-Tag und an Tag 0 gilt fail-closed, im Selbsttest sichtbar, ohne Altdaten als aktuell anzuzeigen.
+- Entsteht manuelle Pflege beim Patch oder Saisonwechsel, wird der Schritt in `docs/SAISON_WECHSEL.md` bzw. `docs/WARTUNG.md` eingetragen und wo moeglich durch ein Gate oder einen Workflow ersetzt. Aufgefallene Wartungsschulden kommen in `docs/SAISON_WECHSEL.md` Abschnitt 0.
+
 ## Lokalisierung
 - Alle user-facing Texte laufen ueber die Lokalisierungstabelle.
 - Nicht unterstuetzte Locales fallen auf Englisch zurueck.

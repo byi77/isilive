@@ -1087,7 +1087,7 @@ local function RegisterEvents(events, controller)
     "PLAYER_REGEN_DISABLED",
     "PLAYER_REGEN_ENABLED",
   }) do
-    events:RegisterEvent(event)
+    addonTable.EventUtils.SafeRegisterEvent(events, event)
   end
 end
 

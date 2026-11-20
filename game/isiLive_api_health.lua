@@ -51,7 +51,32 @@ ApiHealth.CHECKS = {
   { "Invite navigation", "C_EncounterJournal", "GetDungeonEntrancesForMap" },
   { "Timers", "C_Timer", "After" },
   { "Secret values", nil, "issecretvalue" }, -- secret-value-ok: presence check only, never called
+  { "Events", "C_EventUtils", "IsEventValid" },
 }
+
+-- Rule 258: every event registration that EventUtils refused this session
+-- (removed or renamed by a patch) becomes a MISSING row of feature "Events".
+local MAX_EVENT_REASON_LENGTH = 80
+
+local function AppendEventRegistrationRows(rows, counts)
+  local eventUtils = addonTable.EventUtils
+  if type(eventUtils) ~= "table" or type(eventUtils.GetRegistrationFailures) ~= "function" then
+    return
+  end
+  for _, failure in ipairs(eventUtils.GetRegistrationFailures()) do
+    local reason = tostring(failure.reason or "")
+    if #reason > MAX_EVENT_REASON_LENGTH then
+      reason = reason:sub(1, MAX_EVENT_REASON_LENGTH) .. "..."
+    end
+    counts.missing = counts.missing + 1
+    rows[#rows + 1] = {
+      feature = "Events",
+      name = "event " .. tostring(failure.event),
+      status = "missing",
+      detail = reason ~= "" and reason or nil,
+    }
+  end
+end
 
 local function ResolveFunction(rootName, fnName)
   if rootName == nil then
@@ -122,16 +147,191 @@ function ApiHealth.Run()
     counts[status] = counts[status] + 1
     rows[#rows + 1] = { feature = feature, name = name, status = status, detail = detail }
   end
+  AppendEventRegistrationRows(rows, counts)
+  return rows, counts
+end
+
+-- Data checks (rule 261): the Blizzard IDs isiLive ships in data/ must still
+-- resolve in this client. On the PTR this is the data check of a prepared
+-- season in one command; after a patch it shows an ID Blizzard removed. Each
+-- check only reads static client data under pcall; a check whose API is
+-- missing is skipped (the API row above already reports it).
+local function ReadPlainString(value)
+  if IsSecretValue(value) or type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
+
+local function ReadPlainNumber(value)
+  if IsSecretValue(value) or type(value) ~= "number" then
+    return nil
+  end
+  return value
+end
+
+local function SpellNameReader()
+  local fn = ResolveFunction("C_Spell", "GetSpellName")
+  if type(fn) ~= "function" then
+    return nil
+  end
+  return function(spellID)
+    local ok, name = pcall(fn, spellID)
+    return ok and ReadPlainString(name) or nil
+  end
+end
+
+local function AddDataRow(rows, counts, feature, name, status, detail)
+  counts[status] = counts[status] + 1
+  rows[#rows + 1] = { feature = feature, name = name, status = status, detail = detail }
+end
+
+local function CheckSpellList(rows, counts, readSpell, feature, label, ids)
+  for _, spellID in ipairs(ids) do
+    local name = readSpell(spellID)
+    AddDataRow(rows, counts, feature, string.format("%s %d", label, spellID), name and "ok" or "missing", name)
+  end
+end
+
+local function CollectSpellManifestIDs()
+  local manifest = addonTable.SpellManifest
+  local ids = {}
+  if type(manifest) ~= "table" then
+    return ids
+  end
+  local seen = {}
+  local function Add(id)
+    if type(id) == "number" and not seen[id] then
+      seen[id] = true
+      ids[#ids + 1] = id
+    end
+  end
+  for _, listName in ipairs({ "battleRes", "lustCasts", "lustSated" }) do
+    for _, record in ipairs(type(manifest[listName]) == "table" and manifest[listName] or {}) do
+      Add(type(record) == "table" and record.id or nil)
+    end
+  end
+  for _, iconID in pairs(type(manifest.icons) == "table" and manifest.icons or {}) do
+    Add(iconID)
+  end
+  Add(manifest.powerInfusion)
+  table.sort(ids)
+  return ids
+end
+
+local function CollectConsumableIDs(seasonID)
+  local consumables = addonTable.ConsumableData
+  local set = type(consumables) == "table"
+      and type(consumables.ResolveSet) == "function"
+      and consumables.ResolveSet(seasonID)
+    or nil
+  local ids = {}
+  if type(set) ~= "table" then
+    return ids
+  end
+  for _, category in ipairs({ "food", "flask", "augmentRune" }) do
+    for _, id in ipairs(type(set[category]) == "table" and set[category] or {}) do
+      if type(id) == "number" then
+        ids[#ids + 1] = id
+      end
+    end
+  end
+  return ids
+end
+
+local function SortedNumericKeys(map)
+  local keys = {}
+  for key in pairs(type(map) == "table" and map or {}) do
+    if type(key) == "number" then
+      keys[#keys + 1] = key
+    end
+  end
+  table.sort(keys)
+  return keys
+end
+
+-- Portal spells, challenge maps and LFG activities of the served season.
+local function CheckSeasonData(rows, counts, readSpell)
+  local seasonData = addonTable.SeasonData
+  if type(seasonData) ~= "table" or type(seasonData.GetSeasonConfig) ~= "function" then
+    return
+  end
+  local season = seasonData.GetSeasonConfig()
+  if type(season) ~= "table" then
+    AddDataRow(rows, counts, "Season data", "served season", "error", "none (unrecognized map set, rule 259)")
+    return
+  end
+  local mapToTeleport = type(season.mapToTeleport) == "table" and season.mapToTeleport or {}
+  local mapUIInfo = ResolveFunction("C_ChallengeMode", "GetMapUIInfo")
+  for _, mapID in ipairs(SortedNumericKeys(mapToTeleport)) do
+    if type(mapUIInfo) == "function" then
+      local ok, name = pcall(mapUIInfo, mapID)
+      local mapName = ok and ReadPlainString(name) or nil
+      AddDataRow(rows, counts, "Season data", "challenge map " .. mapID, mapName and "ok" or "missing", mapName)
+    end
+    if readSpell then
+      local spells = mapToTeleport[mapID]
+      CheckSpellList(rows, counts, readSpell, "Season data", "portal spell", type(spells) == "table" and spells or {
+        spells,
+      })
+    end
+  end
+
+  local activityInfo = ResolveFunction("C_LFGList", "GetActivityInfoTable")
+  local validators = addonTable.Validators
+  if type(activityInfo) ~= "function" then
+    return
+  end
+  local activityToMap = type(season.activityToMap) == "table" and season.activityToMap or {}
+  for _, activityID in ipairs(SortedNumericKeys(activityToMap)) do
+    local mapID = activityToMap[activityID]
+    local ok, info = pcall(activityInfo, activityID)
+    local name = "LFG activity " .. activityID
+    if not ok or type(info) ~= "table" then
+      AddDataRow(rows, counts, "Season data", name, "missing", "map " .. tostring(mapID))
+    else
+      local instanceID = ReadPlainNumber(info.mapID)
+      local expected = type(validators) == "table"
+          and type(validators.ResolveChallengeMapInstanceID) == "function"
+          and validators.ResolveChallengeMapInstanceID(mapID)
+        or nil
+      if instanceID and expected and instanceID ~= expected then
+        AddDataRow(
+          rows,
+          counts,
+          "Season data",
+          name,
+          "error",
+          string.format("instance %d, map %d is instance %d", instanceID, mapID, expected)
+        )
+      else
+        AddDataRow(rows, counts, "Season data", name, "ok", ReadPlainString(info.fullName))
+      end
+    end
+  end
+end
+
+--- Runs every data check. Returns the rows and counts like ApiHealth.Run.
+function ApiHealth.RunDataChecks()
+  local rows = {}
+  local counts = { ok = 0, missing = 0, error = 0 }
+  local readSpell = SpellNameReader()
+  CheckSeasonData(rows, counts, readSpell)
+  if readSpell then
+    CheckSpellList(rows, counts, readSpell, "Spells", "spell", CollectSpellManifestIDs())
+    local seasonData = addonTable.SeasonData
+    local seasonID = type(seasonData) == "table"
+        and type(seasonData.GetActiveSeasonID) == "function"
+        and seasonData.GetActiveSeasonID()
+      or nil
+    CheckSpellList(rows, counts, readSpell, "Consumables", "buff", CollectConsumableIDs(seasonID))
+  end
   return rows, counts
 end
 
 local STATUS_TEXT = { ok = "ok", missing = "MISSING", error = "ERROR" }
 
---- Report lines: failures first (they are what a patch day needs), then a
--- summary line. `verbose = true` also lists every passing check.
-function ApiHealth.BuildReportLines(verbose)
-  local rows, counts = ApiHealth.Run()
-  local lines = {}
+local function AppendRowLines(lines, rows, verbose)
   for _, wanted in ipairs({ "missing", "error", "ok" }) do
     if wanted ~= "ok" or verbose then
       for _, row in ipairs(rows) do
@@ -143,6 +343,16 @@ function ApiHealth.BuildReportLines(verbose)
       end
     end
   end
+end
+
+--- Report lines: failures first (they are what a patch day needs), then a
+-- summary line; the data checks follow with a summary of their own when any
+-- data is loaded. `verbose = true` also lists every passing check.
+-- Returns lines, API counts, data counts.
+function ApiHealth.BuildReportLines(verbose)
+  local rows, counts = ApiHealth.Run()
+  local lines = {}
+  AppendRowLines(lines, rows, verbose)
   lines[#lines + 1] = string.format(
     "[SELFTEST] %d ok, %d missing, %d error of %d Blizzard APIs",
     counts.ok,
@@ -150,7 +360,18 @@ function ApiHealth.BuildReportLines(verbose)
     counts.error,
     #rows
   )
-  return lines, counts
+  local dataRows, dataCounts = ApiHealth.RunDataChecks()
+  if #dataRows > 0 then
+    AppendRowLines(lines, dataRows, verbose)
+    lines[#lines + 1] = string.format(
+      "[SELFTEST] %d ok, %d missing, %d error of %d data IDs",
+      dataCounts.ok,
+      dataCounts.missing,
+      dataCounts.error,
+      #dataRows
+    )
+  end
+  return lines, counts, dataCounts
 end
 
 function ApiHealth.PrintReport(printFn, verbose)
@@ -159,4 +380,81 @@ function ApiHealth.PrintReport(printFn, verbose)
   for _, line in ipairs(lines) do
     printFn(line)
   end
+end
+
+-- Patch watch (rule 261): once per client build, shortly after login, the
+-- self test runs silently and writes one chat line only when something
+-- failed. The checked build is stored in IsiLiveDB.selftestBuild.
+ApiHealth.PATCH_WATCH_DELAY_SECONDS = 20
+
+local function ReadClientBuild()
+  local getBuildInfo = rawget(_G, "GetBuildInfo")
+  if type(getBuildInfo) ~= "function" then
+    return nil
+  end
+  -- GetBuildInfo returns version, build, date, tocVersion; the build number
+  -- (second value) changes with every client update, hotfix builds included.
+  local ok, build = pcall(function()
+    return select(2, getBuildInfo())
+  end)
+  if not ok then
+    return nil
+  end
+  return ReadPlainString(build) or (ReadPlainNumber(build) and tostring(build)) or nil
+end
+
+local function DefaultAfter(delay, fn)
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) == "table" and type(timer.After) == "function" then
+    timer.After(delay, fn)
+    return
+  end
+  fn()
+end
+
+--- Creates the login hook.
+-- @param deps table { getDB, getL, printFn, after?, getBuild? }
+-- @return table { OnLogin, CheckNow }
+function ApiHealth.CreatePatchWatch(deps)
+  deps = type(deps) == "table" and deps or {}
+  local after = type(deps.after) == "function" and deps.after or DefaultAfter
+  local getBuild = type(deps.getBuild) == "function" and deps.getBuild or ReadClientBuild
+  local scheduled = false
+  local controller = {}
+
+  --- Runs the check when the build changed. Returns the number of failures,
+  -- or nil when nothing ran (same build, no build or no database).
+  function controller.CheckNow()
+    local db = type(deps.getDB) == "function" and deps.getDB() or nil
+    local build = getBuild()
+    if type(db) ~= "table" or type(build) ~= "string" or db.selftestBuild == build then
+      return nil
+    end
+    local _, counts, dataCounts = ApiHealth.BuildReportLines(false)
+    db.selftestBuild = build
+    local failures = counts.missing + counts.error
+    if type(dataCounts) == "table" then
+      failures = failures + dataCounts.missing + dataCounts.error
+    end
+    if failures > 0 and type(deps.printFn) == "function" then
+      local L = type(deps.getL) == "function" and deps.getL() or nil
+      local template = type(L) == "table" and L.SELFTEST_PATCH_NOTICE or nil
+      if type(template) ~= "string" or template == "" then
+        template = "Self test after the client update (build %s) found %d problem(s). " .. "Details: /isilive selftest"
+      end
+      deps.printFn("|cffffd200" .. string.format(template, build, failures) .. "|r")
+    end
+    return failures
+  end
+
+  --- PLAYER_LOGIN: schedules the check once per session.
+  function controller.OnLogin()
+    if scheduled then
+      return
+    end
+    scheduled = true
+    after(ApiHealth.PATCH_WATCH_DELAY_SECONDS, controller.CheckNow)
+  end
+
+  return controller
 end

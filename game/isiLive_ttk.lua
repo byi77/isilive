@@ -600,7 +600,8 @@ local function SetHealthListening(listen)
   end
   local ok, err
   if listen then
-    ok, err = pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_HEALTH")
+    ok = addonTable.EventUtils.SafeRegisterEvent(eventFrame, "UNIT_HEALTH")
+    err = "registration refused (see /isilive selftest)"
   elseif type(eventFrame.UnregisterEvent) == "function" then
     ok, err = pcall(eventFrame.UnregisterEvent, eventFrame, "UNIT_HEALTH")
   else
@@ -817,7 +818,7 @@ function TTK.Install()
     TTK.HandleEvent(event, arg1)
   end)
   for i = 1, #EVENTS do
-    frame:RegisterEvent(EVENTS[i])
+    addonTable.EventUtils.SafeRegisterEvent(frame, EVENTS[i])
   end
   eventFrame = frame
   raidBlocked = addonTable.RuntimeMode.IsRaidContext() == true

@@ -42,7 +42,7 @@ local combatRetryFrame = type(createFrame) == "function" and createFrame("Frame"
 -- dynamic RegisterEvent from handlers dispatched by protected code (e.g.
 -- CHALLENGE_MODE_START), which raises ADDON_ACTION_FORBIDDEN in 12.0+.
 if combatRetryFrame then
-  combatRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  addonTable.EventUtils.SafeRegisterEvent(combatRetryFrame, "PLAYER_REGEN_ENABLED")
   combatRetryFrame:SetScript("OnEvent", function(_, event)
     if event ~= "PLAYER_REGEN_ENABLED" then
       return
@@ -141,7 +141,11 @@ function Teleport.ResolveMapIDByActivityID(activityID)
     return nil
   end
 
+  -- Keyed on the served season (rule 259): an unrecognized season serves none.
   local season = SeasonData.ACTIVE_SEASON_ID
+  if type(SeasonData.GetServedSeasonID) == "function" then
+    season = SeasonData.GetServedSeasonID() or false
+  end
   if activityCacheSeason ~= season then
     ACTIVITY_TO_MAP_CACHE = {}
     activityCacheSeason = season

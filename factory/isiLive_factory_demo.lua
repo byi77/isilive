@@ -649,7 +649,7 @@ local function EnsureDemoKeyStartWatcher(ctx)
   if type(watcher) ~= "table" or type(watcher.RegisterEvent) ~= "function" then
     return
   end
-  watcher:RegisterEvent("CHALLENGE_MODE_START")
+  addonTable.EventUtils.SafeRegisterEvent(watcher, "CHALLENGE_MODE_START")
   watcher:SetScript("OnEvent", function()
     if ctx._demoTimerDataActive == true and not FactoryDemo.IsPreviewModeActive(ctx) then
       ClearDemoTimerData(ctx)

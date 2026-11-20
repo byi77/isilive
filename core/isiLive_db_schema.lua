@@ -324,6 +324,8 @@ local SCHEMA = {
   -- What's new (rule 256): ID of the last feature card shown; "" until the
   -- first card. Not a setting, never reset by the user.
   whatsNewSeen = { type = "string", default = "" },
+  -- Rule 261: client build the patch-watch self test last ran for.
+  selftestBuild = { type = "string", default = "" },
   -- Chat history (rule 253): Up / Down walk the sent lines; the last lines
   -- (oldest first) survive reloads. The module caps the list at 100.
   chatHistoryEnabled = { type = "boolean", default = true },

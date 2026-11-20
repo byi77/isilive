@@ -544,6 +544,51 @@ return function(test, ctx)
     end)
   end)
 
+  test("ControllerWiring season refresh rebuilds the portals when the season becomes unrecognized", function()
+    local mapTable = { 9991, 9992 }
+    local rebuilds, repaints = 0, 0
+    WithGlobals({
+      InCombatLockdown = function()
+        return false
+      end,
+      C_ChallengeMode = {
+        GetMapTable = function()
+          return mapTable
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_controller_wiring.lua" })
+      local module, getCaptured = CaptureEventModule()
+      addon.ControllerWiring.CreateEventHandlersControllerFromContext(
+        module,
+        BuildEventContext({
+          teleportUIController = {
+            BuildButtons = function()
+              rebuilds = rebuilds + 1
+            end,
+          },
+          updateUI = function()
+            repaints = repaints + 1
+          end,
+        })
+      )
+      local refresh = getCaptured().refreshActiveSeasonFromBlizzard
+      local activeID = addon.SeasonData.GetActiveSeasonID()
+
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(addon.SeasonData.GetServedSeasonID(), nil, "the unknown set serves no season")
+      Assert.Equal(rebuilds, 1, "the portals of the previous season are taken down")
+      Assert.True(repaints >= 1, "the UI repaints")
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(rebuilds, 1, "an unchanged unknown set rebuilds nothing")
+
+      mapTable = addon.SeasonData.GetOrderedMapIDs(activeID)
+      refresh("CHALLENGE_MODE_MAPS_UPDATE")
+      Assert.Equal(addon.SeasonData.GetServedSeasonID(), activeID, "the known set serves the season again")
+      Assert.Equal(rebuilds, 2, "the portals come back")
+    end)
+  end)
+
   test("ControllerWiring CreateEventHandlersController processAddonMessage feeds sync module", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()

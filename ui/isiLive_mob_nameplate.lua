@@ -971,11 +971,11 @@ local function RegisterEvents()
   if not f or not f.RegisterEvent then
     return false
   end
-  f:RegisterEvent("NAME_PLATE_UNIT_ADDED")
-  f:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
-  f:RegisterEvent("CHALLENGE_MODE_START")
-  f:RegisterEvent("PLAYER_ENTERING_WORLD")
-  f:RegisterEvent("SCENARIO_UPDATE")
+  addonTable.EventUtils.SafeRegisterEvent(f, "NAME_PLATE_UNIT_ADDED")
+  addonTable.EventUtils.SafeRegisterEvent(f, "NAME_PLATE_UNIT_REMOVED")
+  addonTable.EventUtils.SafeRegisterEvent(f, "CHALLENGE_MODE_START")
+  addonTable.EventUtils.SafeRegisterEvent(f, "PLAYER_ENTERING_WORLD")
+  addonTable.EventUtils.SafeRegisterEvent(f, "SCENARIO_UPDATE")
   return true
 end
 

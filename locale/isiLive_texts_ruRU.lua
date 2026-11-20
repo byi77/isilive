@@ -355,6 +355,7 @@ addonTable.TextsLocales.ruRU = {
   SETTINGS_CHAT_HISTORY_DESC = "Стрелки вверх / вниз в поле ввода чата листают отправленные вами строки (без Alt), также после перезагрузки или перезапуска.",
   VERSION_NOTICE_NEWER = "isiLive %s доступен на CurseForge - у вас %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive не знает текущий сезон «Мифик+» - обновите isiLive.",
+  SELFTEST_PATCH_NOTICE = "Самопроверка после обновления клиента (сборка %s) нашла проблем: %d. Подробнее: /isilive selftest",
   SEASON_BREAK_NOTICE = "isiLive: межсезонье - сезон «Мифик+» не идет, доступны только обычный, героический и мифический 0.",
   TESTALL_DUMMY_GROUP = "Демонстрационные ключи",
   TESTALL_DUMMY_DUNGEON = "Сияющий Рассвет",

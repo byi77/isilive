@@ -131,7 +131,7 @@ local function UpdateListening()
     return
   end
   if listen then
-    eventFrame:RegisterUnitEvent("UNIT_THREAT_SITUATION_UPDATE", "player")
+    addonTable.EventUtils.SafeRegisterUnitEvent(eventFrame, "UNIT_THREAT_SITUATION_UPDATE", "player")
   else
     eventFrame:UnregisterEvent("UNIT_THREAT_SITUATION_UPDATE")
   end
@@ -197,7 +197,7 @@ function AggroAlert.Install(opts)
     AggroAlert.HandleEvent(event, arg1)
   end)
   for _, event in ipairs(STATIC_EVENTS) do
-    frame:RegisterEvent(event)
+    addonTable.EventUtils.SafeRegisterEvent(frame, event)
   end
   eventFrame = frame
   UpdateListening()

@@ -401,6 +401,7 @@ end
 local function ExtendEventHandlersConfig(config, deps, state, refs, controllers, callbacks, modules)
   config.versionNotice = type(deps.versionNotice) == "table" and deps.versionNotice or nil
   config.whatsNew = type(deps.whatsNew) == "table" and deps.whatsNew or nil
+  config.patchWatch = type(deps.patchWatch) == "table" and deps.patchWatch or nil
   config.getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm")
   config.getUnitRole = type(deps.getUnitRole) == "function" and deps.getUnitRole or function(_unit)
     return nil
@@ -741,10 +742,27 @@ local function BuildWhatsNew(ctx)
   })
 end
 
+-- Patch watch (rule 261): the self test once per client build after login.
+local function BuildPatchWatch(ctx)
+  local apiHealth = addonTable.ApiHealth
+  if type(apiHealth) ~= "table" or type(apiHealth.CreatePatchWatch) ~= "function" then
+    return nil
+  end
+  return apiHealth.CreatePatchWatch({
+    getDB = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) == "table" and db or nil
+    end,
+    getL = ctx.getL,
+    printFn = ctx.printFn,
+  })
+end
+
 local function BuildEventHandlersDepsFromContext(ctx)
   return {
     versionNotice = BuildVersionNotice(ctx),
     whatsNew = BuildWhatsNew(ctx),
+    patchWatch = BuildPatchWatch(ctx),
     showSeasonUnrecognizedNotice = addonTable.SeasonRefresh.BuildUnrecognizedNotice(ctx),
     showSeasonBreakNotice = addonTable.SeasonRefresh.BuildSeasonBreakNotice(ctx),
     addonName = ctx.addonName,

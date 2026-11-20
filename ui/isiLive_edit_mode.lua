@@ -120,7 +120,7 @@ function EditMode.Install(opts)
     if InCombat() then
       pendingProfile = profile
       if controller.eventFrame then
-        controller.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        addonTable.EventUtils.SafeRegisterEvent(controller.eventFrame, "PLAYER_REGEN_ENABLED")
       end
       return
     end

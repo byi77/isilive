@@ -6,9 +6,17 @@
 --
 -- Usage (from repo root):
 --   lua tools/sync_mdt_forces.lua [--season=<seasonID>] [--mdt=tools/cache/mdt]
---   (default season: the manifest's activeSeasonID -- the runtime DB must match
---   the active season, so this tool deliberately ignores upcomingSeasonID)
 --     [--source_commit=<40-char git sha>] [--out=data/isiLive_mplus_forces.lua]
+--
+-- Seasons (rule 260): without --season the tool writes the manifest's
+-- activeSeasonID and, when set, its upcomingSeasonID into one file
+-- (`MPlusForcesBySeason`, one section per season with its own metadata). The
+-- active season is required: any gap there fails the run as before. The
+-- upcoming season is best effort: while MDT has not published it completely it
+-- is left out with a note, so a prepared season ships its forces data before
+-- launch day without ever blocking the active one. --season=<id> writes
+-- exactly that one season. `addonTable.MPlusForces` stays an alias of the
+-- first (active or --season) section for tooling and older readers.
 --
 -- MDT dungeon files mutate an `MDT` table. We stub that table, run each file
 -- as a chunk, and serialize the collected data. Files up to 6.1.x read the
@@ -29,13 +37,14 @@ if manifestLoader then
   manifestLoader("isiLive", manifestAddon)
 end
 local SEASON_MANIFEST = manifestAddon.SeasonManifest or {}
-local SEASON_DEFAULT = SEASON_MANIFEST.activeSeasonID or ""
+local SEASON_ACTIVE = SEASON_MANIFEST.activeSeasonID or ""
+local SEASON_UPCOMING = SEASON_MANIFEST.upcomingSeasonID
 local LIFETIME_DAYS = 15
 local MAX_DUNGEON_SOURCE_BYTES = 8 * 1024 * 1024
 local MAX_DUNGEON_INSTRUCTIONS = 1000000
 
 local function parseArgs(argv)
-  local args = { season = SEASON_DEFAULT, mdt = "tools/cache/mdt", out = "data/isiLive_mplus_forces.lua" }
+  local args = { mdt = "tools/cache/mdt", out = "data/isiLive_mplus_forces.lua" }
   for _, v in ipairs(argv or {}) do
     local k, val = v:match("^%-%-([%w_]+)=(.*)$")
     if k then
@@ -225,7 +234,38 @@ local function sortedKeys(t)
   return keys
 end
 
-local function formatDbLua(data)
+local function addSeasonSection(add, data)
+  add(string.format("  [%q] = {", data.season))
+  add(string.format("    season = %q,", data.season))
+  add(string.format("    mdtVersion = %q,", data.mdtVersion))
+  add(string.format("    sourceCommit = %q,", data.sourceCommit))
+  add(string.format("    generatedAt = %q,", data.generatedAt))
+  add(string.format("    expiresAt = %q,", data.expiresAt))
+  add(string.format("    dungeonCount = %d,", data.dungeonCount))
+  add(string.format("    npcCount = %d,", data.npcCount))
+  add("")
+  add("    -- Enemy Forces total per dungeon (keyed by challenge-mode mapID)")
+  add("    dungeonTotal = {")
+  for _, mapID in ipairs(sortedKeys(data.dungeonTotal)) do
+    local entry = data.dungeonTotal[mapID]
+    add(string.format("      [%d] = { total = %d, name = %q },", mapID, entry.total, entry.name))
+  end
+  add("    },")
+  add("")
+  add("    -- count per NPC-id (appears in one of the dungeons above)")
+  add("    byNpcId = {")
+  for _, npcId in ipairs(sortedKeys(data.byNpcId)) do
+    local entry = data.byNpcId[npcId]
+    local name = tostring(entry.name or ""):gsub("\n", " ")
+    add(string.format("      [%d] = { count = %d, mapID = %d }, -- %s", npcId, entry.count, entry.mapID, name))
+  end
+  add("    },")
+  add("  },")
+end
+
+-- `sections` lists the season data tables (active season first);
+-- `aliasSeason` names the section `addonTable.MPlusForces` points at.
+local function formatDbLua(sections, aliasSeason)
   local lines = {}
   local function add(s)
     lines[#lines + 1] = s
@@ -237,85 +277,52 @@ local function formatDbLua(data)
   add("")
   add("local _, addonTable = ...")
   add("")
-  add("addonTable.MPlusForces = {")
-  add(string.format("  season = %q,", data.season))
-  add(string.format("  mdtVersion = %q,", data.mdtVersion))
-  add(string.format("  sourceCommit = %q,", data.sourceCommit))
-  add(string.format("  generatedAt = %q,", data.generatedAt))
-  add(string.format("  expiresAt = %q,", data.expiresAt))
-  add(string.format("  dungeonCount = %d,", data.dungeonCount))
-  add(string.format("  npcCount = %d,", data.npcCount))
-  add("")
-  add("  -- Enemy Forces total per dungeon (keyed by challenge-mode mapID)")
-  add("  dungeonTotal = {")
-  for _, mapID in ipairs(sortedKeys(data.dungeonTotal)) do
-    local entry = data.dungeonTotal[mapID]
-    add(string.format("    [%d] = { total = %d, name = %q },", mapID, entry.total, entry.name))
+  add("-- One section per season (rule 260): the active season and, once MDT")
+  add("-- publishes it, the prepared upcoming season, so its mob percentages work")
+  add("-- on launch day without another release.")
+  add("addonTable.MPlusForcesBySeason = {")
+  for index, data in ipairs(sections) do
+    if index > 1 then
+      add("")
+    end
+    addSeasonSection(add, data)
   end
-  add("  },")
-  add("")
-  add("  -- count per NPC-id (appears in one of the dungeons above)")
-  add("  byNpcId = {")
-  for _, npcId in ipairs(sortedKeys(data.byNpcId)) do
-    local entry = data.byNpcId[npcId]
-    add(
-      string.format(
-        "    [%d] = { count = %d, mapID = %d }, -- %s",
-        npcId,
-        entry.count,
-        entry.mapID,
-        entry.name:gsub("\n", " ")
-      )
-    )
-  end
-  add("  },")
   add("}")
+  add("")
+  add("-- Alias of the active season's section for tooling and older readers.")
+  add(string.format("addonTable.MPlusForces = addonTable.MPlusForcesBySeason[%q]", aliasSeason))
   add("")
 
   return table.concat(lines, "\n")
 end
 
-local function main(argv)
-  local args = parseArgs(argv)
-
-  local season = type(SEASON_MANIFEST.seasons) == "table" and SEASON_MANIFEST.seasons[args.season] or nil
+-- Extracts one season from the MDT clone. Returns the season data table, or
+-- nil, a message and the exit code a required season fails with. A season
+-- without an mdtDirectory and requiresForces = false is not an error
+-- (exit code 0): MDT upstream has not published it yet.
+local function extractSeason(seasonID, args, sourceCommit)
+  local season = type(SEASON_MANIFEST.seasons) == "table" and SEASON_MANIFEST.seasons[seasonID] or nil
   if type(season) ~= "table" then
-    io.stderr:write(string.format("[sync_mdt_forces] unknown season %q\n", args.season))
-    os.exit(2)
+    return nil, string.format("unknown season %q", tostring(seasonID)), 2
   end
 
   local mdtSubDir = season.mdtDirectory
   if type(mdtSubDir) ~= "string" or mdtSubDir == "" then
-    -- A known season without an mdtDirectory is a valid state: MDT upstream has not
-    -- published this season yet. Only a requiresForces season makes that an error.
     if season.requiresForces == true then
-      io.stderr:write(
-        string.format("[sync_mdt_forces] season %q requires forces but has no mdtDirectory\n", args.season)
-      )
-      os.exit(2)
+      return nil, string.format("season %q requires forces but has no mdtDirectory", seasonID), 2
     end
-    print(
-      string.format(
-        "[sync_mdt_forces] season=%s has no mdtDirectory and requiresForces = false — "
-          .. "nothing to sync, leaving %s untouched.",
-        args.season,
-        args.out
-      )
-    )
-    os.exit(0)
+    return nil, string.format("season=%s has no mdtDirectory and requiresForces = false, nothing to sync", seasonID), 0
   end
 
-  -- Restrict the generated DB to the target season's own dungeons.
+  -- Restrict the generated data to the target season's own dungeons.
   --
   -- The upstream directory is not a per-season folder: 6.1.x happened to hold
   -- exactly the eight Season 1 dungeons, so an unfiltered sweep looked correct.
   -- 6.2.0 ships Season 1 and Season 2 side by side in the same folder, and the
   -- unfiltered sweep silently produced a 16-dungeon DB stamped
   -- season = "midnight_s1". SeasonData.GetForcesReadiness rejects every
-  -- out-of-season map id and npc id, which fails the forces build gate in
-  -- tools/check_mplus_db_lifetime.lua. One DB file
-  -- carries exactly one season -- forces.season is a single field -- so the
-  -- filter belongs here.
+  -- out-of-season map id and npc id, so each season section carries exactly
+  -- its own season's maps.
   local allowedMapIDs = {}
   local allowedCount = 0
   for _, dungeon in ipairs(type(season.dungeons) == "table" and season.dungeons or {}) do
@@ -326,24 +333,17 @@ local function main(argv)
     end
   end
   if allowedCount == 0 then
-    io.stderr:write(string.format("[sync_mdt_forces] season %q has no dungeon map ids in the manifest\n", args.season))
-    os.exit(2)
+    return nil, string.format("season %q has no dungeon map ids in the manifest", seasonID), 2
   end
 
   local sourceDir = args.mdt .. "/" .. mdtSubDir
-  local sourceCommit = normalizeSourceCommit(args.source_commit)
-  if not sourceCommit then
-    io.stderr:write("[sync_mdt_forces] --source_commit must be the exact 40-character MDT git commit\n")
-    os.exit(2)
-  end
   local files = listLuaFiles(sourceDir)
   if #files == 0 then
-    io.stderr:write(string.format("[sync_mdt_forces] no .lua files in %s\n", sourceDir))
-    os.exit(2)
+    return nil, string.format("no .lua files in %s", sourceDir), 2
   end
 
   local MDT = buildSandbox()
-  print(string.format("[sync_mdt_forces] season=%s mdt=%s files=%d", args.season, args.mdt, #files))
+  print(string.format("[sync_mdt_forces] season=%s mdt=%s files=%d", seasonID, args.mdt, #files))
 
   local loaded = {}
   for _, path in ipairs(files) do
@@ -366,7 +366,7 @@ local function main(argv)
     local mapID = info and tonumber(info.mapID)
     local englishName = info and info.englishName or ("dungeon#" .. tostring(dungeonIdx))
 
-    -- Stubs carry mapID=12345 (see MurderRow) — skip quietly.
+    -- Stubs carry mapID=12345 (see MurderRow) and are skipped quietly.
     if not mapID or mapID == 12345 or mapID <= 0 then
       skippedStubs = skippedStubs + 1
     elseif not allowedMapIDs[mapID] then
@@ -406,7 +406,9 @@ local function main(argv)
 
   print(
     string.format(
-      "[sync_mdt_forces] dungeons=%d/%d npcs=%d (skipped: stubs=%d bosses=%d cross-dungeon-dupes=%d other-season=%d)",
+      "[sync_mdt_forces] season=%s dungeons=%d/%d npcs=%d "
+        .. "(skipped: stubs=%d bosses=%d cross-dungeon-dupes=%d other-season=%d)",
+      seasonID,
       dungeonCount,
       allowedCount,
       npcCount,
@@ -417,28 +419,25 @@ local function main(argv)
     )
   )
 
-  -- A season whose dungeons are all missing upstream is a real gap, not a
-  -- partial result to ship: the runtime would report every map id as missing
-  -- a positive total and the season would never become ready.
+  -- A season whose dungeons are missing upstream is a real gap, not a partial
+  -- result to ship: the runtime would report every map id as missing a
+  -- positive total and the season would never become ready.
   if dungeonCount < allowedCount then
-    io.stderr:write(
+    return nil,
       string.format(
-        "[sync_mdt_forces] season %q expects %d dungeons but upstream yielded %d — refusing to write a partial DB\n",
-        args.season,
+        "season %q expects %d dungeons but upstream yielded %d, refusing to write a partial section",
+        seasonID,
         allowedCount,
         dungeonCount
-      )
-    )
-    os.exit(3)
+      ),
+      3
   end
-
   if dungeonCount == 0 or npcCount == 0 then
-    io.stderr:write("[sync_mdt_forces] refusing to write empty DB\n")
-    os.exit(3)
+    return nil, string.format("season %q yielded no forces data, refusing to write an empty section", seasonID), 3
   end
 
-  local out = formatDbLua({
-    season = args.season,
+  return {
+    season = seasonID,
     mdtVersion = readMdtVersion(args.mdt),
     sourceCommit = sourceCommit,
     generatedAt = isoDate(0),
@@ -447,8 +446,49 @@ local function main(argv)
     npcCount = npcCount,
     dungeonTotal = dungeonTotal,
     byNpcId = byNpcId,
-  })
+  }
+end
 
+-- Target seasons: the explicit --season alone (required), otherwise the active
+-- season (required) plus a different upcomingSeasonID (best effort).
+local function resolveTargets(args)
+  if type(args.season) == "string" and args.season ~= "" then
+    return { { id = args.season, required = true } }
+  end
+  local targets = { { id = SEASON_ACTIVE, required = true } }
+  if type(SEASON_UPCOMING) == "string" and SEASON_UPCOMING ~= "" and SEASON_UPCOMING ~= SEASON_ACTIVE then
+    targets[#targets + 1] = { id = SEASON_UPCOMING, required = false }
+  end
+  return targets
+end
+
+local function main(argv)
+  local args = parseArgs(argv)
+  local sourceCommit = normalizeSourceCommit(args.source_commit)
+  if not sourceCommit then
+    io.stderr:write("[sync_mdt_forces] --source_commit must be the exact 40-character MDT git commit\n")
+    os.exit(2)
+  end
+
+  local targets = resolveTargets(args)
+  local sections = {}
+  for _, target in ipairs(targets) do
+    local data, message, exitCode = extractSeason(target.id, args, sourceCommit)
+    if data then
+      sections[#sections + 1] = data
+    elseif target.required and exitCode ~= 0 then
+      io.stderr:write("[sync_mdt_forces] " .. message .. "\n")
+      os.exit(exitCode)
+    elseif target.required then
+      -- A required season that legitimately has no MDT data: keep the file.
+      print(string.format("[sync_mdt_forces] %s, leaving %s untouched.", message, args.out))
+      os.exit(0)
+    else
+      print(string.format("[sync_mdt_forces] upcoming season left out: %s", message))
+    end
+  end
+
+  local out = formatDbLua(sections, targets[1].id)
   local outFile, werr = io.open(args.out, "wb")
   if not outFile then
     io.stderr:write(string.format("[sync_mdt_forces] cannot open %s: %s\n", args.out, tostring(werr)))
@@ -457,7 +497,18 @@ local function main(argv)
   outFile:write(out)
   outFile:close()
 
-  print(string.format("[sync_mdt_forces] wrote %s (expires %s)", args.out, isoDate(LIFETIME_DAYS)))
+  local written = {}
+  for _, data in ipairs(sections) do
+    written[#written + 1] = data.season
+  end
+  print(
+    string.format(
+      "[sync_mdt_forces] wrote %s seasons=%s (expires %s)",
+      args.out,
+      table.concat(written, ","),
+      isoDate(LIFETIME_DAYS)
+    )
+  )
 end
 
 if ... == "module" then
@@ -465,6 +516,8 @@ if ... == "module" then
     BuildSandbox = buildSandbox,
     LoadDungeonFile = loadDungeonFile,
     NormalizeSourceCommit = normalizeSourceCommit,
+    FormatDbLua = formatDbLua,
+    ResolveTargets = resolveTargets,
   }
 end
 

@@ -458,7 +458,7 @@ local function AttachSystemOptionToggleWatcher(mainFrame, ui)
     end
   end)
   if type(watcher.RegisterEvent) == "function" then
-    pcall(watcher.RegisterEvent, watcher, "CVAR_UPDATE")
+    addonTable.EventUtils.SafeRegisterEvent(watcher, "CVAR_UPDATE")
   end
 
   ui.systemOptionWatcher = watcher

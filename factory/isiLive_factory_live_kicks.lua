@@ -36,7 +36,7 @@ function FactoryLiveKicks.Install(ctx)
     end
     stats.CaptureLiveKicks()
   end)
-  frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-  frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+  addonTable.EventUtils.SafeRegisterEvent(frame, "PLAYER_REGEN_ENABLED")
+  addonTable.EventUtils.SafeRegisterEvent(frame, "PLAYER_REGEN_DISABLED")
   return frame
 end

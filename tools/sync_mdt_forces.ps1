@@ -1,6 +1,7 @@
 param(
-  # Empty = the manifest's activeSeasonID (resolved by sync_mdt_forces.lua),
-  # so the generated DB always matches the season the runtime serves.
+  # Empty = the manifest's activeSeasonID plus, when MDT ships it completely,
+  # its upcomingSeasonID, one section each (rule 260, resolved by
+  # sync_mdt_forces.lua). A season name writes exactly that one season.
   [string]$Season = "",
   [string]$MdtRepo = "https://github.com/Nnoggie/MythicDungeonTools",
   # The clone sits inside the WoW folder. A real .git directory there makes the

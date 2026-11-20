@@ -12,6 +12,11 @@
 -- season map, no foreign maps. This is the build gate for `requiresForces`;
 -- the runtime season activation deliberately does not look at forces data.
 --
+-- A third step (M.CheckSeasonSections, rule 260) covers the per-season layout
+-- (`MPlusForcesBySeason`): the alias `MPlusForces` must be the active season's
+-- section, every other section must name a configured season, carry an exact
+-- MDT commit, be unexpired (same override) and match its season's structure.
+--
 -- Env overrides:
 --   ISILIVE_ALLOW_STALE_MPLUS_DB=1  Bypass an expired DB (e.g. hotfix releases
 --                                   that do not touch the M+ forces feature).
@@ -99,7 +104,7 @@ function M.Check(dbPath, opts)
     return 2, "load error: " .. tostring(err)
   end
 
-  local db = addonTable.MPlusForces
+  local db = opts.db or addonTable.MPlusForces
   if type(db) ~= "table" then
     return 2, "addonTable.MPlusForces missing or not a table"
   end
@@ -209,7 +214,7 @@ function M.CheckStructure(dbPath, opts)
   if not okDb or type(dbTable.MPlusForces) ~= "table" then
     return 2, "addonTable.MPlusForces missing or not loadable: " .. tostring(dbRunErr)
   end
-  local db = dbTable.MPlusForces
+  local db = opts.db or dbTable.MPlusForces
 
   local seasonID = opts.activeSeasonID
     or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
@@ -232,11 +237,89 @@ function M.CheckStructure(dbPath, opts)
     )
 end
 
+-- Rule 260: checks the sections of `MPlusForcesBySeason` other than the
+-- active one (Check/CheckStructure cover that one through the alias).
+function M.CheckSeasonSections(dbPath, opts)
+  dbPath = dbPath or DB_PATH
+  opts = opts or {}
+
+  local dbLoader, dbErr = loadfile(dbPath)
+  if not dbLoader then
+    return 2, "cannot load " .. dbPath .. ": " .. tostring(dbErr)
+  end
+  local dbTable = {}
+  local okDb, dbRunErr = pcall(dbLoader, "isiLive", dbTable)
+  if not okDb then
+    return 2, "load error: " .. tostring(dbRunErr)
+  end
+  local bySeason = dbTable.MPlusForcesBySeason
+  if bySeason == nil then
+    return 0, "M+ forces DB has no per-season sections (legacy layout)"
+  end
+  if type(bySeason) ~= "table" then
+    return 2, "addonTable.MPlusForcesBySeason must be a table"
+  end
+
+  local manifest = loadSeasonManifest(opts.seasonDataPath)
+  local seasons = type(manifest) == "table" and type(manifest.seasons) == "table" and manifest.seasons or {}
+  local activeSeasonID = opts.activeSeasonID
+    or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
+    or (type(manifest) == "table" and manifest.activeSeasonID or nil)
+  if bySeason[activeSeasonID] ~= nil and dbTable.MPlusForces ~= bySeason[activeSeasonID] then
+    return 2, string.format("addonTable.MPlusForces must alias the active season section %s", tostring(activeSeasonID))
+  end
+
+  local ids = {}
+  for seasonID in pairs(bySeason) do
+    ids[#ids + 1] = tostring(seasonID)
+  end
+  table.sort(ids)
+  local checked = {}
+  for _, seasonID in ipairs(ids) do
+    local section = bySeason[seasonID]
+    if type(section) ~= "table" or section.season ~= seasonID then
+      return 2, string.format("forces section %s must be a table whose season field is %s", seasonID, seasonID)
+    end
+    if type(seasons[seasonID]) ~= "table" then
+      return 2, string.format("forces section %s names no configured season", seasonID)
+    end
+    if seasonID ~= activeSeasonID then
+      local code, msg = M.Check(dbPath, {
+        db = section,
+        activeSeasonID = seasonID,
+        requiresForces = true,
+        today = opts.today,
+        override = opts.override,
+        seasonDataPath = opts.seasonDataPath,
+      })
+      if code == 0 then
+        code, msg = M.CheckStructure(dbPath, {
+          db = section,
+          activeSeasonID = seasonID,
+          seasonDataPath = opts.seasonDataPath,
+        })
+      end
+      if code ~= 0 then
+        return code, string.format("forces section %s: %s", seasonID, msg)
+      end
+      checked[#checked + 1] = seasonID
+    end
+  end
+  if #checked == 0 then
+    return 0, "M+ forces DB carries no section besides the active season"
+  end
+  return 0, "M+ forces sections valid for " .. table.concat(checked, ", ")
+end
+
 if ... == nil then
   local code, msg = M.Check()
   if code == 0 then
     io.stdout:write(msg .. "\n")
     code, msg = M.CheckStructure()
+  end
+  if code == 0 then
+    io.stdout:write(msg .. "\n")
+    code, msg = M.CheckSeasonSections()
   end
   if code == 0 then
     io.stdout:write(msg .. "\n")

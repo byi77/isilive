@@ -106,6 +106,17 @@ Am Patch-Tag zuerst `/isilive selftest` ausfuehren (Regel 251): Es meldet je ben
 ist (`/isilive selftest all` listet auch alle bestandenen Pruefungen). Neue API-Flaechen eines Features in
 `ApiHealth.CHECKS` (`game/isiLive_api_health.lua`) nachtragen.
 
+Der Selbsttest laeuft zusaetzlich automatisch (Regel 261): einmal pro Client-Build 20 s nach dem Login,
+still, mit einer Chatzeile nur bei Problemen; der gepruefte Build steht in `IsiLiveDB.selftestBuild`. Er
+prueft auch die Daten: Portal-Spells, Challenge-Maps und LFG-Activities der bedienten Season (mit
+Instanz-Abgleich), das Spell-Manifest und die Consumables. Neue ID-Listen unter `data/` dort in
+`ApiHealth.RunDataChecks` aufnehmen.
+
+Entfernt oder benennt ein Patch ein Event um, bleibt der Rest von isiLive registriert (Regel 258): jede
+Registrierung laeuft ueber `EventUtils.SafeRegisterEvent`/`SafeRegisterUnitEvent`, und der Selbsttest meldet
+`MISSING event <NAME> - Events`. Neue Registrierungen nie direkt ueber `frame:RegisterEvent` schreiben;
+`tools/check_wow_api_compliance.lua` (`raw-event-registration`) laesst das nicht durch.
+
 ### 3.2 Dungeon-/Schwierigkeits-Kontext
 
 Pruefen:
@@ -194,7 +205,7 @@ Vor Aktivierung einer neuen Season verifizieren (Checkliste: `docs/SAISON_WECHSE
 
 Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `docs/SEASON_INTAKE.md` gesammelt. Jede konkrete ID braucht `Source` und `VerifiedAt`; fehlende Werte bleiben `unresolved`. `tools/check_season_intake.lua` validiert die Struktur lokal, in CI und ueber den taeglichen Workflow `.github/workflows/season-intake.yml`. Ohne Argument prueft es jede Season im Intake einzeln (die laufende Season behaelt ihre verifizierten Zeilen und ihren Drift-Abgleich, eine noch nicht im Manifest angelegte Season darf keine `verified`-Zeilen tragen); der Workflow fuehrt pro Season ein eigenes GitHub Issue.
 
-Das optionale Manifest-Feld `upcomingSeasonID` benennt die gerade vorbereitete Season. `SeasonData.GetToolDefaultSeasonID()` liefert sie, sonst `activeSeasonID`; `inspect_mdt_season_preview.lua` und der Preview-Workflow (`--print-default-season`) nutzen diesen Default statt einer festen Season-ID. Eine unbekannte ID ist ein Manifest-Fehler (`SeasonData.MANIFEST_ERRORS`) und laesst das Intake-Gate scheitern. Die Runtime liest das Feld nie; `sync_mdt_forces.lua` bleibt bei `activeSeasonID`, weil die Runtime-DB zur aktiven Season passen muss.
+Das optionale Manifest-Feld `upcomingSeasonID` benennt die gerade vorbereitete Season. `SeasonData.GetToolDefaultSeasonID()` liefert sie, sonst `activeSeasonID`; `inspect_mdt_season_preview.lua` und der Preview-Workflow (`--print-default-season`) nutzen diesen Default statt einer festen Season-ID. Eine unbekannte ID ist ein Manifest-Fehler (`SeasonData.MANIFEST_ERRORS`) und laesst das Intake-Gate scheitern. Die Runtime liest das Feld nie. `sync_mdt_forces.lua` schreibt ohne `--season` die `activeSeasonID` (Pflicht) und die `upcomingSeasonID` (sobald MDT sie vollstaendig liefert) als je eigene Sektion in `MPlusForcesBySeason` (Regel 260); die Runtime liest immer die Sektion der bedienten Season, die vorbereitete Season hat ihre Mobprozente damit ab dem Starttag.
 
 ### 3.4a Saisonzustand und Saisonpause (Regel 250)
 
@@ -207,10 +218,13 @@ Zwischen zwei Seasons laeuft 1 bis 2 Wochen keine Mythic+-Season; spielbar sind 
 | `unknown` | Start, ungueltige/mehrdeutige Liste | wie bisher |
 | `active` | exakter Satz einer bereiten Season | wie bisher |
 | `offseason` | leere Liste direkt nach `CHALLENGE_MODE_MAPS_UPDATE` | einmal pro Sitzung Chat-Hinweis "Saisonpause", ruhige 30-s-Dungeon-Karte, Heroisch im vollen Profil, Statuszeile `Ziel-Dungeon: - (Saisonpause)` (nur in Layouts mit Statuszeile; im festen M+-Layout verborgen) |
-| `unrecognized` | nicht leerer Satz, den keine Season kennt | einmal pro Sitzung Chat-Hinweis "bitte aktualisieren", Zeit-/Forces-Tempo lernen nicht |
+| `unrecognized` | nicht leerer Satz, den keine Season kennt | einmal pro Sitzung Chat-Hinweis "bitte aktualisieren", Zeit-/Forces-Tempo lernen nicht, keine Season-Daten (Regel 259) |
 
-`activeSeasonID` bleibt in allen Faellen der Fallback; Portale, Navigator und LFG-Zuordnung zeigen weiter
-die zuletzt aktive Season. Die Erkennung der Saisonpause beruht auf der Annahme, dass Blizzard in der Pause
+`activeSeasonID` bleibt in allen Faellen der Fallback und aendert sich nie. In der Saisonpause zeigen Portale,
+Navigator und LFG-Zuordnung weiter die zuletzt aktive Season. Bei `unrecognized` bedient isiLive dagegen keine
+Season (`SeasonData.GetServedSeasonID() == nil`, Regel 259): keine Portale, kein Navigator, keine LFG-Zuordnung
+und keine Forces-DB der alten Season, damit Nutzer ohne Update am Tag 0 keine falschen Dungeons sehen. Fuer die
+neuen Maps nutzt isiLive nur Blizzard-Daten (Client-Name, Instanz-ID); Kurzcodes und Portale bleiben leer. Die Erkennung der Saisonpause beruht auf der Annahme, dass Blizzard in der Pause
 eine leere Map-Liste liefert. Das ist **noch nicht ingame belegt**. In der naechsten Saisonpause pruefen:
 
 1. `/isilive seasondump` ausfuehren und die Zeilen `blizzardSeasonState`, `challengeMapTable`,
@@ -363,6 +377,7 @@ Pruefen:
 - `.github/workflows/season-intake.yml` (taeglicher Intake-Status mit Issue-Update)
 
 Aktueller Soll-Zustand:
+- Die DB fuehrt je Season eine Sektion (`MPlusForcesBySeason`, Regel 260); `MPlusForces` ist der Alias auf die aktive Season. Der Generator schreibt die aktive Season (Pflicht) und die `upcomingSeasonID` (bestmoeglich); jede Sektion hat eigene Metadaten und eigenes `expiresAt`.
 - Der Auto-Refresh laeuft donnerstags 06:00 UTC nach dem MDT-Release-Fenster (US Tuesday Patch + EU Wednesday Reset). Manuell ausloesbar ueber `workflow_dispatch`.
 - Der Workflow klont MDT, erfasst den exakten Checkout per `git rev-parse HEAD`, schreibt diesen vollstaendig als `sourceCommit`, regeneriert den Datensatz, laeuft den vollen CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, usecases) und committet nur bei echtem Diff direkt nach `main`.
 - `expiresAt` ist `generatedAt + 15 Tage`. Das Lifetime-Gate blockiert jeden Release mit abgelaufenem DB-File; Override ausschliesslich ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
@@ -965,7 +980,7 @@ Zeitliche Streuung (Jitter) wurde verworfen. Manueller Refresh und Gruppenende
 loeschen weiter vollstaendig.
 
 Forces-DB: der Generator vergibt 15 Tage Laufzeit fuer das CI-Gate, Refresh daher etwa alle zwei
-Wochen (`tools/sync_mdt_forces.ps1` ohne `-Season` erzeugt fuer `activeSeasonID`, dann Release). Seit
+Wochen (`tools/sync_mdt_forces.ps1` ohne `-Season` erzeugt fuer `activeSeasonID` und `upcomingSeasonID`, dann Release). Seit
 2026-11-14 laeuft die DB im Client nicht mehr ab. Der
 MDT-Cache unter `tools/cache/mdt` haelt sein Git-Verzeichnis ausserhalb des
 WoW-Ordners (`--separate-git-dir`); ein echter `.git`-Ordner dort fuehrt zur

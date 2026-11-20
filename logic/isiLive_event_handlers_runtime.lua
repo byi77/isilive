@@ -895,14 +895,17 @@ local function NoteSyncPeerVersion(ctx, syncResult)
   return false
 end
 
--- Login-time notices: the guild version ping (rule 247) and the what's-new
--- card (rule 256).
+-- Login-time notices: the guild version ping (rule 247), the what's-new
+-- card (rule 256) and the patch watch self test (rule 261).
 local function StartLoginNotices(ctx)
   if ctx.versionNotice then
     ctx.versionNotice.OnLogin()
   end
   if ctx.whatsNew then
     ctx.whatsNew.OnLogin()
+  end
+  if ctx.patchWatch then
+    ctx.patchWatch.OnLogin()
   end
 end
 

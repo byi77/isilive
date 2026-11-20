@@ -5,6 +5,105 @@ abzuarbeiten. Die einzige manuell gepflegte Runtime-Saisonquelle ist
 `data/isiLive_seasons.lua`. Technische IDs werden niemals geraten. Unbekannte
 Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 
+## 0. Wartbarkeits-Todos (Analyse vom 2026-11-20)
+
+Ziel: null erwartbare und null verhinderbare Fehler beim Saisonwechsel, isiLive
+an Tag 0 voll einsatzbereit. Grundannahme (User, 2026-11-20): Die neuen Dungeons
+sind im Normalfall vorher bekannt, ihre IDs lassen sich vorab ueber Wowhead
+o. ae. oder den PTR auslesen. Die Season wird deshalb immer **vor** dem Start
+vorbereitet und released; die Laufzeit-Absicherungen unten decken nur Nutzer
+ohne Update und Blizzard-Ueberraschungen ab. Paketreihenfolge laut Analyse;
+jedes Paket wird erst auf ausdrueckliches Kommando begonnen.
+
+Paket 1 (P0):
+- [x] C: Patchsichere Event-Registrierung (Regel 258). Ein entferntes oder
+  umbenanntes Event legt nicht mehr alle folgenden Events still; der Selbsttest
+  meldet es. Gate `raw-event-registration` in `tools/check_wow_api_compliance.lua`.
+- [x] A: Unbekannte Season bedient keine Altdaten (Regel 259). Keine Portale,
+  kein Navigator, keine LFG-Zuordnung, keine Forces-DB der alten Season;
+  Client-Namen und Instanz-IDs der neuen Maps kommen nur von Blizzard.
+
+Paket 2 (P0/P1):
+- [x] B: Forces-DB je Season (Regel 260, `MPlusForcesBySeason`). Der Sync
+  schreibt die aktive Season und die `upcomingSeasonID`, sobald MDT sie
+  vollstaendig liefert; das Lifetime-Gate prueft jede Sektion einzeln. Die
+  Mobprozente einer vorbereiteten Season laufen ab dem Starttag ohne Release.
+- [x] F: Patch-Waechter und Datenpruefung (Regel 261). Einmal pro Client-Build
+  laeuft der Selbsttest 20 s nach dem Login still, Chatzeile nur bei Problemen.
+  `/isilive selftest` prueft zusaetzlich Portal-Spells, Challenge-Maps und
+  LFG-Activities (inkl. Instanz-Abgleich) der bedienten Season, das
+  Spell-Manifest und die Consumables. Auf dem PTR ausgefuehrt ist das die
+  Datenpruefung der neuen Season in einem Befehl.
+- [ ] Offen aus F: Kick-Spells (`SPEC_DATA`) und das Keystone-Item kommen in
+  die Datenpruefung, sobald sie in Paket 5 (J) in Manifeste unter `data/`
+  gezogen sind. In-Game bestaetigen, dass `GetMapUIInfo` und
+  `GetActivityInfoTable` direkt nach dem Login ohne vorherige Anfrage antworten
+  (sonst meldet der Patch-Waechter faelschlich `MISSING`).
+
+Paket 3 (P0/P1):
+- [ ] D: Taeglicher Workflow liest die Build-Versionen von Live/PTR/Beta aus
+  Blizzards Versions-Endpunkt (URL vor Umsetzung pruefen) und oeffnet ein Issue,
+  wenn die Interface-Nummer in `isiLive.toc` fehlt. Die TOC selbst wird nur auf
+  ausdruecklichen Auftrag geaendert.
+- [ ] E: Workflow gleicht die von isiLive genutzten APIs, Events und
+  `Enum`-Felder mit `Gethe/wow-ui-source` (Branches `live`/`ptr`/`beta`,
+  `Blizzard_APIDocumentationGenerated`) ab und meldet entfernte oder geaenderte
+  Signaturen per Issue (PTR-Vorlauf als Warnzeit).
+
+Paket 4 (P1):
+- [ ] G: Test rendert alle 32 Belegungen der Navigator-Slots ueber den echten
+  Layout-Builder (Clipping/Ueberlappung). Anlass: Clipping-Fix am S2-Starttag,
+  weil erstmals der mittlere Slot belegt war.
+- [ ] H: Generisches `wowsim season_smoke --season=<id>`, Erwartungswerte aus
+  `docs/SEASON_INTAKE.md` statt kopierter Tabelle je Season.
+- [ ] I: Season-ID-Literale aus `testmodul/` entfernen (Stand: 85x die aktive
+  Season-ID). Tests auf Produktionsdaten lesen `activeSeasonID` und das Intake,
+  Verhaltenstests nutzen die Fixture-Season; Gate gegen neue Literale.
+
+Paket 5 (P1/P2):
+- [ ] J: Hartkodierte IDs ausserhalb `data/` in Manifeste verschieben und per
+  Gate sperren: Keystone `180653` (`logic/isiLive_keysync.lua`,
+  `core/isiLive_context_helpers.lua`), Kick-`SPEC_DATA`
+  (`game/isiLive_kick_tracker.lua`), DK-Spells (`game/isiLive_vip_dk_assist.lua`),
+  Spec `1473` (`ui/isiLive_lfg_bonus_model.lua`).
+- [ ] K: `activityIDs` im Manifest optional machen (die Laufzeit leitet sie
+  ueber Instanz-ID ab, Regel 252). Ob enUS/deDE-Namen Pflicht bleiben
+  (Regeln 97/98), entscheidet der User.
+- [ ] N: Ein Befehl `lua tools/season_doctor.lua [--season=<id>]` fuehrt alle
+  automatisierbaren Pruefungen aus und listet nur die offenen Punkte; diese
+  Checkliste schrumpft danach auf die echten Ingame-Punkte.
+- [ ] O: Eigener Abschnitt Erweiterungswechsel (Keystone-Item,
+  Consumable-Set, neue Drums/Pet-Lust, neue Specs, Levelcap und
+  `minimumPlayerLevel`, neue Hub-Zone), jeweils mit Gate.
+
+Paket 6 (P2, Komfort):
+- [ ] L: `/isilive seasondump draft` auf dem PTR schreibt einen Manifest-Entwurf
+  (Maps, Namen, Zeitlimit, Instanz-IDs, Activities ueber
+  `C_LFGList.GetAvailableActivities`, Portal-Kandidaten aus dem
+  Hero's-Path-Flyout, Hub-Zone) in die SavedVariables; ein Tool erzeugt daraus
+  Manifest-Eintrag und Intake-Zeilen mit `Status = candidate`. Freigabe bleibt
+  beim User.
+- [ ] M: Workflow prueft alle IDs aus `data/` gegen DB2-Daten der PTR-Builds
+  (`MapChallengeMode`, `GroupFinderActivity`, `SpellName`; Quelle und
+  Nutzungsbedingungen vorher pruefen) und meldet neue Challenge-Maps.
+
+Bekannt und ohne Paket: Der Simulator-Erwartungswert "the dungeon card is the
+calm season-break hint" (`lua tools/wowsim/wowsim.lua offseason`) schlaegt
+bereits auf 0.9.524 fehl und ist zu untersuchen. `docs/RULES.md` (Season-Rahmen)
+nennt noch eine frische Forces-DB als Bedingung fuer die automatische Umstellung;
+seit Regel 97 ist die Forces-DB kein Aktivierungskriterium mehr. Der Satz ist
+nachzuziehen.
+
+Zeitplan je Season (Ziel):
+- T-8 Wochen (PTR): Dungeons und IDs aus Wowhead/PTR ins Intake (`candidate`),
+  Manifest-Eintrag anlegen, `upcomingSeasonID` setzen; auf dem PTR
+  `/isilive selftest` (keine `MISSING event`-Zeilen) und `/isilive seasondump`.
+- T-4 Wochen: User-Freigabe der IDs -> `verified`; Intake, Readiness,
+  Simulator-Smoke gruen; PTR-Interface-Nummer auf Auftrag in die TOC.
+- T-2 Wochen: MDT-Daten pruefen, `autoDetectFromChallengeMaps = true`, Release.
+- Tag 0: nichts zu tun; die Auswahl wechselt automatisch.
+- T+1 Woche: `activeSeasonID` umstellen, `upcomingSeasonID` leeren, Nachweis.
+
 ## 1. Daten sammeln und verifizieren
 
 - [ ] Neue Season in `docs/SEASON_INTAKE.md` anlegen, ohne sie zu aktivieren.
@@ -43,7 +142,8 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
   den Lauf bewusst und laesst die bestehende DB unangetastet.
 - [ ] `upcomingSeasonID` auf die neue Season setzen. Die Season-Tools
   (`inspect_mdt_season_preview.lua`, Preview-Workflow) zielen dann ohne
-  Argument auf sie; `sync_mdt_forces.lua` bleibt bewusst bei `activeSeasonID`.
+  Argument auf sie. `sync_mdt_forces.lua` schreibt sie zusaetzlich als eigene
+  Sektion in die Forces-DB, sobald MDT alle ihre Dungeons liefert (Regel 260).
 - [ ] `activeSeasonID` in dieser Phase noch nicht umstellen.
 - [ ] Keine saisonalen Zuordnungstabellen in LFG-, Status-, Demo-, UI- oder
   Tooldateien duplizieren.
@@ -53,7 +153,11 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] Pruefen, ob fuer die neue Season ein vollstaendiger und verifizierter
   MythicDungeonTools-Datensatz existiert.
 - [ ] Falls `requiresForces = true`, `lua tools/sync_mdt_forces.lua` ausfuehren
-  und den erzeugten Datensatz kontrollieren.
+  und den erzeugten Datensatz kontrollieren. Ohne `--season` schreibt das Tool
+  die aktive Season und die `upcomingSeasonID` (Regel 260); die Ausgabe nennt
+  `seasons=...`. Fehlt dort die neue Season, liefert MDT sie noch nicht
+  vollstaendig ("upcoming season left out"). Ziel: die neue Sektion ist im
+  Release vor dem Start enthalten.
 - [ ] `data/isiLive_mplus_forces.lua` niemals von Hand bearbeiten.
 - [ ] `lua tools/check_mplus_db_lifetime.lua` erfolgreich ausfuehren. Das Gate
   prueft Ablaufdatum und Struktur (Season-Match, Gesamtwert und NPC-Abdeckung
@@ -103,7 +207,8 @@ Pause nachgewiesen werden.
   Profil, Regel 250). Ohne Spiel: `lua tools/wowsim/wowsim.lua offseason`.
 - [ ] Erscheint stattdessen der Chat-Hinweis "isiLive kennt die aktuelle Mythic+-Season
   nicht", liefert Blizzard bereits den neuen Mapsatz: die neue Season vorbereiten
-  (Abschnitte 1 und 2) und releasen; bis dahin lernen Zeit- und Forces-Tempo nicht.
+  (Abschnitte 1 und 2) und releasen; bis dahin lernen Zeit- und Forces-Tempo nicht,
+  und Portale, Navigator und LFG-Zuordnung bleiben leer (Regel 259).
 - [ ] Scheitert der MDT-Sync, weil MDT sein Verzeichnis umbaut, laufen die Mobprozente im
   Client weiter (kein Laufzeit-Ablauf); ein Hotfix-Release braucht dann
   `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
@@ -132,6 +237,9 @@ Pause nachgewiesen werden.
 
 - [ ] `lua tools/check_season_intake.lua` erneut ausfuehren.
 - [ ] `lua tools/validate_usecases.lua` erfolgreich ausfuehren.
+- [ ] `/isilive selftest` (PTR und Patch-Tag): keine `MISSING`- oder `ERROR`-Zeilen,
+  insbesondere keine `MISSING event ...` (Regel 258) und keine fehlenden
+  Portal-Spells, Challenge-Maps oder LFG-Activities der Season (Regel 261).
 - [ ] Portalbuttons auf richtigen Dungeon, richtigen Zauber und richtige
   Reihenfolge pruefen.
 - [ ] LFG-Erkennung fuer jeden neuen Dungeon pruefen.
@@ -184,8 +292,11 @@ Mapset-Erkennung erhalten. Tests haengen nicht an historischen Seasons: Wer
   nicht mehr auf die alte Season, und `lua tools/inspect_season_readiness.lua`
   meldet die aktive Season als bereit.
 - [ ] `upcomingSeasonID` darf nicht auf die alte Season zeigen.
-- [ ] Die Forces-DB `data/isiLive_mplus_forces.lua` darf nicht fuer die alte
-  Season erzeugt sein (`lua tools/check_mplus_db_lifetime.lua`).
+- [ ] Die Forces-DB `data/isiLive_mplus_forces.lua` darf keine Sektion der alten
+  Season mehr enthalten: einmal `lua tools/sync_mdt_forces.lua` laufen lassen
+  (schreibt nur aktive und kommende Season) und
+  `lua tools/check_mplus_db_lifetime.lua` pruefen (eine Sektion einer nicht
+  konfigurierten Season laesst das Gate scheitern).
 - [ ] Die Intake-Zeilen der alten Season in `docs/SEASON_INTAKE.md` gleichzeitig
   entfernen: `verified`-Zeilen einer Season, die nicht mehr im Manifest steht,
   lassen `tools/check_season_intake.lua` scheitern.

@@ -126,7 +126,12 @@ function M.BuildSummary(opts)
   for _, seasonID in ipairs(seasonIDs) do
     local readiness = seasonData.GetSeasonReadiness(seasonID)
     local forcesReadiness = type(seasonData.GetForcesReadiness) == "function"
-        and seasonData.GetForcesReadiness(seasonID, { forcesData = addonTable.MPlusForces or false })
+        and seasonData.GetForcesReadiness(seasonID, {
+          -- Rule 260: each season reads its own section of the forces DB.
+          forcesData = type(addonTable.MPlusForcesBySeason) == "table" and addonTable.MPlusForcesBySeason[seasonID]
+            or addonTable.MPlusForces
+            or false,
+        })
       or nil
     local forcesState = "unresolved"
     if type(forcesReadiness) == "table" then
@@ -197,6 +202,9 @@ function M.BuildSummary(opts)
       lines[#lines + 1] = "- NPC count: " .. tostring(forces.npcCount or CountEntries(forces.byNpcId))
       lines[#lines + 1] = "- Matches active season: "
         .. ((forces.season == seasonData.ACTIVE_SEASON_ID) and "yes" or "no")
+      local sectionIDs =
+        SortedKeys(type(addonTable.MPlusForcesBySeason) == "table" and addonTable.MPlusForcesBySeason or {})
+      lines[#lines + 1] = "- Season sections: " .. (#sectionIDs > 0 and table.concat(sectionIDs, ", ") or "legacy")
     end
   end
 

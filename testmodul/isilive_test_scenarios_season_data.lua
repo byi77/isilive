@@ -1302,6 +1302,99 @@ local function RegisterLocalizedNameTests(test, Assert, LoadAddonModules, WithGl
   end)
 end
 
+-- Rule 259: while Blizzard runs a map set no configured season knows, the
+-- runtime serves no season data instead of the previous season's portals.
+-- Rule 260: the forces DB holds one section per season, so a prepared season
+-- has its mob percentages as soon as Blizzard ships it.
+local function RegisterForcesSectionTests(test, Assert, LoadAddonModules)
+  test("SeasonData serves each season its own forces section and switches with the season", function()
+    local addon = LoadSeasonDataWithFixture(LoadAddonModules)
+    local seasonData = addon.SeasonData
+    local activeID = seasonData.GetActiveSeasonID()
+    local activeSection = { season = activeID, dungeonTotal = {}, byNpcId = {} }
+    local preparedSection = { season = FIXTURE_PREV, dungeonTotal = {}, byNpcId = {} }
+    addon.MPlusForcesBySeason = { [activeID] = activeSection, [FIXTURE_PREV] = preparedSection }
+    addon.MPlusForces = activeSection
+
+    Assert.True(seasonData.GetMatchingForcesData() == activeSection, "the active season reads its section")
+    Assert.True(seasonData.GetMatchingForcesData(FIXTURE_PREV) == preparedSection, "the prepared section exists")
+
+    local ok, changed = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(FixtureSeasons.MapIDs())
+    Assert.True(ok and changed, "the prepared season's map set switches the season")
+    Assert.True(
+      seasonData.GetMatchingForcesData() == preparedSection,
+      "after the switch the runtime reads the prepared section without a new release"
+    )
+
+    addon.MPlusForcesBySeason[FIXTURE_PREV] = { season = activeID, dungeonTotal = {}, byNpcId = {} }
+    Assert.Nil(seasonData.GetMatchingForcesData(), "a section whose season field differs stays closed")
+  end)
+end
+
+local function RegisterUnrecognizedSeasonTests(test, Assert, LoadAddonModules, WithGlobals)
+  local UNKNOWN_MAPS = { 9991, 9992 }
+
+  test("SeasonData serves no season data while the running season is unrecognized", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local seasonData = addon.SeasonData
+    local activeID = seasonData.GetActiveSeasonID()
+    local activeMaps = seasonData.GetOrderedMapIDs(activeID)
+    local someActivityID = next(seasonData.GetSeasonConfig(activeID).activityToMap)
+    Assert.True(#activeMaps > 0 and someActivityID ~= nil, "the active season ships maps and activities")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs(UNKNOWN_MAPS, { serverConfirmed = true })
+    Assert.True(seasonData.IsSeasonUnrecognized(), "the unknown set is unrecognized")
+    Assert.Equal(seasonData.GetActiveSeasonID(), activeID, "the active season stays the fallback (rule 250)")
+    Assert.Equal(seasonData.GetServedSeasonID(), nil, "no season is served")
+    Assert.Equal(next(seasonData.GetMapToTeleport()), nil, "no portals of the previous season")
+    Assert.Equal(next(seasonData.MAP_TO_TELEPORT), nil, "the legacy portal alias follows")
+    Assert.Equal(#seasonData.GetOrderedMapIDs(), 0, "no ordered dungeons")
+    Assert.Equal(seasonData.GetPortalNavigatorConfig(), nil, "the navigator stays closed")
+    Assert.Equal(seasonData.GetMapIDByActivityID(someActivityID), nil, "no LFG mapping of the previous season")
+    Assert.Equal(seasonData.GetMatchingForcesData(), nil, "no forces DB of the previous season")
+    Assert.Equal(seasonData.GetDungeonShortCode(activeMaps[1]), nil, "no short code is invented")
+    Assert.True(#seasonData.GetOrderedMapIDs(activeID) > 0, "explicit season lookups for tools still answer")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs(nil)
+    Assert.Equal(seasonData.GetServedSeasonID(), nil, "a missing list keeps the unrecognized state")
+
+    seasonData.TryAutoSelectSeasonFromChallengeMapIDs(activeMaps, { serverConfirmed = true })
+    Assert.Equal(seasonData.GetServedSeasonID(), activeID, "a known set serves the season again")
+    Assert.Equal(#seasonData.GetOrderedMapIDs(), #activeMaps, "its portals return")
+    Assert.True(next(seasonData.MAP_TO_TELEPORT) ~= nil, "the legacy alias returns")
+    Assert.Equal(#seasonData.GetUnrecognizedMapIDs(), 0, "the unknown map set is forgotten")
+  end)
+
+  test("SeasonData names and instances of an unrecognized season come from Blizzard only", function()
+    WithGlobals({
+      GetLocale = function()
+        return "deDE"
+      end,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          local byMap = { [9991] = { "Neuer Dungeon", 3001 }, [9992] = { "Zweiter Dungeon", 3002 } }
+          local entry = byMap[mapID]
+          if entry then
+            return entry[1], mapID, 1800, nil, nil, entry[2]
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadSeasonData(LoadAddonModules)
+      local seasonData = addon.SeasonData
+      Assert.Equal(seasonData.GetMapIDByInstanceID(3001), nil, "an unknown instance is unresolved while known")
+      seasonData.TryAutoSelectSeasonFromChallengeMapIDs(UNKNOWN_MAPS, { serverConfirmed = true })
+      Assert.Equal(seasonData.GetUnrecognizedMapIDs()[1], 9991, "the observed set is kept")
+      Assert.Equal(seasonData.GetMapIDByInstanceID(3002), 9992, "Blizzard's instance ID resolves the new map")
+      Assert.Equal(seasonData.GetDungeonName(9991, "deDE"), "Neuer Dungeon", "the client name is shown")
+      Assert.Equal(seasonData.GetDungeonName(9991, "enUS"), nil, "no other language is guessed")
+      Assert.Equal(seasonData.GetDungeonName(4242, "deDE"), nil, "maps outside the observed set stay unnamed")
+      Assert.Equal(seasonData.GetMapToTeleport()[9991], nil, "no portal is guessed for a new map")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -1312,4 +1405,6 @@ return function(test, ctx)
   RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
   RegisterUpcomingSeasonTests(test, Assert, LoadAddonModules)
   RegisterLocalizedNameTests(test, Assert, LoadAddonModules, ctx.with_globals)
+  RegisterUnrecognizedSeasonTests(test, Assert, LoadAddonModules, ctx.with_globals)
+  RegisterForcesSectionTests(test, Assert, LoadAddonModules)
 end

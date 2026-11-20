@@ -749,8 +749,8 @@ function SettingsPanel.Create(opts)
       RefreshToyOptions()
     end
   end)
-  itemDataRefreshFrame:RegisterEvent("TOYS_UPDATED")
-  itemDataRefreshFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+  addonTable.EventUtils.SafeRegisterEvent(itemDataRefreshFrame, "TOYS_UPDATED")
+  addonTable.EventUtils.SafeRegisterEvent(itemDataRefreshFrame, "GET_ITEM_INFO_RECEIVED")
 
   return panel
 end

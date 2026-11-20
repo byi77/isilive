@@ -261,4 +261,105 @@ return function(test, ctx)
       )
     end
   end)
+
+  -- Rule 260: per-season sections. A fixture manifest keeps these tests free
+  -- of real season IDs.
+  local SECTION_COMMIT = "0123456789abcdef0123456789abcdef01234567"
+
+  local function WriteSectionManifest(path)
+    WriteRawFixture(
+      path,
+      table.concat({
+        "local _, addonTable = ...",
+        'local F = assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))()',
+        "local nextSeason = F.BuildSeason()",
+        "nextSeason.requiresForces = true",
+        'nextSeason.mdtDirectory = "Fixture"',
+        "addonTable.SeasonManifest = {",
+        '  activeSeasonID = "fixture_active",',
+        "  seasons = { fixture_active = F.BuildSeason(), fixture_next = nextSeason },",
+        "}",
+        "",
+      }, "\n")
+    )
+  end
+
+  -- opts: nextExpiresAt, nextCommit, nextTotals (false = no totals), alias, extra
+  local function WriteSectionDB(path, opts)
+    opts = opts or {}
+    WriteRawFixture(
+      path,
+      table.concat({
+        "local _, addonTable = ...",
+        "local function Section(id, expiresAt, commit, withTotals)",
+        "  local totals, npcs = {}, {}",
+        "  for i = 1, 8 do",
+        "    if withTotals then totals[90000 + i] = { total = 100 } end",
+        "    npcs[80000 + i] = { count = 5, mapID = 90000 + i }",
+        "  end",
+        "  return { season = id, sourceCommit = commit, expiresAt = expiresAt, dungeonTotal = totals, byNpcId = npcs }",
+        "end",
+        "addonTable.MPlusForcesBySeason = {",
+        string.format('  fixture_active = Section("fixture_active", "2030-01-01", %q, true),', SECTION_COMMIT),
+        string.format(
+          '  fixture_next = Section("fixture_next", %q, %q, %s),',
+          opts.nextExpiresAt or "2030-01-01",
+          opts.nextCommit or SECTION_COMMIT,
+          tostring(opts.nextTotals ~= false)
+        ),
+        opts.extra
+            and string.format('  %s = Section(%q, "2030-01-01", %q, true),', opts.extra, opts.extra, SECTION_COMMIT)
+          or "",
+        "}",
+        string.format("addonTable.MPlusForces = addonTable.MPlusForcesBySeason.%s", opts.alias or "fixture_active"),
+        "",
+      }, "\n")
+    )
+  end
+
+  local function CheckSections(dbOpts, checkOpts)
+    local tool = LoadTool()
+    local manifestPath = TempPath("isilive_forces_sections_manifest.lua")
+    local dbPath = TempPath("isilive_forces_sections_db.lua")
+    WriteSectionManifest(manifestPath)
+    WriteSectionDB(dbPath, dbOpts)
+    checkOpts = checkOpts or {}
+    checkOpts.seasonDataPath = manifestPath
+    checkOpts.today = checkOpts.today or "2026-11-20"
+    local code, msg = tool.CheckSeasonSections(dbPath, checkOpts)
+    os.remove(manifestPath)
+    os.remove(dbPath)
+    return code, tostring(msg)
+  end
+
+  test("mplus_db_lifetime: per-season sections pass when every section is fresh and complete", function()
+    local code, msg = CheckSections()
+    Assert.Equal(code, 0, "valid sections pass: " .. msg)
+    Assert.True(msg:find("fixture_next", 1, true) ~= nil, "the prepared season section is checked")
+  end)
+
+  test("mplus_db_lifetime: per-season sections fail on an expired, unsourced or incomplete section", function()
+    local code, msg = CheckSections({ nextExpiresAt = "2026-11-01" })
+    Assert.Equal(code, 1, "an expired prepared section blocks the build: " .. msg)
+    code = CheckSections({ nextExpiresAt = "2026-11-01" }, { override = "1" })
+    Assert.Equal(code, 0, "the stale-DB override also covers prepared sections")
+    code, msg = CheckSections({ nextCommit = "abc" })
+    Assert.Equal(code, 2, "a section without an exact MDT commit fails: " .. msg)
+    code, msg = CheckSections({ nextTotals = false })
+    Assert.Equal(code, 2, "a requiresForces section without totals fails the structure: " .. msg)
+    Assert.True(msg:find("fixture_next", 1, true) ~= nil, "the failure names the section")
+  end)
+
+  test("mplus_db_lifetime: per-season sections reject a foreign section or a wrong alias", function()
+    local code, msg = CheckSections({ extra = "fixture_unknown" })
+    Assert.Equal(code, 2, "a section of an unconfigured season fails: " .. msg)
+    code, msg = CheckSections({ alias = "fixture_next" })
+    Assert.Equal(code, 2, "MPlusForces must alias the active season: " .. msg)
+  end)
+
+  test("mplus_db_lifetime: shipped DB passes the per-season section gate", function()
+    local tool = LoadTool()
+    local code, msg = tool.CheckSeasonSections(nil, { today = "2026-01-01" })
+    Assert.Equal(code, 0, "shipped sections must pass: " .. tostring(msg))
+  end)
 end

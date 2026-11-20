@@ -98,8 +98,25 @@ local function AppendReadiness(lines)
     end
   end
 
-  local forces = addonTable.MPlusForces
-  if type(forces) == "table" then
+  -- One line per season section of the forces DB (rule 260); a legacy
+  -- single-season table is one section.
+  local sections = {}
+  local bySeason = addonTable.MPlusForcesBySeason
+  if type(bySeason) == "table" then
+    local ids = {}
+    for seasonID, section in pairs(bySeason) do
+      if type(section) == "table" then
+        ids[#ids + 1] = tostring(seasonID)
+      end
+    end
+    table.sort(ids)
+    for _, seasonID in ipairs(ids) do
+      sections[#sections + 1] = bySeason[seasonID]
+    end
+  elseif type(addonTable.MPlusForces) == "table" then
+    sections[1] = addonTable.MPlusForces
+  end
+  for _, forces in ipairs(sections) do
     lines[#lines + 1] = string.format(
       "[SEASON] forces season=%s mdtVersion=%s generatedAt=%s expiresAt=%s dungeons=%s npcs=%s",
       ValueText(forces.season),
@@ -109,7 +126,8 @@ local function AppendReadiness(lines)
       ValueText(forces.dungeonCount),
       ValueText(forces.npcCount)
     )
-  else
+  end
+  if #sections == 0 then
     lines[#lines + 1] = "[SEASON] forces unavailable"
   end
 end

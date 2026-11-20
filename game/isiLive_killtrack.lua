@@ -31,7 +31,11 @@ end
 local function GetMatchingForcesDB()
   local seasonData = addonTable.SeasonData
   if type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function" then
+    -- Keyed on the served season (rule 259): an unrecognized season serves none.
     local seasonID = seasonData.ACTIVE_SEASON_ID
+    if type(seasonData.GetServedSeasonID) == "function" then
+      seasonID = seasonData.GetServedSeasonID() or false
+    end
     if forcesDBResolved and cachedForcesSeasonID == seasonID then
       return cachedForcesDB
     end

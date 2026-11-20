@@ -8,6 +8,23 @@ addonTable = addonTable or {}
 local SeasonRefresh = {}
 addonTable.SeasonRefresh = SeasonRefresh
 
+-- Rebuilds the portal buttons and repaints after one season evaluation. A
+-- new active season, and (rule 259) entering or leaving an unrecognized
+-- season, change the served season without necessarily changing the active
+-- one; the portal buttons must follow both. A state change alone repaints.
+local function ApplySeasonOutcome(controllers, callbacks, activeChanged, stateChanged, servedChanged)
+  if
+    (activeChanged or servedChanged)
+    and controllers.teleport
+    and type(controllers.teleport.BuildButtons) == "function"
+  then
+    controllers.teleport.BuildButtons()
+  end
+  if (activeChanged or stateChanged or servedChanged) and type(callbacks.updateUI) == "function" then
+    callbacks.updateUI()
+  end
+end
+
 -- `config` is the event-handler config (logRuntimeTracef is read at call
 -- time), `deps` the wiring deps (showSeasonUnrecognizedNotice,
 -- showSeasonBreakNotice), `controllers`
@@ -80,9 +97,12 @@ function SeasonRefresh.Create(config, deps, controllers, callbacks)
 
     local getState = seasonData.GetBlizzardSeasonState
     local stateBefore = type(getState) == "function" and getState() or nil
+    local getServed = seasonData.GetServedSeasonID
+    local servedBefore = type(getServed) == "function" and getServed() or nil
     local selectOpts = { serverConfirmed = eventName == "CHALLENGE_MODE_MAPS_UPDATE" }
     local ok, changed, message, retryable = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, selectOpts)
     local stateAfter = type(getState) == "function" and getState() or nil
+    local servedAfter = type(getServed) == "function" and getServed() or nil
     seasonRefreshPending = ok ~= true and retryable == true
     if type(config.logRuntimeTracef) == "function" then
       config.logRuntimeTracef(
@@ -116,20 +136,9 @@ function SeasonRefresh.Create(config, deps, controllers, callbacks)
       seasonBreakNoticeShown = true
       deps.showSeasonBreakNotice()
     end
-    if not (ok and changed) then
-      if stateChanged and type(callbacks.updateUI) == "function" then
-        callbacks.updateUI()
-      end
-      return false
-    end
-
-    if controllers.teleport and type(controllers.teleport.BuildButtons) == "function" then
-      controllers.teleport.BuildButtons()
-    end
-    if type(callbacks.updateUI) == "function" then
-      callbacks.updateUI()
-    end
-    return true
+    local activeChanged = ok == true and changed == true
+    ApplySeasonOutcome(controllers, callbacks, activeChanged, stateChanged, servedAfter ~= servedBefore)
+    return activeChanged
   end
 end
 

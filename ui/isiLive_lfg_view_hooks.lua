@@ -248,7 +248,7 @@ if
   and type(hookEventFrame.SetScript) == "function"
 then
   for _, event in ipairs(HOOK_EVENTS) do
-    hookEventFrame:RegisterEvent(event)
+    addonTable.EventUtils.SafeRegisterEvent(hookEventFrame, event)
   end
   hookEventFrame:SetScript("OnEvent", OnHookEvent)
 end

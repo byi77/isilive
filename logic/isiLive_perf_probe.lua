@@ -188,7 +188,7 @@ local function UpdateAddonMessageRegistration()
   end
   local wanted = auto ~= nil and (auto.mode == "KEY" or keyEnd ~= nil)
   if wanted and not eventFrame.addonMessagesRegistered then
-    eventFrame:RegisterEvent("CHAT_MSG_ADDON")
+    addonTable.EventUtils.SafeRegisterEvent(eventFrame, "CHAT_MSG_ADDON")
     eventFrame.addonMessagesRegistered = true
   elseif not wanted and eventFrame.addonMessagesRegistered then
     eventFrame:UnregisterEvent("CHAT_MSG_ADDON")
@@ -251,8 +251,8 @@ local function EnsureEventFrame()
     eventFrame:SetScript("OnEvent", OnEvent)
   end
   if eventFrame then
-    eventFrame:RegisterEvent("UPDATE_BINDINGS")
-    eventFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+    addonTable.EventUtils.SafeRegisterEvent(eventFrame, "UPDATE_BINDINGS")
+    addonTable.EventUtils.SafeRegisterEvent(eventFrame, "CHALLENGE_MODE_COMPLETED")
   end
   local hook = rawget(_G, "hooksecurefunc")
   if not bindingHookInstalled and type(hook) == "function" and rawget(_G, "SetOverrideBindingClick") then

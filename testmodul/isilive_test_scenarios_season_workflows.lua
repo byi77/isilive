@@ -307,6 +307,41 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     )
   end)
 
+  test("MDT forces sync writes one section per season and aliases the first", function()
+    local tool = LoadTool("tools/sync_mdt_forces.lua")
+    local function Section(seasonID, mapID)
+      return {
+        season = seasonID,
+        mdtVersion = "1.0",
+        sourceCommit = "0123456789abcdef0123456789abcdef01234567",
+        generatedAt = "2026-11-20",
+        expiresAt = "2026-12-05",
+        dungeonCount = 1,
+        npcCount = 1,
+        dungeonTotal = { [mapID] = { total = 100, name = "Dungeon " .. seasonID } },
+        byNpcId = { [7] = { count = 5, mapID = mapID, name = "Mob" } },
+      }
+    end
+    local text =
+      tool.FormatDbLua({ Section("fixture_active", 90001), Section("fixture_next", 90002) }, "fixture_active")
+    local addonTable = {}
+    assert(loadstring and loadstring(text) or load(text))("isiLive", addonTable)
+    local bySeason = addonTable.MPlusForcesBySeason
+    Assert.Equal(bySeason.fixture_active.dungeonTotal[90001].total, 100, "the active section is written")
+    Assert.Equal(bySeason.fixture_next.dungeonTotal[90002].total, 100, "the prepared section is written")
+    Assert.Equal(bySeason.fixture_next.expiresAt, "2026-12-05", "each section keeps its own metadata")
+    Assert.True(addonTable.MPlusForces == bySeason.fixture_active, "MPlusForces aliases the first section")
+
+    local targets = tool.ResolveTargets({})
+    Assert.True(targets[1].required == true, "the active season is always required")
+    for index = 2, #targets do
+      Assert.False(targets[index].required, "the upcoming season is best effort")
+    end
+    local single = tool.ResolveTargets({ season = "fixture_next" })
+    Assert.Equal(#single, 1, "--season writes exactly that season")
+    Assert.Equal(single[1].id, "fixture_next", "--season names the section")
+  end)
+
   test("Season intake check accepts current planned dungeon intake progress", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local ok, result = tool.Check()

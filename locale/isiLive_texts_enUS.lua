@@ -355,6 +355,7 @@ addonTable.TextsLocales.enUS = {
   SETTINGS_CHAT_HISTORY_DESC = "Up / Down in the chat input step through the lines you sent (no Alt needed), also after a reload or restart.",
   VERSION_NOTICE_NEWER = "isiLive %s is available on CurseForge - you have %s.",
   SEASON_UNRECOGNIZED_NOTICE = "isiLive does not know the current Mythic+ season - please update isiLive.",
+  SELFTEST_PATCH_NOTICE = "Self test after the client update (build %s) found %d problem(s). Details: /isilive selftest",
   SEASON_BREAK_NOTICE = "isiLive: season break - no Mythic+ season is running, only Normal, Heroic and Mythic 0.",
   TESTALL_DUMMY_GROUP = "Dummy Keys",
   TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",

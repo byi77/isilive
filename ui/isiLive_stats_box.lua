@@ -1233,7 +1233,7 @@ function StatsBox.Create(opts)
     "PLAYER_EQUIPMENT_CHANGED",
     "ACTIVE_TALENT_GROUP_CHANGED",
   }) do
-    frame:RegisterEvent(event)
+    addonTable.EventUtils.SafeRegisterEvent(frame, event)
   end
   -- Only the player's stats are shown. The unit filter keeps other units'
   -- UNIT_STATS and PLAYER_SPECIALIZATION_CHANGED out of Lua entirely; the
@@ -1242,9 +1242,9 @@ function StatsBox.Create(opts)
   -- dispatch.
   for event in pairs(PLAYER_UNIT_EVENTS) do
     if type(frame.RegisterUnitEvent) == "function" then
-      frame:RegisterUnitEvent(event, "player")
+      addonTable.EventUtils.SafeRegisterUnitEvent(frame, event, "player")
     else
-      frame:RegisterEvent(event)
+      addonTable.EventUtils.SafeRegisterEvent(frame, event)
     end
   end
 

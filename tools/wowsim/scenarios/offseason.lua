@@ -75,10 +75,15 @@ return {
       "the update notice appears once per session"
     )
     sim.Expect(addon.SeasonData.GetActiveSeasonID() == "midnight_s2", "the active season stays the fallback")
+    -- Rule 259: the fallback is kept, but none of its data is served.
+    sim.Expect(addon.SeasonData.GetServedSeasonID() == nil, "no season is served")
+    sim.Expect(next(addon.SeasonData.GetMapToTeleport()) == nil, "no portals of the previous season")
+    sim.Expect(addon.SeasonData.GetPortalNavigatorConfig() == nil, "the portal navigator stays closed")
 
     SetMapTable(sim, nil)
     sim.Step("Season map set again")
     sim.Expect(addon.SeasonData.GetBlizzardSeasonState() == "active", "the real season set is active again")
+    sim.Expect(next(addon.SeasonData.GetMapToTeleport()) ~= nil, "the season's portals return")
     sim.Expect(addon.RuntimeMode.Resolve() == "IDLE", "outside a dungeon the reduced profile returns")
   end,
 }

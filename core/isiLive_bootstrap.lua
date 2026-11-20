@@ -357,35 +357,42 @@ local function RegisterSplitUnitEvent(eventFrame, event, units)
       return false
     end
   end
+  local eventUtils = addonTable.EventUtils
   for index = 1, frameCount do
     local target = index == 1 and eventFrame or auxiliaryEventFrames[index - 1]
     local first = units[(index - 1) * UNITS_PER_UNIT_EVENT_FRAME + 1]
     local second = units[(index - 1) * UNITS_PER_UNIT_EVENT_FRAME + 2]
+    -- An unknown event fails on the first frame already; the remaining pairs
+    -- would only fail the same way (rule 258).
     if second then
-      target:RegisterUnitEvent(event, first, second)
-    else
-      target:RegisterUnitEvent(event, first)
+      if not eventUtils.SafeRegisterUnitEvent(target, event, first, second) then
+        return true
+      end
+    elseif not eventUtils.SafeRegisterUnitEvent(target, event, first) then
+      return true
     end
   end
   return true
 end
 
+-- Every registration goes through EventUtils (rule 258): an event Blizzard
+-- removed or renamed is skipped and reported by the selftest instead of
+-- aborting the registry loop and silencing every later event.
 local function RegisterDispatcherEntry(eventFrame, entry)
+  local eventUtils = addonTable.EventUtils
   local unitFilter = entry[5]
   if type(unitFilter) == "table" and #unitFilter > UNITS_PER_UNIT_EVENT_FRAME then
-    if
-      not RegisterSplitUnitEvent(eventFrame, entry[1], unitFilter) and type(eventFrame.RegisterEvent) == "function"
-    then
-      eventFrame:RegisterEvent(entry[1])
+    if not RegisterSplitUnitEvent(eventFrame, entry[1], unitFilter) then
+      eventUtils.SafeRegisterEvent(eventFrame, entry[1])
     end
   elseif unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
     if type(unitFilter) == "table" then
-      eventFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
+      eventUtils.SafeRegisterUnitEvent(eventFrame, entry[1], unpack(unitFilter))
     else
-      eventFrame:RegisterUnitEvent(entry[1], unitFilter)
+      eventUtils.SafeRegisterUnitEvent(eventFrame, entry[1], unitFilter)
     end
-  elseif type(eventFrame.RegisterEvent) == "function" then
-    eventFrame:RegisterEvent(entry[1])
+  else
+    eventUtils.SafeRegisterEvent(eventFrame, entry[1])
   end
 end
 

@@ -219,6 +219,8 @@ local UNIVERSAL_DEPENDENCIES = {
   "isiLive_runtime_mode.lua",
   "isiLive_string_utils.lua",
   "isiLive_context_helpers.lua",
+  -- Patch-safe event registration (rule 258) used by every module that registers events.
+  "isiLive_event_utils.lua",
 }
 
 local IMPLICIT_DEPENDENCIES = {
@@ -498,9 +500,13 @@ function Harness.LoadAddonModules(files, seedAddonTable)
 
   local addonTable = seedAddonTable or {}
 
-  -- Load universal dependencies first (shared helpers available to all modules).
+  -- Load universal dependencies first (shared helpers available to all modules),
+  -- also when a test lists one explicitly: a module later in the list may
+  -- already call into it while it loads (EventUtils, rule 258).
+  local loadedUniversal = {}
   for _, universalFile in ipairs(UNIVERSAL_DEPENDENCIES) do
-    if not seenFiles[universalFile] then
+    if not loadedUniversal[universalFile] then
+      loadedUniversal[universalFile] = true
       seenFiles[universalFile] = true
       local uChunk, uLoadErr = loadfile(ResolveFile(universalFile))
       if not uChunk then
@@ -514,14 +520,16 @@ function Harness.LoadAddonModules(files, seedAddonTable)
   end
 
   for _, file in ipairs(expandedFiles) do
-    local chunk, loadErr = loadfile(ResolveFile(file))
-    if not chunk then
-      Fail(string.format("cannot load %s: %s", file, tostring(loadErr)))
-    end
+    if not loadedUniversal[file] then
+      local chunk, loadErr = loadfile(ResolveFile(file))
+      if not chunk then
+        Fail(string.format("cannot load %s: %s", file, tostring(loadErr)))
+      end
 
-    local ok, runErr = pcall(chunk, "isiLive", addonTable)
-    if not ok then
-      Fail(string.format("cannot execute %s: %s", file, tostring(runErr)))
+      local ok, runErr = pcall(chunk, "isiLive", addonTable)
+      if not ok then
+        Fail(string.format("cannot execute %s: %s", file, tostring(runErr)))
+      end
     end
   end
   _G.__isilive_last_loaded_addon = addonTable

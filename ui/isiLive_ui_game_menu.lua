@@ -201,7 +201,7 @@ panelUISecureRetryFrame = CreateFrame("Frame")
 -- PLAYER_REGEN_ENABLED is registered statically at module load to avoid a
 -- dynamic RegisterEvent from handlers dispatched by protected code, which
 -- raises ADDON_ACTION_FORBIDDEN in 12.0+.
-panelUISecureRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+addonTable.EventUtils.SafeRegisterEvent(panelUISecureRetryFrame, "PLAYER_REGEN_ENABLED")
 panelUISecureRetryFrame:SetScript("OnEvent", function(_, event)
   if event ~= "PLAYER_REGEN_ENABLED" then
     return
@@ -868,7 +868,7 @@ function UI.EnsureSecondPanelUI(opts)
           btn:SetAttribute("toy", selection.value)
         end)
       end
-      hearthstoneToysEventFrame:RegisterEvent("TOYS_UPDATED")
+      addonTable.EventUtils.SafeRegisterEvent(hearthstoneToysEventFrame, "TOYS_UPDATED")
 
       if type(button.HookScript) == "function" or type(button.SetScript) == "function" then
         local function PickRandomHearthstoneToy()
@@ -921,7 +921,7 @@ function UI.EnsureSecondPanelUI(opts)
           RefreshPanelUIState(refreshState)
         end)
       end
-      dalaranHearthstoneToysEventFrame:RegisterEvent("TOYS_UPDATED")
+      addonTable.EventUtils.SafeRegisterEvent(dalaranHearthstoneToysEventFrame, "TOYS_UPDATED")
     elseif entry.id == "housing_plot" and type(button.SetAttribute) == "function" then
       housingSecureButton = button
       if not housingDataEventFrame then
@@ -943,7 +943,7 @@ function UI.EnsureSecondPanelUI(opts)
           ApplyHousingAttributes(info, housingSecureButton)
         end)
       end
-      housingDataEventFrame:RegisterEvent("PLAYER_HOUSE_LIST_UPDATED")
+      addonTable.EventUtils.SafeRegisterEvent(housingDataEventFrame, "PLAYER_HOUSE_LIST_UPDATED")
       local cHousing = rawget(_G, "C_Housing")
       if type(cHousing) == "table" and type(cHousing.GetPlayerOwnedHouses) == "function" then
         pcall(cHousing.GetPlayerOwnedHouses)
