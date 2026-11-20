@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.528`.
+Current version: `0.9.529`.
+
+Version 0.9.529: maintenance release without visible changes. The self test
+also reports a specialization isiLive does not know yet, so a new spec shows up
+on patch day.
 
 Version 0.9.528: maintenance release without visible changes. The automatic
 checks now run every season through a simulated launch day and render every

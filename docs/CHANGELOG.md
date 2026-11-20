@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.529 (patch)
+
+- Refactor: interrupt spells and cooldowns per specialization, the class alternatives and the extra cooldowns live in `data/isiLive_interrupts.lua` (`InterruptManifest`, rule 264) instead of `game/isiLive_kick_tracker.lua`; `tools/check_spec_coverage.lua` checks the interrupt decision per spec there. No behavior change.
+- Refactor: Augmentation's Ebon Might is a `lfgSpecBonuses` entry of its spec record in `data/isiLive_specs.lua`; the LFG bonus model names no spec ID and resolves spec names for every spec with an own bonus. No behavior change.
+- Feature: the self test data checks (rule 261) report every specialization the client knows but `data/isiLive_specs.lua` lacks (`MISSING spec <id> - Specs`), so the patch watch reports a new spec on patch day.
+- Tools: `tools/season_doctor.lua [--season=<id>] [--no-sim] [--versions=<dir>]` runs every automatic check of one season (manifest, readiness, runtime switch, intake, forces section, consumable set, TOC interface, wowsim season smoke) and lists the remaining in-game steps.
+- Docs: expansion change checklist in `docs/SAISON_WECHSEL.md` (section 0b); LFG activity IDs and German dungeon names stay required manifest fields (user decision).
+
 ## 2026-11-20 - Version 0.9.528 (patch)
 
 - Test: behavior tests run on a frozen reference of the season manifest and forces DB (`testmodul/isilive_test_reference_seasons.lua`, `testmodul/isilive_test_reference_forces.lua`, rule 263). Switching `activeSeasonID` in `data/` now fails 2 reminder tests (regenerate the forces DB, update `docs/WARTUNG.md`) instead of 105; a gate keeps other test files from reading the shipped season data.
