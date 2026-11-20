@@ -345,6 +345,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 261. Einmal pro Client-Build laeuft der Selbsttest 20 Sekunden nach dem Login still und schreibt nur bei Problemen eine Chatzeile; zusaetzlich prueft der Selbsttest, ob die mitgelieferten Blizzard-IDs (Portal-Spells, Challenge-Maps und LFG-Activities der bedienten Season, Spell-Manifest, Consumables) im Client noch aufloesen.
 262. Ein woechentlicher Patch-Waechter-Workflow (mittwochs morgens) meldet per Issue, wenn die Interface-Nummer eines Test-Clients, der neuer als Live ist, in `isiLive.toc` fehlt, und wenn eine von isiLive genutzte Blizzard-Funktion, ein Event oder ein Enum-Wert auf dem PTR entfernt wurde oder sich inkompatibel aendert; die TOC aendert er nie.
 263. Saisonwechsel brechen keine Verhaltenstests: Tests laden ueber den Harness einen eingefrorenen Referenz-Stand der Season-Daten, nur fest gelistete Dateien lesen die echten `data/`-Season-Dateien; die CI prueft jede Season im Simulator (`season_smoke`, inklusive Laufzeit-Umschaltung) und alle 32 Belegungen des Portal-Navigators in allen UI-Sprachen (`navigator_layouts`).
+264. Patch- und Erweiterungsdaten stehen nur in `data/`: Interrupt-Spells und -Cooldowns in `data/isiLive_interrupts.lua`, spec-eigene LFG-Boni im Spec-Manifest; der Selbsttest meldet jede Spezialisierung, die der Client kennt und `data/isiLive_specs.lua` fehlt, und `tools/season_doctor.lua` fuehrt alle automatischen Pruefungen einer Season in einem Befehl aus.
 
 ## Regelbloecke
 
@@ -4004,3 +4005,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Behavior tests read the frozen season reference, not the shipped season data
   - Architecture GitHub Lua Check workflow keeps CI validation steps wired
   - Architecture local CI preflight mirrors the GitHub Lua Check workflow
+
+### RULE-PATCHDATEN-IN-DATA-UND-SEASON-DOKTOR
+- Regelnummer: 264
+- Status: aktiv
+- Zusammenfassung: Benutzerentscheidung vom 2026-11-20 (Wartbarkeits-Analyse, Paket 5 J, K, N, O). J: `data/isiLive_interrupts.lua` (`addonTable.InterruptManifest` mit `noInterruptSpecs`, `specs`, `classAlternatives`, `extraCooldowns`) ist die einzige Quelle der Interrupt-Daten; `game/isiLive_kick_tracker.lua` liest sie beim Laden und fuehrt keine eigene Spell- oder Spec-Tabelle mehr. `tools/check_spec_coverage.lua` prueft die Interrupt-Entscheidung je Spec in dieser Datei. Spec-eigene LFG-Boni stehen als `lfgSpecBonuses` am Spec-Datensatz (`Specs.BuildLfgSpecBonuses`); `ui/isiLive_lfg_bonus_model.lua` nennt keine Spec-ID und loest Spec-Namen fuer alle Specs mit eigenem Bonus und passender Klasse auf. Bewusst nicht verschoben: die Spell-IDs des stillgelegten DK-Assists (`game/isiLive_vip_dk_assist.lua`, laeuft nicht, Besitzer ist isiBlightfallTracker) und Map 2662 des Debug-Befehls in `ui/isiLive_teleport_debug.lua`. K (User-Entscheidung 2026-11-20): LFG-Activity-IDs und deutsche Dungeonnamen bleiben Pflichtfelder des Manifests. O: Die Datenpruefung des Selbsttests (Regel 261) liest ueber `GetNumClasses`, `GetNumSpecializationsForClassID` und `GetSpecializationInfoForClassID` jede Spezialisierung des Clients und meldet jede ohne Datensatz in `data/isiLive_specs.lua` als `MISSING spec <id> - Specs (<Name> not in data/isiLive_specs.lua)`; der Patch-Waechter meldet damit eine neue Spec am Patch-Tag. N: `tools/season_doctor.lua [--season=<id>] [--no-sim] [--versions=<dir>]` (Standard `upcomingSeasonID`, sonst `activeSeasonID`) prueft Manifest, Readiness, `autoDetectFromChallengeMaps`, `upcomingSeasonID` (fuer eine nicht aktive Season), Intake, Forces-Abschnitt (Ablauf und Struktur, bei `requiresForces`), Consumable-Satz, optional die TOC-Interface-Nummer und `season_smoke` in enUS und deDE, listet die verbleibenden Ingame-Schritte und endet mit Exit 0 (alles gruen), 1 (offene Pruefung) oder 2 (unbekannte Season).
+- Erforderliche Tests:
+  - Spec coverage gate passes on the shipped data, kick tracker and runtime modules
+  - LFG spec bonuses come from the spec manifest, not from a spec ID in the model
+  - ApiHealth data checks report a client specialization missing from the spec manifest
+  - Season doctor passes the shipped active season and lists open steps for another season

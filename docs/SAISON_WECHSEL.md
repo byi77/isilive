@@ -101,20 +101,18 @@ Paket 4 (P1):
   trTR nicht uebersetzt ("Unoccupied").
 
 Paket 5 (P1/P2):
-- [ ] J: Hartkodierte IDs ausserhalb `data/` in Manifeste verschieben und per
-  Gate sperren: Keystone `180653` (`logic/isiLive_keysync.lua`,
-  `core/isiLive_context_helpers.lua`), Kick-`SPEC_DATA`
-  (`game/isiLive_kick_tracker.lua`), DK-Spells (`game/isiLive_vip_dk_assist.lua`),
-  Spec `1473` (`ui/isiLive_lfg_bonus_model.lua`).
-- [ ] K: `activityIDs` im Manifest optional machen (die Laufzeit leitet sie
-  ueber Instanz-ID ab, Regel 252). Ob enUS/deDE-Namen Pflicht bleiben
-  (Regeln 97/98), entscheidet der User.
-- [ ] N: Ein Befehl `lua tools/season_doctor.lua [--season=<id>]` fuehrt alle
-  automatisierbaren Pruefungen aus und listet nur die offenen Punkte; diese
-  Checkliste schrumpft danach auf die echten Ingame-Punkte.
-- [ ] O: Eigener Abschnitt Erweiterungswechsel (Keystone-Item,
-  Consumable-Set, neue Drums/Pet-Lust, neue Specs, Levelcap und
-  `minimumPlayerLevel`, neue Hub-Zone), jeweils mit Gate.
+- [x] J: Interrupt-Daten in `data/isiLive_interrupts.lua`, Augmentation-Bonus
+  (Ebon Might) als `lfgSpecBonuses` im Spec-Manifest, Keystone-Item in
+  `data/isiLive_items.lua` (Paket 2). Bewusst geblieben: DK-Assist-Spells
+  (Modul stillgelegt, Besitzer isiBlightfallTracker) und Map 2662 im
+  Teleport-Debug-Befehl (Regel 264).
+- [x] K: User-Entscheidung 2026-11-20: LFG-Activity-IDs und deutsche
+  Dungeonnamen bleiben Pflichtfelder (keine Aenderung).
+- [x] N: `lua tools/season_doctor.lua [--season=<id>] [--no-sim]
+  [--versions=<dir>]` fuehrt alle automatischen Pruefungen einer Season aus und
+  listet nur das Offene plus die Ingame-Schritte (Regel 264).
+- [x] O: Abschnitt "Erweiterungswechsel" unten; neue Specs meldet der
+  Selbsttest am Patch-Tag selbst (`MISSING spec <id> - Specs`).
 
 Paket 6 (P2, Komfort):
 - [ ] L: `/isilive seasondump draft` auf dem PTR schreibt einen Manifest-Entwurf
@@ -143,6 +141,33 @@ Zeitplan je Season (Ziel):
 - T-2 Wochen: MDT-Daten pruefen, `autoDetectFromChallengeMaps = true`, Release.
 - Tag 0: nichts zu tun; die Auswahl wechselt automatisch.
 - T+1 Woche: `activeSeasonID` umstellen, `upcomingSeasonID` leeren, Nachweis.
+
+## 0b. Erweiterungswechsel (zusaetzlich zu den Season-Schritten)
+
+Eine neue Erweiterung bringt Daten, die eine neue Season derselben Erweiterung
+nicht braucht. Erster Schritt immer: `lua tools/season_doctor.lua` und auf dem
+PTR `/isilive selftest`.
+
+- [ ] Neue Spezialisierungen: Der Selbsttest meldet `MISSING spec <id> - Specs`.
+  Datensatz in `data/isiLive_specs.lua` (alle Pflichtfelder), Interrupt-
+  Entscheidung in `data/isiLive_interrupts.lua` (Cooldown aus dem Tooltip),
+  dann `lua tools/check_spec_coverage.lua`.
+- [ ] Neue oder geaenderte Interrupts und Cooldowns: Skill `interrupt-audit`;
+  ein entfernter Spell erscheint als `MISSING interrupt spell <id> - Kicks`.
+- [ ] Consumables: neuer Satz in `data/isiLive_consumables.lua` (der Test
+  "Consumable check finds a buff set for every season of the manifest" und der
+  Season-Doktor melden die Luecke); IDs per `/isilive probe on` beim
+  Ready-Check aufnehmen.
+- [ ] Bloodlust und Battle Res: neue Drums oder Pet-Faehigkeiten in
+  `lustCasts`/`lustSated`/`battleRes` (`data/isiLive_spells.lua`); der
+  Selbsttest meldet nur entfernte IDs, neue muessen gesucht werden.
+- [ ] Mythic Keystone: neues Item nur in `ItemManifest.mythicKeystone`
+  (`data/isiLive_items.lua`); der Selbsttest meldet ein unbekanntes Item.
+- [ ] Levelcap: `minimumPlayerLevel` der neuen Dungeons im Manifest.
+- [ ] Portalraum: neue Hub-Zone (`portalNavigator.zone`, Map-IDs ueber
+  `/isilive seasondump` -> `playerBestMapID` im Portalraum).
+- [ ] Interface-Nummer und API-Aenderungen: Issues des Patch-Watch-Workflows
+  (Regel 262).
 
 ## 1. Daten sammeln und verifizieren
 

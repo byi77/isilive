@@ -329,6 +329,45 @@ local function CollectKickSpellIDs()
   return kickTracker.GetInterruptSpellIDs()
 end
 
+-- Every specialization the client knows must have a record in
+-- data/isiLive_specs.lua (package 5 O): a new spec of an expansion or patch
+-- (Devourer came with Midnight) otherwise has no interrupt data, no LFG bonus
+-- profile and no roster label. Reads only static class data.
+local function CheckClientSpecs(rows, counts)
+  local manifest = addonTable.SpecManifest
+  local numClasses = ResolveFunction(nil, "GetNumClasses")
+  local numSpecs = ResolveFunction(nil, "GetNumSpecializationsForClassID")
+  local specInfo = ResolveFunction(nil, "GetSpecializationInfoForClassID")
+  if
+    type(manifest) ~= "table"
+    or type(manifest.specs) ~= "table"
+    or type(numClasses) ~= "function"
+    or type(numSpecs) ~= "function"
+    or type(specInfo) ~= "function"
+  then
+    return
+  end
+  local okClasses, classCount = pcall(numClasses)
+  classCount = okClasses and ReadPlainNumber(classCount) or nil
+  for classID = 1, classCount or 0 do
+    local okCount, specCount = pcall(numSpecs, classID)
+    specCount = okCount and ReadPlainNumber(specCount) or 0
+    for specIndex = 1, specCount do
+      local okSpec, specID, specName = pcall(specInfo, classID, specIndex)
+      specID = okSpec and ReadPlainNumber(specID) or nil
+      if specID then
+        local name = string.format("spec %d", specID)
+        if manifest.specs[specID] ~= nil then
+          AddDataRow(rows, counts, "Specs", name, "ok", ReadPlainString(specName))
+        else
+          local label = ReadPlainString(specName) or "unknown name"
+          AddDataRow(rows, counts, "Specs", name, "missing", label .. " not in data/isiLive_specs.lua")
+        end
+      end
+    end
+  end
+end
+
 -- Item IDs from data/isiLive_items.lua through C_Item.GetItemInfoInstant,
 -- which answers from static client data without an item request.
 local function CheckItems(rows, counts)
@@ -369,6 +408,7 @@ function ApiHealth.RunDataChecks()
     CheckSpellList(rows, counts, readSpell, "Kicks", "interrupt spell", CollectKickSpellIDs())
   end
   CheckItems(rows, counts)
+  CheckClientSpecs(rows, counts)
   return rows, counts
 end
 

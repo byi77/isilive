@@ -33,8 +33,6 @@ local CLASS_TOKENS = {
   WARRIOR = true,
 }
 
-local AUGMENTATION_EVOKER_SPEC_ID = 1473
-
 -- Per-spec bonus profile flags come from data/isiLive_specs.lua (`lfg` field).
 local Specs = addonTable.Specs
 local INTELLECT_SPEC_IDS = Specs.BuildLfgFlagSet("intellect")
@@ -124,11 +122,9 @@ local CLASS_BONUSES = {
   },
 }
 
-local SPEC_BONUSES = {
-  [AUGMENTATION_EVOKER_SPEC_ID] = {
-    { textKey = "LFG_BONUS_EBON_MIGHT", kind = "universal" },
-  },
-}
+-- Spec-level bonuses (Augmentation's Ebon Might) come from data/isiLive_specs.lua
+-- (`lfgSpecBonuses`), not from a spec ID written here (package 5 J).
+local SPEC_BONUSES = Specs.BuildLfgSpecBonuses()
 
 -- Class owning each spec-level bonus, derived from data/isiLive_specs.lua for
 -- exactly the specs listed in SPEC_BONUSES. Callers drop a spec ID whose class
@@ -206,19 +202,21 @@ local function ResolveSpecIDFromText(value, classToken)
   if not normalized then
     return nil
   end
-  if classToken ~= "EVOKER" then
-    return nil
-  end
   local getSpecInfo = rawget(_G, "GetSpecializationInfoByID")
   if type(getSpecInfo) ~= "function" then
     return nil
   end
-  local ok, specID, specName = pcall(getSpecInfo, AUGMENTATION_EVOKER_SPEC_ID)
-  if not ok or IsSecretValue(specID) or IsSecretValue(specName) then
-    return nil
-  end
-  if specID == AUGMENTATION_EVOKER_SPEC_ID and normalized == NormalizeSpecText(specName) then
-    return AUGMENTATION_EVOKER_SPEC_ID
+  -- Only specs with a spec-level bonus matter here; every other spec falls back
+  -- to the class profile.
+  for bonusSpecID in pairs(SPEC_BONUSES) do
+    if SPEC_CLASS_TOKENS[bonusSpecID] == classToken then
+      local ok, specID, specName = pcall(getSpecInfo, bonusSpecID)
+      if ok and not IsSecretValue(specID) and not IsSecretValue(specName) then
+        if specID == bonusSpecID and normalized == NormalizeSpecText(specName) then
+          return bonusSpecID
+        end
+      end
+    end
   end
   return nil
 end

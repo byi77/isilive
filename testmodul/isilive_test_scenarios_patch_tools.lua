@@ -107,6 +107,45 @@ return function(test, ctx)
     Assert.Equal(code, 2, "without a live version the check is unresolved")
   end)
 
+  -- Package 5 N: the season doctor on the shipped data; the simulator runs are
+  -- replaced by a stub so the test stays fast and deterministic.
+  test("Season doctor passes the shipped active season and lists open steps for another season", function()
+    local doctor = LoadTool("tools/season_doctor.lua")
+    local simRuns = {}
+    local function Sim(ok)
+      return function(seasonID, locale)
+        simRuns[#simRuns + 1] = seasonID .. ":" .. locale
+        return ok
+      end
+    end
+    local manifest = assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ShippedManifest()
+
+    -- A fixed date keeps the forces expiry out of the test; the lifetime gate
+    -- checks the real date in CI.
+    local code, report = doctor.Run({ season = manifest.activeSeasonID, runSim = Sim(true), today = "2026-01-01" })
+    Assert.Equal(code, 0, "the shipped active season passes every automatic check:\n" .. report)
+    Assert.Equal(#simRuns, 2, "the season smoke runs in enUS and deDE")
+    Assert.True(report:find("Still to do by hand", 1, true) ~= nil, "the in-game steps are listed")
+
+    code, report = doctor.Run({ season = manifest.activeSeasonID, runSim = Sim(false), today = "2026-01-01" })
+    Assert.Equal(code, 1, "a failed simulator run fails the doctor")
+    Assert.True(report:find("[ ] wowsim season_smoke enUS", 1, true) ~= nil, "the failed run is listed as open")
+
+    local other
+    for seasonID in pairs(manifest.seasons) do
+      if seasonID ~= manifest.activeSeasonID and seasonID ~= manifest.upcomingSeasonID then
+        other = seasonID
+      end
+    end
+    if other then
+      code, report = doctor.Run({ season = other, noSim = true })
+      Assert.Equal(code, 1, "a season that is neither active nor prepared has open steps")
+      Assert.True(report:find("[ ] upcomingSeasonID", 1, true) ~= nil, "it asks for upcomingSeasonID")
+    end
+    code = doctor.Run({ season = "no_such_season", noSim = true })
+    Assert.Equal(code, 2, "an unknown season is unresolved")
+  end)
+
   test("API surface check reports removed and changed surface isiLive uses", function()
     local tool = LoadTool("tools/check_api_surface.lua")
     local sep = IsWindows() and "\\" or "/"

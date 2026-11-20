@@ -513,7 +513,9 @@ Jede Datenart hat genau eine Stelle; Verbraucher leiten ihre Lookup-Tabellen dar
 | Battle-Res-, Bloodlust-Cast-, Sated-Debuff-IDs, Power Infusion, CD-Zeilen-Icons | `data/isiLive_spells.lua` (`SpellManifest`) | `lua tools/validate_usecases.lua` (Snapshot- und End-to-end-Tests) |
 | Spec-IDs mit Klasse, Name, LFG-Bonusprofil (`lfg`), Stats-Box-Primaerstat (`primaryStat`) | `data/isiLive_specs.lua` (`SpecManifest`) | `lua tools/check_spec_coverage.lua` |
 | Instanz-Schwierigkeitsgrade (Party, Raid-Labels) und LFG-Kategorien | `data/isiLive_difficulties.lua` (`DifficultyManifest`) | Test "Difficulty manifest owns every literal difficulty and LFG category ID" |
-| Interrupt-Spell und Cooldown pro Spec | `game/isiLive_kick_tracker.lua` (`SPEC_DATA` / `NO_INTERRUPT_SPEC_IDS`) | Skill `interrupt-audit`, `check_spec_coverage.lua` (Abdeckung je Spec) |
+| Interrupt-Spell und Cooldown pro Spec | `data/isiLive_interrupts.lua` (`InterruptManifest`: `SPEC_DATA` / `NO_INTERRUPT_SPEC_IDS`, Klassen-Alternativen, Extras) | Skill `interrupt-audit`, `check_spec_coverage.lua` (Abdeckung je Spec), Selbsttest (Spell-IDs) |
+| Spec-eigene LFG-Boni (Ebon Might) | `data/isiLive_specs.lua` (`lfgSpecBonuses`) | `check_spec_coverage.lua`, Test "LFG spec bonuses come from the spec manifest ..." |
+| Mythic-Keystone-Item | `data/isiLive_items.lua` (`ItemManifest`) | Selbsttest, Test "Item manifest owns the keystone item ID" |
 
 Neuer Bloodlust-artiger Spell:
 - Eintrag in `lustCasts`; `actionButton = true` nur fuer Klassen- oder Pet-Spells, die auf der Aktionsleiste liegen koennen (Drums bleiben aus der Button-Warnung). Der zugehoerige Sated-Debuff gehoert getrennt nach `lustSated`.
@@ -521,7 +523,8 @@ Neuer Bloodlust-artiger Spell:
 
 Neue Spezialisierung:
 - Datensatz in `data/isiLive_specs.lua` mit `class`, `name` und allen vier `lfg`-Flags als explizite Booleans; `primaryStat` nur, wenn die Spec vom Klassen-Default der Stats-Box abweicht.
-- Interrupt-Entscheidung im Kick-Tracker (`SPEC_DATA` oder `NO_INTERRUPT_SPEC_IDS`), Cooldown aus dem Tooltip.
+- Interrupt-Entscheidung in `data/isiLive_interrupts.lua` (`SPEC_DATA` oder `NO_INTERRUPT_SPEC_IDS`), Cooldown aus dem Tooltip.
+- Fehlt eine Spec, die der Client kennt, meldet der Selbsttest bzw. der Patch-Waechter `MISSING spec <id> - Specs` (Regel 264).
 - `check_spec_coverage.lua` meldet fehlende Pflichtfelder, fehlende Interrupt-Entscheidungen und neue Literal-Tabellen mit Spec-ID-Schluesseln ausserhalb von `data/`.
 
 Bekannte, bewusst nicht entschiedene Datenlage (Stand 2026-10-20):

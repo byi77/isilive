@@ -2,7 +2,7 @@
 ---@diagnostic disable: undefined-global
 -- Validates data/isiLive_specs.lua as the single source for per-spec data:
 -- 1. every record carries the required fields,
--- 2. every spec has an interrupt decision in game/isiLive_kick_tracker.lua
+-- 2. every spec has an interrupt decision in data/isiLive_interrupts.lua
 --    (SPEC_DATA entry or NO_INTERRUPT_SPEC_IDS) and the kick tracker names no
 --    spec the manifest lacks,
 -- 3. no runtime module keeps its own literal spec-ID table again (a run of at
@@ -11,7 +11,7 @@
 local M = {}
 
 local DEFAULT_DATA_PATH = "data/isiLive_specs.lua"
-local DEFAULT_KICK_TRACKER_PATH = "game/isiLive_kick_tracker.lua"
+local DEFAULT_KICK_TRACKER_PATH = "data/isiLive_interrupts.lua"
 local DEFAULT_SCAN_DIRS = { "core", "factory", "game", "logic", "ui" }
 local MIN_SPEC_KEYS_PER_TABLE = 3
 
@@ -33,12 +33,9 @@ local CLASS_TOKENS = {
 local LFG_FLAGS = { "intellect", "attackPower", "magicDamage", "physicalDamage" }
 local PRIMARY_STATS = { strength = true, agility = true, intellect = true }
 
--- Literal spec-keyed tables that deliberately stay outside data/.
-local ALLOWED_LITERAL_TABLES = {
-  -- Interrupt spell + tooltip-audited cooldown per spec (interrupt-audit skill).
-  ["game/isiLive_kick_tracker.lua:SPEC_DATA"] = true,
-  ["game/isiLive_kick_tracker.lua:NO_INTERRUPT_SPEC_IDS"] = true,
-}
+-- Literal spec-keyed tables that deliberately stay outside data/. The
+-- interrupt tables moved to data/isiLive_interrupts.lua (package 5 J).
+local ALLOWED_LITERAL_TABLES = {}
 
 local function ReadFile(path)
   local file, err = io.open(path, "rb")
@@ -100,6 +97,18 @@ local function ValidateRecords(errors, specs)
           end
         end
       end
+      if spec.lfgSpecBonuses ~= nil then
+        local bonuses = spec.lfgSpecBonuses
+        local valid = type(bonuses) == "table" and #bonuses > 0
+        for _, bonus in ipairs(type(bonuses) == "table" and bonuses or {}) do
+          if type(bonus) ~= "table" or type(bonus.textKey) ~= "string" or type(bonus.kind) ~= "string" then
+            valid = false
+          end
+        end
+        if not valid then
+          errors[#errors + 1] = label .. ": lfgSpecBonuses must list { textKey, kind } records"
+        end
+      end
       if spec.primaryStat ~= nil and not PRIMARY_STATS[spec.primaryStat] then
         errors[#errors + 1] = label .. ": primaryStat must be strength, agility or intellect"
       end
@@ -153,7 +162,7 @@ local function ValidateKickCoverage(errors, specs, covered)
   for _, specID in ipairs(SortedKeys(specs)) do
     if not covered[specID] then
       errors[#errors + 1] = string.format(
-        "spec %d has no interrupt decision in game/isiLive_kick_tracker.lua (SPEC_DATA or NO_INTERRUPT_SPEC_IDS)",
+        "spec %d has no interrupt decision in data/isiLive_interrupts.lua (SPEC_DATA or NO_INTERRUPT_SPEC_IDS)",
         specID
       )
     end

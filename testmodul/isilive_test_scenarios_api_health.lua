@@ -236,4 +236,36 @@ return function(test, ctx)
     Assert.Equal(counts.missing, 1, "without either API the check is missing")
     Assert.True(text:find("MISSING C_Item.GetAverageItemLevel - Item level", 1, true) ~= nil, "named as before")
   end)
+
+  -- Package 5 O: a specialization the client knows but data/isiLive_specs.lua
+  -- lacks (a new spec of an expansion) is reported on patch day.
+  test("ApiHealth data checks report a client specialization missing from the spec manifest", function()
+    local rows
+    WithGlobals({
+      GetNumClasses = function()
+        return 1
+      end,
+      GetNumSpecializationsForClassID = function(classID)
+        return classID == 1 and 2 or 0
+      end,
+      GetSpecializationInfoForClassID = function(_classID, specIndex)
+        if specIndex == 1 then
+          return 71, "Arms"
+        end
+        return 9999, "Brand New"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_specs.lua", "isiLive_api_health.lua" })
+      rows = addon.ApiHealth.RunDataChecks()
+    end)
+    local byName = {}
+    for _, row in ipairs(rows) do
+      if row.feature == "Specs" then
+        byName[row.name] = row
+      end
+    end
+    Assert.Equal(byName["spec 71"].status, "ok", "a manifest spec passes")
+    Assert.Equal(byName["spec 9999"].status, "missing", "the unknown client spec is missing")
+    Assert.True(byName["spec 9999"].detail:find("Brand New", 1, true) ~= nil, "the row names the client's spec")
+  end)
 end

@@ -23,6 +23,8 @@ addonTable = addonTable or {}
 --   group buffs count as relevant for this spec. Taken over unchanged from the
 --   former per-module lists on 2026-10-20, overlaps included (Frost/Unholy Death
 --   Knights count as attack-power users and magic-damage dealers).
+-- - `lfgSpecBonuses`: optional group bonuses only this spec brings, shown in
+--   the LFG bonus tooltip ({ textKey = <locale key>, kind = "universal" }).
 -- - `primaryStat`: the stats box row (ui/isiLive_stats_box.lua). Only set where
 --   the spec overrides its class default; classes with one primary stat use the
 --   class table in the stats box.
@@ -116,6 +118,8 @@ addonTable.SpecManifest = {
       name = "Augmentation",
       shortLabel = "Aug",
       lfg = { intellect = true, attackPower = false, magicDamage = true, physicalDamage = false },
+      -- Group bonus only this spec brings (ui/isiLive_lfg_bonus_model.lua).
+      lfgSpecBonuses = { { textKey = "LFG_BONUS_EBON_MIGHT", kind = "universal" } },
     },
     -- Hunter
     [253] = {
@@ -309,6 +313,21 @@ function Specs.BuildLfgFlagSet(flag)
   for specID, spec in pairs(addonTable.SpecManifest.specs) do
     if type(spec.lfg) == "table" and spec.lfg[flag] == true then
       out[specID] = true
+    end
+  end
+  return out
+end
+
+-- Returns { [specID] = { bonus, ... } } for every spec with `lfgSpecBonuses`.
+function Specs.BuildLfgSpecBonuses()
+  local out = {}
+  for specID, spec in pairs(addonTable.SpecManifest.specs) do
+    if type(spec.lfgSpecBonuses) == "table" and #spec.lfgSpecBonuses > 0 then
+      local bonuses = {}
+      for index, bonus in ipairs(spec.lfgSpecBonuses) do
+        bonuses[index] = { textKey = bonus.textKey, kind = bonus.kind }
+      end
+      out[specID] = bonuses
     end
   end
   return out

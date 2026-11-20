@@ -45,6 +45,7 @@ locale/isiLive_texts_trTR.lua
 locale/isiLive_texts.lua
 data/isiLive_spells.lua
 data/isiLive_specs.lua
+data/isiLive_interrupts.lua
 game/isiLive_spell_utils.lua
 game/isiLive_cd_tracker.lua
 ui/isiLive_bindings.lua

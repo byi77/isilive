@@ -266,6 +266,23 @@ local function RegisterSpecManifestTests(test, ctx)
     end
   end)
 
+  -- Package 5 J: the spec-level bonus (Augmentation's Ebon Might) is data in
+  -- data/isiLive_specs.lua, not a spec ID in the LFG bonus model.
+  test("LFG spec bonuses come from the spec manifest, not from a spec ID in the model", function()
+    local addon = LoadAddonModules({ "isiLive_lfg_bonus_model.lua" })
+    local manifestBonuses = addon.Specs.BuildLfgSpecBonuses()
+    Assert.Equal(addon.LFGBonusModel.SPEC_BONUSES[1473][1].textKey, "LFG_BONUS_EBON_MIGHT", "Ebon Might stays")
+    for specID, bonuses in pairs(manifestBonuses) do
+      Assert.Equal(#addon.LFGBonusModel.SPEC_BONUSES[specID], #bonuses, "spec " .. specID .. " bonuses come from data")
+    end
+    local file = assert(io.open("ui/isiLive_lfg_bonus_model.lua", "rb"))
+    local source = file:read("*a")
+    file:close()
+    for specID in pairs(manifestBonuses) do
+      Assert.Nil(source:find(tostring(specID), 1, true), "the model names no spec ID " .. specID)
+    end
+  end)
+
   test("StatsBox resolves the primary stat of every manifest spec exactly like the former tables", function()
     local helpers = assert(loadfile("testmodul/isilive_test_ui_helpers.lua"))()
     local specs = LoadAddonModules({ "isiLive_specs.lua" }).SpecManifest.specs

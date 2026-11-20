@@ -117,9 +117,15 @@ end
 -- activeSeasonID at a season change breaks no test (maintainability package
 -- 4 I; the gate is "Tests name shipped season IDs only within their budget").
 function FixtureSeasons.ShippedActiveSeasonID()
+  return FixtureSeasons.ShippedManifest().activeSeasonID
+end
+
+-- The shipped season manifest itself, for tests of the tools that work on
+-- data/ (season doctor, intake, readiness).
+function FixtureSeasons.ShippedManifest()
   local addon = {}
   assert(loadfile("data/isiLive_seasons.lua"))("isiLive", addon)
-  return addon.SeasonManifest.activeSeasonID
+  return addon.SeasonManifest
 end
 
 return FixtureSeasons

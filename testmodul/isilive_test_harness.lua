@@ -55,6 +55,7 @@ local FILE_PATHS = {
   ["isiLive_teleport_debug.lua"] = "ui/isiLive_teleport_debug.lua",
   ["isiLive_units.lua"] = "game/isiLive_units.lua",
   ["isiLive_mplus_timer.lua"] = "game/isiLive_mplus_timer.lua",
+  ["isiLive_interrupts.lua"] = "data/isiLive_interrupts.lua",
   ["isiLive_kick_tracker.lua"] = "game/isiLive_kick_tracker.lua",
   ["isiLive_lfg_entry_resolver.lua"] = "game/isiLive_lfg_entry_resolver.lua",
   ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
@@ -228,6 +229,8 @@ local UNIVERSAL_DEPENDENCIES = {
 }
 
 local IMPLICIT_DEPENDENCIES = {
+  -- The kick tracker reads its interrupt data from the manifest at load.
+  ["isiLive_kick_tracker.lua"] = { "isiLive_interrupts.lua" },
   -- The event-handler wiring builds its season refresh from SeasonRefresh at load.
   ["isiLive_controller_wiring.lua"] = { "isiLive_season_refresh.lua" },
   ["isiLive_sync.lua"] = {
