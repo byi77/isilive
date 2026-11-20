@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.525`.
+Current version: `0.9.526`.
+
+Version 0.9.526: /isilive selftest and /isilive errorlog work again (they
+printed nothing or an empty log). The self test also checks interrupt spells
+and the keystone item. The title band of the Modern design now reaches the top
+edge of the window.
 
 Version 0.9.525: ready for patch day and season start. If a patch removes an
 event isiLive listens to, the rest of the addon keeps working. If Blizzard

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-20 - Version 0.9.526 (patch)
+
+- Fix: `/isilive selftest` and `/isilive selftest all` printed nothing, and `/isilive errorlog` always reported `NOT installed | entries: 0 / 0` (since 0.9.521). `Bootstrap.RegisterSlashCommands` passed a hand-kept list of options to the command module and dropped `printSelfTest` and the error log accessors; it now forwards every option the factory builds. Test: both commands through the real `/isilive` handler after login.
+- Fix: the self test reported `MISSING C_Item.GetAverageItemLevel` on 12.1 although the item level works: the runtime falls back to the global `GetAverageItemLevel`, and the check now accepts that fallback (`ok ... (via GetAverageItemLevel)`).
+- Change: the self test data checks (rule 261) also cover every interrupt spell of the kick tracker and the item IDs of the new `data/isiLive_items.lua`; the Mythic Keystone item ID (180653) lives only there. The augment rune buff 1295329 was removed from the consumable data: the live client does not know it (rune check stays off).
+- Fix: in the Modern design the title band looked cut short below the window's top edge; the white top sheen now reaches the edge between and inside the rounded top corners.
+- Tools: `tools/sync_mdt_forces.lua` exposes `Generate(args, manifest)`; a test with a small MDT tree pins that the upcoming season is left out until MDT ships all its dungeons and written once it does.
+- Docs: the in-game self test of 0.9.525 is recorded in `docs/SAISON_WECHSEL.md` (35/35 APIs, 74/74 data IDs); the planned TOC interface workflow runs weekly on Wednesday morning.
+
 ## 2026-11-20 - Version 0.9.525 (patch)
 
 - Fix: patch-safe event registration (rule 258). Every event registration goes through `EventUtils.SafeRegisterEvent` / `SafeRegisterUnitEvent`: an event a patch removed or renamed is skipped (checked with `C_EventUtils.IsEventValid`, the call itself under `pcall`) instead of raising and aborting the dispatcher's registration loop, which silenced every event after it. `/isilive selftest` lists a refused event as `MISSING event <NAME> - Events`. `tools/check_wow_api_compliance.lua` (`raw-event-registration`) rejects direct `RegisterEvent` / `RegisterUnitEvent` calls.
