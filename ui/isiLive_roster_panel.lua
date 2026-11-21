@@ -775,6 +775,34 @@ local function ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
   end
 end
 
+-- Run kicks of the kick column, with the run-kick diagnosis: one trace line
+-- per gate change and per member whose run kicks are missing while the gate
+-- is open (kick column shows "-"). Split out of CreateController (size gate).
+local function BuildRunKickSource(opts, isInChallengeMode, logRuntimeTrace)
+  local runKickSource = { get = opts.getPlayerLastRunKicks, has = opts.hasRunKicks, inKey = isInChallengeMode }
+  local lastRunKickGate, runKickMissTraced = nil, {}
+  runKickSource.onGate = function(reason)
+    if reason == lastRunKickGate then
+      return
+    end
+    lastRunKickGate, runKickMissTraced = reason, {}
+    if logRuntimeTrace then
+      logRuntimeTrace("[KICKS] run_kicks_gate state=" .. tostring(reason))
+    end
+  end
+  runKickSource.onMiss = function(name, realm)
+    local key = tostring(name) .. "-" .. tostring(realm)
+    if runKickMissTraced[key] then
+      return
+    end
+    runKickMissTraced[key] = true
+    if logRuntimeTrace then
+      logRuntimeTrace("[KICKS] run_kicks_miss name=" .. key)
+    end
+  end
+  return runKickSource
+end
+
 ---@return RosterPanelController
 function RosterPanel.CreateController(opts)
   opts = opts or {}
@@ -845,31 +873,9 @@ function RosterPanel.CreateController(opts)
     or nil
   local getTargetDungeonInfo = type(opts.getTargetDungeonInfo) == "function" and opts.getTargetDungeonInfo or nil
   local isInChallengeMode = type(opts.isInChallengeMode) == "function" and opts.isInChallengeMode or nil
-  local runKickSource = { get = opts.getPlayerLastRunKicks, has = opts.hasRunKicks, inKey = isInChallengeMode }
   local logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or nil
   local logRuntimeTraceDeep = type(opts.logRuntimeTraceDeep) == "function" and opts.logRuntimeTraceDeep or nil
-  -- Run-kick diagnosis: one trace line per gate change and per member whose
-  -- run kicks are missing while the gate is open (kick column shows "-").
-  local lastRunKickGate, runKickMissTraced = nil, {}
-  runKickSource.onGate = function(reason)
-    if reason == lastRunKickGate then
-      return
-    end
-    lastRunKickGate, runKickMissTraced = reason, {}
-    if logRuntimeTrace then
-      logRuntimeTrace("[KICKS] run_kicks_gate state=" .. tostring(reason))
-    end
-  end
-  runKickSource.onMiss = function(name, realm)
-    local key = tostring(name) .. "-" .. tostring(realm)
-    if runKickMissTraced[key] then
-      return
-    end
-    runKickMissTraced[key] = true
-    if logRuntimeTrace then
-      logRuntimeTrace("[KICKS] run_kicks_miss name=" .. key)
-    end
-  end
+  local runKickSource = BuildRunKickSource(opts, isInChallengeMode, logRuntimeTrace)
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
     isPlayerLeader = isPlayerLeader,

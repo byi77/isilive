@@ -73,9 +73,9 @@ Paket 3 (P0/P1):
   wieder entfernen.
 - Termin (User, 2026-11-20): Patch 12.1.7 kommt am 2026-12-02, nur ein Patch,
   keine neue Season. `## Interface: 120105, 120107` deckt ihn bereits ab.
-  Danach: Quittierung `PARTY_INVITE_REQUEST` aus `tools/patch_watch_ack.lua`
-  entfernen und am Patch-Tag die Patch-Waechter-Chatzeile bzw.
-  `/isilive selftest` pruefen.
+  Am Patch-Tag die Patch-Waechter-Chatzeile bzw. `/isilive selftest` pruefen.
+  Die Quittierung `PARTY_INVITE_REQUEST` meldet der API-Abgleich selbst zum
+  Entfernen, sobald kein Fund sie mehr braucht (Hinweis im Issue).
 
 Paket 4 (P1):
 - [x] G: wowsim-Szenario `navigator_layouts` rendert alle 32 Belegungen der
@@ -95,10 +95,8 @@ Paket 4 (P1):
   statt 105 nur noch 2 Tests, beide gewollte Erinnerungen (Forces-DB neu
   erzeugen, `docs/WARTUNG.md` auf die neue aktive Season umstellen). Gate:
   nur fest gelistete Testdateien lesen die echten `data/`-Season-Dateien.
-- Notiz aus G/H: Drei wowsim-Szenarien schlagen schon vor Paket 4 fehl, weil
-  wowsim bisher nicht in der CI lief: `card_stack` (1), `language_dungeon_names`
-  (9), `offseason` (1). `PORTAL_NAVIGATOR_UNOCCUPIED` ist in frFR, ruRU und
-  trTR nicht uebersetzt ("Unoccupied").
+- Notiz aus G/H (erledigt 2026-11-21, siehe Nachzuegler): drei veraltete
+  wowsim-Szenarien und die fehlende Uebersetzung von "Unbelegt".
 
 Paket 5 (P1/P2):
 - [x] J: Interrupt-Daten in `data/isiLive_interrupts.lua`, Augmentation-Bonus
@@ -126,12 +124,18 @@ Paket 6 (P2, Komfort):
   bleiben Handarbeit. Lokal: `lua tools/check_db2.lua --db2=<dir>` (Tabellen wie
   im Workflow laden).
 
-Bekannt und ohne Paket: Der Simulator-Erwartungswert "the dungeon card is the
-calm season-break hint" (`lua tools/wowsim/wowsim.lua offseason`) schlaegt
-bereits auf 0.9.524 fehl und ist zu untersuchen. `docs/RULES.md` (Season-Rahmen)
-nennt noch eine frische Forces-DB als Bedingung fuer die automatische Umstellung;
-seit Regel 97 ist die Forces-DB kein Aktivierungskriterium mehr. Der Satz ist
-nachzuziehen.
+Nachzuegler (erledigt 2026-11-21):
+- [x] wowsim: `offseason` und `card_stack` sind seit dem Wegfall der
+  What's-New-Karte (0.9.530) wieder gruen; `language_dungeon_names` prueft statt
+  der seit 2026-11-13 entfallenen Kartenzeilen (Quelle, Talente) die
+  sprachabhaengigen Kartenkoepfe. `tools/run_wowsim_scenarios.lua` fuehrt in CI
+  und lokalem Preflight jetzt alle Szenarien aus (Regel 263), damit keines mehr
+  unbemerkt veraltet.
+- [x] `docs/RULES.md` (Season-Rahmen): Forces-DB nicht mehr als
+  Aktivierungsbedingung genannt.
+- [x] "Unbelegt" im Portal-Navigator ist in frFR, ruRU und trTR uebersetzt.
+- [ ] Saisonpause: in der naechsten Pause `/isilive seasondump` (Abschnitt 3c);
+  vorher nicht pruefbar.
 
 Zeitplan je Season (Ziel):
 - T-8 Wochen (PTR): Das Issue "Patch Watch: game data" meldet die neue Rotation

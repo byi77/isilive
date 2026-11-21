@@ -47,7 +47,11 @@ ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics
 lua tools/validate_rules_logic.lua
 lua tools/validate_architecture_rules.lua
 lua tools/validate_usecases.lua
+lua tools/run_wowsim_scenarios.lua
 ```
+
+`tools/run_wowsim_scenarios.lua` fuehrt jedes Simulator-Szenario aus `tools/wowsim/scenarios` aus (Regel 263, auch in CI);
+ein einzelnes Szenario mit Viewer: `lua tools/wowsim/wowsim.lua <name> [--locale deDE] [--season <id>]`.
 
 Optional, wenn du die aktuelle Coverage-Zahl lokal messen willst (CI macht das automatisch und laedt `luacov.report.out` als Artefakt hoch):
 
@@ -110,7 +114,8 @@ Vor dem Patch-Tag warnt der Workflow `.github/workflows/patch-watch.yml` (Regel 
 Issue "Patch Watch: TOC interface", wenn die Interface-Nummer eines neueren Test-Clients in der TOC fehlt
 (eintragen nur auf ausdruecklichen Auftrag), und Issue "Patch Watch: API surface", wenn auf dem PTR eine
 genutzte Funktion, ein Event oder ein Enum-Wert entfernt oder inkompatibel geaendert wird. Jeden Fund gegen den
-lesenden Code pruefen; harmlose Funde mit exaktem Detailtext in `tools/patch_watch_ack.lua` quittieren. Lokal:
+lesenden Code pruefen; harmlose Funde mit exaktem Detailtext in `tools/patch_watch_ack.lua` quittieren (eine
+Quittierung, die kein Fund mehr braucht, nennt der Bericht zum Entfernen). Lokal:
 `lua tools/check_toc_interface.lua --versions=<dir>` bzw. `lua tools/check_api_surface.lua --live=<dir>
 --target=<dir>` (Aufruf wie im Workflow).
 

@@ -1510,6 +1510,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       workflowContent,
+      "lua tools/run_wowsim_scenarios.lua",
+      "workflow must run every wowsim scenario (rule 263)"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
       "lua tools/check_sound_channel.lua",
       "workflow must keep the sound-channel gate"
     )
@@ -1989,6 +1995,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       "lua tools/wowsim/wowsim.lua navigator_layouts",
       "local preflight must run the wowsim navigator layouts gate (rule 263)"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      "lua tools/run_wowsim_scenarios.lua",
+      "local preflight must run every wowsim scenario (rule 263)"
     )
     AssertContains(
       Assert,

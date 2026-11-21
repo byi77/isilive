@@ -644,6 +644,11 @@ das reine Modell vom Controller-Lebenszyklus.
 Befunde F-1/F-4: Aufraeumen des Simulations-Tablets, Queue-Ziel-Sicherung,
 Demo-Generation) ueber der Warnschwelle auf der Watchlist; ein Split trennt
 spaeter die Tablet-Aktionen und ihr Aufraeumen von Demo-Einstieg und -Ausstieg.
+`ui/isiLive_roster_panel.lua` steht seit der Run-Kick-Diagnose (0.9.530,
+2026-11-21: `[KICKS] run_kicks_gate`/`run_kicks_miss`, ausgelagert in
+`BuildRunKickSource`) ueber der Warnschwelle auf der Watchlist; ein Split trennt
+spaeter das Einsammeln der Controller-Optionen in `RosterPanel.CreateController`
+von Panel-Aufbau und Render-Pfaden.
 Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits

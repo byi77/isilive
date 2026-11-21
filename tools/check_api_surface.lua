@@ -370,12 +370,29 @@ function M.Run(opts)
     local loader = loadfile(opts.ackPath or "tools/patch_watch_ack.lua")
     acknowledged = loader and loader() or {}
   end
+  local usedAcks = {}
   for _, finding in ipairs(findings) do
     local ack = type(acknowledged) == "table" and acknowledged[finding.name] or nil
     if type(ack) == "table" and ack.detail == finding.detail and finding.kind ~= "extended" then
       finding.kind = "acknowledged"
       finding.detail = finding.detail .. " (" .. tostring(ack.reason) .. ")"
+      usedAcks[finding.name] = true
     end
+  end
+  -- An acknowledgement no finding needs any more (the change went live, or
+  -- Blizzard changed it again) is reported for removal; it fails nothing.
+  local staleAcks = {}
+  for name in pairs(type(acknowledged) == "table" and acknowledged or {}) do
+    if not usedAcks[name] then
+      staleAcks[#staleAcks + 1] = name
+    end
+  end
+  table.sort(staleAcks)
+  local staleLine = nil
+  if #staleAcks > 0 then
+    staleLine = "- Note: acknowledgements no finding needs any more, remove them from "
+      .. "tools/patch_watch_ack.lua: "
+      .. table.concat(staleAcks, ", ")
   end
   local lines = {
     header,
@@ -399,6 +416,9 @@ function M.Run(opts)
     ),
     "",
   }
+  if staleLine then
+    lines[#lines + 1] = staleLine
+  end
   if #findings == 0 then
     lines[#lines + 1] = "- Status: ok, nothing isiLive uses is removed or changed."
     return 0, table.concat(lines, "\n")

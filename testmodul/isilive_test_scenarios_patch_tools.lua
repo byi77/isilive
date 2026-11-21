@@ -215,6 +215,16 @@ return function(test, ctx)
     code = tool.Run(opts)
     Assert.Equal(code, 0, "only compatible or acknowledged rows keep the check green")
 
+    -- Once no finding needs the acknowledgement it is reported for removal.
+    opts.texts = { "C_Test.AddsReturn()" }
+    local staleCode, staleReport = tool.Run(opts)
+    Assert.Equal(staleCode, 0, "a stale acknowledgement fails nothing")
+    Assert.True(
+      staleReport:find("remove them from tools/patch_watch_ack.lua: TEST_ACKED", 1, true) ~= nil,
+      "the stale acknowledgement is named"
+    )
+    opts.texts = { 'C_Test.AddsReturn() Register("TEST_ACKED")' }
+
     opts.targetVersion = "12.1.5 (3)"
     local skippedCode, skipped = tool.Run(opts)
     Assert.Equal(skippedCode, 0, "a target that is not newer than live is skipped")

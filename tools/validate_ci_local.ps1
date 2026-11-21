@@ -216,6 +216,7 @@ try {
   Invoke-CheckedCommand "M+ Regression Budget Simulator" "lua tools/simulate_mplus_regression.lua"
   Invoke-CheckedCommand "M+ Timer Lifecycle Simulator" "lua tools/simulate_mplus_timer_lifecycle.lua"
   # Rule 263 (package 4 G/H): season smoke and the 32 navigator layouts in wowsim.
+  Invoke-CheckedCommand "wowsim All Scenarios" "lua tools/run_wowsim_scenarios.lua"
   Invoke-CheckedCommand "wowsim Season Smoke enUS" "lua tools/wowsim/wowsim.lua season_smoke --locale enUS --quiet"
   Invoke-CheckedCommand "wowsim Season Smoke deDE" "lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet"
   foreach ($navigatorLocale in @("enUS", "deDE", "frFR", "ruRU", "trTR")) {

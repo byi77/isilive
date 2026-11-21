@@ -242,6 +242,10 @@ jobs:
           lua tools/wowsim/wowsim.lua season_smoke --locale enUS --quiet
           lua tools/wowsim/wowsim.lua season_smoke --locale deDE --quiet
 
+      - name: wowsim All Scenarios
+        run: |
+          lua tools/run_wowsim_scenarios.lua
+
       - name: wowsim Navigator Layouts
         run: |
           for locale in enUS deDE frFR ruRU trTR; do

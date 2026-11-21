@@ -27,9 +27,13 @@ local function CheckGerman(sim, label)
   sim.ExpectText("^Rubinlebensbecken$", "second navigator slot in German")
   sim.ExpectText("^Unbelegt$", "navigator detail text in German")
   sim.ExpectText("Tempel von Sethraliss %+14", "German name on the invite card and killtracker")
-  sim.ExpectText("^Quelle$", "invite card label in German")
-  sim.ExpectText("^Simulations%-Tablet$", "invite card value in German")
-  sim.ExpectText("^Talente$", "invite card loadout row in German")
+  -- Since the unified card stack (2026-11-13) the invite card rows (Dungeon,
+  -- Leader, Navigation, Loadout) read the same in both languages; the card
+  -- headers and the hint label still switch. The simulation tablet is a
+  -- developer tool built once and is deliberately not checked here.
+  sim.ExpectText("^Einladung angenommen$", "invite card header in German")
+  sim.ExpectText("^Dungeon betreten$", "dungeon entry card title in German")
+  sim.ExpectText("^Hinweis$", "card hint label in German")
   sim.Expect(#sim.FindText("Temple of Sethraliss") == 0, "no English dungeon name left")
 end
 
@@ -40,9 +44,9 @@ local function CheckEnglish(sim, label)
   sim.ExpectText("^Ruby Life Pools$", "second navigator slot in English")
   sim.ExpectText("^Unoccupied$", "navigator detail text in English")
   sim.ExpectText("Temple of Sethraliss %+14", "English name on the invite card and killtracker")
-  sim.ExpectText("^Source$", "invite card label in English")
-  sim.ExpectText("^Simulation tablet$", "invite card value in English")
-  sim.ExpectText("^Talents$", "invite card loadout row in English")
+  sim.ExpectText("^Invite accepted$", "invite card header in English")
+  sim.ExpectText("^Dungeon entered$", "dungeon entry card title in English")
+  sim.ExpectText("^Hint$", "card hint label in English")
   sim.Expect(#sim.FindText("Tempel von Sethraliss") == 0, "no German dungeon name left")
   -- A German client must not leak its map names; on an English client they are
   -- the right ones and the simulator answers with its stub map.
@@ -51,7 +55,7 @@ local function CheckEnglish(sim, label)
     sim.Expect(#sim.FindText("Dornogal") == 0, "no client map name left on the card")
   end
   sim.Expect(#sim.FindText("TVS") == 0, "no German abbreviation left")
-  sim.Expect(#sim.FindText("^Quelle$") == 0, "no German invite label left")
+  sim.Expect(#sim.FindText("^Einladung angenommen$") == 0, "no German invite header left")
 end
 
 return {
