@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.530`.
+Current version: `0.9.531`.
+
+Version 0.9.531: the portal navigator shows its empty slots translated in
+French, Russian and Turkish. Internally the automatic checks now run every
+simulator scenario.
 
 Version 0.9.530: the pace announce is gone. Since patch 12.0 the game blocks
 addon chat while a key runs, so a click on the time pace badge could never post

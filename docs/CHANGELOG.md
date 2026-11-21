@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-21 - Version 0.9.531 (patch)
+
+- Fix: the empty slots of the portal navigator read "Inoccupé" (frFR), "Не занято" (ruRU) and "Boş" (trTR) instead of the English "Unoccupied".
+- Refactor: the run-kick diagnosis of the roster panel moved into `BuildRunKickSource`, so `RosterPanel.CreateController` stays within the function size limit; `ui/isiLive_roster_panel.lua` joins the large-module watchlist. No behavior change.
+- Tools: `tools/run_wowsim_scenarios.lua` runs every wowsim scenario; the Lua Check workflow and `tools/validate_ci_local.ps1` call it (rule 263), so no scenario falls out of date unnoticed again. `language_dungeon_names` now checks the card headers that still switch language (the invite rows it checked were removed on 2026-11-13); `offseason` and `card_stack` pass again since 0.9.530.
+- Tools: the API surface check names acknowledgements in `tools/patch_watch_ack.lua` that no finding needs any more, so they can be removed (rule 262).
+- Docs: `docs/RULES.md` no longer names a fresh forces DB as a condition of the automatic season switch (rule 97); `docs/WARTUNG.md` lists the scenario runner; follow-ups in `docs/SAISON_WECHSEL.md` closed.
+
 ## 2026-11-21 - Version 0.9.530 (patch)
 
 - Removed: pace announce (rule 255, now retired). Since patch 12.0 Blizzard blocks addon chat while a key runs (`C_ChatInfo.InChatMessagingLockdown`), so a click on the time pace badge could never post and raised `ADDON_ACTION_BLOCKED` instead. The badge is display-only again; the what's new card for it is gone (`WhatsNew.ENTRIES` is empty, rule 256 stays).
