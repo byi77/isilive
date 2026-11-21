@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2026-11-21 - Version 0.9.530 (patch)
 
 - Removed: pace announce (rule 255, now retired). Since patch 12.0 Blizzard blocks addon chat while a key runs (`C_ChatInfo.InChatMessagingLockdown`), so a click on the time pace badge could never post and raised `ADDON_ACTION_BLOCKED` instead. The badge is display-only again; the what's new card for it is gone (`WhatsNew.ENTRIES` is empty, rule 256 stays).
 - Fix: `ContextHelpers.SendPartyChatMessage` sends nothing while the client locks addon chat down, instead of calling `SendChatMessage` into an `ADDON_ACTION_BLOCKED` that `pcall` does not catch.
 - Diagnostics: the runtime log traces why the kick column shows no run kicks (`[KICKS] run_kicks_gate state=...`, `[KICKS] run_kicks_miss name=...`, `[STATS] run_kicks_hidden kind=...`).
+
+- Tools: game data check and next-season draft (rule 265, `tools/check_db2.lua`). The weekly patch watch downloads the client tables (DB2) of the newest build (PTR when newer than live) as wago.tools CSV exports and checks every ID in `data/` against them: spells (spell manifest, interrupts, consumables, portals of the active and the prepared season), items, challenge maps, LFG activities (exist, belong to the map's instance, keystone difficulty) and specializations. An unknown Mythic+ rotation (`MythicPlusSeasonTrackedMap`) yields candidate intake rows with source and date plus a manifest skeleton (maps, names enUS/deDE, instance, timer, activity, portal spell); ambiguous IDs stay `unresolved` with all candidates, short codes, display order and the portal navigator are left to the maintainer. Issue "Patch Watch: game data".
 
 ## 2026-11-20 - Version 0.9.529 (patch)
 

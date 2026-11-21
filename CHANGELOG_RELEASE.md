@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.529`.
+Current version: `0.9.530`.
+
+Version 0.9.530: the pace announce is gone. Since patch 12.0 the game blocks
+addon chat while a key runs, so a click on the time pace badge could never post
+its line; the badge itself stays. isiLive no longer tries to write to the group
+chat while that block is active.
 
 Version 0.9.529: maintenance release without visible changes. The self test
 also reports a specialization isiLive does not know yet, so a new spec shows up
