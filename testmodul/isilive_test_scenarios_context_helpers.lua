@@ -426,4 +426,31 @@ return function(test, ctx)
       Assert.False(attempted, "chat API must not be called without a verified group channel")
     end)
   end)
+  test("context_helpers: SendPartyChatMessage sends nothing during the addon chat lockdown", function()
+    local locked = true
+    local sent = {}
+    WithGlobals({
+      IsInGroup = function()
+        return true
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      SendChatMessage = function(message, channel)
+        sent[#sent + 1] = { message = message, channel = channel }
+      end,
+      C_ChatInfo = {
+        InChatMessagingLockdown = function()
+          return locked
+        end,
+      },
+    }, function()
+      local addon = Load()
+      Assert.True(addon.ContextHelpers.IsChatMessagingLockedDown(), "the lockdown is read from C_ChatInfo")
+      Assert.Equal(addon.ContextHelpers.SendPartyChatMessage("hi"), false, "a locked-down send reports failure")
+      Assert.Equal(#sent, 0, "SendChatMessage is never called in the lockdown (it would raise ADDON_ACTION_BLOCKED)")
+      locked = false
+      Assert.Equal(addon.ContextHelpers.SendPartyChatMessage("hi"), true, "after the lockdown the send goes out")
+      Assert.Equal(#sent, 1, "exactly one message after the lockdown")
+    end)
+  end)
 end

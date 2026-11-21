@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Removed: pace announce (rule 255, now retired). Since patch 12.0 Blizzard blocks addon chat while a key runs (`C_ChatInfo.InChatMessagingLockdown`), so a click on the time pace badge could never post and raised `ADDON_ACTION_BLOCKED` instead. The badge is display-only again; the what's new card for it is gone (`WhatsNew.ENTRIES` is empty, rule 256 stays).
+- Fix: `ContextHelpers.SendPartyChatMessage` sends nothing while the client locks addon chat down, instead of calling `SendChatMessage` into an `ADDON_ACTION_BLOCKED` that `pcall` does not catch.
+- Diagnostics: the runtime log traces why the kick column shows no run kicks (`[KICKS] run_kicks_gate state=...`, `[KICKS] run_kicks_miss name=...`, `[STATS] run_kicks_hidden kind=...`).
+
 ## 2026-11-20 - Version 0.9.529 (patch)
 
 - Refactor: interrupt spells and cooldowns per specialization, the class alternatives and the extra cooldowns live in `data/isiLive_interrupts.lua` (`InterruptManifest`, rule 264) instead of `game/isiLive_kick_tracker.lua`; `tools/check_spec_coverage.lua` checks the interrupt decision per spec there. No behavior change.

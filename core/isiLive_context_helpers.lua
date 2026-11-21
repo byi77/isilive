@@ -269,10 +269,28 @@ function ContextHelpers.ResolveGroupChatChannel()
   return nil
 end
 
+-- C_ChatInfo.InChatMessagingLockdown() (12.0, warcraft.wiki.gg): true while
+-- the client blocks addon chat (running keys, boss encounters). A send in
+-- that state raises ADDON_ACTION_BLOCKED, which pcall does not catch, so
+-- every chat send asks first. Missing API, error or a secret answer count as
+-- "not locked": the send is attempted as before.
+---@return boolean locked
+function ContextHelpers.IsChatMessagingLockedDown()
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  local inLockdown = type(chatInfo) == "table" and chatInfo.InChatMessagingLockdown or nil
+  if type(inLockdown) ~= "function" then
+    return false
+  end
+  return SafeBooleanCall(inLockdown)
+end
+
 ---@param message string
----@return boolean sent
+---@return boolean sent false without a group or while addon chat is locked down
 function ContextHelpers.SendPartyChatMessage(message)
   if type(message) ~= "string" or message == "" then
+    return false
+  end
+  if ContextHelpers.IsChatMessagingLockedDown() then
     return false
   end
 

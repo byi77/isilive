@@ -628,7 +628,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     tooltipFrame = rosterTooltip,
     getL = uiDeps.getL,
   })
-  local killTrackRow = CreateKillTrackRow(mainFrame, { tooltipFrame = rosterTooltip })
+  local killTrackRow = CreateKillTrackRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
 
@@ -848,6 +848,28 @@ function RosterPanel.CreateController(opts)
   local runKickSource = { get = opts.getPlayerLastRunKicks, has = opts.hasRunKicks, inKey = isInChallengeMode }
   local logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or nil
   local logRuntimeTraceDeep = type(opts.logRuntimeTraceDeep) == "function" and opts.logRuntimeTraceDeep or nil
+  -- Run-kick diagnosis: one trace line per gate change and per member whose
+  -- run kicks are missing while the gate is open (kick column shows "-").
+  local lastRunKickGate, runKickMissTraced = nil, {}
+  runKickSource.onGate = function(reason)
+    if reason == lastRunKickGate then
+      return
+    end
+    lastRunKickGate, runKickMissTraced = reason, {}
+    if logRuntimeTrace then
+      logRuntimeTrace("[KICKS] run_kicks_gate state=" .. tostring(reason))
+    end
+  end
+  runKickSource.onMiss = function(name, realm)
+    local key = tostring(name) .. "-" .. tostring(realm)
+    if runKickMissTraced[key] then
+      return
+    end
+    runKickMissTraced[key] = true
+    if logRuntimeTrace then
+      logRuntimeTrace("[KICKS] run_kicks_miss name=" .. key)
+    end
+  end
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
     isPlayerLeader = isPlayerLeader,

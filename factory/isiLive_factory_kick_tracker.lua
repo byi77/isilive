@@ -195,7 +195,7 @@ local function InstallRunKickHooks(ctx, modules)
       end
       local stats = ctx.statsController
       if type(stats) == "table" and type(stats.MarkRunStarted) == "function" then
-        stats.MarkRunStarted()
+        stats.MarkRunStarted(kind)
       end
     end,
     -- Returns the own casts and the own missed kicks (rule 240) of the run.

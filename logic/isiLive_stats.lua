@@ -600,9 +600,12 @@ function Stats.CreateController(opts)
 
   --- Hides the run kicks of the previous key while a new key runs (called at
   -- CHALLENGE_MODE_START); the next captured run shows its own.
-  function controller.MarkRunStarted()
+  function controller.MarkRunStarted(kind)
     runKicksSuperseded = true
     liveKicks = nil
+    if logRuntimeTracef then
+      logRuntimeTracef("[STATS] run_kicks_hidden kind=%s", tostring(kind or "key"))
+    end
   end
 
   --- Reads the landed interrupts of the running key from the Overall session

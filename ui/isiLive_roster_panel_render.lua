@@ -731,14 +731,27 @@ local RUN_KICKS_MAX_PAIR_CHARS = 5
 -- show at all, or a key runs (the column then keeps its kick cooldown). Read
 -- once per render or kick-column refresh; "has" goes first and costs no API
 -- call, so the in-key kick refreshes never read the key state.
-local function AreRunKicksBlocked(source)
+-- source.onGate (optional) receives the reason of every answer ("no_source",
+-- "none", "in_key", "open") for the runtime trace.
+local function ResolveRunKicksGate(source)
   if type(source) ~= "table" or type(source.get) ~= "function" then
-    return true
+    return "no_source"
   end
   if type(source.has) == "function" and source.has() ~= true then
-    return true
+    return "none"
   end
-  return type(source.inKey) == "function" and source.inKey() == true
+  if type(source.inKey) == "function" and source.inKey() == true then
+    return "in_key"
+  end
+  return "open"
+end
+
+local function AreRunKicksBlocked(source)
+  local reason = ResolveRunKicksGate(source)
+  if type(source) == "table" and type(source.onGate) == "function" then
+    source.onGate(reason)
+  end
+  return reason ~= "open"
 end
 RI.AreRunKicksBlocked = AreRunKicksBlocked
 
@@ -749,6 +762,9 @@ local function ResolveRunKicks(source, blocked, info)
   end
   local runKicks = source.get(info.name, info.realm)
   if type(runKicks) ~= "table" or type(runKicks.landed) ~= "number" then
+    if type(source.onMiss) == "function" then
+      source.onMiss(info.name, info.realm)
+    end
     return nil
   end
   return runKicks

@@ -15,7 +15,8 @@ local function Prepare(globals, session)
   -- phase; its one-time frames are no workload of this regression.
   local whatsNewAddon = {}
   assert(loadfile("logic/isiLive_whats_new.lua"))("isiLive", whatsNewAddon)
-  globals.IsiLiveDB.whatsNewSeen = whatsNewAddon.WhatsNew.GetLatest().id
+  local latestWhatsNew = whatsNewAddon.WhatsNew.GetLatest()
+  globals.IsiLiveDB.whatsNewSeen = latestWhatsNew and latestWhatsNew.id or nil
   session.protectedCalls = 0
   session.failedProtectedCalls = 0
   local function RecordResult(ok, ...)

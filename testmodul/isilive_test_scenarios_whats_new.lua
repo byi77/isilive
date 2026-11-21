@@ -5,7 +5,25 @@
 local Fixture = dofile("testmodul/isilive_test_factory_fixture.lua")
 local Stress = dofile("testmodul/isilive_test_mplus_stress_helpers.lua")
 
-local TITLE_EN = "New: post the pace to your group"
+-- WhatsNew.ENTRIES ships empty since the pace announce entry left with its
+-- feature (2026-11-21); the login flows add this entry right after login.
+local TITLE_EN = "New: test feature"
+local EXAMPLE_LINE = "Example value of the test feature"
+local TEST_ENTRY = {
+  id = "test_feature",
+  titleKey = "WHATS_NEW_TEST_TITLE",
+  titleFallback = TITLE_EN,
+  fields = {
+    { labelFallback = "What", valueFallback = EXAMPLE_LINE }, -- i18n-ok
+  },
+}
+
+-- ShowPending reads the list when the login timer fires, so an entry added
+-- right after PLAYER_LOGIN is the one the real flow shows.
+local function AddTestEntry(session)
+  local entries = session.addon.WhatsNew.ENTRIES
+  entries[#entries + 1] = TEST_ENTRY
+end
 
 local function ShownTexts(session)
   local texts = {}
@@ -45,14 +63,15 @@ return function(test, ctx)
     Stress.WithParty(ctx, Fixture, function(session)
       local WhatsNew = session.addon.WhatsNew
       local db = session.globals.IsiLiveDB
+      AddTestEntry(session)
       Assert.True(db.whatsNewSeen ~= WhatsNew.GetLatest().id, "the card is still pending right after login")
       Assert.Nil(ShownTexts(session)[TITLE_EN], "the card waits for the login delay")
       session.Advance(WhatsNew.LOGIN_DELAY_SECONDS)
       Assert.True(ShownTexts(session)[TITLE_EN] == true, "the card appears after the login delay")
       local label = FindFontString(session, "What")
-      local value = FindFontString(session, "KR +15 expected: INTIME - 1:12 spare. Go for it! (via isiLive M+Addon)")
+      local value = FindFontString(session, EXAMPLE_LINE)
       Assert.NotNil(label, "the card shows the What label")
-      Assert.NotNil(value, "the card shows the English example line")
+      Assert.NotNil(value, "the card shows the field value")
       local _, labelSize = label:GetFont()
       local _, valueSize = value:GetFont()
       Assert.True(valueSize < labelSize, "description values use the smaller compact font")
@@ -60,16 +79,28 @@ return function(test, ctx)
     end)
   end)
 
+  test("WhatsNew shows no card while the entry list is empty", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local WhatsNew = session.addon.WhatsNew
+      Assert.Equal(#WhatsNew.ENTRIES, 0, "no feature card ships right now")
+      Assert.Nil(WhatsNew.GetPending(session.globals.IsiLiveDB), "nothing is pending")
+      session.Advance(WhatsNew.LOGIN_DELAY_SECONDS + 5)
+      Assert.Nil(session.globals.IsiLiveDB.whatsNewSeen, "no card was shown or marked seen")
+    end)
+  end)
+
   test("WhatsNew stays silent after login when the newest card was seen", function()
     Stress.WithParty(ctx, Fixture, function(session)
+      AddTestEntry(session)
       session.Advance(session.addon.WhatsNew.LOGIN_DELAY_SECONDS + 5)
       Assert.Nil(ShownTexts(session)[TITLE_EN], "a seen card never comes back")
-    end, SeenBefore("time_pace_announce"))
+    end, SeenBefore(TEST_ENTRY.id))
   end)
 
   test("WhatsNew shows again only for a newer entry", function()
     local WhatsNew = LoadAddonModules({ "isiLive_whats_new.lua" }).WhatsNew
     local shown = {}
+    WhatsNew.ENTRIES[#WhatsNew.ENTRIES + 1] = TEST_ENTRY
     local db = { whatsNewSeen = WhatsNew.GetLatest().id }
     local controller = WhatsNew.Create({
       getDB = function()

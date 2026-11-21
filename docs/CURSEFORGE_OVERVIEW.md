@@ -84,7 +84,6 @@ Switch it on or off in the Display settings; /isilive ttktest previews it on a t
 The killtracker bar shows the spent time as a strip in the timer's colour. The gap between forces and time is tinted green while your forces lead the clock and red while the clock leads, so you see the pace without reading numbers.
 A +/- time delta on the right end of the killtracker bar shows your forecast finish against the time limit, based on your own slowest timed run on the same dungeon and key level. Green means inside the limit, red means past it.
 Without such a run yet, it shows a finish forecast against the time limit, combined from the whole run and the last four minutes, so one big pull does not swing it. Reference runs are learned automatically from your completed keys.
-Click the badge to tell your group: one short line in the group chat says INTIME or OUT-OF-TIME with the margin, also in combat.
 During a fight the delta pauses: it holds the value from the pull with "Pause" in front, in the colour it had at the pull, and updates once the pull's kills are counted. Without the pause it would drift late mid-pull and snap back when the mobs die.
 
 🧩 TALENT AND LOOT CHECK: ready before the key

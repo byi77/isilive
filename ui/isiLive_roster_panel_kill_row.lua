@@ -509,7 +509,7 @@ local function CreatePaceTick(barContainer)
   return tick
 end
 
-local function CreateKillTrackRow(mainFrame, opts)
+local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
   row:SetPoint("BOTTOMLEFT", M2_ROW_LEFT_MARGIN, KILLTRACK_ROW_BOTTOM_OFFSET)
@@ -667,7 +667,7 @@ local function CreateKillTrackRow(mainFrame, opts)
 
   -- Time pace badge (isiLive_roster_panel_kill_row_time_pace.lua).
   if type(RI.CreateKillTrackTimePaceBadge) == "function" then
-    RI.CreateKillTrackTimePaceBadge(row, barOverlay, type(opts) == "table" and opts.tooltipFrame or nil)
+    RI.CreateKillTrackTimePaceBadge(row, barOverlay)
   end
 
   -- Time overlay: the gap tint sits above the forces fill, the time strip

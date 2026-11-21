@@ -127,7 +127,6 @@ ui/isiLive_roster_layout.lua
 game/isiLive_mplus_timer.lua
 game/isiLive_forces_pace.lua
 game/isiLive_time_pace.lua
-game/isiLive_time_pace_announce.lua
 game/isiLive_ttk.lua
 game/isiLive_aggro_alert.lua
 game/isiLive_consumable_check.lua

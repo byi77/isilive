@@ -12,42 +12,9 @@ addonTable = addonTable or {}
 local WhatsNew = {}
 addonTable.WhatsNew = WhatsNew
 
-WhatsNew.ENTRIES = {
-  {
-    id = "time_pace_announce",
-    titleKey = "WHATS_NEW_PACE_ANNOUNCE_TITLE",
-    titleFallback = "New: post the pace to your group",
-    fields = {
-      {
-        labelKey = "WHATS_NEW_LABEL_WHAT",
-        labelFallback = "What",
-        valueKey = "WHATS_NEW_PACE_ANNOUNCE_WHAT",
-        valueFallback = "Click the time pace badge (ON TIME / CLOSE / TOO SLOW) on the right of the killtracker bar. "
-          .. "isiLive posts one short line to your group chat: INTIME or OUT-OF-TIME, the time to spare or "
-          .. "over the timer, and a short call-out for the group.",
-      },
-      {
-        labelKey = "WHATS_NEW_LABEL_EXAMPLE",
-        labelFallback = "Example",
-        -- The chat line itself is English in every language (rule 255).
-        valueFallback = "KR +15 expected: INTIME - 1:12 spare. Go for it! (via isiLive M+Addon)", -- i18n-ok
-      },
-      {
-        labelKey = "WHATS_NEW_LABEL_WHEN",
-        labelFallback = "When",
-        valueKey = "WHATS_NEW_PACE_ANNOUNCE_WHEN",
-        valueFallback = "While a key runs, also in combat, at most once every 10 seconds. The line is always "
-          .. "in English, so everyone in the group can read it.",
-      },
-      {
-        labelKey = "WHATS_NEW_LABEL_TIP",
-        labelFallback = "Tip",
-        valueKey = "WHATS_NEW_PACE_ANNOUNCE_TIP",
-        valueFallback = "Hover the badge to see the line before you post it.",
-      },
-    },
-  },
-}
+-- Empty: the only entry so far (time_pace_announce, rule 255) was withdrawn
+-- together with its feature on 2026-11-21. Without an entry no card is shown.
+WhatsNew.ENTRIES = {}
 
 -- Delay after PLAYER_LOGIN, so the card does not land in the loading burst.
 WhatsNew.LOGIN_DELAY_SECONDS = 8
