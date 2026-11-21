@@ -114,6 +114,10 @@ lesenden Code pruefen; harmlose Funde mit exaktem Detailtext in `tools/patch_wat
 `lua tools/check_toc_interface.lua --versions=<dir>` bzw. `lua tools/check_api_surface.lua --live=<dir>
 --target=<dir>` (Aufruf wie im Workflow).
 
+Derselbe Workflow prueft jede ID aus `data/` gegen die Spieldaten-Tabellen des neuesten Clients und meldet
+eine neue Mythic+-Rotation samt Intake-Entwurf (Issue "Patch Watch: game data", Regel 265,
+`tools/check_db2.lua`).
+
 Der Selbsttest laeuft zusaetzlich automatisch (Regel 261): einmal pro Client-Build 20 s nach dem Login,
 still, mit einer Chatzeile nur bei Problemen; der gepruefte Build steht in `IsiLiveDB.selftestBuild`. Er
 prueft auch die Daten: Portal-Spells, Challenge-Maps und LFG-Activities der bedienten Season (mit

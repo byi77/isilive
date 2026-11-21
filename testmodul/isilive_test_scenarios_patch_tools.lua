@@ -220,4 +220,122 @@ return function(test, ctx)
     Assert.Equal(skippedCode, 0, "a target that is not newer than live is skipped")
     Assert.True(skipped:find("skipped", 1, true) ~= nil, "the skip is reported")
   end)
+
+  -- Rule 265 (package 6 L/M): game data check and next-season draft on small
+  -- synthetic DB2 tables; the real CSV download is the patch-watch workflow's job.
+  local function Db2Fixture()
+    local data = {
+      SpellManifest = { battleRes = { { id = 100, name = "Res" } }, lustCasts = {}, lustSated = {}, icons = {} },
+      InterruptManifest = {
+        specs = { [71] = { spellID = 200, cd = 15 } },
+        classAlternatives = {},
+        extraCooldowns = {},
+      },
+      ConsumableData = { sets = { fixture = { flask = { 300 } } } },
+      ItemManifest = { mythicKeystone = 400 },
+      SpecManifest = { specs = { [71] = { class = "WARRIOR" } } },
+      SeasonManifest = {
+        activeSeasonID = "fixture_active",
+        seasons = {
+          fixture_active = {
+            dungeons = {
+              { mapID = 11, activityIDs = { 111 }, portalSpellIDs = { 500 } },
+              { mapID = 12, activityIDs = { 112 }, portalSpellIDs = { 501 } },
+            },
+          },
+        },
+      },
+    }
+    local db2 = {
+      spellIDs = { [100] = true, [200] = true, [300] = true, [500] = true, [501] = true },
+      itemIDs = { [400] = true },
+      maps = {
+        { ID = "11", Name_lang = "Old One", MapID = "9011", CriteriaCount_0 = "1800" },
+        { ID = "12", Name_lang = "Old Two", MapID = "9012", CriteriaCount_0 = "1800" },
+        { ID = "21", Name_lang = "New One", MapID = "9021", CriteriaCount_0 = "1980" },
+        { ID = "22", Name_lang = "New Two", MapID = "9022", CriteriaCount_0 = "2040" },
+      },
+      mapsDe = { { ID = "21", Name_lang = "Neu Eins" }, { ID = "22", Name_lang = "Neu Zwei" } },
+      activities = {
+        { ID = "111", MapID = "9011", DifficultyID = "8" },
+        { ID = "112", MapID = "9012", DifficultyID = "8" },
+        { ID = "121", MapID = "9021", DifficultyID = "8" },
+        { ID = "122", MapID = "9022", DifficultyID = "8" },
+        { ID = "123", MapID = "9022", DifficultyID = "8" },
+      },
+      specs = {
+        { ID = "71", ClassID = "1", OrderIndex = "0", Name_lang = "Arms" },
+        { ID = "1446", ClassID = "1", OrderIndex = "4", Name_lang = "Initial" },
+      },
+      tracked = {
+        { MapChallengeModeID = "11", DisplaySeasonID = "1" },
+        { MapChallengeModeID = "12", DisplaySeasonID = "1" },
+      },
+      flyoutItems = { { SpellID = "600" }, { SpellID = "601" }, { SpellID = "602" } },
+      subtextBySpell = { [600] = "New One", [601] = "New Two", [602] = "New Two" },
+    }
+    return data, db2
+  end
+
+  test("Game data check finds every shipped ID and accepts a configured rotation", function()
+    local tool = LoadTool("tools/check_db2.lua")
+    local data, db2 = Db2Fixture()
+    local code, report = tool.Evaluate(db2, data, { version = "1.2.3.4" })
+    Assert.Equal(code, 0, "every shipped ID exists:\n" .. report)
+    Assert.True(report:find("configured as `fixture_active`", 1, true) ~= nil, "the rotation is known")
+
+    db2.spellIDs[200] = nil
+    db2.activities[2] = { ID = "112", MapID = "9099", DifficultyID = "8" }
+    db2.specs[#db2.specs + 1] = { ID = "72", ClassID = "1", OrderIndex = "1", Name_lang = "Fury" }
+    code, report = tool.Evaluate(db2, data, { version = "1.2.3.4" })
+    Assert.Equal(code, 1, "findings fail the check")
+    Assert.True(report:find("MISSING spell 200 (interrupt spec 71)", 1, true) ~= nil, "a removed spell is named")
+    Assert.True(report:find("ERROR LFG activity 112 is instance 9099", 1, true) ~= nil, "an activity drift is named")
+    Assert.True(report:find("MISSING spec 72 (Fury) in data/isiLive_specs.lua", 1, true) ~= nil, "a new spec")
+    Assert.Nil(report:find("1446", 1, true), "starter specs are no regular specs")
+  end)
+
+  test("Game data check drafts an unknown rotation without guessing ambiguous IDs", function()
+    local tool = LoadTool("tools/check_db2.lua")
+    local data, db2 = Db2Fixture()
+    db2.tracked[#db2.tracked + 1] = { MapChallengeModeID = "21", DisplaySeasonID = "2" }
+    db2.tracked[#db2.tracked + 1] = { MapChallengeModeID = "22", DisplaySeasonID = "2" }
+    local code, report =
+      tool.Evaluate(db2, data, { version = "1.2.3.4", seasonID = "fixture_next", date = "2026-11-20" })
+    Assert.Equal(code, 1, "an unknown next season opens the issue")
+    Assert.True(report:find("NEW season", 1, true) ~= nil, "the new rotation is announced")
+    Assert.True(
+      report:find("| fixture_next | New One | 21 | 600 | 121 | wago.tools DB2 1.2.3.4", 1, true) ~= nil,
+      "a unique portal and activity are drafted with their source"
+    )
+    Assert.True(
+      report:find("| 2026-11-20 | candidate | deDE Neu Eins; instance 9021; timer 33:00 |", 1, true) ~= nil,
+      "notes"
+    )
+    Assert.True(
+      report:find("| fixture_next | New Two | 22 | unresolved | unresolved |", 1, true) ~= nil,
+      "two portal and two activity candidates stay unresolved"
+    )
+    Assert.True(report:find("portal candidates 601/602; activity candidates 122/123", 1, true) ~= nil, "listed")
+    Assert.True(report:find('names = { enUS = "New One", deDE = "Neu Eins" }', 1, true) ~= nil, "skeleton names")
+    Assert.Nil(report:find("\n      shortCodes = {", 1, true), "short codes are never drafted (only a by-hand comment)")
+  end)
+
+  test("Game data CSV reader keeps quoted commas, doubled quotes and multi-line fields", function()
+    local tool = LoadTool("tools/check_db2.lua")
+    local fields = tool.ParseLine('"Kings\' Rest, Old",249,"say ""hi""",')
+    Assert.Equal(fields[1], "Kings' Rest, Old", "quoted comma")
+    Assert.Equal(fields[2], "249", "plain field")
+    Assert.Equal(fields[3], 'say "hi"', "doubled quotes")
+    Assert.Equal(fields[4], "", "trailing empty field")
+    local path = (os.getenv("TEMP") or "/tmp") .. "/isilive_db2_multiline.csv"
+    local file = assert(io.open(path, "wb"))
+    file:write('Name_lang,Description_lang,ID\n"Arms","Line one\nline two, with comma",71\n"Fury","x",72\n')
+    file:close()
+    local rows = tool.ReadCsv(path)
+    os.remove(path)
+    Assert.Equal(#rows, 2, "a quoted line break stays inside one record")
+    Assert.Equal(rows[1].ID, "71", "the record after the line break keeps its columns")
+    Assert.Equal(rows[2].Name_lang, "Fury", "the next record parses normally")
+  end)
 end

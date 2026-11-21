@@ -115,15 +115,16 @@ Paket 5 (P1/P2):
   Selbsttest am Patch-Tag selbst (`MISSING spec <id> - Specs`).
 
 Paket 6 (P2, Komfort):
-- [ ] L: `/isilive seasondump draft` auf dem PTR schreibt einen Manifest-Entwurf
-  (Maps, Namen, Zeitlimit, Instanz-IDs, Activities ueber
-  `C_LFGList.GetAvailableActivities`, Portal-Kandidaten aus dem
-  Hero's-Path-Flyout, Hub-Zone) in die SavedVariables; ein Tool erzeugt daraus
-  Manifest-Eintrag und Intake-Zeilen mit `Status = candidate`. Freigabe bleibt
-  beim User.
-- [ ] M: Workflow prueft alle IDs aus `data/` gegen DB2-Daten der PTR-Builds
-  (`MapChallengeMode`, `GroupFinderActivity`, `SpellName`; Quelle und
-  Nutzungsbedingungen vorher pruefen) und meldet neue Challenge-Maps.
+- [x] M: Der Patch-Waechter prueft jede ID aus `data/` gegen die Spieldaten-
+  Tabellen des neuesten Clients (wago.tools DB2, PTR wenn neuer) und meldet
+  Fehlendes im Issue "Patch Watch: game data" (Regel 265). Stand 12.1.7: alles ok.
+- [x] L: Statt eines Ingame-Dumps erkennt derselbe Lauf eine neue Mythic+-
+  Rotation (`MythicPlusSeasonTrackedMap`) und erzeugt Intake-Zeilen
+  (`candidate`, mit Quelle) plus Manifest-Geruest: Maps, Namen enUS/deDE,
+  Instanz, Timer, Activity und Portal-Spell, mehrdeutige Werte bleiben
+  `unresolved` mit allen Kandidaten. Kurzcodes, Reihenfolge und Navigator
+  bleiben Handarbeit. Lokal: `lua tools/check_db2.lua --db2=<dir>` (Tabellen wie
+  im Workflow laden).
 
 Bekannt und ohne Paket: Der Simulator-Erwartungswert "the dungeon card is the
 calm season-break hint" (`lua tools/wowsim/wowsim.lua offseason`) schlaegt
@@ -133,9 +134,11 @@ seit Regel 97 ist die Forces-DB kein Aktivierungskriterium mehr. Der Satz ist
 nachzuziehen.
 
 Zeitplan je Season (Ziel):
-- T-8 Wochen (PTR): Dungeons und IDs aus Wowhead/PTR ins Intake (`candidate`),
-  Manifest-Eintrag anlegen, `upcomingSeasonID` setzen; auf dem PTR
-  `/isilive selftest` (keine `MISSING event`-Zeilen) und `/isilive seasondump`.
+- T-8 Wochen (PTR): Das Issue "Patch Watch: game data" meldet die neue Rotation
+  mit fertigen Intake-Zeilen (`candidate`) und Manifest-Geruest: uebernehmen,
+  offene Werte (Kurzcodes, Reihenfolge, Navigator, mehrdeutige IDs) klaeren,
+  `upcomingSeasonID` setzen; auf dem PTR `/isilive selftest` und
+  `/isilive seasondump`; `lua tools/season_doctor.lua` zeigt den Rest.
 - T-4 Wochen: User-Freigabe der IDs -> `verified`; Intake, Readiness,
   Simulator-Smoke gruen; PTR-Interface-Nummer auf Auftrag in die TOC.
 - T-2 Wochen: MDT-Daten pruefen, `autoDetectFromChallengeMaps = true`, Release.

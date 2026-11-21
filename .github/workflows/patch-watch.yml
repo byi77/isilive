@@ -89,12 +89,55 @@ jobs:
           cat "${out}/api-surface.md" >> "$GITHUB_STEP_SUMMARY"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
 
+      # Rule 265: every shipped ID against the newest client tables (PTR when it
+      # is newer than live, else live), plus a draft of an unknown next season.
+      # wago.tools allows exactly these routes (/api/, /db2/<table>/csv); an
+      # exact version is requested, as its usage notes ask.
+      - name: Game data check
+        id: db2
+        run: |
+          out=tools/cache/patch_watch
+          mkdir -p "${out}/db2"
+          latest() {
+            curl -fsS -m 30 "https://wago.tools/api/builds/$1/latest" | grep -oE '"version":"[0-9.]+"' | head -1 | cut -d'"' -f4
+          }
+          live="$(latest wow || true)"
+          ptr="$(latest wowt || true)"
+          target="${live}"
+          if [ -n "${ptr}" ] && [ "${ptr}" != "${live}" ] \
+            && [ "$(printf '%s\n%s\n' "${live}" "${ptr}" | sort -V | tail -1)" = "${ptr}" ]; then
+            target="${ptr}"
+          fi
+          if [ -z "${target}" ]; then
+            printf '## Game data (DB2)\n\n- Status: unresolved\n- Reason: no build from wago.tools\n' > "${out}/game-data.md"
+            echo "status=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          failed=0
+          for table in SpellName Spell SpellFlyoutItem Item MapChallengeMode GroupFinderActivity ChrSpecialization MythicPlusSeasonTrackedMap; do
+            curl -fsS -m 300 "https://wago.tools/db2/${table}/csv?version=${target}" -o "${out}/db2/${table}.csv" || failed=1
+          done
+          curl -fsS -m 120 "https://wago.tools/db2/MapChallengeMode/csv?version=${target}&locale=deDE" \
+            -o "${out}/db2/MapChallengeMode.deDE.csv" || failed=1
+          if [ "${failed}" -ne 0 ]; then
+            printf '## Game data (DB2) %s\n\n- Status: unresolved\n- Reason: a table download failed\n' "${target}" > "${out}/game-data.md"
+            echo "status=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          set +e
+          lua tools/check_db2.lua "--db2=${out}/db2" "--version=${target}" > "${out}/game-data.md"
+          status=$?
+          set -e
+          cat "${out}/game-data.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+
       - name: Open, update or close patch watch issues
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           TOC_STATUS: ${{ steps.toc.outputs.status }}
           API_STATUS: ${{ steps.api.outputs.status }}
+          DB2_STATUS: ${{ steps.db2.outputs.status }}
         with:
           script: |
             const fs = require("fs");
@@ -119,6 +162,13 @@ jobs:
                 file: "tools/cache/patch_watch/api-surface.md",
                 status: process.env.API_STATUS,
                 intro: "Blizzard API surface isiLive uses, live compared with the newer test clients (rule 262). Check every `removed` and `changed` row against the code that reads it; `extended` rows are compatible.",
+              },
+              {
+                key: "game-data",
+                title: "Patch Watch: game data",
+                file: "tools/cache/patch_watch/game-data.md",
+                status: process.env.DB2_STATUS,
+                intro: "Every ID isiLive ships in data/ checked against the newest client tables, and a draft of an unknown next Mythic+ season (rule 265). Draft rows are `candidate`: verify every ID before it becomes `verified`.",
               },
             ];
             for (const report of reports) {
@@ -149,7 +199,7 @@ jobs:
             }
 
       - name: Fail on unresolved input
-        if: steps.toc.outputs.status == '2' || steps.api.outputs.status == '2'
+        if: steps.toc.outputs.status == '2' || steps.api.outputs.status == '2' || steps.db2.outputs.status == '2'
         run: exit 1
 
       - name: Upload patch watch reports
