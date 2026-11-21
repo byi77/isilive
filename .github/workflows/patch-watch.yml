@@ -1,7 +1,9 @@
 name: Patch Watch
 
 # Rule 262: weekly early warning for the next WoW patch (user decision
-# 2026-11-20: Wednesday morning). Two reports, one issue each:
+# 2026-11-21: Wednesday 12:00 German time, i.e. 11:00 UTC = 12:00 CET / 13:00
+# CEST; patches usually go live in the EU around 06:00-07:00 and can run
+# late). Reports, one issue each:
 #   * TOC interface: every client build newer than live (PTR, xPTR, beta) needs
 #     its `## Interface` number in isiLive.toc before its patch day. The TOC
 #     itself is only changed on an explicit user order; the issue reminds.
@@ -12,7 +14,7 @@ name: Patch Watch
 
 on:
   schedule:
-    - cron: "0 5 * * 3"
+    - cron: "0 11 * * 3"
   workflow_dispatch:
 
 concurrency:

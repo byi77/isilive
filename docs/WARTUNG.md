@@ -110,7 +110,7 @@ Am Patch-Tag zuerst `/isilive selftest` ausfuehren (Regel 251): Es meldet je ben
 ist (`/isilive selftest all` listet auch alle bestandenen Pruefungen). Neue API-Flaechen eines Features in
 `ApiHealth.CHECKS` (`game/isiLive_api_health.lua`) nachtragen.
 
-Vor dem Patch-Tag warnt der Workflow `.github/workflows/patch-watch.yml` (Regel 262, mittwochs morgens):
+Vor dem Patch-Tag warnt der Workflow `.github/workflows/patch-watch.yml` (Regel 262, mittwochs 12 Uhr deutscher Zeit):
 Issue "Patch Watch: TOC interface", wenn die Interface-Nummer eines neueren Test-Clients in der TOC fehlt
 (eintragen nur auf ausdruecklichen Auftrag), und Issue "Patch Watch: API surface", wenn auf dem PTR eine
 genutzte Funktion, ein Event oder ein Enum-Wert entfernt oder inkompatibel geaendert wird. Jeden Fund gegen den

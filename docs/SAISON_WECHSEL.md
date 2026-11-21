@@ -55,7 +55,7 @@ Paket 2 (P0/P1):
 
 Paket 3 (P0/P1):
 - [x] D: Woechentlicher Workflow `.github/workflows/patch-watch.yml`
-  (User-Entscheidung 2026-11-20: mittwochs morgens, 05:00 UTC) prueft mit
+  (User-Entscheidung 2026-11-21: mittwochs 12 Uhr deutscher Zeit, 11:00 UTC) prueft mit
   `tools/check_toc_interface.lua`, ob die Interface-Nummer von Live und jedem
   neueren Test-Client (PTR, xPTR, Beta) in `isiLive.toc` steht; fehlt eine,
   oeffnet er das Issue "Patch Watch: TOC interface". Die TOC aendert er nie
