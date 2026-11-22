@@ -100,6 +100,11 @@ local function Prepare(meter)
           if meter.state == "pet-readable" then
             return InterruptSessionWithPet(meter.landed or LANDED, "Fixturepet")
           end
+          if meter.state == "pet-named-like-member" then
+            local interrupts = InterruptSessionWithPet(meter.landed or LANDED, "Peer4-Realm")
+            interrupts.combatSources[#interrupts.combatSources].sourceCreatureID = 417
+            return interrupts
+          end
           return InterruptSession(meter.landed or LANDED)
         end
         if meterType == 0 then
@@ -366,8 +371,7 @@ return function(test, ctx)
       Assert.Equal(own and own.cast, 37, "next to the cast count of the run")
       local peer = stats.GetPlayerLastRunKicks("Peer1", "Realm")
       Assert.Equal(peer and peer.landed, 23, "a member's landed kicks are filled")
-      local healer = stats.GetPlayerLastRunKicks("Peer4", "Realm")
-      Assert.Equal(healer and healer.landed, 0, "a member missing from the readable list landed none")
+      Assert.Nil(stats.GetPlayerLastRunKicks("Peer4", "Realm"), "the pet's kicks may be this member's: no 0")
       Assert.Equal(CountTrace(session, "late_kicks state=captured"), 1, "the fill is visible in the [STATS] trace")
       Assert.Equal(CountTrace(session, "run_kicks_fill trigger=restriction:4 kicks=read"), 1, "with its trigger")
       RenderRoster(session)
@@ -426,6 +430,22 @@ return function(test, ctx)
       Assert.Equal(CountTrace(session, "run_kicks_fill"), 0, "the new key's meter is never read for the old run")
       Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "the running key shows no run kicks")
     end, Prepare(meter))
+  end)
+
+  test("Run kicks give no zero while a pet kick has no known owner", function()
+    for _, state in ipairs({ "pet-readable", "pet-named-like-member" }) do
+      local meter = { state = state }
+      Stress.WithKey(ctx, Fixture, function(session)
+        local stats = session.runtime.statsController
+        KickTimes(session, 37)
+        CompleteKey(session)
+        local own = stats.GetPlayerLastRunKicks("Tester", "Realm")
+        Assert.Equal(own and own.landed, 32, state .. ": a listed member keeps the meter's count")
+        Assert.Nil(stats.GetPlayerLastRunKicks("Peer4", "Realm"), state .. ": an absent member is unknown, not 0")
+        RenderRoster(session)
+        Assert.False(HasCellText(session, "0"), state .. ": no cell shows a guessed 0")
+      end, Prepare(meter))
+    end
   end)
 
   test("Run kicks late read covers a key-end capture that met one masked Interrupts name", function()

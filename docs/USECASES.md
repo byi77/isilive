@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.551`
+Versionsbasis: `0.9.552`
 Zuletzt aktualisiert: `2026-11-22`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -645,6 +645,8 @@ Ziel: Der Spieler sieht im Key-Kampf, wie lange sein Ziel noch etwa lebt (Regel 
 ## UC-32 Defensiv-Spalte im laufenden Key
 
 Ziel: Der Spieler sieht im Key, welche Defensives und Externals der Gruppe bereit sind (Regeln 267 bis 269).
+
+Stand 2026-11-22: Ziel noch nicht erreicht. Eigene Cooldowns sind im Key secret (eigene Zelle leer), der Sync kann leer einfrieren, die Schaetzung erkennt Externals auf andere nicht, und die Fuellung zeigt wegen der 1/255-Rundung falsche Werte (bekannte Maengel in Regeln 267 und 268).
 
 1. Trigger: Keystart mit `defensiveTrackerEnabled`; Factory-Takt 1 s, eigene Casts, `DEF`-Sync der isiLive-Nutzer, Sensor-Takt 0,5 s mit `defensiveEstimateEnabled`, eigene Chat-Sperre, Keyende.
 2. Verarbeitung: eigener Stand vom Live-Client, Sync-Stand aus `DefensiveStore` (eingefroren waehrend der eigenen Chat-Sperre), fuer Mitspieler ohne Sync-Stand unsichtbare Aura-Container je Slot-Spell, deren secret Antwort ueber `C_CurveUtil.EvaluateColorValueFromBoolean` in die Fuellung der Zelle laeuft.

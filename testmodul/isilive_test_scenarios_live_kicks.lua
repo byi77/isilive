@@ -81,6 +81,18 @@ return function(test, ctx)
     end, Prepare())
   end)
 
+  test("Live kicks give no zero while a pet kick has no known owner", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local getKicks = session.runtime.statsController.GetPlayerLastRunKicks
+      EndPull(session)
+      Assert.Equal(getKicks("Peer2").landed, 0, "only members in the list: the 0 is proven")
+      session.interrupts = { { name = "Peer1", totalAmount = 3 }, { name = "Fixturepet", totalAmount = 1 } }
+      StartPull(session)
+      Assert.Equal(getKicks("Peer1").landed, 3, "a listed member keeps the meter's count")
+      Assert.Nil(getKicks("Peer2"), "with a pet kick an absent member is unknown, not 0")
+    end, Prepare())
+  end)
+
   test("Live kicks stay off when the setting is off", function()
     Stress.WithKey(ctx, FixtureWithSchema, function(session)
       EndPull(session)

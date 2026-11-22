@@ -26,12 +26,15 @@ addonTable = addonTable or {}
 --     or tests a sensor value: they are only assigned and handed on.
 --   * Display: a StatusBar with SetMinMaxValues(lo, hi) (secret-capable) and
 --     SetValue(1 - n(now)) (plain) fills with the remaining share of the
---     estimated cooldown. A secret countdown NUMBER is not possible: Lua
---     arithmetic on the latch is forbidden, and the client APIs that could
---     turn it into seconds (Curve:Evaluate, DurationObject setters,
---     Cooldown:SetCooldown) refuse secret arguments from addon code
---     (SecretArguments = AllowedWhenUntainted, wow-ui-source 12.1.5). The
---     cell therefore shows "~" plus this fill instead of "~<seconds>".
+--     estimated cooldown. There is no countdown NUMBER yet: Lua must not
+--     compute with the latch, and Curve:Evaluate, the DurationObject setters
+--     and Cooldown:SetCooldown refuse secret arguments from addon code. That
+--     does not rule a number out: a secret-driven StatusBar could move a
+--     clipped strip of prepared numbers (not built, not verified in game).
+--     Known defect: EvaluateColorValueFromBoolean takes and returns a color
+--     value, so it rounds to 1/255 (researched, not measured in game). One
+--     step of RANGE is then 339 s: in an offline replay the fill was empty or
+--     wrong. It needs another time encoding.
 --   * While the buff runs a visible AuraContainer in the cell slot shows it
 --     the Blizzard way: aura icon, Blizzard duration text, and a cool blue
 --     border whose alpha pulse (0.55 -> 1.0, 1.2 s) Blizzard plays when the

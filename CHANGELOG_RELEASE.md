@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.551`.
+Current version: `0.9.552`.
+
+Version 0.9.552: kick statistics fix. A player no longer shows a 0 when a
+pet kick without a known owner makes that 0 unproven. The known limits of
+the experimental defensives column are documented.
 
 Version 0.9.551: demo fixes at dungeon borders. Entering a dungeon from the
 demo now runs the complete entry logic (sync, entry notices, window), and
@@ -17,10 +21,9 @@ and missed kick speak a short line instead of their sound effect; on by
 default, and "Voice instead of effect" under each sound toggle brings the
 effect back. Aggro and missed-kick sounds stay off until you switch them on.
 New, experimental and off by default (Settings > Display > M+: Defensives
-column): while a key runs, the DPS column shows the defensives and externals
-of the group. isiLive users can share exact cooldowns, which freeze once the
-game blocks addon chat in the key; for other players isiLive can show an
-estimate, always marked "~" and without talent reductions. Demo action C14
+column): a column for the group's defensives in place of DPS during a key. It
+does not work reliably inside keys yet (the game hides the cooldowns there,
+estimates can be wrong), so leave it off for real runs. Demo action C14
 previews the column. Fixed: the kick column showed "-" after a key, the demo
 started from a hidden window showed only you, and entering a dungeon did not
 end the demo.
@@ -344,13 +347,9 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.551 -->
+<!-- highlights-reviewed-for: 0.9.552 -->
 
 Highlights:
-- **Defensives column (experimental, off by default).** While a key runs,
-  see the group's defensives and externals in place of DPS: exact cooldowns
-  from isiLive users, frozen during the in-key chat block, and an estimate
-  marked "~" for everyone else. Settings > Display > M+: Defensives column.
 - **Voice announcements in one voice.** English and German alerts share
   one calm male voice; lead transfer, group full, ready check, battle res
   used, Bloodlust, aggro and missed kick speak a short line instead of an
@@ -367,3 +366,6 @@ Highlights:
   isiLive checks itself once and tells you in chat only if something broke
   (details: /isilive selftest); a season it does not know yet no longer shows
   the previous season's portals.
+- **Defensives column (experimental preview, off by default).** A planned
+  column for the group's defensives during a key. It is not reliable inside
+  keys yet, so leave it off for real runs; demo action C14 previews it.

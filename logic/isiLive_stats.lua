@@ -212,10 +212,13 @@ end
 -- Landed interrupts per normalized player key from the Interrupts session of
 -- the same session type the DPS came from (rule 238). Returns nil -- no value
 -- for anybody -- when the type, the session or any source is missing, masked
--- or unreadable: only a fully readable list proves that a member who is not
--- in it landed no interrupt. A readable empty list is a run without any
--- landed interrupt.
-local function ReadLandedInterrupts(sessionType)
+-- or unreadable. The second value says whether the list proves a 0 for a
+-- member who is not in it: only when every kick in it belongs to a member of
+-- `memberKeys`. The meter lists a pet's kick under the pet (sourceCreatureID
+-- or just its name) and does not name the owner, so one such kick can be
+-- anybody's and nobody absent is taken for 0 (no guess). A readable empty
+-- list is a run without any landed interrupt.
+local function ReadLandedInterrupts(sessionType, memberKeys)
   local api = ResolveDamageMeterAPI()
   local interruptsType = ResolveInterruptsMeterType()
   if not api or not interruptsType or sessionType == nil then
@@ -231,6 +234,7 @@ local function ReadLandedInterrupts(sessionType)
   end
   local counts = {}
   local readable = true
+  local provesZero = true
   local okIterate = pcall(function()
     for _, source in ipairs(combatSources) do
       local name = ReadPlainString(source, "name")
@@ -240,13 +244,35 @@ local function ReadLandedInterrupts(sessionType)
         readable = false
         return
       end
-      counts[key] = (counts[key] or 0) + math.floor(amount + 0.5)
+      local landed = math.floor(amount + 0.5)
+      local creatureID = ReadPlainNumber(source, "sourceCreatureID")
+      local isCreature = creatureID ~= nil and creatureID > 0
+      local isMember = not isCreature and memberKeys[key] ~= nil
+      if landed > 0 and not isMember then
+        provesZero = false
+      end
+      if isMember then
+        counts[key] = (counts[key] or 0) + landed
+      end
     end
   end)
   if not okIterate or not readable then
     return nil
   end
-  return counts
+  return counts, provesZero
+end
+
+-- Landed kicks of one member: the meter's own count, 0 only when the list
+-- proves it (see ReadLandedInterrupts), otherwise unknown.
+local function ResolveLanded(counts, provesZero, key)
+  local landed = counts[key]
+  if landed and landed > 0 then
+    return landed
+  end
+  if provesZero then
+    return 0
+  end
+  return nil
 end
 
 -- Joins up to MAX_TRACED_KEYS keys into one sorted, comma-separated string.
@@ -338,13 +364,13 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, overa
 
   -- Landed kicks come from the same pass and the same session type, and only
   -- for members whose DPS was captured: a member of the run who is missing
-  -- from a fully readable Interrupts list landed none.
+  -- from the list landed none only when the list proves it.
   if next(snapshot) ~= nil then
-    local landed = ReadLandedInterrupts(sessionType)
+    local landed, provesZero = ReadLandedInterrupts(sessionType, rosterByKey)
     diagnostics.kicksState = landed and "read" or "unreadable"
     if landed then
       for key, entry in pairs(snapshot) do
-        entry.kicksLanded = landed[key] or 0
+        entry.kicksLanded = ResolveLanded(landed, provesZero, key)
       end
     end
   end
@@ -355,17 +381,18 @@ end
 -- Kicks-only read after a capture whose Interrupts list was not fully
 -- readable (rule 118, late kicks): the Overall Interrupts session -- the one
 -- the late capture reads -- fills kicksLanded into the captured entries only
--- when the whole list is readable; a member missing from it landed none. A
--- list that is still masked changes nothing (no partial values).
+-- when the whole list is readable; a member missing from it gets 0 only when
+-- the list proves it. A list that is still masked changes nothing (no partial
+-- values).
 -- @return boolean true when the snapshot was filled.
 local function FillLandedKicks(snapshot)
-  local landed = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL)
+  local landed, provesZero = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL, snapshot)
   if not landed then
     return false
   end
   for key, entry in pairs(snapshot) do
     if type(entry) == "table" then
-      entry.kicksLanded = landed[key] or 0
+      entry.kicksLanded = ResolveLanded(landed, provesZero, key)
     end
   end
   return true
@@ -393,6 +420,7 @@ function Stats.CreateController(opts)
   -- normalized player key from the Overall session (reset at the key start),
   -- read between pulls; nil until the first readable read of this key.
   local liveKicks = nil
+  local liveProvesZero = false
   -- True while the last captured run has DPS but no landed kicks because its
   -- Interrupts list was not fully readable. Only a kicks-only read
   -- (captureOpts.kicksOnly) fills that snapshot; the next capture or a run
@@ -592,7 +620,11 @@ function Stats.CreateController(opts)
       if not key or (type(db) == "table" and db.liveRunKicksEnabled == false) then
         return nil
       end
-      return { landed = liveKicks[key] or 0, live = true }
+      local landed = ResolveLanded(liveKicks, liveProvesZero, key)
+      if not landed then
+        return nil
+      end
+      return { landed = landed, live = true }
     end
     local info = GetPlayerLastRunInfo(name, realm)
     local landed = info and ReadCount(info.kicksLanded) or nil
@@ -674,9 +706,18 @@ function Stats.CreateController(opts)
     if not runKicksSuperseded then
       return false
     end
-    local counts = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL)
+    local memberKeys = {}
+    for _, info in pairs((getRoster and getRoster()) or {}) do
+      if type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
+        local key = NormalizeName(info.name, info.realm)
+        if key then
+          memberKeys[key] = true
+        end
+      end
+    end
+    local counts, provesZero = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL, memberKeys)
     if counts then
-      liveKicks = counts
+      liveKicks, liveProvesZero = counts, provesZero
     end
     return counts ~= nil
   end
