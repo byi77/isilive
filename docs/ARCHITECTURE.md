@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.550`
+Versionsbasis: `0.9.551`
 Zuletzt aktualisiert: `2026-11-22`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): KeySync akzeptiert keine Alias-Zuordnung allein wegen eines gemeinsamen Realms und weist mehrdeutige Owner-Hinweise zurueck. Group aktualisiert Party-Mitglieder auch im laufenden Key und erhaelt bestehende Mitgliedsdaten. Sync fuehrt pro Snapshot-Bucket Zeitstempel-Wasserstandsmarken auch nach Clears. Die Folgefindings aus Audit und Nachaudit sind im Code behoben, ungestempelte LibKS-Daten gelten in Empfangsreihenfolge, und die Raid-Rueckkehr im aktiven Key stellt die eigene Zeile wieder her. Ein Ingame-Nachweis steht aus.
@@ -451,7 +451,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.550                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.551                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -542,7 +542,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 - Combat-Fade liest den aktuellen `rosterLayoutMode`; das entfernte Legacy-Feld `defaultLayoutMode` gehoert nicht zur Runtime-Entscheidung.
 - Defensiv-Cooldowns (Regel 267, Stufe 1): `data/isiLive_defensives.lua` (Manifest) -> `game/isiLive_defensive_tracker.lua` (eigener Stand nur vom Live-Client, maskiert = weggelassen) -> `logic/isiLive_defensive_store.lua` (`DefensiveStore`, eigener und Sync-Stand je Spieler, Countdown ab Empfang, Einfrieren bei eigener Chat-Sperre, 60-s-Ablauf, Raid leer). `factory/isiLive_factory_defensives.lua` verdrahtet beides mit `Sync.SendDef` (Bucket `DEF`, strenger Parser `SyncCodec.ParseDefPayload`, nur Manifest-IDs), haengt am Ereignisstrom des Kick-Trackers und am Fan-out des eigenen Kick-Stands, laeuft nur mit `defensiveTrackerEnabled` im Profil `KEY` und sendet nur mit `defensiveSyncEnabled`. Die Anzeige (Stufe 2) liest ausschliesslich `DefensiveStore.GetForPlayer` und `DefensiveStore.OnChanged`.
 - Defensiv-Anzeige und Schaetzung (Regeln 268, 269, Stufe 2): `ui/isiLive_roster_defensive_cell.lua` (`RosterDefensiveCell`) ersetzt im laufenden Key aus dem Roster-Render die DPS-Spalte durch eine 70-px-Zelle (RIO 54 px, Kick unveraendert) und haengt den Defensiv-Block an den Zeilen-Tooltip; Quelle ist `DefensiveStore` (eigen, Sync, eingefroren) und fuer Mitspieler ohne Sync-Stand `game/isiLive_defensive_sensors.lua` (`DefensiveSensors`). Die Sensoren sind unsichtbare `CustomAuraContainerTemplate`-Container je Mitspieler und Slot-Spell; ihre secret Antwort (`IsMouseOver`) laeuft nur ueber `C_CurveUtil.EvaluateColorValueFromBoolean` in zwei Latch-Werte und von dort per `SetMinMaxValues`/`SetValue` in die Fuellung der Zelle, nie in Lua-Logik. Die sichtbaren Zellen-Container zeigen den laufenden Buff ueber Blizzards Aura-Button (Icon, `SetDurationText`, `AddAuraShownAnimation`). `factory/isiLive_factory_defensives.lua` richtet die Sensoren in jedem 1-s-Durchlauf ein (nur ausserhalb des Kampfs, Budget 56), malt die sichtbaren Zellen neu und stellt `addonTable.DefensiveRuntime.ApplySettings` fuer die drei Schalter in `ui/isiLive_settings_defensives.lua` bereit.
-- Defensiv-Demo (Regel 270): die Tablet-Aktion C14 in `factory/isiLive_factory_demo.lua` baut aus Dummy-Roster und Manifest eine Demo-Quelle und setzt sie per `RosterDefensiveCell.SetDemoProvider`; die Zelle liest dann nur diese, Store, Sync, Sensoren und Settings bleiben unberuehrt. `ClearDemoTimerData`, C5 und der Watcher-Frame der Demo (Keystart; Dungeon-Eintritt, den das Event-Gate im Testmodus zurueckhaelt) raeumen sie ab.
+- Defensiv-Demo (Regel 270): die Tablet-Aktion C14 in `factory/isiLive_factory_demo.lua` baut aus Dummy-Roster und Manifest eine Demo-Quelle und setzt sie per `RosterDefensiveCell.SetDemoProvider`; die Zelle liest dann nur diese, Store, Sync, Sensoren und Settings bleiben unberuehrt. `ClearDemoTimerData`, C5 der Watcher-Frame der Demo (Keystart) und der Dungeon-Ein- oder -Austritt (das Event-Gate laesst `PLAYER_ENTERING_WORLD` im Testmodus nur ausser Kampf in einer Party-Instanz oder beim Verlassen einer durch, der Handler beendet dann die Demo) raeumen sie ab.
 
 ## Architektur-Refactoring-Watchlist
 

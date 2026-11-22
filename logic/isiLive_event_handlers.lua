@@ -326,5 +326,11 @@ function EventHandlers.CreateController(opts)
     end
   end
 
+  --- Whether the last handled world entry was inside a party instance. The
+  -- event gate reads it to let a dungeon exit end the demo (rule 270).
+  function controller.WasInPartyInstance()
+    return ctx.wasInPartyInstance == true
+  end
+
   return controller
 end

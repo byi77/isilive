@@ -139,10 +139,11 @@ local PARTY_UNITS = { "player", "party1", "party2", "party3", "party4" }
 
 -- Declarative event registry: { event, combat, hidden, test [, unitFilter] }
 -- hidden = true (always allowed), "cond" (via callback), false (blocked)
+-- test = true (always allowed), "cond" (via callback), false (blocked)
 local EVENT_REGISTRY = {
   { "ADDON_LOADED", true, true, true },
   { "PLAYER_LOGIN", true, true, false },
-  { "PLAYER_ENTERING_WORLD", true, true, false },
+  { "PLAYER_ENTERING_WORLD", true, true, "cond" },
   { "UPDATE_BINDINGS", true, true, false },
   { "PLAYER_REGEN_ENABLED", true, true, true },
   { "PLAYER_REGEN_DISABLED", true, true, true },
@@ -251,7 +252,7 @@ local function BuildGateTables()
     if hidden == true then
       allowWhenHidden[event] = true
     end
-    if test then
+    if test == true then
       allowInTestMode[event] = true
     end
   end
@@ -292,6 +293,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
     allowInTestMode = allowInTestMode,
     shouldAllowInCombat = type(opts.shouldAllowInCombat) == "function" and opts.shouldAllowInCombat or nil,
     shouldAllowWhenHidden = type(opts.shouldAllowWhenHidden) == "function" and opts.shouldAllowWhenHidden or nil,
+    shouldAllowInTestMode = type(opts.shouldAllowInTestMode) == "function" and opts.shouldAllowInTestMode or nil,
   })
 end
 

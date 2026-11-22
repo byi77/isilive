@@ -48,6 +48,12 @@ function Events.CreateGate(config)
   local allowInTestMode = config.allowInTestMode or {
     ADDON_LOADED = true,
   }
+  -- shouldAllowInTestMode: admits single payloads or moments of an event the
+  -- test mode otherwise holds back (a dungeon entry has to end the demo).
+  local shouldAllowInTestMode = config.shouldAllowInTestMode
+    or function(_frame, _event, ...) -- luacheck: ignore 212
+      return false
+    end
   local onDispatchError = type(config.onDispatchError) == "function" and config.onDispatchError or nil
 
   -- The event gate sits in front of high-frequency combat events. Keep one
@@ -119,7 +125,7 @@ function Events.CreateGate(config)
     if isPaused() and event ~= "ADDON_LOADED" then
       return
     end
-    if isTestMode() and not allowInTestMode[event] then
+    if isTestMode() and not allowInTestMode[event] and not shouldAllowInTestMode(frame, event, ...) then
       return
     end
 

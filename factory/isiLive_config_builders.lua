@@ -34,6 +34,25 @@ local function SoundAlertGateException(_frame, event, ...)
   return IsLfgInviteStatus(event, ...) or IsRaidLeaderSoundEvent(event)
 end
 
+-- The test mode lets a world entry through only where its handler ends the
+-- demo first (rule 270): inside a dungeon or on the way out of one, and out
+-- of combat. The preview cannot exit in combat, and in the open world it
+-- stays, so everywhere else the handler would run on the dummy roster.
+local function BuildTestModeGateException(isInPartyInstance, wasInPartyInstance, isInCombat)
+  return function(_frame, event)
+    if event ~= "PLAYER_ENTERING_WORLD" then
+      return false
+    end
+    if type(isInPartyInstance) ~= "function" or type(isInCombat) ~= "function" then
+      return false
+    end
+    if isInCombat() then
+      return false
+    end
+    return isInPartyInstance() == true or (type(wasInPartyInstance) == "function" and wasInPartyInstance() == true)
+  end
+end
+
 function ConfigBuilders.BuildRefreshControllerOpts(ctx)
   return {
     isStopped = ctx.isStopped,
@@ -505,5 +524,6 @@ function ConfigBuilders.BuildGateOpts(ctx)
     -- hidden or the player is in combat.
     shouldAllowWhenHidden = SoundAlertGateException,
     shouldAllowInCombat = SoundAlertGateException,
+    shouldAllowInTestMode = BuildTestModeGateException(ctx.isInPartyInstance, ctx.wasInPartyInstance, ctx.isInCombat),
   }
 end

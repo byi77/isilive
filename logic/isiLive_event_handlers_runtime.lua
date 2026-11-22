@@ -651,10 +651,12 @@ end
 -- The per-handler early-outs stay in place as the correctness contract; this
 -- only removes the dispatch traffic that would reach them. Called from the two
 -- events that survive the hard-off, so the addon can always wake up again.
--- Entering a dungeon forces the demo off: the dummy roster must never stand
--- in for the real group inside the instance. The main frame stays open.
-local function ExitDemoOnDungeonEntry(ctx, inPartyInstance)
-  if inPartyInstance and (ctx.isTestMode() or ctx.isTestAllMode()) then
+-- Entering or leaving a dungeon forces the demo off: the dummy roster must
+-- never stand in for the real group inside the instance or on the way out of
+-- it. The main frame stays open.
+local function ExitDemoOnDungeonBoundary(ctx, inPartyInstance)
+  local atBoundary = inPartyInstance or ctx.wasInPartyInstance == true
+  if atBoundary and (ctx.isTestMode() or ctx.isTestAllMode()) then
     ctx.exitTestModeForCombat()
   end
   return inPartyInstance
@@ -1022,7 +1024,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
 
   local function HandlePlayerEnteringWorldEvent(_self)
     ApplyRaidEventSuppression(ctx)
-    local inPartyInstance = ExitDemoOnDungeonEntry(ctx, ctx.isInPartyInstance() == true)
+    local inPartyInstance = ExitDemoOnDungeonBoundary(ctx, ctx.isInPartyInstance() == true)
     local wasInPartyInstance = ctx.wasInPartyInstance
     if type(ctx.logRuntimeTracef) == "function" then
       ctx.logRuntimeTracef(

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 - Version 0.9.551 (patch)
+
+- Fix: entering a dungeon from the demo now runs the whole world-entry handler (rule 270). The event gate lets `PLAYER_ENTERING_WORLD` through in test mode only at dungeon borders (entering or leaving a party instance) and out of combat; the handler ends the demo first and then sends the snapshots, shows the entry notices and records the entry. Before, the demo's watcher frame ended the demo and that entry was skipped. Everywhere else the event stays held back during the demo.
+- Fix: leaving a dungeon ends a demo that was started inside it (rule 270). The gate also lets that world entry through (out of combat), so the exit cleanup runs and the next dungeon entry counts as new and opens the window again.
+
 ## 2026-11-22 - Version 0.9.550 (patch)
 
 - Diagnostics: probe mode (`/isilive probe on`, rule 239) tests Blizzard's aura container as a sensor for party members' defensive and external cooldowns, since their casts and auras are secret inside a key. P1: a small movable "isiLive Probe" frame shows, per party1-4, a container on a defensive/external aura ID list and, when the client accepts the filters, one each on `HELPFUL|EXTERNAL_DEFENSIVE` and `HELPFUL|BIG_DEFENSIVE`, for screenshots. P2: per party member an invisible sensor container is read with `IsMouseOver` after a party `UNIT_AURA` and every 0.5 s in combat; the answer goes through `C_CurveUtil.EvaluateColorValueFromBoolean` into a status bar, secret or not. P3: once per key, the probe calls `SetUnit`, `SetEnabled`, `Hide` and `Show` on a container in combat and logs failures and blocked calls. P4: `C_Secrets` answers for the ID list and Forbearance, outside a key and in it. P5: whether the cursor was readable and on screen at each sensor read. Frames are created out of combat only, never in a raid, and are hidden and disabled again with probe mode off; lines are budgeted like the other probes and every read is tallied (`event=ac_tally`). `/isilive probe report` adds one verdict line each for P1-P5 in all five languages.

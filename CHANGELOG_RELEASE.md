@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.550`.
+Current version: `0.9.551`.
+
+Version 0.9.551: demo fixes at dungeon borders. Entering a dungeon from the
+demo now runs the complete entry logic (sync, entry notices, window), and
+leaving a dungeon ends a demo that was started inside it, so the next entry
+counts as new again.
 
 Version 0.9.550: voice announcements in one voice, and a defensives column.
 The English alerts now use the same calm male voice as the German ones. Lead
@@ -339,7 +344,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.550 -->
+<!-- highlights-reviewed-for: 0.9.551 -->
 
 Highlights:
 - **Defensives column (experimental, off by default).** While a key runs,

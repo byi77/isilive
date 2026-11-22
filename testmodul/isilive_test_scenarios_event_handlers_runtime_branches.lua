@@ -189,6 +189,43 @@ local function RegisterPartyRoleSwitchTests(test, Assert, LoadHandlers)
   end)
 end
 
+local function RegisterDemoBoundaryTests(test, Assert, LoadHandlers)
+  test("PLAYER_ENTERING_WORLD forces the demo off on a dungeon entry or exit only", function()
+    local inDungeon = false
+    local demo = true
+    local combatExits, plainExits = 0, 0
+    local handlers = LoadHandlers({
+      isInPartyInstance = function()
+        return inDungeon
+      end,
+      isTestMode = function()
+        return demo
+      end,
+      exitTestMode = function()
+        plainExits = plainExits + 1
+      end,
+      exitTestModeForCombat = function()
+        combatExits = combatExits + 1
+        demo = false
+      end,
+    })
+    handlers.PLAYER_ENTERING_WORLD(nil)
+    Assert.Equal(combatExits, 0, "the open world must leave the demo running")
+    inDungeon = true
+    handlers.PLAYER_ENTERING_WORLD(nil)
+    handlers.PLAYER_ENTERING_WORLD(nil)
+    Assert.Equal(combatExits, 1, "entering a dungeon must end the demo once")
+    demo = true
+    inDungeon = false
+    handlers.PLAYER_ENTERING_WORLD(nil)
+    Assert.Equal(combatExits, 2, "leaving the dungeon must end the demo")
+    demo = true
+    handlers.PLAYER_ENTERING_WORLD(nil)
+    Assert.Equal(combatExits, 2, "a later loading screen in the open world must keep the demo")
+    Assert.Equal(plainExits, 0, "the dungeon exit must keep the main frame open")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -1165,33 +1202,7 @@ return function(test, ctx)
     Assert.Equal(stub.wasInPartyInstance, true, "wasInPartyInstance must be cached for next non-raid call")
   end)
 
-  test("PLAYER_ENTERING_WORLD forces the demo off inside a dungeon only", function()
-    local inDungeon = false
-    local demo = true
-    local combatExits, plainExits = 0, 0
-    local handlers = LoadHandlers({
-      isInPartyInstance = function()
-        return inDungeon
-      end,
-      isTestMode = function()
-        return demo
-      end,
-      exitTestMode = function()
-        plainExits = plainExits + 1
-      end,
-      exitTestModeForCombat = function()
-        combatExits = combatExits + 1
-        demo = false
-      end,
-    })
-    handlers.PLAYER_ENTERING_WORLD(nil)
-    Assert.Equal(combatExits, 0, "the open world must leave the demo running")
-    inDungeon = true
-    handlers.PLAYER_ENTERING_WORLD(nil)
-    handlers.PLAYER_ENTERING_WORLD(nil)
-    Assert.Equal(combatExits, 1, "entering a dungeon must end the demo once")
-    Assert.Equal(plainExits, 0, "the dungeon exit must keep the main frame open")
-  end)
+  RegisterDemoBoundaryTests(test, Assert, LoadHandlers)
 
   test("PLAYER_ENTERING_WORLD shows main frame on instance-entry transition", function()
     local visibilityCalls = {}

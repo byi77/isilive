@@ -892,9 +892,6 @@ local ClearDemoTimerData
 
 -- A real key start must never be hidden behind demo timer data that a tablet
 -- action left behind outside the test mode (the timer reports demo data first).
--- The same frame ends the preview on dungeon entry: the main event gate holds
--- PLAYER_ENTERING_WORLD back while the test mode runs, so the exit in its
--- handler cannot fire from there.
 local function EnsureDemoKeyStartWatcher(ctx)
   if ctx._demoKeyStartWatcher ~= nil then
     return
@@ -909,19 +906,7 @@ local function EnsureDemoKeyStartWatcher(ctx)
     return
   end
   addonTable.EventUtils.SafeRegisterEvent(watcher, "CHALLENGE_MODE_START")
-  addonTable.EventUtils.SafeRegisterEvent(watcher, "PLAYER_ENTERING_WORLD")
-  watcher:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_ENTERING_WORLD" then
-      if
-        FactoryDemo.IsPreviewModeActive(ctx)
-        and type(ctx.IsInPartyInstance) == "function"
-        and ctx.IsInPartyInstance() == true
-        and type(ctx.ExitTestModeForCombat) == "function"
-      then
-        ctx.ExitTestModeForCombat()
-      end
-      return
-    end
+  watcher:SetScript("OnEvent", function()
     -- A real key shows its own defensives, also while the preview still runs.
     ClearDemoDefensives(ctx)
     if ctx._demoTimerDataActive == true and not FactoryDemo.IsPreviewModeActive(ctx) then

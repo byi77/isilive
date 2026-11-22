@@ -568,6 +568,76 @@ local function RegisterLifecycleTests(test, ctx)
     end, Prepare())
   end)
 
+  test("Dungeon entry from the demo runs the whole world-entry handler", function()
+    Stress.WithParty(ctx, FixtureWithTablet, function(session)
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Slash(session, "testall")
+      Assert.True(IsDemo(session), "setup: demo in the open world")
+      session.Advance(2)
+      session.inDungeon = true
+      local sentBefore = #session.messages
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.False(IsDemo(session), "the gated dispatcher ends the demo")
+      local kickStates = 0
+      for index = sentBefore + 1, #session.messages do
+        if tostring(session.messages[index].payload):find("^KICK:") then
+          kickStates = kickStates + 1
+        end
+      end
+      Assert.True(kickStates >= 1, "the entry sends the own kick state")
+
+      -- Only a recorded entry keeps the next world entry in the same dungeon
+      -- from counting as a new one, which would open the window again.
+      session.runtime.SetMainFrameVisible(false)
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.False(session.runtime.mainFrame:IsShown(), "the entry from the demo was recorded")
+    end, Prepare({ grouped = true }))
+  end)
+
+  test("Demo lets no world entry through in the open world or in combat", function()
+    for _, case in ipairs({ { name = "open world" }, { name = "combat", dungeon = true, combat = true } }) do
+      Stress.WithParty(ctx, FixtureWithTablet, function(session)
+        Slash(session, "testall")
+        session.Advance(2)
+        session.inDungeon = case.dungeon
+        session.combat = case.combat
+        local roster = session.runtime.GetRoster()
+        local sentBefore = #session.messages
+        session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+        Assert.True(IsDemo(session), case.name .. ": the demo stays")
+        Assert.Equal(session.runtime.GetRoster(), roster, case.name .. ": the dummy roster stays")
+        Assert.Equal(#session.messages, sentBefore, case.name .. ": the handler does not run on demo data")
+      end, Prepare({ grouped = true }))
+    end
+  end)
+
+  test("Leaving a dungeon ends the demo and the next entry counts as new", function()
+    Stress.WithParty(ctx, FixtureWithTablet, function(session)
+      session.inDungeon = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Slash(session, "testall")
+      Assert.True(IsDemo(session), "setup: demo inside the dungeon")
+      session.inDungeon = false
+      session.combat = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.True(IsDemo(session), "an exit in combat stays held back")
+      session.combat = false
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.False(IsDemo(session), "leaving the dungeon ends the demo")
+      Assert.True(session.runtime.mainFrame:IsShown(), "the main window stays open")
+
+      Slash(session, "testall")
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.True(IsDemo(session), "the recorded exit leaves a later demo in the open world running")
+      session.runtime.ExitTestMode()
+
+      session.runtime.SetMainFrameVisible(false)
+      session.inDungeon = true
+      session.Dispatch("PLAYER_ENTERING_WORLD", false, false)
+      Assert.True(session.runtime.mainFrame:IsShown(), "the next entry opens the window again")
+    end, Prepare({ grouped = true }))
+  end)
+
   -- Boots like the client: SavedVariables are nil while the files run and
   -- come back before ADDON_LOADED.
   local function BootFromSavedVariables(saved, callback)

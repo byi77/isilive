@@ -201,6 +201,12 @@ local function BuildRuntimeSetupGateContext(ctx, runtimeState)
     isPaused = runtimeState.IsPaused,
     isTestMode = runtimeState.IsTestMode,
     isInCombat = ctx.IsInCombat,
+    isInPartyInstance = ctx.IsInPartyInstance,
+    -- Read at event time: the controller is created after this context.
+    wasInPartyInstance = function()
+      local controller = ctx.eventHandlersController
+      return controller ~= nil and controller.WasInPartyInstance() == true
+    end,
     isMainFrameShown = FI.IsMainFrameShownFn(ctx),
   }
 end
