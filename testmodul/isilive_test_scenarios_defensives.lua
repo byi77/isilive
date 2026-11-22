@@ -76,7 +76,7 @@ local FORMER_PROBE_AURAS = {
   184364,
 }
 
-local function Prepare(enabled, syncEnabled)
+local function Prepare(enabled)
   return function(globals, session)
     session.lockdown = false
     session.known = { [PAIN_SUPPRESSION] = true, [PW_BARRIER] = true, [DESPERATE_PRAYER] = true }
@@ -85,7 +85,6 @@ local function Prepare(enabled, syncEnabled)
     session.auras = {}
     session.secretCooldown = {}
     globals.IsiLiveDB.defensiveTrackerEnabled = enabled
-    globals.IsiLiveDB.defensiveSyncEnabled = syncEnabled
     globals.issecretvalue = function(value)
       return rawequal(value, SECRET)
     end
@@ -112,7 +111,14 @@ local function Prepare(enabled, syncEnabled)
     globals.C_Spell.GetSpellCooldown = function(spellID)
       local cooldown = session.cooldowns[spellID]
       if cooldown then
-        return { startTime = cooldown.start, duration = cooldown.duration, isEnabled = true, modRate = 1 }
+        return {
+          startTime = cooldown.start,
+          duration = cooldown.duration,
+          isEnabled = true,
+          isActive = cooldown.active,
+          isOnGCD = cooldown.onGCD,
+          modRate = 1,
+        }
       end
       return baseCooldown(spellID)
     end
@@ -298,6 +304,68 @@ local function RegisterCodecTests(test, ctx)
   end)
 end
 
+local function RegisterTalentTests(test, ctx)
+  local Assert = ctx.assert
+
+  -- COMPONENT-ONLY: the reader is a pure read of C_Traits; the inspect flow
+  -- that calls it has its own tests.
+  test("Defensive talents read the taken manifest talents and keep nothing unreadable", function()
+    local nodes = {
+      [1] = { entryIDs = { 11 }, activeRank = 1, activeEntry = { entryID = 11 } },
+      [2] = { entryIDs = { 21, 22 }, activeRank = 1, activeEntry = { entryID = 22 } },
+      [3] = { entryIDs = { 31 }, activeRank = 0 },
+    }
+    local spells = { [11] = PAIN_SUPPRESSION, [21] = DESPERATE_PRAYER, [22] = 1, [31] = PW_BARRIER }
+    local valid = true
+    ctx.with_globals({
+      issecretvalue = function(value)
+        return rawequal(value, SECRET)
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. unit
+      end,
+      C_Traits = {
+        HasValidInspectData = function()
+          return valid
+        end,
+        GetConfigInfo = function(configID)
+          return configID == -1 and { treeIDs = { 900 } } or nil
+        end,
+        GetTreeNodes = function()
+          return { 1, 2, 3 }
+        end,
+        GetNodeInfo = function(_, nodeID)
+          return nodes[nodeID]
+        end,
+        GetEntryInfo = function(_, entryID)
+          return { definitionID = entryID }
+        end,
+        GetDefinitionInfo = function(definitionID)
+          return { spellID = spells[definitionID] }
+        end,
+      },
+    }, function()
+      local addon = ctx.load_modules({
+        "isiLive_validation_helpers.lua",
+        "isiLive_defensives.lua",
+        "isiLive_defensive_talents.lua",
+      })
+      local talents = addon.DefensiveTalents
+      Assert.True(talents.CaptureInspect("guid-party1"), "a readable inspect is kept")
+      local taken = talents.GetTalents("party1")
+      Assert.True(taken[PAIN_SUPPRESSION] == true, "taken")
+      Assert.False(taken[DESPERATE_PRAYER], "the other choice of the node")
+      Assert.False(taken[PW_BARRIER], "no rank")
+      Assert.Nil(talents.GetTalents("party2"), "never inspected: unknown")
+      nodes[1].activeRank = SECRET
+      Assert.False(talents.CaptureInspect("guid-party2"), "a masked rank keeps nothing")
+      Assert.Nil(talents.GetTalents("party2"), "still unknown")
+      valid = false
+      Assert.False(talents.CaptureInspect("guid-party3"), "no valid inspect data")
+    end)
+  end)
+end
+
 local function RegisterSettingsTests(test, ctx)
   local Assert = ctx.assert
 
@@ -306,7 +374,6 @@ local function RegisterSettingsTests(test, ctx)
     local db = {}
     addon.DBSchema.Sanitize(db)
     Assert.Equal(db.defensiveTrackerEnabled, false, "schema default of the feature switch")
-    Assert.Equal(db.defensiveSyncEnabled, false, "schema default of the DEF sync")
 
     Stress.WithKey(ctx, Fixture, function(session)
       session.messages = {}
@@ -319,19 +386,17 @@ local function RegisterSettingsTests(test, ctx)
       Assert.Equal(store.GetForPlayer("tester-realm", session.now).source, "none", "no own state")
       Receive(session, "DEF:33206,1,0")
       Assert.Equal(PeerView(session).source, "none", "a peer DEF is not stored with the feature off")
-    end, Prepare(nil, nil))
+    end, Prepare(nil))
   end)
 
-  test("Defensive sync stays off while only the tracker is on", function()
+  test("Defensive sync follows the main switch", function()
     Stress.WithKey(ctx, Fixture, function(session)
       session.messages = {}
       session.Advance(20)
-      Assert.Equal(#DefMessages(session), 0, "the tracker alone sends nothing")
-      local store = session.addon.DefensiveStore
-      Assert.Equal(store.GetForPlayer(store.GetOwnKey(), session.now).source, "own", "the own state is tracked")
+      Assert.True(#DefMessages(session) > 0, "the one switch shares the own state")
       Receive(session, "DEF:33206,1,0")
-      Assert.Equal(PeerView(session).source, "none", "and a peer DEF is not taken")
-    end, Prepare(true, nil))
+      Assert.Equal(PeerView(session).source, "sync", "and takes a peer's")
+    end, Prepare(true))
   end)
 end
 
@@ -371,7 +436,7 @@ local function RegisterWireTests(test, ctx)
       Receive(session, payload, "Tester-Realm")
       local store = session.addon.DefensiveStore
       Assert.Equal(store.GetForPlayer(store.GetOwnKey(), session.now).source, "own", "the own echo is ignored")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive receiver drops broken, oversized and foreign payloads as a whole", function()
@@ -408,7 +473,7 @@ local function RegisterWireTests(test, ctx)
       local view = PeerView(session)
       Assert.Equal(view.source, "sync", "an empty list is a valid state")
       Assert.Equal(#view.entries, 0, "with no entries")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 end
 
@@ -431,7 +496,7 @@ local function RegisterLockdownTests(test, ctx)
       Assert.Equal(#DefMessages(session), 1, "the first tick after the lockdown sends the state")
       Assert.Equal(LastDefPayload(session), "DEF:19236,1,0;33206,0,149;62618,1,0", "the current state")
       Assert.Equal(CountPayload(session, "REQSYNC"), 1, "the thaw asks the peers for their state")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive store freezes peers in the own lockdown, shows their age and thaws with a REQSYNC", function()
@@ -459,7 +524,7 @@ local function RegisterLockdownTests(test, ctx)
       Assert.False(store.IsFrozen(), "thawed")
       Assert.Equal(CountPayload(session, "REQSYNC"), 1, "REQSYNC after the lockdown")
       Assert.Equal(PeerView(session).source, "none", "the old record is stale after the thaw (fail-closed)")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive peer records expire 60 s without a heartbeat", function()
@@ -471,7 +536,7 @@ local function RegisterLockdownTests(test, ctx)
       Assert.Equal(PeerView(session).source, "sync", "still valid after 59 s")
       session.Advance(2)
       Assert.Equal(PeerView(session).source, "none", "expired after 60 s without a message")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 end
 
@@ -491,7 +556,7 @@ local function RegisterContextTests(test, ctx)
       Assert.Equal(PeerView(session).source, "none", "the store answers none in a raid")
       session.raid = false
       Assert.Equal(PeerView(session).source, "none", "and kept nothing from before")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive tracker runs only in the KEY profile", function()
@@ -506,7 +571,7 @@ local function RegisterContextTests(test, ctx)
       local store = session.addon.DefensiveStore
       Assert.Equal(store.GetForPlayer("tester-realm", session.now).source, "none", "no own state either")
     end, function(globals, session)
-      Prepare(true, true)(globals, session)
+      Prepare(true)(globals, session)
       globals.GetInstanceInfo = function()
         return "Dornogal", "none", 0, "", 5, false, false, 2552
       end
@@ -548,7 +613,7 @@ local function RegisterOwnStateTests(test, ctx)
       Assert.Equal(prayer.remain, 79, "time to the next charge")
       -- Sent by the re-read 0.2 s after the cast (remain rounded up).
       Assert.Equal(LastDefPayload(session), "DEF:19236,1,80,1;33206,0,150;62618,2,178", "and that goes out")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive tracker leaves a spell out when the client masks its cooldown", function()
@@ -568,9 +633,106 @@ local function RegisterOwnStateTests(test, ctx)
       local store = session.addon.DefensiveStore
       local view = store.GetForPlayer(store.GetOwnKey(), session.now)
       Assert.Equal(view.source, "own", "the own state exists")
-      Assert.Equal(#view.entries, 0, "every masked spell is left out, nothing is guessed")
-      Assert.Equal(LastDefPayload(session), "DEF:-", "the wire carries no masked spell")
-    end, Prepare(true, true))
+      Assert.Equal(#view.entries, 0, "without the NeverSecret state every masked spell is left out")
+      Assert.True(LastDefPayload(session) ~= "DEF:-", "masked is not none: no empty list goes out")
+    end, Prepare(true))
+  end)
+end
+
+-- A key as logged on 2026-11-21: every cooldown number is masked, isActive,
+-- isEnabled and isOnGCD stay plain (NeverSecret).
+local function MaskAll(session, states)
+  for _, spellID in ipairs({ PAIN_SUPPRESSION, PW_BARRIER, DESPERATE_PRAYER }) do
+    local state = states[spellID] or {}
+    session.secretCooldown[spellID] = true
+    session.cooldowns[spellID] = { start = SECRET, duration = SECRET, active = state.active == true, onGCD = state.gcd }
+  end
+end
+
+local function RegisterMaskedCooldownTests(test, ctx)
+  local Assert = ctx.assert
+
+  test("Defensive tracker keeps ready and cooldown of a masked cooldown from the NeverSecret fields", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      MaskAll(session, { [PAIN_SUPPRESSION] = { active = true }, [PW_BARRIER] = { active = true, gcd = true } })
+      Cast(session, PAIN_SUPPRESSION)
+      session.Advance(2)
+      local store = session.addon.DefensiveStore
+      local view = store.GetForPlayer(store.GetOwnKey(), session.now)
+      Assert.Equal(#view.entries, 3, "no masked spell disappears")
+      local pain = FindEntry(view, PAIN_SUPPRESSION)
+      Assert.Equal(pain.state, "cd", "isActive is a cooldown")
+      Assert.True(pain.hidden == true, "without a number")
+      Assert.Equal(FindEntry(view, PW_BARRIER).state, "ready", "the global cooldown is no cooldown")
+      Assert.Equal(FindEntry(view, DESPERATE_PRAYER).state, "ready", "inactive is ready")
+      session.Advance(30)
+      view = store.GetForPlayer(store.GetOwnKey(), session.now)
+      Assert.Equal(FindEntry(view, PAIN_SUPPRESSION).state, "cd", "a hidden cooldown never runs out by itself")
+      session.cooldowns[PAIN_SUPPRESSION].active = false
+      session.Advance(2)
+      view = store.GetForPlayer(store.GetOwnKey(), session.now)
+      Assert.Equal(FindEntry(view, PAIN_SUPPRESSION).state, "ready", "the client ends it")
+    end, Prepare(true))
+  end)
+
+  test("Defensive sync never replaces a good state with a masked, empty or partial one", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      session.Advance(2)
+      session.messages = {}
+      -- Map 249: cooldowns still masked after the key, addon chat already open.
+      MaskAll(session, {})
+      Cast(session, PAIN_SUPPRESSION)
+      session.Advance(20)
+      Assert.Equal(#DefMessages(session), 0, "all masked: nothing goes out")
+      session.secretCooldown[PW_BARRIER] = nil
+      session.cooldowns[PW_BARRIER] = nil
+      session.Advance(20)
+      Assert.Equal(#DefMessages(session), 0, "partly masked: no shorter list")
+      session.secretCooldown, session.cooldowns = {}, {}
+      session.Advance(16)
+      Assert.Equal(LastDefPayload(session), "DEF:19236,1,0;33206,1,0;62618,1,0", "readable again: the full list")
+    end, Prepare(true))
+  end)
+
+  test("Defensive cell draws a masked own cooldown through the duration object", function()
+    local durationObject = {}
+    local applied = {}
+    local function PrepareWidgets(globals, session)
+      Prepare(true)(globals, session)
+      globals.C_Spell.GetSpellCooldownDuration = function(spellID, ignoreGCD)
+        session.askedDuration = { spellID, ignoreGCD }
+        return durationObject
+      end
+      local createFrame = globals.CreateFrame
+      globals.CreateFrame = function(frameType, ...)
+        local frame = createFrame(frameType, ...)
+        if frameType == "Cooldown" then
+          function frame:SetCooldownFromDurationObject(object)
+            applied[#applied + 1] = { frame = self, object = object }
+          end
+        end
+        return frame
+      end
+    end
+    Stress.WithKey(ctx, Fixture, function(session)
+      MaskAll(session, { [PAIN_SUPPRESSION] = { active = true } })
+      Cast(session, PAIN_SUPPRESSION)
+      session.Advance(2)
+      local cell = session.addon.RosterDefensiveCell
+      local row, parent = {}, session.globals.CreateFrame("Frame")
+      cell.ApplyRow(row, { name = "Tester", realm = "Realm" }, parent, 1, session.now)
+      local slot = row.defCell.slots[1]
+      Assert.Equal(slot.state, "cd", "the own slot shows the cooldown")
+      Assert.Equal(applied[#applied].object, durationObject, "Blizzard gets the duration object untouched")
+      Assert.Equal(session.askedDuration[1], PAIN_SUPPRESSION, "for this spell")
+      Assert.True(session.askedDuration[2] == true, "without the global cooldown")
+      Assert.True(slot.countdown:IsShown(), "the countdown shows")
+      session.cooldowns[PAIN_SUPPRESSION].active = false
+      session.Advance(2)
+      cell.ApplyRow(row, { name = "Tester", realm = "Realm" }, parent, 1, session.now)
+      Assert.Equal(slot.state, "ready", "ready again")
+      Assert.False(slot.countdown:IsShown(), "and the countdown is gone")
+    end, PrepareWidgets)
   end)
 end
 
@@ -625,7 +787,7 @@ local function RegisterOwnStateFallbackTests(test, ctx)
 
       durations[PAIN_SUPPRESSION], durations[PW_BARRIER], durations[DESPERATE_PRAYER] = nil, nil, nil
       Assert.Equal(#Reread(session).entries, 0, "no duration object, no state")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive tracker reads empty charges as cooldown and drops states without a known remain", function()
@@ -663,13 +825,13 @@ local function RegisterOwnStateFallbackTests(test, ctx)
         error("client refused")
       end
       Assert.Equal(#Reread(session).entries, 0, "a failing cooldown read leaves the spell out")
-    end, Prepare(true, true))
+    end, Prepare(true))
   end)
 
   test("Defensive tracker fails closed when the client cannot answer class, spellbook or secrecy", function()
     local function PrepareWith(change)
       return function(globals, session)
-        Prepare(true, true)(globals, session)
+        Prepare(true)(globals, session)
         change(globals)
       end
     end
@@ -741,4 +903,6 @@ return function(test, ctx)
   RegisterContextTests(test, ctx)
   RegisterOwnStateTests(test, ctx)
   RegisterOwnStateFallbackTests(test, ctx)
+  RegisterMaskedCooldownTests(test, ctx)
+  RegisterTalentTests(test, ctx)
 end

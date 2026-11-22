@@ -42,6 +42,8 @@ return {
   },
   run = function(sim)
     sim.Login()
+    -- The one-time What's new card (rule 256) is not part of this scenario.
+    sim.Env().IsiLiveDB.whatsNewSeen = "voice_announcements"
     local addon = sim.Client().addonTable
     sim.Slash("/il show")
     sim.Wait(2)

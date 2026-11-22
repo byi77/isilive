@@ -1814,6 +1814,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
         and previewWorkflow:find('state: "closed"', 1, true) ~= nil,
       "MDT preview workflow must close its Forces issue once the runtime DB already serves the season"
     )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      [[sed -n 's/^ *season = "]],
+      "MDT preview workflow must read the indented season sections of the Forces DB"
+    )
     AssertNotContains(Assert, previewWorkflow, "midnight_s", "MDT preview workflow must not hard-code a season id")
     AssertNotContains(Assert, previewWorkflow, "git commit", "MDT preview workflow must not commit data")
     AssertNotContains(Assert, previewWorkflow, "git push", "MDT preview workflow must not push data")
@@ -2518,7 +2524,32 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
   end)
 end
 
+local function RegisterBackdropPresetTests(test, ctx)
+  local Assert = ctx.assert
+
+  test("Every backdrop preset a frame asks for exists", function()
+    local addon = ctx.load_modules({ "isiLive_ui_common.lua" })
+    local toc = assert(io.open("isiLive.toc", "r"))
+    local used = 0
+    for line in toc:lines() do
+      local path = line:match("^([%w_/]+%.lua)")
+      local file = path and io.open(path, "r") or nil
+      if file then
+        local source = file:read("*a")
+        file:close()
+        for preset in source:gmatch('ApplyBackdrop%([^,()]+,%s*"([%u_]+)"') do
+          used = used + 1
+          Assert.NotNil(addon.UICommon.BACKDROP_PRESETS[preset], path .. " asks for the preset " .. preset)
+        end
+      end
+    end
+    toc:close()
+    Assert.True(used > 10, "the scan sees the callers")
+  end)
+end
+
 return function(test, ctx)
+  RegisterBackdropPresetTests(test, ctx)
   test("Rule validator rejects overview entries without detail blocks", function()
     local lines = {
       "## Regeluebersicht",

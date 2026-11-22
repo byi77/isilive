@@ -46,9 +46,12 @@ local DB_SCHEMA_FILE = "core/isiLive_db_schema.lua"
 local SOUND_REGISTRY_FILE = "core/isiLive_sound_registry.lua"
 local SOUND_SETTINGS_FILE = "ui/isiLive_settings_sound.lua"
 local VOICE_SETTINGS_FILE = "ui/isiLive_settings_sound_voice.lua"
+local SETTINGS_SECTIONS_FILE = "ui/isiLive_settings_sections.lua"
 -- Generic writers of the sound settings panel (registry-driven keys).
 local GENERIC_SOUND_WRITE = "db%[settingKey%]%s*=%s*checked"
 local GENERIC_VOICE_WRITE = "db%[voice%.settingKey%]%s*=%s*checked"
+-- Voice rows outside the sound list (aggro, missed kick in the display section).
+local DISPLAY_VOICE_ROW = 'CreateDisplayVoiceCheckbox%%([^)]-"%s"%%)'
 
 -- Settings that are deliberately exempt (e.g. computed booleans that derive
 -- their value from a string-mode selector and use Pattern C migration).
@@ -320,6 +323,7 @@ local function collectRegistrySettings()
     keys[#keys + 1] = key
   end
   table.sort(keys)
+  local sections = readFile(SETTINGS_SECTIONS_FILE)
   local list = {}
   for _, key in ipairs(keys) do
     local entry = registryData.Registry[key]
@@ -337,7 +341,8 @@ local function collectRegistrySettings()
         name = voice.settingKey,
         defaultOn = voice.defaultEnabled ~= false,
         source = key .. ".voice",
-        generic = "voice",
+        generic = (inOrder[key] or sections:find(DISPLAY_VOICE_ROW:format(key)) ~= nil) and "voice"
+          or "voice_without_row",
       }
     end
   end
@@ -381,6 +386,9 @@ local function auditRegistrySettings(files, settingsSourceFiles, literalWrites, 
         tostring(schemaDefaults[item.name]),
         tostring(item.defaultOn)
       )
+    end
+    if item.generic == "voice_without_row" then
+      problems[#problems + 1] = "voice option without a settings row (CreateVoiceCheckbox)"
     end
     local written = (item.generic and hasGeneric[item.generic])
       or literalWrites[item.name]

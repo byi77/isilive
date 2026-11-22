@@ -11,10 +11,12 @@ addonTable._FactoryInternal = FI
 --   * runs only with `defensiveTrackerEnabled` (Pattern B), in the KEY
 --     profile (rule 109) and never in a raid (rule 11); otherwise the ticker
 --     stops and the store is emptied
---   * DEF goes out only with `defensiveSyncEnabled` (Pattern B) as well:
+--   * DEF follows the same switch (user 2026-11-22, one switch):
 --     event-driven (own cast, cooldown events) and on a 1 s tick that carries
---     the 15 s heartbeat; Sync.SendDef owns the gate, dedupe and lockdown flag
---   * own addon chat locked down (a key from the first pull on): the store
+--     the 15 s heartbeat; Sync.SendDef owns the gate, dedupe and lockdown flag.
+--     Only a complete list goes out: masked cooldowns never become DEF:- or
+--     a shorter list at the peers
+--   * own addon chat locked down (a key from its start on): the store
 --     freezes the peer records; when it lifts the store thaws and a REQSYNC
 --     asks the peers for their current state
 -- The kick tracker's event stream (UNIT_SPELLCAST_SUCCEEDED player/pet, the
@@ -23,10 +25,10 @@ addonTable._FactoryInternal = FI
 -- event is registered here (rule 258).
 --
 -- Stage 2 (rules 268, 269):
---   * estimate: with `defensiveEstimateEnabled` (Pattern B) and a client that
+--   * estimate: follows the same switch; with a client that
 --     offers the sensor chain (DefensiveSensors.IsSupported), every pass
---     points the sensors at party1..4 members without an isiLive state
---     (store source ~= "sync"); built and re-filtered out of combat only,
+--     points the sensors at party1..4 (isiLive users with their synced
+--     spell list); built and re-filtered out of combat only,
 --     torn down with the feature, the profile, a raid or a group change
 --   * cell: every pass repaints the visible defensives cells; a phase change
 --     (key start / end, switch) asks for one full roster render instead.
@@ -43,21 +45,24 @@ local function IsTrackerEnabled()
   return db ~= nil and db.defensiveTrackerEnabled == true
 end
 
-local function IsDefSyncEnabled()
-  local db = ReadDB()
-  return db ~= nil and db.defensiveSyncEnabled == true
-end
-
-local function IsEstimateEnabled()
-  local db = ReadDB()
-  return db ~= nil and db.defensiveEstimateEnabled == true
-end
-
 local PARTY_UNITS = { "party1", "party2", "party3", "party4" }
 
 local function Sensors()
   local sensors = addonTable.DefensiveSensors
   return type(sensors) == "table" and type(sensors.Configure) == "function" and sensors or nil
+end
+
+-- An empty party slot is no possible caster; an unreadable one is.
+local function MayExist(unit)
+  local fn = rawget(_G, "UnitExists")
+  if type(fn) ~= "function" then
+    return true
+  end
+  local ok, exists = pcall(fn, unit)
+  if not ok or addonTable.Validators.IsSecretValue(exists) then
+    return true
+  end
+  return exists == true
 end
 
 local function IsKeyProfile()
@@ -109,7 +114,7 @@ local function InitializeFactoryDefensives(
 
   -- Peers are accepted only while this client would send as well.
   store.SetPeerGate(function()
-    return IsContextActive() and IsDefSyncEnabled()
+    return IsContextActive()
   end)
 
   local function RefreshOwnKey()
@@ -131,8 +136,9 @@ local function InitializeFactoryDefensives(
     ticker = nil
   end
 
-  -- Party members without an isiLive state, for the estimate sensors. A
-  -- member whose name reads masked right now keeps its previous sensors.
+  -- Every party member for the estimate sensors. An isiLive user brings the
+  -- synced spell list and, while the sync is live, its cooldowns. A member
+  -- whose name reads masked right now keeps its previous sensors.
   local function BuildEstimateMembers(now)
     local units = addonTable.Units
     local sync = modules.sync
@@ -143,18 +149,33 @@ local function InitializeFactoryDefensives(
     for _, unit in ipairs(PARTY_UNITS) do
       local name, realm, realmMasked = units.GetUnitNameAndRealm(unit)
       if name == nil or realmMasked == true then
-        members[#members + 1] = { unit = unit, keep = true }
+        if MayExist(unit) then
+          members[#members + 1] = { unit = unit, keep = true }
+        end
       else
         local playerKey = sync.NormalizePlayerKey(name, realm)
-        if store.GetForPlayer(playerKey, now).source ~= "sync" then
-          local _, classToken = units.GetUnitClass(unit)
-          members[#members + 1] = {
-            unit = unit,
-            playerKey = playerKey,
-            classToken = classToken,
-            specID = type(units.GetInspectSpecID) == "function" and units.GetInspectSpecID(unit) or nil,
-          }
+        local _, classToken = units.GetUnitClass(unit)
+        local talents = addonTable.DefensiveTalents
+        local member = {
+          unit = unit,
+          talents = type(talents) == "table" and talents.GetTalents(unit) or nil,
+          playerKey = playerKey,
+          classToken = classToken,
+          specID = type(units.GetInspectSpecID) == "function" and units.GetInspectSpecID(unit) or nil,
+        }
+        local view = store.GetForPlayer(playerKey, now)
+        if view.source == "sync" then
+          member.knownSpells = {}
+          member.readyIn = view.frozenAt == nil and {} or nil
+          for _, entry in ipairs(view.entries) do
+            member.knownSpells[#member.knownSpells + 1] = entry.spellID
+            if member.readyIn then
+              -- With a charge left the spell is ready; remain is only the recharge.
+              member.readyIn[entry.spellID] = entry.state == "ready" and 0 or entry.remain
+            end
+          end
         end
+        members[#members + 1] = member
       end
     end
     return members
@@ -165,12 +186,21 @@ local function InitializeFactoryDefensives(
     if not sensors then
       return
     end
-    if not IsEstimateEnabled() or not sensors.IsSupported() then
+    if not sensors.IsSupported() then
       sensors.Suspend()
       return
     end
     sensors.SetClock(getTime)
-    sensors.Configure(BuildEstimateMembers(now))
+    -- An unresolved own spellbook is a possible caster, not a "cannot cast".
+    local player = {}
+    local known = tracker.GetKnownSpellIDs()
+    if #known > 0 then
+      player.knownSpells = known
+    elseif type(addonTable.Units) == "table" then
+      local _, classToken = addonTable.Units.GetUnitClass("player")
+      player.classToken = classToken
+    end
+    sensors.Configure(BuildEstimateMembers(now), player)
   end
 
   -- Visible cells follow the store and the sensors every pass; a phase
@@ -208,7 +238,7 @@ local function InitializeFactoryDefensives(
       store.Thaw()
       forceNextSend = true
       local sync = modules.sync
-      if IsDefSyncEnabled() and type(sync) == "table" and type(sync.SendRefreshRequest) == "function" then
+      if IsTrackerEnabled() and type(sync) == "table" and type(sync.SendRefreshRequest) == "function" then
         sync.SendRefreshRequest({ force = true })
       end
     end
@@ -216,7 +246,7 @@ local function InitializeFactoryDefensives(
 
   local function SendOwnState(entries, force)
     local sync = modules.sync
-    if not IsDefSyncEnabled() or type(IsGroupSyncActive) ~= "function" or IsGroupSyncActive() ~= true then
+    if type(IsGroupSyncActive) ~= "function" or IsGroupSyncActive() ~= true then
       return false
     end
     if type(sync) ~= "table" or type(sync.SendDef) ~= "function" then
@@ -237,11 +267,15 @@ local function InitializeFactoryDefensives(
       return false
     end
     local now = Now()
-    local entries = tracker.ReadEntries(now)
+    local entries, complete = tracker.ReadEntries(now)
     store.SetOwn(entries, now)
     ApplyChatLockdown(now)
     store.Prune(now)
-    SendOwnState(entries, force)
+    if complete then
+      SendOwnState(entries, force)
+    elseif force == true then
+      forceNextSend = true
+    end
     UpdateEstimate(now)
     RefreshCells(now)
     return true

@@ -365,7 +365,7 @@ function SimulationTablet.CreateController(opts)
     frame:SetClampRectInsets(0, 0, 0, 0)
   end
   if type(ApplyBackdrop) == "function" then
-    ApplyBackdrop(frame, "PANEL")
+    ApplyBackdrop(frame, "CARD_STACK")
   elseif type(frame.SetBackdrop) == "function" then
     frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     frame:SetBackdropColor(0.02, 0.02, 0.02, 0.94)
@@ -377,7 +377,7 @@ function SimulationTablet.CreateController(opts)
 
   local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   subtitle:SetPoint("TOPLEFT", frame, "TOPLEFT", FRAME_PADDING, -29)
-  subtitle:SetPoint("RIGHT", frame, "RIGHT", -100, 0)
+  subtitle:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -100, -29)
   subtitle:SetJustifyH("LEFT")
   if type(subtitle.SetTextColor) == "function" then
     subtitle:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.BLUE_VERSION_TEXT) or { 0.55, 0.75, 1.0 }))
@@ -465,7 +465,7 @@ function SimulationTablet.CreateController(opts)
 
   local statusLine = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   statusLine:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", FRAME_PADDING, 10)
-  statusLine:SetPoint("RIGHT", frame, "RIGHT", -FRAME_PADDING, 0)
+  statusLine:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -FRAME_PADDING, 10)
   statusLine:SetJustifyH("LEFT")
   controller.statusLine = statusLine
 

@@ -1886,6 +1886,15 @@ local function DefineLayoutAndSnapshot(engine, M)
     local bottom, h = Axis(ys, ih)
     local rect = nil
     if left and bottom then
+      -- The client keeps clamped frames and tooltips on the screen.
+      if obj._clamped or obj._type == "GameTooltip" then
+        if w <= screenW then
+          left = math.max(0, math.min(screenW - w, left))
+        end
+        if h <= screenH then
+          bottom = math.max(0, math.min(screenH - h, bottom))
+        end
+      end
       rect = { left = left, bottom = bottom, w = w, h = h }
     end
     if resolveCache then

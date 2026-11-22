@@ -13,9 +13,14 @@ addonTable = addonTable or {}
 --   ready      bright icon, no text                         (own / sync)
 --   cooldown   grey icon, seconds, "Xm" from 100 s on         (own / sync)
 --   active     cool blue border with an alpha pulse, seconds  (own / sync)
+--   hidden     own cooldown the client masks (every key): the same looks,
+--              the seconds are Blizzard's countdown of the duration object
 --   frozen     isiLive sync while the own addon chat is locked down: dimmed
 --              icon and a clock glyph instead of seconds
---   estimated  members without an isiLive state (rule 268): "~", the
+--   unclear    estimate with several possible casters or unknown talent:
+--              "?", no fill
+--   estimated  members in the key (rule 268; isiLive users once their sync
+--              is locked): "~", the
 --              remaining estimated cooldown as a dark fill over the icon and,
 --              while the buff runs, Blizzard's own aura icon with its
 --              duration and the pulsing blue border
@@ -60,6 +65,12 @@ local CLOCK_TEXTURE = MEDIA .. "defensive_clock"
 local BORDER_TEXTURE = MEDIA .. "defensive_border"
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 local ESTIMATE_MARK = "~"
+local AMBIGUOUS_MARK = "?"
+-- Number strip: "~" stays, the digits right of it are a clipped column.
+local STRIP_X = 7
+local STRIP_WIDTH = 13
+local STRIP_ROW = ICON_SIZE
+local BYTE_STEPS = 255
 
 local COLORS = {
   cdText = { 0.92, 0.92, 0.92, 1 },
@@ -117,11 +128,6 @@ function RosterDefensiveCell.IsActive()
     return false
   end
   return CallRuntime("IsActiveChallenge") and not CallRuntime("IsRaidContext")
-end
-
-local function IsEstimateEnabled()
-  local db = ReadDB()
-  return db ~= nil and db.defensiveEstimateEnabled == true
 end
 
 local function Now()
@@ -229,20 +235,25 @@ function RosterDefensiveCell.ResolvePlayer(playerKey, now)
     return { mode = "none", entries = {} }
   end
   local view = store.GetForPlayer(playerKey, now)
-  if view.source == "own" or view.source == "sync" then
-    return {
-      mode = view.source,
-      frozen = view.frozenAt ~= nil,
-      ageSeconds = view.ageSeconds,
-      entries = view.entries,
-    }
+  local frozen = view.frozenAt ~= nil
+  local exact = {
+    mode = view.source,
+    frozen = frozen,
+    ageSeconds = view.ageSeconds,
+    entries = view.entries,
+  }
+  if view.source == "own" or (view.source == "sync" and not frozen) then
+    return exact
   end
   local sensors = Sensors()
-  if IsEstimateEnabled() and sensors and type(sensors.GetEstimate) == "function" then
+  if sensors and type(sensors.GetEstimate) == "function" then
     local estimate = sensors.GetEstimate(playerKey)
     if #estimate > 0 then
       return { mode = "estimate", entries = estimate }
     end
+  end
+  if view.source == "sync" then
+    return exact
   end
   return { mode = "none", entries = {} }
 end
@@ -319,6 +330,139 @@ local function CreateSlot(cell, index)
   return slot
 end
 
+-- "~seconds" of an estimate (variant A). Lua does not know the number: an
+-- invisible StatusBar from -1/255 to 1 fills (code + 1) rows for the (maybe
+-- secret) byte, a column of prepared numbers hangs on the top edge of that
+-- fill, and a clip frame lets one row show. Only the plain "now" moves the
+-- bar. A run out estimate has no row in the window, so only "~" is left.
+local function CreateStrip(slot)
+  local clip = CreateFrame("Frame", nil, slot)
+  if type(clip.SetClipsChildren) ~= "function" then
+    clip:Hide()
+    return nil
+  end
+  clip:SetClipsChildren(true)
+  clip:SetSize(STRIP_WIDTH, STRIP_ROW)
+  clip:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + TEXT_OFFSET + STRIP_X, -1)
+
+  local bar = CreateFrame("StatusBar", nil, clip)
+  bar:SetSize(STRIP_WIDTH, (BYTE_STEPS + 1) * STRIP_ROW)
+  bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+  bar:SetStatusBarColor(0, 0, 0, 0)
+  if type(bar.SetOrientation) ~= "function" or type(bar.GetStatusBarTexture) ~= "function" then
+    clip:Hide()
+    return nil
+  end
+  bar:SetOrientation("VERTICAL")
+  bar:SetMinMaxValues(-1 / BYTE_STEPS, 1)
+  local edge = bar:GetStatusBarTexture()
+  if edge == nil then
+    clip:Hide()
+    return nil
+  end
+  local column = CreateFrame("Frame", nil, bar)
+  column:SetSize(STRIP_WIDTH, STRIP_ROW)
+  column:SetPoint("TOPLEFT", edge, "TOPLEFT", 0, 0)
+
+  local strip = { clip = clip, bar = bar, labels = {} }
+
+  function strip:Relabel(steps, stepSeconds)
+    if self.steps == steps and self.stepSeconds == stepSeconds then
+      return
+    end
+    self.steps, self.stepSeconds = steps, stepSeconds
+    for left = 1, math.max(steps, #self.labels) do
+      local label = self.labels[left]
+      if not label then
+        label = column:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetSize(STRIP_WIDTH, STRIP_ROW)
+        label:SetPoint("TOPLEFT", column, "TOPLEFT", 0, -left * STRIP_ROW)
+        label:SetJustifyH("LEFT")
+        if type(label.SetWordWrap) == "function" then
+          label:SetWordWrap(false)
+        end
+        SetColor(label, "SetTextColor", COLORS.estimateText)
+        self.labels[left] = label
+      end
+      label:SetText(left <= steps and RosterDefensiveCell.FormatShort(left * stepSeconds) or "")
+    end
+  end
+
+  -- The row `left` of byte code c shows for c = nowStep + 1 - steps + left.
+  function strip:Paint(value, nowStep, steps, stepSeconds)
+    self:Relabel(steps, stepSeconds)
+    self.bar:ClearAllPoints()
+    self.barOffset = -(nowStep + 2 - steps) * STRIP_ROW
+    self.bar:SetPoint("BOTTOMLEFT", self.clip, "TOPLEFT", 0, self.barOffset)
+    self.bar:SetValue(value)
+    self.clip:Show()
+  end
+
+  function strip:Clear()
+    self.clip:Hide()
+  end
+
+  strip:Clear()
+  return strip
+end
+
+local function EnsureStrip(slot)
+  if slot.strip == nil then
+    slot.strip = CreateStrip(slot) or false
+  end
+  return slot.strip or nil
+end
+
+-- Countdown of a masked own cooldown: only Blizzard's numbers, no swipe.
+local function EnsureCountdown(slot)
+  if slot.countdown then
+    return slot.countdown
+  end
+  local countdown = CreateFrame("Cooldown", nil, slot, "CooldownFrameTemplate")
+  countdown:SetSize(TEXT_WIDTH, ICON_SIZE)
+  countdown:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + TEXT_OFFSET, -1)
+  local setup = {
+    { "EnableMouse", false },
+    { "SetDrawSwipe", false },
+    { "SetDrawEdge", false },
+    { "SetDrawBling", false },
+    { "SetHideCountdownNumbers", false },
+    { "SetCountdownFont", "GameFontHighlightSmall" },
+  }
+  for _, step in ipairs(setup) do
+    if type(countdown[step[1]]) == "function" then
+      countdown[step[1]](countdown, step[2])
+    end
+  end
+  countdown:Hide()
+  slot.countdown = countdown
+  return countdown
+end
+
+-- Hands the duration object (maybe with secret values) to the countdown; Lua
+-- never reads it. Without the object or the setter the slot has no number.
+local function ShowHiddenCountdown(slot, spellID)
+  local spellApi = rawget(_G, "C_Spell")
+  local getDuration = type(spellApi) == "table" and spellApi.GetSpellCooldownDuration or nil
+  if type(getDuration) ~= "function" then
+    return false
+  end
+  local okRead, duration = pcall(getDuration, spellID, true)
+  if not okRead or IsSecretValue(duration) or duration == nil then
+    return false
+  end
+  local countdown = EnsureCountdown(slot)
+  if type(countdown.SetCooldownFromDurationObject) ~= "function" then
+    return false
+  end
+  if not pcall(countdown.SetCooldownFromDurationObject, countdown, duration) then
+    countdown:Hide()
+    return false
+  end
+  countdown:Show()
+  return true
+end
+
 local function EnsureCell(row, mainFrame)
   if row.defCell then
     return row.defCell
@@ -339,11 +483,14 @@ end
 -- Clears a slot before the next state is applied. A running pulse and an
 -- attached estimate stay when the next state keeps them, so the 1 s repaint
 -- neither restarts the animation nor re-enables the container.
-local function ResetSlot(slot, nextState)
+local function ResetSlot(slot, nextState, keepCountdown)
   slot.icon:SetDesaturated(false)
   slot.icon:SetAlpha(1)
   slot.text:SetText("")
   slot.clock:Hide()
+  if slot.countdown and not keepCountdown then
+    slot.countdown:Hide()
+  end
   if nextState ~= "active" then
     slot.border:Hide()
     if slot.pulse then
@@ -353,6 +500,9 @@ local function ResetSlot(slot, nextState)
   slot.state = nil
   if nextState ~= "estimate" then
     slot.estimateBar:Hide()
+    if slot.strip then
+      slot.strip:Clear()
+    end
     local sensors = Sensors()
     if sensors then
       sensors.BindBar(slot.estimateBar, nil)
@@ -376,12 +526,20 @@ local function ApplyExactSlot(slot, entry, frozen)
     if slot.pulse and not (type(slot.pulse.IsPlaying) == "function" and slot.pulse:IsPlaying()) then
       slot.pulse:Play()
     end
-    slot.text:SetText(RosterDefensiveCell.FormatShort(entry.remain))
+    if entry.hidden then
+      ShowHiddenCountdown(slot, entry.spellID)
+    else
+      slot.text:SetText(RosterDefensiveCell.FormatShort(entry.remain))
+    end
     SetColor(slot.text, "SetTextColor", COLORS.activeText)
   elseif entry.state == "cd" then
     slot.icon:SetDesaturated(true)
     slot.icon:SetAlpha(0.8)
-    slot.text:SetText(RosterDefensiveCell.FormatShort(entry.remain))
+    if entry.hidden then
+      ShowHiddenCountdown(slot, entry.spellID)
+    else
+      slot.text:SetText(RosterDefensiveCell.FormatShort(entry.remain))
+    end
     SetColor(slot.text, "SetTextColor", COLORS.cdText)
   end
 end
@@ -389,11 +547,24 @@ end
 local function ApplyEstimateSlot(slot, entry, playerKey)
   local sensors = Sensors()
   slot.state = "estimate"
-  slot.text:SetText(ESTIMATE_MARK)
   SetColor(slot.text, "SetTextColor", COLORS.estimateText)
+  if entry.ambiguous or entry.unverified then
+    if slot.strip then
+      slot.strip:Clear()
+    end
+    slot.text:SetText(AMBIGUOUS_MARK)
+    slot.icon:SetAlpha(0.6)
+    slot.estimateBar:Hide()
+    if sensors then
+      sensors.BindBar(slot.estimateBar, nil)
+      sensors.DetachActive(slot.iconHolder)
+    end
+    return
+  end
+  slot.text:SetText(ESTIMATE_MARK)
   if sensors then
     slot.estimateBar:Show()
-    sensors.BindBar(slot.estimateBar, playerKey, entry.slotIndex)
+    sensors.BindBar(slot.estimateBar, playerKey, entry.slotIndex, EnsureStrip(slot))
     sensors.AttachActive(slot.iconHolder, playerKey, entry.slotIndex)
   end
 end
@@ -405,6 +576,9 @@ local function ApplyDemoEstimateSlot(slot, entry)
   if sensors then
     sensors.BindBar(slot.estimateBar, nil)
     sensors.DetachActive(slot.iconHolder)
+  end
+  if slot.strip then
+    slot.strip:Clear()
   end
   slot.state = "estimate"
   slot.text:SetText(ESTIMATE_MARK)
@@ -423,7 +597,7 @@ local function ApplySlots(cell, resolved, playerKey)
     if entry then
       nextState = resolved.mode == "estimate" and "estimate" or (resolved.frozen and "frozen" or entry.state)
     end
-    ResetSlot(slot, nextState)
+    ResetSlot(slot, nextState, entry ~= nil and entry.hidden == true and nextState ~= "ready")
     if entry then
       slot.icon:SetTexture(SpellTexture(entry.spellID))
       slot.spellID = entry.spellID
@@ -535,7 +709,10 @@ end
 
 local function ExactStatus(getL, entry)
   local status
-  if entry.state == "active" then
+  if entry.hidden and entry.state ~= "ready" then
+    status = entry.state == "active" and Text(getL, "DEF_STATE_ACTIVE_HIDDEN", "active")
+      or Text(getL, "DEF_STATE_CD_HIDDEN", "cooldown, see the icon")
+  elseif entry.state == "active" then
     status =
       string.format(Text(getL, "DEF_STATE_ACTIVE", "active, %s left"), RosterDefensiveCell.FormatLong(entry.remain))
   elseif entry.state == "cd" then
@@ -578,16 +755,35 @@ local function AddEstimateLines(tooltip, getL, playerKey, info)
   end
   local estimated = {}
   for _, entry in ipairs(sensors.GetEstimate(playerKey)) do
-    estimated[entry.spellID] = true
+    estimated[entry.spellID] = entry
   end
   local units = addonTable.Units
   local specID = nil
   if type(units) == "table" and type(units.GetInspectSpecID) == "function" and type(info.unit) == "string" then
     specID = units.GetInspectSpecID(info.unit)
   end
-  local candidates = sensors.GetCandidateSpells(info.class, specID)
+  local candidates = sensors.GetPlayerCandidates(playerKey, info.class, specID)
   for _, candidate in ipairs(candidates) do
-    if estimated[candidate.spellID] then
+    local entry = estimated[candidate.spellID]
+    if entry and entry.unverified then
+      AddEntryLine(
+        tooltip,
+        getL,
+        candidate.spellID,
+        candidate.kind,
+        Text(getL, "DEF_STATE_TALENT_UNKNOWN", "? talent not known"),
+        STATE_COLORS.frozen
+      )
+    elseif entry and entry.ambiguous then
+      AddEntryLine(
+        tooltip,
+        getL,
+        candidate.spellID,
+        candidate.kind,
+        Text(getL, "DEF_STATE_AMBIGUOUS", "? several possible casters"),
+        STATE_COLORS.frozen
+      )
+    elseif entry then
       AddEntryLine(
         tooltip,
         getL,
@@ -602,8 +798,8 @@ local function AddEstimateLines(tooltip, getL, playerKey, info)
         getL,
         candidate.spellID,
         candidate.kind,
-        Text(getL, "DEF_STATE_NOT_SEEN", "likely ready (not seen)"),
-        STATE_COLORS.ready
+        Text(getL, "DEF_STATE_NOT_SEEN", "not tracked"),
+        STATE_COLORS.frozen
       )
     end
   end
@@ -628,8 +824,8 @@ local function AddDemoEstimateLines(tooltip, getL, resolved)
       getL,
       entry.spellID,
       entry.kind,
-      Text(getL, "DEF_STATE_NOT_SEEN", "likely ready (not seen)"),
-      STATE_COLORS.ready
+      Text(getL, "DEF_STATE_NOT_SEEN", "not tracked"),
+      STATE_COLORS.frozen
     )
   end
 end
@@ -671,7 +867,7 @@ function RosterDefensiveCell.AppendTooltip(tooltip, info, getL, unit)
     else
       local age = RosterDefensiveCell.FormatLong(resolved.ageSeconds)
       local key = resolved.frozen and "DEF_SOURCE_SYNC_FROZEN" or "DEF_SOURCE_SYNC"
-      local fallback = resolved.frozen and "Source: isiLive sync, %s ago (frozen in combat)"
+      local fallback = resolved.frozen and "Source: isiLive sync, %s ago (locked during the key)"
         or "Source: isiLive sync, %s ago"
       source = string.format(Text(getL, key, fallback), age)
     end

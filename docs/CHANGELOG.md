@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-22 - Version 0.9.553 (patch)
+
+- Fix (experimental, off by default, tested offline only): defensives column inside keys (rules 267-269). The own cooldown keeps ready/cooldown from the NeverSecret fields and the game draws the seconds; `DEF` only goes out as a complete list, never as an empty one for masked cooldowns; addon chat is locked from the key start, not from the first pull. The estimate stores one byte per spell in two overlapping windows (the curve function rounds to 1/255), watches externals and group cooldowns on all five targets, credits them only to a single possible caster (else "?"), continues an isiLive user's shared state into the key, reads talents from the existing inspect (unknown = "?") and draws "~seconds" as a clipped number strip.
+- Change: one switch for the defensives column, sync and estimate (rules 267-269).
+- New: the What's new card announces the voice alerts (rule 256).
+- Fix: the demo simulator tablet has a background again (it named a backdrop preset that never existed) and its subtitle and status line no longer stretch to the middle; a test checks every requested preset.
+- Fix: the MDT preview workflow reads the seasons of the sectioned Forces DB, so it closes its issue instead of reopening it every day.
+- Tools: wowsim keeps clamped frames and tooltips on the screen and rounds like the client's color values; the settings gate requires a row for every voice option.
+- Code: the read-only probe samplers moved to `logic/isiLive_probe_samples.lua`; a test fixture no longer carries a real character name.
+
 ## 2026-11-22 - Version 0.9.552 (patch)
 
 - Fix: no false 0 in the run and live kicks (rules 118, 238, 245). The damage meter lists a pet's kick under the pet and does not name the owner. While such a kick is in the list, a member who is missing from it has no value instead of 0; listed members keep the meter's count (without pet kicks). Seen in both archived keys of 2026-11-21, two unproven zeros each, after the key and in the live tooltip.

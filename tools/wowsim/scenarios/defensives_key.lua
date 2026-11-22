@@ -26,10 +26,8 @@ local AMZ_AURA = 145629
 local AURA_UP = {} -- [unit .. ":" .. auraID] = expiry (simulated seconds)
 local containers = {}
 
-local function Enable(db, estimate)
+local function Enable(db)
   db.defensiveTrackerEnabled = true
-  db.defensiveSyncEnabled = true
-  db.defensiveEstimateEnabled = estimate == true
 end
 
 local function ApplySettings(sim, name)
@@ -101,8 +99,43 @@ local function SyncAuraFrames(sim)
   end
 end
 
+-- Blizzard's inspect traits: one tree with every talent of the manifest taken
+-- (read through the real inspect flow, rule 268).
+local function InstallTraits(sim, env)
+  local talents = {}
+  for castID, record in pairs(sim.Client().addonTable.DefensiveManifest.spells) do
+    if record.talent then
+      talents[#talents + 1] = castID
+    end
+  end
+  env.C_Traits = env.C_Traits or {}
+  env.C_Traits.HasValidInspectData = function()
+    return true
+  end
+  env.C_Traits.GetConfigInfo = function()
+    return { treeIDs = { 1 } }
+  end
+  env.C_Traits.GetTreeNodes = function()
+    local nodes = {}
+    for index = 1, #talents do
+      nodes[index] = index
+    end
+    return nodes
+  end
+  env.C_Traits.GetNodeInfo = function(_configID, nodeID)
+    return { entryIDs = { nodeID }, activeRank = 1, activeEntry = { entryID = nodeID } }
+  end
+  env.C_Traits.GetEntryInfo = function(_configID, entryID)
+    return { definitionID = entryID }
+  end
+  env.C_Traits.GetDefinitionInfo = function(definitionID)
+    return { spellID = talents[definitionID] }
+  end
+end
+
 local function InstallAuraContainer(sim)
   local env = sim.Env()
+  InstallTraits(sim, env)
   local createFrame = env.CreateFrame
   env.C_XMLUtil = {
     GetTemplateInfo = function(name)
@@ -110,10 +143,11 @@ local function InstallAuraContainer(sim)
     end,
   }
   env.C_CurveUtil.EvaluateColorValueFromBoolean = function(condition, ifTrue, ifFalse)
+    local value = ifFalse
     if condition == true then
-      return ifTrue
+      value = ifTrue
     end
-    return ifFalse
+    return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5) / 255 -- client: color value steps
   end
   env.CreateFrame = function(frameType, name, parent, template, ...)
     if frameType ~= "AuraContainer" then
@@ -288,7 +322,7 @@ return {
     sim.Env().C_ChatInfo.InChatMessagingLockdown = function()
       return lockdown
     end
-    Enable(sim.Env().IsiLiveDB, true)
+    Enable(sim.Env().IsiLiveDB)
     Enable(sim.Env(NAMES[3]).IsiLiveDB)
     Enable(sim.Env(NAMES[5]).IsiLiveDB)
     sim.JoinGroup(NAMES[2], NAMES[3], NAMES[4], NAMES[5])
@@ -355,7 +389,7 @@ return {
     sim.Wait(0.2)
     sim.Step("5 Zeilen-Tooltip Nicht-isiLive-Nutzer (geschaetzt)")
     sim.ExpectText("geschätzt, siehe Symbol", "estimated entries point at the icon")
-    sim.ExpectText("vermutlich bereit %(nicht gesehen%)", "unseen defensives")
+    sim.ExpectText("nicht verfolgt", "untracked defensives")
     HideTooltip(tip)
     tip = ShowTooltip(sim, UnitOf(env, NAMES[3]))
     sim.Wait(0.2)
@@ -366,10 +400,14 @@ return {
     lockdown = true
     sim.Wait(3)
     SyncAuraFrames(sim)
-    sim.Step("7 Eigene Chat-Sperre: Sync eingefroren (Uhr-Symbol)")
-    local frozen = SlotOf(sim, IRONBARK)
-    sim.Expect(frozen ~= nil and frozen.state == "frozen", "Ironbark frozen in the lockdown")
-    sim.Expect(frozen ~= nil and frozen.clock:IsVisible(), "clock glyph instead of seconds")
+    sim.Step("7 Eigene Chat-Sperre: Schaetzung ab dem geteilten Stand (~)")
+    local locked = SlotOf(sim, IRONBARK)
+    sim.Expect(locked ~= nil and locked.state == "estimate", "Ironbark estimated in the lockdown")
+    if locked then
+      local low, high = locked.estimateBar:GetMinMaxValues()
+      local left = (locked.estimateBar:GetValue() - low) / (high - low)
+      sim.Expect(left > 0.4 and left < 0.8, string.format("Ironbark ~%.2f from the shared cooldown", left))
+    end
 
     sim.Env().IsiLiveDB.uiDesign = "classic"
     sim.Reload()

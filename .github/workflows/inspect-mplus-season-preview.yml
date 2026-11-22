@@ -57,8 +57,9 @@ jobs:
           echo "candidate_count=${candidate_count:-0}" >> "$GITHUB_OUTPUT"
           echo "forces_ready=${forces_ready:-no}" >> "$GITHUB_OUTPUT"
           echo "SEASON_LABEL=${season_label:-${SEASON_ID}}" >> "$GITHUB_ENV"
-          # The season the committed runtime Forces DB already serves.
-          runtime_db_season="$(sed -n 's/^  season = "\([^"]*\)",$/\1/p' data/isiLive_mplus_forces.lua | head -n 1)"
+          # The target season, when a section of the committed runtime Forces DB
+          # (rule 260: one per season) already serves it; empty otherwise.
+          runtime_db_season="$(sed -n 's/^ *season = "\([^"]*\)",$/\1/p' data/isiLive_mplus_forces.lua | grep -Fx -- "${SEASON_ID}" | head -n 1 || true)"
           echo "RUNTIME_DB_SEASON=${runtime_db_season}" >> "$GITHUB_ENV"
 
       - name: Open or update issue when structurally usable forces sources are available

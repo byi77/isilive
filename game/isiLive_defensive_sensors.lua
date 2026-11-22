@@ -2,39 +2,34 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
--- Defensive estimate for group members without an isiLive state (rule 268,
--- vorhaben V1 stage 2). Isolated exception to the no-guess rules 23/24 (today
--- rule 54): display only, always marked "~", never read back into isiLive
--- logic, announcements or sorting.
+-- Defensive estimate for group members inside a key (rule 268, vorhaben V1).
+-- Isolated exception to the no-guess rules 23/24 (today rule 54): display
+-- only, always marked "~", never read back into isiLive logic, announcements
+-- or sorting.
 --
 -- Sensor chain (probe result 2026-11-21, rule 239, archived probe log):
---   * per party member and displayed manifest spell (at most two per member,
---     chosen by class and inspected spec) one invisible AuraContainer
---     (CustomAuraContainerTemplate) on HELPFUL with
---     candidateFilters.includeSpellIDs = { <manifest aura> }. With the aura up
---     Blizzard lays out one frame `sensorStride` wide, so
---     IsMouseOver(<huge vertical reach>) answers "active" wherever the cursor
---     is on the screen. The answer is secret in a key (and mostly outside).
---   * Edge and countdown stay secret: two latch values per sensor hold the
---     cooldown window [start, start + manifest cooldown] encoded as
---     lo = 1 - n(end), hi = 1 - n(start) with n(t) = (t - base) / RANGE in
---     (0, 1). Each tick the rising edge "active now and not active before"
---     picks the candidate window of this tick through
---     C_CurveUtil.EvaluateColorValueFromBoolean(condition, ifTrue, ifFalse),
---     which accepts secret arguments from addon code; the candidates are
---     plain numbers computed before the selection. Lua never compares, adds
---     or tests a sensor value: they are only assigned and handed on.
---   * Display: a StatusBar with SetMinMaxValues(lo, hi) (secret-capable) and
---     SetValue(1 - n(now)) (plain) fills with the remaining share of the
---     estimated cooldown. There is no countdown NUMBER yet: Lua must not
---     compute with the latch, and Curve:Evaluate, the DurationObject setters
---     and Cooldown:SetCooldown refuse secret arguments from addon code. That
---     does not rule a number out: a secret-driven StatusBar could move a
---     clipped strip of prepared numbers (not built, not verified in game).
---     Known defect: EvaluateColorValueFromBoolean takes and returns a color
---     value, so it rounds to 1/255 (researched, not measured in game). One
---     step of RANGE is then 339 s: in an offline replay the fill was empty or
---     wrong. It needs another time encoding.
+--   * per member up to two manifest spells. A personal spell is watched on
+--     the caster; an external or group cooldown on all five possible targets
+--     (player, party1..4), and only while exactly one group member can cast
+--     it, otherwise the slot says "?" and has no sensor. One invisible
+--     AuraContainer (CustomAuraContainerTemplate, includeSpellIDs) per
+--     target: with the aura up Blizzard lays out one frame `sensorStride`
+--     wide, so IsMouseOver(<huge vertical reach>) answers "active" wherever
+--     the cursor is on the screen. The answer is secret in a key.
+--   * Time: C_CurveUtil.EvaluateColorValueFromBoolean takes and returns a
+--     color value, so it keeps only 255 steps (researched 2026-11-22, not
+--     measured in game). Each spell therefore keeps one byte: the buff start
+--     in steps of `step` seconds from a window epoch, 0 = none. Two windows
+--     half a window apart are both written; the older one is shown and
+--     always holds every cast of the last cooldown length. Each tick the
+--     rising edge on any target selects the plain code of this tick; Lua
+--     never compares, adds or tests a sensor value.
+--   * Display: StatusBar:SetMinMaxValues gets plain bounds, SetValue the
+--     (maybe secret) byte; the fill is the remaining share of the estimated
+--     cooldown, exact to one step (1 to 3 s).
+--   * An isiLive user's synced list names the spells; while the sync is live
+--     its cooldown also seeds the byte (plain numbers), so the estimate
+--     starts the key with the shared state.
 --   * While the buff runs a visible AuraContainer in the cell slot shows it
 --     the Blizzard way: aura icon, Blizzard duration text, and a cool blue
 --     border whose alpha pulse (0.55 -> 1.0, 1.2 s) Blizzard plays when the
@@ -58,16 +53,19 @@ local FILTER_HELPFUL = "HELPFUL"
 local SENSOR_GROUP = "isiLiveDefSensor"
 local ACTIVE_GROUP = "isiLiveDefActive"
 local PARTY_UNITS = { "party1", "party2", "party3", "party4" }
+local GROUP_TARGETS = { "player", "party1", "party2", "party3", "party4" }
 local BORDER_TEXTURE = "Interface\\AddOns\\isiLive\\media\\defensive_border"
 
 local LIMITS = {
   slotsPerUnit = 2,
-  -- Frame budget of the V1 plan (< 60). Real use: 8 sensors + 10 cell slots.
+  -- Frame budget of the V1 plan (< 60). Worst case: 4 members x 2 spells x
+  -- 5 targets + 10 cell slots = 50.
   maxContainers = 56,
   tickSeconds = 0.5,
-  -- Time encoding range; a session longer than this re-bases (all estimates
-  -- restart as "ready").
-  timeRangeSeconds = 86400,
+  -- One byte: code 0 = no cast, 1..254 = steps from the window epoch.
+  byteSteps = 255,
+  lastCode = 254,
+  halfWindowSteps = 127,
 }
 DefensiveSensors.LIMITS = LIMITS
 
@@ -80,17 +78,11 @@ local GEOMETRY = {
 }
 DefensiveSensors.GEOMETRY = GEOMETRY
 
--- Initial latch: an empty window just below the encoded "now", so the bar
--- shows no remaining cooldown.
-local INIT_LO = 1 - 0.5 / LIMITS.timeRangeSeconds
-local INIT_HI = 1
-
 local containerCount = 0
 local sensors = {} -- [unitIndex][slotIndex] = sensor record
 local assignments = {} -- [playerKey] = { unitIndex, unit, slots = { { spellID, auraID, kind, cooldown } } }
 local boundBars = {} -- [statusBar] = { playerKey, slotIndex }
 local activeByHolder = {} -- [holder frame] = { container, unit, auraID }
-local timeBase = nil
 local setupFailure = nil
 local ticker = nil
 local getTimeFn = nil
@@ -233,11 +225,62 @@ function DefensiveSensors.GetCandidateSpells(classToken, specID)
   return list
 end
 
+local function Contains(list, value)
+  for _, item in ipairs(list) do
+    if item == value then
+      return true
+    end
+  end
+  return false
+end
+
+-- A member's candidates: exactly the synced list, or class and spec minus
+-- the talents the inspect shows as not taken. A talent spell without a
+-- readable inspect is `unverified`.
+local function CandidatesOf(classToken, specID, knownSpells, talents)
+  local manifest = Manifest()
+  if not manifest then
+    return {}
+  end
+  if type(knownSpells) ~= "table" then
+    local out = {}
+    for _, candidate in ipairs(DefensiveSensors.GetCandidateSpells(classToken, specID)) do
+      local record = manifest.spells[candidate.spellID]
+      if not (record and record.talent) then
+        out[#out + 1] = candidate
+      elseif type(talents) ~= "table" then
+        candidate.unverified = true
+        out[#out + 1] = candidate
+      elseif talents[candidate.spellID] == true then
+        out[#out + 1] = candidate
+      end
+    end
+    return out
+  end
+  local order = type(manifest.kindOrder) == "table" and manifest.kindOrder or {}
+  local list = {}
+  for index, record in ipairs(manifest.list) do
+    if Contains(knownSpells, record.cast) then
+      list[#list + 1] = {
+        spellID = record.cast,
+        auraID = record.aura,
+        kind = record.kind,
+        cooldown = record.cooldown,
+        rank = (order[record.kind] or 99) * 1000 + index,
+      }
+    end
+  end
+  table.sort(list, function(a, b)
+    return a.rank < b.rank
+  end)
+  return list
+end
+
 -- The (at most two) spells a member's estimate shows: candidates with a
 -- verified manifest cooldown, in display order.
-function DefensiveSensors.SelectSpells(classToken, specID)
+function DefensiveSensors.SelectSpells(classToken, specID, knownSpells, talents)
   local out = {}
-  for _, candidate in ipairs(DefensiveSensors.GetCandidateSpells(classToken, specID)) do
+  for _, candidate in ipairs(CandidatesOf(classToken, specID, knownSpells, talents)) do
     if type(candidate.cooldown) == "number" and type(candidate.auraID) == "number" then
       out[#out + 1] = candidate
       if #out >= LIMITS.slotsPerUnit then
@@ -248,12 +291,85 @@ function DefensiveSensors.SelectSpells(classToken, specID)
   return out
 end
 
-local function Normalize(t)
-  return (t - timeBase) / LIMITS.timeRangeSeconds
+-- Whether this caster may have the spell. An unknown class or spec may.
+local function CanCast(caster, record)
+  if type(caster.knownSpells) == "table" then
+    return Contains(caster.knownSpells, record.cast)
+  end
+  if caster.classToken == nil then
+    return true
+  end
+  if caster.classToken ~= record.class then
+    return false
+  end
+  if record.talent and type(caster.talents) == "table" and caster.talents[record.cast] ~= true then
+    return false
+  end
+  return record.specs == nil or type(caster.specID) ~= "number" or Contains(record.specs, caster.specID)
+end
+
+-- A buff on a target does not name its caster: only a single possible caster
+-- gets an external or group cooldown credited.
+local function HasSeveralCasters(casters, spell)
+  if spell.kind == "personal" then
+    return false
+  end
+  local manifest = Manifest()
+  for _, record in ipairs(manifest and manifest.list or {}) do
+    if record.cast == spell.spellID then
+      local count = 0
+      for _, caster in ipairs(casters) do
+        if CanCast(caster, record) then
+          count = count + 1
+        end
+      end
+      return count > 1
+    end
+  end
+  return true
+end
+
+-- Seconds per code: half a window covers the cooldown plus two steps.
+local function StepSeconds(cooldown)
+  return math.max(1, math.ceil(cooldown / (LIMITS.halfWindowSteps - 2)))
 end
 
 local function NewLatch()
-  return { prev = false, lo = INIT_LO, hi = INIT_HI }
+  return { prev = {} }
+end
+
+-- The two windows at `now`, oldest first.
+local function AdvanceWindows(latch, cooldown, now)
+  local step = StepSeconds(cooldown)
+  local half = LIMITS.halfWindowSteps * step
+  local windows = latch.windows
+  if windows and now - windows[2].epoch >= 2 * half then
+    windows = nil
+  end
+  if not windows then
+    latch.step = step
+    latch.windows = { { epoch = now - half, value = 0 }, { epoch = now, value = 0 } }
+    return
+  end
+  if now - windows[1].epoch >= 2 * half then
+    windows[1], windows[2] = windows[2], { epoch = windows[1].epoch + 2 * half, value = 0 }
+  end
+end
+
+local function EncodeStart(window, step, start)
+  local code = math.floor((start - window.epoch) / step + 0.5) + 1
+  return math.max(1, math.min(LIMITS.lastCode, code)) / LIMITS.byteSteps
+end
+
+-- The plain state of a live sync: `readyIn` seconds at `now`.
+local function SeedLatch(sensor, readyIn, now)
+  local latch = sensor.latch
+  AdvanceWindows(latch, sensor.cooldown, now)
+  local start = now + math.min(readyIn, sensor.cooldown) - sensor.cooldown
+  for _, window in ipairs(latch.windows) do
+    local holds = readyIn > 0 and start > window.epoch - latch.step
+    window.value = holds and EncodeStart(window, latch.step, start) or 0
+  end
 end
 
 local function NewFrame(frameType, parent, template)
@@ -314,50 +430,66 @@ local function SensorOptions(auraID)
 end
 
 local function DisableSensor(sensor)
-  if sensor.container then
-    CallMethod(sensor.container, "SetEnabled", false)
+  for _, container in pairs(sensor.containers) do
+    CallMethod(container, "SetEnabled", false)
   end
-  sensor.spellID, sensor.auraID, sensor.cooldown, sensor.playerKey = nil, nil, nil, nil
+  sensor.targetCount = 0
+  sensor.spellID, sensor.auraID, sensor.cooldown, sensor.playerKey, sensor.unit = nil, nil, nil, nil, nil
   sensor.latch = NewLatch()
 end
 
--- Points one sensor at (unit, spell). Out of combat only.
+-- Points one sensor at (caster, spell) and its targets. Out of combat only.
 local function ConfigureSensor(unitIndex, slotIndex, unit, playerKey, spell)
   sensors[unitIndex] = sensors[unitIndex] or {}
   local sensor = sensors[unitIndex][slotIndex]
   if not sensor then
-    sensor = { latch = NewLatch() }
+    sensor = { containers = {}, targetCount = 0, latch = NewLatch() }
     sensors[unitIndex][slotIndex] = sensor
   end
-  if sensor.playerKey == playerKey and sensor.spellID == spell.spellID and sensor.container then
+  if spell.ambiguous or spell.unverified then
+    DisableSensor(sensor)
     return true
   end
-  if not sensor.container then
-    local uiParent = rawget(_G, "UIParent")
-    sensor.container = BuildContainer(uiParent, unit, SENSOR_GROUP, SensorOptions(spell.auraID), function(new)
-      CallMethod(new, "SetSize", 1, 1)
-      CallMethod(new, "SetPoint", "TOPLEFT", uiParent, "TOPLEFT", GEOMETRY.sensorOffsetX, 0)
-      CallMethod(new, "SetAlpha", 0)
-      CallMethod(new, "EnableMouse", false)
-    end)
-    if not sensor.container then
-      return false
-    end
-  else
-    local okFilter, filterErr = CallMethod(
-      sensor.container,
-      "SetAuraGroupCandidateFilters",
-      SENSOR_GROUP,
-      { includeSpellIDs = { [spell.auraID] = true } }
-    )
-    if not okFilter then
-      NoteFailure("filter", filterErr)
-      return false
-    end
-    CallMethod(sensor.container, "SetUnit", unit)
-    CallMethod(sensor.container, "SetEnabled", true)
+  if sensor.playerKey == playerKey and sensor.spellID == spell.spellID and sensor.unit == unit then
+    return true
   end
-  sensor.playerKey = playerKey
+  local targets = spell.kind == "personal" and { unit } or GROUP_TARGETS
+  for index, target in ipairs(targets) do
+    local container = sensor.containers[index]
+    if not container then
+      local uiParent = rawget(_G, "UIParent")
+      container = BuildContainer(uiParent, target, SENSOR_GROUP, SensorOptions(spell.auraID), function(new)
+        CallMethod(new, "SetSize", 1, 1)
+        CallMethod(new, "SetPoint", "TOPLEFT", uiParent, "TOPLEFT", GEOMETRY.sensorOffsetX, 0)
+        CallMethod(new, "SetAlpha", 0)
+        CallMethod(new, "EnableMouse", false)
+      end)
+      if not container then
+        DisableSensor(sensor)
+        return false
+      end
+      sensor.containers[index] = container
+    else
+      local okFilter, filterErr = CallMethod(
+        container,
+        "SetAuraGroupCandidateFilters",
+        SENSOR_GROUP,
+        { includeSpellIDs = { [spell.auraID] = true } }
+      )
+      if not okFilter then
+        NoteFailure("filter", filterErr)
+        DisableSensor(sensor)
+        return false
+      end
+      CallMethod(container, "SetUnit", target)
+      CallMethod(container, "SetEnabled", true)
+    end
+  end
+  for index = #targets + 1, #sensor.containers do
+    CallMethod(sensor.containers[index], "SetEnabled", false)
+  end
+  sensor.targetCount = #targets
+  sensor.playerKey, sensor.unit = playerKey, unit
   sensor.spellID, sensor.auraID, sensor.cooldown = spell.spellID, spell.auraID, spell.cooldown
   sensor.latch = NewLatch()
   return true
@@ -385,26 +517,37 @@ local function FindSensor(playerKey, slotIndex)
 end
 
 local function ResetBar(bar)
-  CallMethod(bar, "SetMinMaxValues", INIT_LO, INIT_HI)
+  CallMethod(bar, "SetMinMaxValues", 0, 1)
   CallMethod(bar, "SetValue", 0)
 end
 
--- Hands the latch to a bound bar: remaining share of the estimated cooldown.
-local function PaintBar(bar, sensor, now)
-  if timeBase == nil or type(now) ~= "number" then
+-- Hands the older window to a bound bar: plain bounds, the byte as the value.
+-- A bound number strip gets the byte too, with the plain step "now".
+local function PaintBar(bar, sensor, now, strip)
+  local latch = sensor.latch
+  if latch.windows == nil or type(now) ~= "number" then
     ResetBar(bar)
+    if strip then
+      CallMethod(strip, "Clear")
+    end
     return
   end
-  local latch = sensor.latch
-  CallMethod(bar, "SetMinMaxValues", latch.lo, latch.hi)
-  CallMethod(bar, "SetValue", 1 - Normalize(now))
+  local shown = latch.windows[1]
+  local high = ((now - shown.epoch) / latch.step + 1) / LIMITS.byteSteps
+  local low = high - sensor.cooldown / latch.step / LIMITS.byteSteps
+  CallMethod(bar, "SetMinMaxValues", low, high)
+  CallMethod(bar, "SetValue", shown.value)
+  if strip then
+    local nowStep = math.floor((now - shown.epoch) / latch.step + 0.5)
+    CallMethod(strip, "Paint", shown.value, nowStep, math.ceil(sensor.cooldown / latch.step), latch.step)
+  end
 end
 
 local function PaintBoundBars(now)
   for bar, binding in pairs(boundBars) do
     local sensor = FindSensor(binding.playerKey, binding.slotIndex)
     if sensor then
-      PaintBar(bar, sensor, now)
+      PaintBar(bar, sensor, now, binding.strip)
     else
       ResetBar(bar)
     end
@@ -443,36 +586,47 @@ local function Select(evaluate, condition, ifTrue, ifFalse)
   return pcall(evaluate, condition, ifTrue, ifFalse)
 end
 
--- One sensor read and latch update. Only assignments and the selection run
--- on the read value; nothing compares or computes with it.
+-- One sensor read and latch update over every possible target. Only
+-- assignments and the selection run on the read values; nothing compares or
+-- computes with them. A failed read keeps the windows as they were.
 local function ReadSensor(sensor, now, evaluate)
   local reach = GEOMETRY.mouseOverReach
-  local okOver, active = CallMethod(sensor.container, "IsMouseOver", reach, -reach, 0, 0)
-  if not okOver or type(active) ~= "boolean" then
-    return false
-  end
   local latch = sensor.latch
-  local candidateLo = 1 - Normalize(now + sensor.cooldown)
-  local candidateHi = 1 - Normalize(now)
-  -- Rising edge: active and not active on the previous read -> this window.
-  local okA, edgeLo = Select(evaluate, latch.prev, latch.lo, candidateLo)
-  local okB, edgeHi = Select(evaluate, latch.prev, latch.hi, candidateHi)
-  if not (okA and okB) then
-    return false
+  local active = {}
+  for index = 1, sensor.targetCount do
+    local okOver, answer = CallMethod(sensor.containers[index], "IsMouseOver", reach, -reach, 0, 0)
+    if not okOver or type(answer) ~= "boolean" then
+      return false
+    end
+    active[index] = answer
   end
-  local okC, nextLo = Select(evaluate, active, edgeLo, latch.lo)
-  local okD, nextHi = Select(evaluate, active, edgeHi, latch.hi)
-  if not (okC and okD) then
-    return false
+  local selected = {}
+  for windowIndex, window in ipairs(latch.windows) do
+    local candidate = EncodeStart(window, latch.step, now)
+    local value = window.value
+    for index = 1, sensor.targetCount do
+      local before = latch.prev[index]
+      if type(before) ~= "boolean" then
+        before = false
+      end
+      -- Rising edge on this target -> this tick's code.
+      local okEdge, onEdge = Select(evaluate, before, value, candidate)
+      if not okEdge then
+        return false
+      end
+      local okNext, following = Select(evaluate, active[index], onEdge, value)
+      if not okNext then
+        return false
+      end
+      value = following
+    end
+    selected[windowIndex] = value
   end
-  latch.lo, latch.hi, latch.prev = nextLo, nextHi, active
+  for windowIndex, window in ipairs(latch.windows) do
+    window.value = selected[windowIndex]
+  end
+  latch.prev = active
   return true
-end
-
-local function ResetAllLatches()
-  ForEachSensor(function(sensor)
-    sensor.latch = NewLatch()
-  end)
 end
 
 --- One pass over every configured sensor (ticker, tests). Skipped without a
@@ -490,23 +644,15 @@ function DefensiveSensors.Tick(now)
   if not evaluate then
     return 0
   end
-  if timeBase == nil then
-    timeBase = now - 1
-  end
-  local maxCooldown = 0
   ForEachSensor(function(sensor)
-    if type(sensor.cooldown) == "number" and sensor.cooldown > maxCooldown then
-      maxCooldown = sensor.cooldown
+    if sensor.spellID ~= nil then
+      AdvanceWindows(sensor.latch, sensor.cooldown, now)
     end
   end)
-  if Normalize(now + maxCooldown) >= 1 then
-    timeBase = now - 1
-    ResetAllLatches()
-  end
   local reads = 0
   if IsCursorOnScreen() then
     ForEachSensor(function(sensor)
-      if sensor.container and sensor.spellID ~= nil and ReadSensor(sensor, now, evaluate) then
+      if sensor.spellID ~= nil and ReadSensor(sensor, now, evaluate) then
         reads = reads + 1
       end
     end)
@@ -545,7 +691,17 @@ local function SameSpells(a, b)
     return false
   end
   for index, spell in ipairs(a) do
-    if b[index].spellID ~= spell.spellID then
+    local other = b[index]
+    if other.spellID ~= spell.spellID or other.ambiguous ~= spell.ambiguous or other.unverified ~= spell.unverified then
+      return false
+    end
+  end
+  return true
+end
+
+local function HasItsSensors(playerKey, slots)
+  for index, spell in ipairs(slots) do
+    if not (spell.ambiguous or spell.unverified) and FindSensor(playerKey, index) == nil then
       return false
     end
   end
@@ -558,19 +714,24 @@ local function DropUnit(unitIndex)
   end
 end
 
---- Points the sensors at the group members that need an estimate:
--- members = { { unit = "partyN", playerKey, classToken, specID } }. A member
--- whose name is unreadable right now keeps its previous assignment (pass
--- keep = true). Frames are created and re-filtered only out of combat; in
--- combat a changed member just loses its sensors until the next call out of
--- combat. Returns true when the sensors match the request.
-function DefensiveSensors.Configure(members)
+--- Points the sensors at the group members:
+-- members = { { unit = "partyN", playerKey, classToken, specID,
+--               knownSpells = synced cast IDs | nil,
+--               talents = { [castID] = true|false } | nil (inspect),
+--               readyIn = { [castID] = seconds } | nil (live sync only) } }.
+-- player = { knownSpells } counts as a possible caster. A member whose name
+-- is unreadable right now keeps its previous assignment (pass keep = true).
+-- Frames are created and re-filtered only out of combat; in combat a changed
+-- member just loses its sensors until the next call out of combat. Returns
+-- true when the sensors match the request.
+function DefensiveSensors.Configure(members, player)
   if not DefensiveSensors.IsSupported() or IsRaid() then
     DefensiveSensors.Suspend()
     return false
   end
   local inCombat = IsInCombat()
   local wanted, keepUnits = {}, {}
+  local casters = { type(player) == "table" and player or {} }
   for _, member in ipairs(type(members) == "table" and members or {}) do
     local unitIndex = nil
     for index, unit in ipairs(PARTY_UNITS) do
@@ -580,12 +741,30 @@ function DefensiveSensors.Configure(members)
     end
     if unitIndex and member.keep == true then
       keepUnits[unitIndex] = true
+      local previous = {}
+      for _, assignment in pairs(assignments) do
+        if assignment.unitIndex == unitIndex then
+          previous = assignment
+        end
+      end
+      casters[#casters + 1] = previous
     elseif unitIndex and type(member.playerKey) == "string" and member.playerKey ~= "" then
+      casters[#casters + 1] = member
       wanted[member.playerKey] = {
         unitIndex = unitIndex,
         unit = member.unit,
-        slots = DefensiveSensors.SelectSpells(member.classToken, member.specID),
+        classToken = member.classToken,
+        specID = member.specID,
+        knownSpells = member.knownSpells,
+        talents = member.talents,
+        readyIn = member.readyIn,
+        slots = DefensiveSensors.SelectSpells(member.classToken, member.specID, member.knownSpells, member.talents),
       }
+    end
+  end
+  for _, want in pairs(wanted) do
+    for _, spell in ipairs(want.slots) do
+      spell.ambiguous = HasSeveralCasters(casters, spell)
     end
   end
   local complete = true
@@ -600,8 +779,11 @@ function DefensiveSensors.Configure(members)
     local unchanged = current ~= nil
       and current.unitIndex == want.unitIndex
       and SameSpells(current.slots, want.slots)
-      and (#want.slots == 0 or FindSensor(playerKey, 1) ~= nil)
+      and HasItsSensors(playerKey, want.slots)
     if unchanged then
+      current.classToken, current.specID = want.classToken, want.specID
+      current.knownSpells, current.readyIn = want.knownSpells, want.readyIn
+      current.talents = want.talents
       nextAssignments[playerKey] = current
     elseif inCombat then
       complete = false
@@ -634,6 +816,18 @@ function DefensiveSensors.Configure(members)
     end
   end
   assignments = nextAssignments
+  local now = Now()
+  for playerKey, assignment in pairs(assignments) do
+    if assignment.readyIn and now then
+      for slotIndex, spell in ipairs(assignment.slots) do
+        local sensor = FindSensor(playerKey, slotIndex)
+        local readyIn = assignment.readyIn[spell.spellID]
+        if sensor and type(readyIn) == "number" and not IsSecretValue(readyIn) then
+          SeedLatch(sensor, readyIn, now)
+        end
+      end
+    end
+  end
   if next(assignments) ~= nil then
     EnsureTicker()
   else
@@ -662,7 +856,8 @@ function DefensiveSensors.Suspend()
   assignments = {}
 end
 
---- The estimated slots of a player: { { spellID, auraID, kind, cooldown } }
+--- The estimated slots of a player: { { spellID, auraID, kind, cooldown,
+-- ambiguous } }
 -- (copies), empty without an assignment. The kind and IDs are plain manifest
 -- data; the estimate itself never leaves the widgets.
 function DefensiveSensors.GetEstimate(playerKey)
@@ -672,8 +867,10 @@ function DefensiveSensors.GetEstimate(playerKey)
     return out
   end
   for slotIndex, spell in ipairs(assignment.slots) do
-    if FindSensor(playerKey, slotIndex) then
+    if spell.ambiguous or spell.unverified or FindSensor(playerKey, slotIndex) then
       out[#out + 1] = {
+        unverified = spell.unverified == true or nil,
+        ambiguous = spell.ambiguous == true or nil,
         spellID = spell.spellID,
         auraID = spell.auraID,
         kind = spell.kind,
@@ -685,9 +882,20 @@ function DefensiveSensors.GetEstimate(playerKey)
   return out
 end
 
---- Binds a cell StatusBar to the estimate of (playerKey, slotIndex), or
+--- Every defensive the estimate knows of a player (tooltip): the synced
+-- list, else class and spec.
+function DefensiveSensors.GetPlayerCandidates(playerKey, classToken, specID)
+  local assignment = type(playerKey) == "string" and assignments[playerKey] or nil
+  if not assignment then
+    return CandidatesOf(classToken, specID)
+  end
+  return CandidatesOf(classToken, specID, assignment.knownSpells, assignment.talents)
+end
+
+--- Binds a cell StatusBar (and its number strip, `strip` with Paint and
+-- Clear) to the estimate of (playerKey, slotIndex), or
 -- unbinds it with playerKey = nil. The bar is painted at once.
-function DefensiveSensors.BindBar(bar, playerKey, slotIndex)
+function DefensiveSensors.BindBar(bar, playerKey, slotIndex, strip)
   if type(bar) ~= "table" then
     return false
   end
@@ -698,8 +906,8 @@ function DefensiveSensors.BindBar(bar, playerKey, slotIndex)
     ResetBar(bar)
     return false
   end
-  boundBars[bar] = { playerKey = playerKey, slotIndex = slotIndex }
-  PaintBar(bar, FindSensor(playerKey, slotIndex), Now())
+  boundBars[bar] = { playerKey = playerKey, slotIndex = slotIndex, strip = strip }
+  PaintBar(bar, FindSensor(playerKey, slotIndex), Now(), strip)
   return true
 end
 

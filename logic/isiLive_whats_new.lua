@@ -12,9 +12,29 @@ addonTable = addonTable or {}
 local WhatsNew = {}
 addonTable.WhatsNew = WhatsNew
 
--- Empty: the only entry so far (time_pace_announce, rule 255) was withdrawn
--- together with its feature on 2026-11-21. Without an entry no card is shown.
-WhatsNew.ENTRIES = {}
+-- The time_pace_announce entry (rule 255) was withdrawn together with its
+-- feature on 2026-11-21. Without an entry no card is shown.
+WhatsNew.ENTRIES = {
+  {
+    id = "voice_announcements",
+    titleKey = "WHATS_NEW_VOICE_TITLE",
+    titleFallback = "Voice announcements", -- i18n-ok
+    fields = {
+      {
+        labelKey = "WHATS_NEW_VOICE_WHAT_LABEL",
+        labelFallback = "What", -- i18n-ok
+        valueKey = "WHATS_NEW_VOICE_WHAT",
+        valueFallback = "Alerts now speak instead of playing an effect.", -- i18n-ok
+      },
+      {
+        labelKey = "WHATS_NEW_VOICE_CHANGE_LABEL",
+        labelFallback = "Change", -- i18n-ok
+        valueKey = "WHATS_NEW_VOICE_CHANGE",
+        valueFallback = 'Turn off "Voice instead of effect" in the sound settings.', -- i18n-ok
+      },
+    },
+  },
+}
 
 -- Delay after PLAYER_LOGIN, so the card does not land in the loading burst.
 WhatsNew.LOGIN_DELAY_SECONDS = 8

@@ -13,9 +13,15 @@ addonTable = addonTable or {}
 --     more than one charge, C_Spell.GetSpellCharges
 --   * whether the own buff runs (C_UnitAuras.GetPlayerAuraBySpellID on the
 --     manifest aura, cast by the player or the pet)
--- C_Secrets.ShouldSpellCooldownBeSecret gates every cooldown read. A secret
--- or unreadable field leaves that spell out (fail-closed): no estimate, no
--- last value. A secret aura answer only drops the "active" detail.
+-- C_Secrets.ShouldSpellCooldownBeSecret gates every cooldown number. A
+-- masked cooldown (every key) still has a state: isActive, isEnabled and
+-- isOnGCD of SpellCooldownInfo are NeverSecret. Such an entry is `hidden`:
+-- ready or cooldown without a number, which the cell lets Blizzard draw from
+-- the duration object. Without those fields the spell is left out
+-- (fail-closed): no estimate, no last value. A secret aura answer only drops
+-- the "active" detail.
+-- ReadEntries also says whether the list is complete: every known spell read
+-- with its numbers. Only a complete list may go out as DEF.
 -- Own casts (UNIT_SPELLCAST_SUCCEEDED player/pet) are matched against the
 -- manifest to trigger an immediate re-read; the secret check runs first.
 local DefensiveTracker = {}
@@ -205,10 +211,58 @@ local function IsOwnAuraActive(auraID)
   return source == "player" or source == "pet"
 end
 
+local function IsMaskedField(info, field)
+  if type(info) ~= "table" then
+    return false
+  end
+  local ok, masked = pcall(function()
+    return IsSecretValue(info[field])
+  end)
+  return not ok or masked
+end
+
+-- The state of a masked cooldown from its NeverSecret fields, or nil. A
+-- running global cooldown is no cooldown of the spell; an on-hold cooldown
+-- (isEnabled false) is one. For charges the spell's cooldown only runs with
+-- no charge left.
+local function ReadHiddenState(info)
+  if type(info) ~= "table" then
+    return nil
+  end
+  local enabled = ReadPlainBoolean(info, "isEnabled")
+  if enabled == false then
+    return "cd"
+  end
+  local active = ReadPlainBoolean(info, "isActive")
+  if enabled == nil or active == nil then
+    return nil
+  end
+  if active and ReadPlainBoolean(info, "isOnGCD") ~= true then
+    return "cd"
+  end
+  return "ready"
+end
+
+local function IsNumberMasked(spellID, info)
+  if IsCooldownSecret(spellID) or IsMaskedField(info, "startTime") or IsMaskedField(info, "duration") then
+    return true
+  end
+  local charges = CallPlain(ResolveFunction("C_Spell", "GetSpellCharges"), spellID)
+  return IsMaskedField(charges, "currentCharges") or IsMaskedField(charges, "cooldownStartTime")
+end
+
 --- Reads one known spell. Returns the entry or nil (fail-closed).
 local function ReadSpellState(spellID, record, now)
-  if IsCooldownSecret(spellID) then
-    return nil
+  local info = CallPlain(ResolveFunction("C_Spell", "GetSpellCooldown"), spellID)
+  if IsNumberMasked(spellID, info) then
+    local state = ReadHiddenState(info)
+    if state == nil then
+      return nil
+    end
+    if IsOwnAuraActive(record.aura) then
+      state = "active"
+    end
+    return { spellID = spellID, kind = record.kind, state = state, remain = 0, hidden = true }
   end
   local state, remain, charges, isCharged = ReadCharges(spellID, now)
   if not isCharged then
@@ -230,6 +284,7 @@ function DefensiveTracker.CreateController(opts)
   local getTime = type(opts.getTime) == "function" and opts.getTime or rawget(_G, "GetTime")
   local controller = {}
   local knownSpells = nil -- sorted cast IDs, nil until resolved
+  local allAnswered = false -- every spellbook question had a plain answer
 
   --- Resolves which manifest spells the player knows. Returns the count, or
   -- nil when the class cannot be read (then nothing is tracked).
@@ -238,16 +293,22 @@ function DefensiveTracker.CreateController(opts)
     local classToken = ReadPlayerClass()
     if not manifest or not classToken then
       knownSpells = nil
+      allAnswered = false
       return nil
     end
-    local list = {}
+    local list, answered = {}, true
     for spellID, record in pairs(manifest.spells) do
-      if record.class == classToken and IsSpellKnownByPlayer(spellID) == true then
-        list[#list + 1] = spellID
+      if record.class == classToken then
+        local known = IsSpellKnownByPlayer(spellID)
+        if known == true then
+          list[#list + 1] = spellID
+        elseif known == nil then
+          answered = false
+        end
       end
     end
     table.sort(list)
-    knownSpells = list
+    knownSpells, allAnswered = list, answered
     return #list
   end
 
@@ -264,24 +325,31 @@ function DefensiveTracker.CreateController(opts)
     return manifest ~= nil and type(spellID) == "number" and manifest.spells[spellID] ~= nil
   end
 
-  --- The own entries at `now` (defaults to GetTime()), read from the client.
+  --- The own entries at `now` (defaults to GetTime()), read from the client,
+  -- and whether they are complete: the spellbook answered and every known
+  -- spell has plain numbers. An empty list is complete only without known
+  -- spells.
   function controller.ReadEntries(now)
     now = now or (type(getTime) == "function" and getTime() or nil)
     local manifest = Manifest()
     if not Validators.IsFiniteNumber(now) or not manifest then
-      return {}
+      return {}, false
     end
-    if knownSpells == nil then
+    if knownSpells == nil or not allAnswered then
       controller.ResolveKnownSpells()
     end
     local entries = {}
+    local complete = knownSpells ~= nil and allAnswered
     for _, spellID in ipairs(knownSpells or {}) do
       local entry = ReadSpellState(spellID, manifest.spells[spellID], now)
       if entry then
         entries[#entries + 1] = entry
       end
+      if not entry or entry.hidden then
+        complete = false
+      end
     end
-    return entries
+    return entries, complete
   end
 
   --- Cast IDs the player knows (copy), or an empty list before resolution.
@@ -295,6 +363,7 @@ function DefensiveTracker.CreateController(opts)
 
   function controller.Reset()
     knownSpells = nil
+    allAnswered = false
   end
 
   return controller

@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.552
+## Version: 0.9.553
 ## SavedVariables: IsiLiveDB
 ## OptionalDependencies: WagoAnalytics
 ## X-Wago-ID: rN4r1zKD
@@ -135,6 +135,7 @@ game/isiLive_consumable_check.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_defensive_tracker.lua
+game/isiLive_defensive_talents.lua
 game/isiLive_defensive_sensors.lua
 game/isiLive_combat_events.lua
 game/isiLive_pi_tracker.lua
@@ -159,6 +160,7 @@ ui/isiLive_run_focus.lua
 ui/isiLive_run_focus_title.lua
 logic/isiLive_events.lua
 logic/isiLive_event_handlers_queue.lua
+logic/isiLive_probe_samples.lua
 logic/isiLive_probe_log.lua
 logic/isiLive_probe_party.lua
 logic/isiLive_probe_auracontainer.lua

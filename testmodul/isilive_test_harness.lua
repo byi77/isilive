@@ -59,6 +59,7 @@ local FILE_PATHS = {
   ["isiLive_kick_tracker.lua"] = "game/isiLive_kick_tracker.lua",
   ["isiLive_defensives.lua"] = "data/isiLive_defensives.lua",
   ["isiLive_defensive_tracker.lua"] = "game/isiLive_defensive_tracker.lua",
+  ["isiLive_defensive_talents.lua"] = "game/isiLive_defensive_talents.lua",
   ["isiLive_defensive_sensors.lua"] = "game/isiLive_defensive_sensors.lua",
   ["isiLive_lfg_entry_resolver.lua"] = "game/isiLive_lfg_entry_resolver.lua",
   ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
@@ -167,6 +168,7 @@ local FILE_PATHS = {
   ["isiLive_inspect.lua"] = "logic/isiLive_inspect.lua",
   ["isiLive_events.lua"] = "logic/isiLive_events.lua",
   ["isiLive_event_handlers_queue.lua"] = "logic/isiLive_event_handlers_queue.lua",
+  ["isiLive_probe_samples.lua"] = "logic/isiLive_probe_samples.lua",
   ["isiLive_probe_log.lua"] = "logic/isiLive_probe_log.lua",
   ["isiLive_probe_party.lua"] = "logic/isiLive_probe_party.lua",
   ["isiLive_probe_auracontainer.lua"] = "logic/isiLive_probe_auracontainer.lua",
@@ -273,6 +275,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_ui_motion.lua",
     "isiLive_ui_private_tooltip.lua",
   },
+  ["isiLive_probe_log.lua"] = { "isiLive_probe_samples.lua" },
   -- The party probes take ProbeLog's narrow interface at load (rule 239).
   ["isiLive_probe_party.lua"] = { "isiLive_probe_log.lua" },
   ["isiLive_probe_auracontainer.lua"] = { "isiLive_probe_log.lua", "isiLive_defensives.lua" },

@@ -30,18 +30,27 @@ local CLASSES = {
 }
 local SPECS = { party1 = 73, party3 = 64, party4 = 105 }
 
+-- Every manifest talent as taken (what a full inspect would answer).
+local function TalentsTaken(addon, except)
+  local taken = {}
+  for castID, record in pairs(addon.DefensiveManifest.spells) do
+    if record.talent then
+      taken[castID] = castID ~= except
+    end
+  end
+  return taken
+end
+
 local function IsSecret(session, value)
   return session.secret ~= nil and rawequal(value, session.secret)
 end
 
--- opts: { tracker, sync, estimate, design, combat, template = false, secret }
+-- opts: { tracker, design, combat, template = false, secret }
 local function Prepare(opts)
   opts = opts or {}
   return function(globals, session)
     local db = globals.IsiLiveDB
     db.defensiveTrackerEnabled = opts.tracker ~= false
-    db.defensiveSyncEnabled = opts.sync == true
-    db.defensiveEstimateEnabled = opts.estimate == true
     db.uiDesign = opts.design
     session.combat = opts.combat == true
     session.lockdown = false
@@ -53,6 +62,7 @@ local function Prepare(opts)
     session.createdInCombat = 0
     session.refilteredInCombat = 0
     session.cursor = { 300, 200 }
+    session.talentMode = opts.talents
     globals.UIParent:SetSize(1920, 1080)
     globals.UIParent:SetScale(1)
     globals.UnitClass = function(unit)
@@ -113,10 +123,12 @@ local function Prepare(opts)
       if IsSecret(session, condition) or IsSecret(session, ifTrue) or IsSecret(session, ifFalse) then
         return session.secret
       end
+      -- SingleColorValue: the client keeps 1/255 steps.
+      local value = ifFalse
       if condition == true then
-        return ifTrue
+        value = ifTrue
       end
-      return ifFalse
+      return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5) / 255
     end
     local createFrame = globals.CreateFrame
     globals.CreateFrame = function(frameType, name, parent, template, ...)
@@ -176,6 +188,16 @@ local function Prepare(opts)
     if type(opts.extra) == "function" then
       opts.extra(globals, session)
     end
+  end
+end
+
+-- The inspect reader has its own tests; here it answers per test.
+local function StubTalents(session)
+  session.addon.DefensiveTalents.GetTalents = function()
+    if session.talentMode == "unknown" then
+      return nil
+    end
+    return TalentsTaken(session.addon, session.talentMode)
   end
 end
 
@@ -312,6 +334,7 @@ local function RegisterCellTests(test, ctx)
 
   local function RunCellPhase(design)
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(2)
       Render(session)
       local headers = HeaderTexts(session)
@@ -359,6 +382,7 @@ local function RegisterCellTests(test, ctx)
 
   test("Defensives cell stays away with the tracker off", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(2)
       Render(session)
       Assert.Equal(#VisibleCells(session), 0, "no cell with the switch off")
@@ -368,6 +392,7 @@ local function RegisterCellTests(test, ctx)
 
   test("Defensives cell shows own, sync and frozen sync states with the clock glyph", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.cooldowns[PAIN_SUPPRESSION] = { start = session.now, duration = 180 }
       session.DispatchToFrames("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", PAIN_SUPPRESSION)
       session.Advance(1)
@@ -386,15 +411,16 @@ local function RegisterCellTests(test, ctx)
       session.lockdown = true
       session.Advance(2)
       peer = FindSlot(session, IRONBARK)
-      Assert.Equal(peer.state, "frozen", "the own chat lockdown freezes the sync state")
+      Assert.Equal(peer.state, "frozen", "the own chat lockdown freezes the sync state (no sensor client)")
       Assert.True(peer.clock._shown == true, "frozen: clock glyph instead of seconds")
       Assert.Equal(peer.text._text, "", "frozen: no seconds")
       Assert.Equal(FindSlot(session, PAIN_SUPPRESSION).state, "cd", "the own state keeps counting")
-    end, Prepare({ sync = true }))
+    end, Prepare({ template = false }))
   end)
 
   test("Defensives tooltip lists every defensive with kind, state and the source age", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       Receive(session, "DEF:22812,1,0;102342,0,40", "Peer4-Realm")
       session.Advance(5)
       Render(session)
@@ -417,15 +443,16 @@ local function RegisterCellTests(test, ctx)
         joined:find("Defensives / externals", 1, true) < joined:find("Spell102342", 1, true),
         "the header comes first"
       )
-    end, Prepare({ sync = true }))
+    end, Prepare({}))
   end)
 end
 
 local function RegisterSensorTests(test, ctx)
   local Assert = ctx.assert
 
-  test("Defensive estimate builds sensors only out of combat, within the budget and not for isiLive users", function()
+  test("Defensive estimate builds sensors only out of combat, within the budget and by the synced list", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       Assert.Equal(#session.containers, 0, "no container is built in combat")
       session.combat = false
@@ -436,7 +463,9 @@ local function RegisterSensorTests(test, ctx)
       -- party1 Prot: Rallying Cry + Shield Wall; party2 Paladin (no spec):
       -- Sacrifice + Protection; party3 Mage: Ice Block; party4 Resto: Ironbark
       -- + Barkskin.
-      Assert.Equal(#EnabledSensors(session), 7, "two sensors per member at most, by class and spec")
+      Assert.Equal(#EnabledSensors(session), 23, "externals and group cooldowns on five targets, personal on one")
+      Assert.NotNil(SensorFor(session, "player", BLESSING_OF_SACRIFICE), "an external is watched on the player too")
+      Assert.Nil(SensorFor(session, "party1", ICE_BLOCK), "a personal one only on its caster")
       Assert.NotNil(SensorFor(session, "party1", RALLYING_CRY_AURA), "group cooldown first for the warrior")
       Assert.NotNil(SensorFor(session, "party1", SHIELD_WALL), "then the Prot-only Shield Wall")
       Assert.Nil(SensorFor(session, "party1", 118038), "no Arms-only spell for a Prot warrior")
@@ -458,15 +487,17 @@ local function RegisterSensorTests(test, ctx)
       paladinHover._scripts.OnEnter(paladinHover)
       local joined = table.concat(RosterTooltipLines(session), "\n")
       Assert.True(joined:find("Spell6940 |cff8a96a8(external)|r: ~ estimated, see the icon", 1, true) ~= nil, "est.")
-      Assert.True(joined:find("Spell642 |cff8a96a8(personal)|r: likely ready (not seen)", 1, true) ~= nil, "unseen")
+      Assert.True(joined:find("Spell642 |cff8a96a8(personal)|r: not tracked", 1, true) ~= nil, "unseen")
       Assert.True(joined:find("Source: estimated (~)", 1, true) ~= nil, "estimated source")
       Assert.Nil(joined:find("Spell31821", 1, true), "no spec-bound spell without a spec")
 
-      -- party4 turns out to run isiLive: its sensors go, the sync takes over.
+      -- party4 turns out to run isiLive: the synced list names the spells,
+      -- the live sync is drawn exactly.
       Receive(session, "DEF:102342,1,0", "Peer4-Realm")
       session.Advance(2)
-      Assert.Nil(SensorFor(session, "party4", IRONBARK), "no sensor for an isiLive user")
-      Assert.Equal(#sensors.GetEstimate(session.addon.Sync.NormalizePlayerKey("Peer4", "Realm")), 0, "no estimate")
+      Assert.NotNil(SensorFor(session, "party4", IRONBARK), "the sensor stays warm for the key")
+      Assert.Nil(SensorFor(session, "party4", 22812), "no sensor for a spell the peer does not have")
+      Assert.Equal(#sensors.GetEstimate(session.addon.Sync.NormalizePlayerKey("Peer4", "Realm")), 1, "one spell")
       Assert.Equal(FindSlot(session, IRONBARK).text._text, "", "the synced slot shows the exact ready state")
 
       -- A spec change in combat only switches off, never re-filters.
@@ -477,15 +508,17 @@ local function RegisterSensorTests(test, ctx)
       SPECS.party1 = 73
       Assert.Equal(session.createdInCombat, 0, "no container created in combat")
       Assert.Equal(session.refilteredInCombat, 0, "no container re-filtered in combat")
-    end, Prepare({ estimate = true, sync = true, combat = true }))
+    end, Prepare({ combat = true }))
   end)
 
   test("Defensive estimate stays off by default, without the client template and in a raid", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       Assert.Equal(#session.containers, 0, "default off: no sensor")
-    end, Prepare({}))
+    end, Prepare({ tracker = false }))
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       Assert.Equal(#session.containers, 0, "no template: no sensor (fail-closed)")
       Assert.False(session.addon.DefensiveSensors.IsSupported(), "unsupported client")
@@ -497,19 +530,21 @@ local function RegisterSensorTests(test, ctx)
         end
       end
       Assert.True(found, "the selftest names the missing template")
-    end, Prepare({ estimate = true, template = false }))
+    end, Prepare({ template = false }))
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       Assert.True(#EnabledSensors(session) > 0, "sensors run in the party")
       session.raid = true
       session.Dispatch("GROUP_ROSTER_UPDATE")
       session.Advance(2)
       Assert.Equal(#EnabledSensors(session), 0, "every sensor off in a raid (rule 11)")
-    end, Prepare({ estimate = true }))
+    end, Prepare({}))
   end)
 
   test("Defensive estimate switches off and reports a refused container setup in the selftest", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       local sensors = session.addon.DefensiveSensors
       Assert.False(sensors.IsSupported(), "a refused setup switches the estimate off")
@@ -523,7 +558,7 @@ local function RegisterSensorTests(test, ctx)
       found = Assert.NotNil(found, "the selftest lists the refused setup")
       Assert.Equal(found.status, "error", "as an error row")
       Assert.True(tostring(found.detail):find("group", 1, true) ~= nil, "naming the refused step")
-    end, Prepare({ estimate = true, refuseGroups = true }))
+    end, Prepare({ refuseGroups = true }))
   end)
 
   test("Defensive estimate passes secret sensor answers through the curve into the bar", function()
@@ -532,6 +567,7 @@ local function RegisterSensorTests(test, ctx)
       ctx,
       Fixture,
       function(session)
+        StubTalents(session)
         session.Advance(3)
         Render(session)
         local sensors = session.addon.DefensiveSensors
@@ -543,12 +579,11 @@ local function RegisterSensorTests(test, ctx)
         Assert.True(sensors.GetReadCount() > reads, "the secret answers keep flowing")
         local slot = FindSlot(session, ICE_BLOCK)
         local bar = slot.estimateBar
-        Assert.True(rawequal(bar._min, secret), "the bar minimum is the secret latch")
-        Assert.True(rawequal(bar._max, secret), "the bar maximum is the secret latch")
-        Assert.Equal(type(bar._value), "number", "the bar value is the plain clock")
+        Assert.Equal(type(bar._min), "number", "the bar minimum is plain")
+        Assert.Equal(type(bar._max), "number", "the bar maximum is plain")
+        Assert.True(rawequal(bar._value, secret), "the bar value is the secret byte")
       end,
       Prepare({
-        estimate = true,
         secret = secret,
         extra = function(globals)
           for key, value in pairs(secretGlobals) do
@@ -561,6 +596,7 @@ local function RegisterSensorTests(test, ctx)
 
   test("Defensive estimate counts the manifest cooldown down from the detected buff start", function()
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(3)
       Render(session)
       local bar = FindSlot(session, ICE_BLOCK).estimateBar
@@ -573,7 +609,7 @@ local function RegisterSensorTests(test, ctx)
       session.Advance(59)
       local share = FillShare(bar)
       local expected = (240 - (session.now - start)) / 240
-      Assert.True(math.abs(share - expected) <= 1 / 240, "remaining share from the buff start: " .. share)
+      Assert.True(math.abs(share - expected) <= 2.5 / 240, "remaining share from the buff start: " .. share)
 
       -- Cursor outside the screen: the tick is skipped, nothing is forced.
       local reads = session.addon.DefensiveSensors.GetReadCount()
@@ -586,7 +622,186 @@ local function RegisterSensorTests(test, ctx)
 
       session.Advance(200)
       Assert.Equal(FillShare(bar), 0, "the cooldown ran out: ready")
-    end, Prepare({ estimate = true }))
+    end, Prepare({}))
+  end)
+end
+
+local function RegisterAttributionTests(test, ctx)
+  local Assert = ctx.assert
+
+  test("Defensive estimate credits an external on any member to its one possible caster", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(3)
+      Render(session)
+      local ironbark = FindSlot(session, IRONBARK).estimateBar
+      local iceBlock = FindSlot(session, ICE_BLOCK).estimateBar
+      -- The Druid of party4 casts on the Warrior of party1.
+      session.auraUp["party1:" .. IRONBARK] = true
+      session.Advance(1)
+      session.auraUp["party1:" .. IRONBARK] = nil
+      session.Advance(1)
+      Assert.True(FillShare(ironbark) > 0.9, "the caster's slot runs")
+      Assert.Equal(FillShare(iceBlock), 0, "nobody else's slot does")
+    end, Prepare({}))
+  end)
+
+  test("Defensive estimate shows a question mark for a talent it cannot read", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(3)
+      Render(session)
+      local slot = FindSlot(session, IRONBARK)
+      Assert.Equal(slot.text._text, "?", "unknown talent: no estimate, never ready")
+      Assert.Nil(SensorFor(session, "party4", IRONBARK), "and no sensor")
+      Assert.Equal(FindSlot(session, 22812).text._text, "~", "a baseline spell needs no talent")
+    end, Prepare({ talents = "unknown" }))
+  end)
+
+  test("Defensive estimate leaves out a talent the inspect shows as not taken", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(3)
+      Render(session)
+      Assert.Nil(FindSlot(session, IRONBARK), "not taken: no slot")
+      Assert.NotNil(FindSlot(session, 22812), "the next defensive moves up")
+    end, Prepare({ talents = IRONBARK }))
+  end)
+
+  test("Defensive estimate moves the number column only with plain steps", function()
+    Stress.WithKey(
+      ctx,
+      Fixture,
+      function(session)
+        StubTalents(session)
+        session.Advance(3)
+        local cell = session.addon.RosterDefensiveCell
+        Render(session)
+        local slot = FindSlot(session, ICE_BLOCK)
+        local strip = Assert.NotNil(slot.strip, "the slot has a number strip")
+        session.auraUp["party3:" .. ICE_BLOCK] = true
+        local start = session.now
+        session.Advance(1)
+        session.auraUp["party3:" .. ICE_BLOCK] = nil
+        for _, wait in ipairs({ 9, 50, 120 }) do
+          session.Advance(wait)
+          -- Layout of the client: the fill's top edge, then the row in the window.
+          local fillTop = (strip.bar._value + 1 / 255) * 255 * 14
+          local row = (strip.barOffset + fillTop) / 14
+          Assert.True(math.abs(row - math.floor(row + 0.5)) < 1e-6, "a whole row sits in the window")
+          local label = strip.labels[math.floor(row + 0.5)]
+          local left = 240 - (session.now - start)
+          local text = Assert.NotNil(label, "a number for " .. left)._text
+          local low, high = cell.FormatShort(left - 3), cell.FormatShort(left + 3)
+          Assert.True(text == low or text == high or text == cell.FormatShort(left), text .. " for " .. left)
+        end
+        session.Advance(80)
+        local row = math.floor((strip.barOffset + (strip.bar._value + 1 / 255) * 255 * 14) / 14 + 0.5)
+        Assert.True(row <= 0, "run out: no number in the window, only ~")
+      end,
+      Prepare({
+        extra = function(globals)
+          local createFrame = globals.CreateFrame
+          globals.CreateFrame = function(frameType, ...)
+            local frame = createFrame(frameType, ...)
+            function frame:SetClipsChildren() end
+            if frameType == "StatusBar" then
+              function frame:SetOrientation() end
+              function frame:GetStatusBarTexture()
+                return self
+              end
+            end
+            return frame
+          end
+        end,
+      })
+    )
+  end)
+
+  test("Defensive estimate says unclear with two possible casters of an external", function()
+    Stress.WithKey(
+      ctx,
+      Fixture,
+      function(session)
+        StubTalents(session)
+        session.Advance(3)
+        Render(session)
+        local slot = FindSlot(session, BLESSING_OF_SACRIFICE)
+        Assert.Equal(slot.text._text, "?", "two Paladins: no guess who cast it")
+        Assert.False(slot.estimateBar._shown == true, "and no fill")
+        Assert.Equal(#session.containers > 0, true, "the other members keep their sensors")
+        Assert.Nil(SensorFor(session, "player", BLESSING_OF_SACRIFICE), "no sensor for the unclear spell")
+      end,
+      Prepare({
+        extra = function(globals)
+          local unitClass = globals.UnitClass
+          globals.UnitClass = function(unit)
+            if unit == "party3" then
+              return "Paladin", "PALADIN", 2
+            end
+            return unitClass(unit)
+          end
+        end,
+      })
+    )
+  end)
+
+  test("Defensive estimate carries the shared state of an isiLive user into the key", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(2)
+      Receive(session, "DEF:102342,0,45", "Peer4-Realm")
+      session.Advance(1)
+      session.lockdown = true
+      session.Advance(2)
+      Render(session)
+      local slot = FindSlot(session, IRONBARK)
+      Assert.Equal(slot.state, "estimate", "locked sync: the estimate takes over")
+      Assert.True(math.abs(FillShare(slot.estimateBar) - 42 / 90) <= 2.5 / 90, "from the shared cooldown")
+      session.Advance(120)
+      Render(session)
+      slot = FindSlot(session, IRONBARK)
+      Assert.Equal(slot.state, "estimate", "the list stays for the whole key")
+      Assert.Equal(FillShare(slot.estimateBar), 0, "and the shared cooldown ran out")
+    end, Prepare({}))
+  end)
+
+  test("Defensive estimate starts a shared spell with a free charge as ready", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(2)
+      Receive(session, "DEF:102342,1,40,1", "Peer4-Realm")
+      session.Advance(1)
+      session.lockdown = true
+      session.Advance(2)
+      Render(session)
+      Assert.Equal(FillShare(FindSlot(session, IRONBARK).estimateBar), 0, "a free charge is ready, not a cooldown")
+    end, Prepare({}))
+  end)
+
+  test("Defensive estimate stays within a step through the window changes of a long key", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      session.Advance(3)
+      Render(session)
+      local bar = FindSlot(session, ICE_BLOCK).estimateBar
+      for round = 1, 8 do
+        session.auraUp["party3:" .. ICE_BLOCK] = true
+        local start = session.now
+        session.Advance(1)
+        session.auraUp["party3:" .. ICE_BLOCK] = nil
+        for _, offset in ipairs({ 40, 80, 90 }) do
+          session.Advance(offset)
+          local left = math.max(0, 240 - (session.now - start))
+          local shown = FillShare(bar) * 240
+          Assert.True(
+            math.abs(shown - left) <= 3.5,
+            string.format("round %d: shown %.1f, left %.1f", round, shown, left)
+          )
+        end
+        session.Advance(40 + round * 13)
+      end
+    end, Prepare({}))
   end)
 end
 
@@ -597,11 +812,10 @@ local function RegisterSettingsTests(test, ctx)
     local addon = ctx.load_modules({ "isiLive_db_schema.lua" })
     local db = {}
     addon.DBSchema.Sanitize(db)
-    Assert.Equal(db.defensiveEstimateEnabled, false, "schema default of the estimate")
     Assert.Equal(db.defensiveTrackerEnabled, false, "schema default of the feature")
-    Assert.Equal(db.defensiveSyncEnabled, false, "schema default of the sync")
 
     Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
       session.Advance(2)
       Assert.Equal(#VisibleCells(session), 0, "off")
       local options = session.addon.SettingsDefensives.OPTIONS
@@ -615,7 +829,7 @@ local function RegisterSettingsTests(test, ctx)
     end, Prepare({ tracker = false }))
   end)
 
-  test("Settings panel shows the three defensives switches, Pattern B, and applies the runtime", function()
+  test("Settings panel shows the one defensives switch, Pattern B, and applies the runtime", function()
     local helpers = dofile("testmodul/isilive_test_ui_helpers.lua")
     local createFrameStub, createdFrames = helpers.BuildCreateFrameStub()
     local db = {}
@@ -652,8 +866,6 @@ local function RegisterSettingsTests(test, ctx)
       end
       for index, entry in ipairs({
         { "SETTINGS_DEFENSIVE_TRACKER", "defensiveTrackerEnabled" },
-        { "SETTINGS_DEFENSIVE_SYNC", "defensiveSyncEnabled" },
-        { "SETTINGS_DEFENSIVE_ESTIMATE", "defensiveEstimateEnabled" },
       }) do
         local check = Assert.NotNil(checks[entry[1]], entry[1] .. " checkbox")
         Assert.False(check:GetChecked(), entry[2] .. " reads unchecked when unset (Pattern B)")
@@ -676,8 +888,6 @@ local function RegisterSettingsTests(test, ctx)
         "DEF_STATE_NOT_SEEN",
         "DEF_SOURCE_SYNC",
         "SETTINGS_DEFENSIVE_TRACKER",
-        "SETTINGS_DEFENSIVE_SYNC",
-        "SETTINGS_DEFENSIVE_ESTIMATE",
       }) do
         Assert.True(type(tables[tag][key]) == "string" and tables[tag][key] ~= "", tag .. " " .. key)
       end
@@ -688,5 +898,6 @@ end
 return function(test, ctx)
   RegisterCellTests(test, ctx)
   RegisterSensorTests(test, ctx)
+  RegisterAttributionTests(test, ctx)
   RegisterSettingsTests(test, ctx)
 end

@@ -3,7 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.552`.
+Current version: `0.9.553`.
+
+Version 0.9.553: rework of the experimental defensives column, still off by
+default and so far tested offline only, not yet verified in a real key. The
+game draws your own cooldowns inside a key, the estimate for the others
+catches externals cast on group members, shows approximate seconds (~) and a
+"?" instead of guessing, and one switch controls the column, sharing and the
+estimate. Also: the demo simulator tablet has its background back, and a
+one-time card announces the voice alerts.
 
 Version 0.9.552: kick statistics fix. A player no longer shows a 0 when a
 pet kick without a known owner makes that 0 unproven. The known limits of
@@ -347,7 +355,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.552 -->
+<!-- highlights-reviewed-for: 0.9.553 -->
 
 Highlights:
 - **Voice announcements in one voice.** English and German alerts share
@@ -366,6 +374,7 @@ Highlights:
   isiLive checks itself once and tells you in chat only if something broke
   (details: /isilive selftest); a season it does not know yet no longer shows
   the previous season's portals.
-- **Defensives column (experimental preview, off by default).** A planned
-  column for the group's defensives during a key. It is not reliable inside
-  keys yet, so leave it off for real runs; demo action C14 previews it.
+- **Defensives column (experimental preview, off by default).** A column for
+  the group's defensives during a key: your own cooldowns, estimates (~) for
+  the others. It is tested offline only and not yet verified in real keys;
+  demo action C14 previews it.

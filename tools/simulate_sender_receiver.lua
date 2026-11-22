@@ -673,7 +673,6 @@ local function SimulateDefRoundtrip()
     session.lockdown = false
     session.cooldowns = {}
     globals.IsiLiveDB.defensiveTrackerEnabled = true
-    globals.IsiLiveDB.defensiveSyncEnabled = true
     globals.UnitClass = function()
       return "Priest", "PRIEST", 5
     end

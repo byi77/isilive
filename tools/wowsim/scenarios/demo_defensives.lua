@@ -4,7 +4,7 @@
 -- the countdown, the row tooltips, the Classic design and the cleanup on
 -- reload, dungeon entry and demo end.
 local MAP_ID = 249
-local SWITCHES = { "defensiveTrackerEnabled", "defensiveSyncEnabled", "defensiveEstimateEnabled" }
+local SWITCHES = { "defensiveTrackerEnabled" }
 
 local function Cells(sim)
   local out = {}

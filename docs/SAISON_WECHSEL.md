@@ -182,7 +182,7 @@ PTR `/isilive selftest`.
   `C_CurveUtil.EvaluateColorValueFromBoolean` als ok melden und darf keine Zeile
   `ERROR AuraContainer setup` zeigen; sonst ist die Schaetzung aus. Die
   Sensor-Kette haengt an undokumentiertem Verhalten (Element-Layout +
-  `IsMouseOver`): in einem Key mit `defensiveEstimateEnabled` pruefen, dass ein
+  `IsMouseOver`): in einem Key mit `defensiveTrackerEnabled` pruefen, dass ein
   External eines Nicht-isiLive-Mitspielers den blauen Rahmen zeigt und danach
   die Fuellung abnimmt; bei Bruch die Probe (`/isilive probe on`, Regel 239)
   als Diagnose nutzen.

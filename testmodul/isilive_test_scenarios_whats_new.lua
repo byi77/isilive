@@ -5,8 +5,8 @@
 local Fixture = dofile("testmodul/isilive_test_factory_fixture.lua")
 local Stress = dofile("testmodul/isilive_test_mplus_stress_helpers.lua")
 
--- WhatsNew.ENTRIES ships empty since the pace announce entry left with its
--- feature (2026-11-21); the login flows add this entry right after login.
+-- The login flows add this entry as the newest one right after login, so
+-- they do not depend on the shipped cards.
 local TITLE_EN = "New: test feature"
 local EXAMPLE_LINE = "Example value of the test feature"
 local TEST_ENTRY = {
@@ -82,7 +82,9 @@ return function(test, ctx)
   test("WhatsNew shows no card while the entry list is empty", function()
     Stress.WithParty(ctx, Fixture, function(session)
       local WhatsNew = session.addon.WhatsNew
-      Assert.Equal(#WhatsNew.ENTRIES, 0, "no feature card ships right now")
+      for index = #WhatsNew.ENTRIES, 1, -1 do
+        WhatsNew.ENTRIES[index] = nil
+      end
       Assert.Nil(WhatsNew.GetPending(session.globals.IsiLiveDB), "nothing is pending")
       session.Advance(WhatsNew.LOGIN_DELAY_SECONDS + 5)
       Assert.Nil(session.globals.IsiLiveDB.whatsNewSeen, "no card was shown or marked seen")
@@ -95,6 +97,29 @@ return function(test, ctx)
       session.Advance(session.addon.WhatsNew.LOGIN_DELAY_SECONDS + 5)
       Assert.Nil(ShownTexts(session)[TITLE_EN], "a seen card never comes back")
     end, SeenBefore(TEST_ENTRY.id))
+  end)
+
+  test("WhatsNew ships the voice announcement card in five languages", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local entry = session.addon.WhatsNew.GetLatest()
+      Assert.Equal(entry.id, "voice_announcements", "the voice card is the newest entry")
+      session.Advance(session.addon.WhatsNew.LOGIN_DELAY_SECONDS)
+      Assert.True(ShownTexts(session)[entry.titleFallback] == true, "the card appears after login")
+      Assert.Equal(session.globals.IsiLiveDB.whatsNewSeen, entry.id, "and is marked seen")
+      for _, locale in ipairs({ "enUS", "deDE", "frFR", "ruRU", "trTR" }) do
+        local handle = assert(io.open("locale/isiLive_texts_" .. locale .. ".lua", "r"))
+        local source = handle:read("*a")
+        handle:close()
+        local keys = { entry.titleKey }
+        for _, field in ipairs(entry.fields) do
+          keys[#keys + 1] = field.labelKey
+          keys[#keys + 1] = field.valueKey
+        end
+        for _, key in ipairs(keys) do
+          Assert.NotNil(source:find("  " .. key .. " = ", 1, true), locale .. " has " .. key)
+        end
+      end
+    end)
   end)
 
   test("WhatsNew shows again only for a newer entry", function()

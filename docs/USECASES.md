@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.552`
+Versionsbasis: `0.9.553`
 Zuletzt aktualisiert: `2026-11-22`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -646,11 +646,11 @@ Ziel: Der Spieler sieht im Key-Kampf, wie lange sein Ziel noch etwa lebt (Regel 
 
 Ziel: Der Spieler sieht im Key, welche Defensives und Externals der Gruppe bereit sind (Regeln 267 bis 269).
 
-Stand 2026-11-22: Ziel noch nicht erreicht. Eigene Cooldowns sind im Key secret (eigene Zelle leer), der Sync kann leer einfrieren, die Schaetzung erkennt Externals auf andere nicht, und die Fuellung zeigt wegen der 1/255-Rundung falsche Werte (bekannte Maengel in Regeln 267 und 268).
+Stand 2026-11-22: korrigiert nach Konzept (drei Stufen), nur offline geprueft, im echten Key noch nicht bestaetigt.
 
-1. Trigger: Keystart mit `defensiveTrackerEnabled`; Factory-Takt 1 s, eigene Casts, `DEF`-Sync der isiLive-Nutzer, Sensor-Takt 0,5 s mit `defensiveEstimateEnabled`, eigene Chat-Sperre, Keyende.
-2. Verarbeitung: eigener Stand vom Live-Client, Sync-Stand aus `DefensiveStore` (eingefroren waehrend der eigenen Chat-Sperre), fuer Mitspieler ohne Sync-Stand unsichtbare Aura-Container je Slot-Spell, deren secret Antwort ueber `C_CurveUtil.EvaluateColorValueFromBoolean` in die Fuellung der Zelle laeuft.
-3. Output: 70-px-Zelle statt DPS (RIO 54 px ohne "(+N)", Kick unveraendert): bereit hell, CD grau mit Sekunden ("Xm" ab 100 s), aktiv blauer Rahmen mit Alpha-Puls, eingefroren gedimmt mit Uhr, geschaetzt "~" mit Fuellung; Zeilen-Tooltip mit allen Defensives, Quelle und Alter.
+1. Trigger: Keystart mit `defensiveTrackerEnabled`; Factory-Takt 1 s, eigene Casts, `DEF`-Sync der isiLive-Nutzer bis zur Chat-Sperre (ab Keystart), Sensor-Takt 0,5 s, `INSPECT_READY` fuer Talente, Keyende.
+2. Verarbeitung: eigener Zustand aus den `NeverSecret`-Feldern mit Blizzards Countdown, Sync-Stand bis zum Keystart als Startwert, danach unsichtbare Aura-Container je Slot-Spell (Externals auf allen fuenf Zielen, nur bei genau einem moeglichen Zaubernden), deren secret Antwort ueber `C_CurveUtil.EvaluateColorValueFromBoolean` als Byte in Fuellung und Zahlenstreifen laeuft.
+3. Output: 70-px-Zelle statt DPS (RIO 54 px ohne "(+N)", Kick unveraendert): bereit hell, CD grau mit Sekunden ("Xm" ab 100 s), aktiv blauer Rahmen mit Alpha-Puls, geschaetzt "~" mit Sekunden und Fuellung, unklar "?", ohne Sensor-Client eingefroren gedimmt mit Uhr; Zeilen-Tooltip mit allen Defensives, Quelle und Alter.
 4. Erfolgskriterium: Ausserhalb des Keys, im Raid, im Run-Fokus und mit ausgeschaltetem Schalter bleibt die bisherige DPS-Darstellung; kein Sensorwert erreicht Lua-Logik; Container entstehen nur ausserhalb des Kampfs und unter dem Budget von 56.
 5. Vorschau (Regel 270): `/isilive testall` bzw. `/isilive sim`, Reiter M+, Aktion C14 zeigt alle Zustaende samt Tooltip ohne Key und Gruppe aus einer eigenen Demo-Quelle; sie endet mit der Demo und aendert oder sendet nichts.
 

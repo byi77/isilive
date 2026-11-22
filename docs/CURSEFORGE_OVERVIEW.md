@@ -102,7 +102,7 @@ WHAT isiLive GIVES YOU
 
 ✅ Better LFG scanning with green class-bonus plus signs.
 ✅ One compact Mythic+ roster with key, item level, Raider.IO, DPS, language, role, and interrupt state.
-🧪 Experimental preview, off by default: a defensives column for keys. It is not reliable inside keys yet.
+🧪 Experimental preview, off by default: a defensives column for keys. It is not verified inside real keys yet.
 ✅ Automatic key, target, stats, DPS, location, and kick sync between isiLive users, routed through verified party or instance chat channels.
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A talent and loot check before the key, remembered per dungeon and spec, with one-click loadout and loot spec switches.

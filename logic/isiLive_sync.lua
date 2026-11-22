@@ -912,8 +912,9 @@ function Sync.SendRefreshRequest(opts)
   if not opts.force and (now - lastIsiLiveRefreshRequestAt) < ISILIVE_REFRESH_REQUEST_COOLDOWN then
     return
   end
-  -- Addon chat is locked down in a key from the first pull until after the
-  -- key (probe 2026-11-12): nothing would go out, so nothing is attempted.
+  -- Addon chat is locked down from the key start until after the key
+  -- (restriction events 2026-11-21): nothing would go out, so nothing is
+  -- attempted.
   if IsAddonChatLockedDown() then
     SyncLog("send_reqsync", "channel=%s sent=lockdown", tostring(channel))
     return

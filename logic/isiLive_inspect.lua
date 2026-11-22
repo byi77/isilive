@@ -289,6 +289,12 @@ local function ApplyInspectResult(controller, unit, guid, roster, getters)
     end
   end
 
+  -- The trait inspect data belongs to the member just inspected (rule 268).
+  local talents = addonTable.DefensiveTalents
+  if unit ~= "player" and type(talents) == "table" and type(talents.CaptureInspect) == "function" then
+    talents.CaptureInspect(guid)
+  end
+
   result.incomplete = (type(getters.getUnitRio) == "function" and not rioResolved)
     or (type(getters.getInspectSpecName) == "function" and not specResolved)
     or not (ilvl and ilvl > 0)

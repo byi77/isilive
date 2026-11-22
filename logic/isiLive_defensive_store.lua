@@ -6,7 +6,8 @@ addonTable = addonTable or {}
 --
 -- The one place that holds defensive state per player:
 --   * own   - the local player's state, read from the live client by
---             game/isiLive_defensive_tracker.lua (SetOwn)
+--             game/isiLive_defensive_tracker.lua (SetOwn); a `hidden` entry
+--             (masked cooldown) has a state but no countdown
 --   * sync  - an isiLive peer's state from its DEF sync message (SetPeer)
 -- Nothing else feeds it: no estimate, no default, no carried-over value. A
 -- player without a valid record reads as source "none".
@@ -70,7 +71,7 @@ end
 -- Copies the valid entries of `entries` (manifest spell, known state, remain
 -- 0..3600, optional charges 0..9) with the manifest kind. Returns nil when any
 -- entry is invalid: a half-valid list is rejected as a whole.
-local function NormalizeEntries(entries)
+local function NormalizeEntries(entries, allowHidden)
   local manifest = Manifest()
   if not manifest or type(entries) ~= "table" then
     return nil
@@ -91,8 +92,18 @@ local function NormalizeEntries(entries)
     if charges ~= nil and (not IsFiniteNumber(charges) or charges < 0 or charges > MAX_CHARGES or charges % 1 ~= 0) then
       return nil
     end
+    if entry.hidden == true and not allowHidden then
+      return nil
+    end
     seen[spellID] = true
-    out[#out + 1] = { spellID = spellID, kind = record.kind, state = state, remain = remain, charges = charges }
+    out[#out + 1] = {
+      spellID = spellID,
+      kind = record.kind,
+      state = state,
+      remain = remain,
+      charges = charges,
+      hidden = entry.hidden == true or nil,
+    }
   end
   return SortEntries(out)
 end
@@ -107,6 +118,7 @@ local function SameEntries(a, b)
       left.spellID ~= right.spellID
       or left.state ~= right.state
       or left.charges ~= right.charges
+      or left.hidden ~= right.hidden
       or math.abs(left.remain - right.remain) > 0.5
     then
       return false
@@ -133,6 +145,10 @@ end
 -- One entry `elapsed` seconds after its timestamp; a cooldown that ran out
 -- reads as ready.
 local function EntryAt(entry, elapsed)
+  if entry.hidden then
+    -- No number to count down: the state holds until the next client read.
+    return { spellID = entry.spellID, kind = entry.kind, state = entry.state, remain = 0, hidden = true }
+  end
   local remain = entry.remain - elapsed
   local state = entry.state
   if remain <= 0 then
@@ -177,7 +193,7 @@ end
 -- clears the own state (fail-closed). Returns true when the stored state
 -- changed.
 function DefensiveStore.SetOwn(entries, now)
-  local normalized = IsFiniteNumber(now) and NormalizeEntries(entries) or nil
+  local normalized = IsFiniteNumber(now) and NormalizeEntries(entries, true) or nil
   if not normalized then
     if own == nil then
       return false

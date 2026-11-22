@@ -383,12 +383,9 @@ local SCHEMA = {
   liveRunKicksEnabled = { type = "boolean", default = true },
   -- Ready-check consumable check (rule 246), Pattern B.
   consumableCheckEnabled = { type = "boolean", default = false },
-  -- Defensive / external cooldowns of the group (rule 267), both Pattern B:
-  -- the feature as a whole and the DEF sync between isiLive users; the
-  -- sensor estimate for members without isiLive (rule 268), Pattern B too.
+  -- Defensive / external cooldowns of the group (rules 267-269), Pattern B:
+  -- one switch for the column, the DEF sync and the estimate (user 2026-11-22).
   defensiveTrackerEnabled = { type = "boolean", default = false },
-  defensiveSyncEnabled = { type = "boolean", default = false },
-  defensiveEstimateEnabled = { type = "boolean", default = false },
 
   -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
   -- unlike runtimeLogEnabled, kept across reloads.

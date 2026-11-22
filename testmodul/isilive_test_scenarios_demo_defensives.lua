@@ -20,7 +20,7 @@ local FixtureWithTablet = {
   end,
 }
 
-local DEFENSIVE_SETTINGS = { "defensiveTrackerEnabled", "defensiveSyncEnabled", "defensiveEstimateEnabled" }
+local DEFENSIVE_SETTINGS = { "defensiveTrackerEnabled" }
 local TEXTURE_BASE = 100000
 
 local function DeepCopy(value)
@@ -69,6 +69,8 @@ local function Prepare(opts)
       db[key] = opts.settings == true
     end
     session.chat = 0
+    -- the login card (rule 256) would write its seen ID during the demo
+    db.whatsNewSeen = "voice_announcements"
     globals.SendChatMessage = function()
       session.chat = session.chat + 1
     end
@@ -327,7 +329,7 @@ local function RegisterDisplayTests(test, ctx)
       Assert.True(estimate:find("~ estimated, see the icon", 1, true) ~= nil, "estimated row: entries")
       Assert.True(estimate:find("Source: estimated (~)", 1, true) ~= nil, "estimated row: source")
       local frozen = TooltipFor(session, "party3")
-      Assert.True(frozen:find("0:24 ago (frozen in combat)", 1, true) ~= nil, "frozen row: age and note")
+      Assert.True(frozen:find("0:24 ago (locked during the key)", 1, true) ~= nil, "frozen row: age and note")
     end, Prepare())
   end)
 

@@ -848,9 +848,9 @@ local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, L
     Assert.Equal(measures, 0, "unchanged rows reuse the fitted text")
     Assert.Equal(name.text, " |cffffffffZinmistres|r|TCrown:12|t|TSync:12|t")
 
-    displayData.displayName = "Anelkaa"
+    displayData.displayName = "Fixture"
     addon._RosterInternal.ApplyRowNameDisplay(row, displayData)
-    Assert.Equal(name.text, " |cffffffffAnelkaa|r|TCrown:12|t|TSync:12|t")
+    Assert.Equal(name.text, " |cffffffffFixture|r|TCrown:12|t|TSync:12|t")
   end)
 
   test("Roster display truncates names to Blizzard 12-character limit", function()
