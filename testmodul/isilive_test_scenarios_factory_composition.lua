@@ -739,8 +739,8 @@ return function(test, ctx)
     Assert.Equal(#playedSounds, 1, "BR self-cast must play exactly one configured local sound")
     Assert.Equal(
       playedSounds[1].path,
-      "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
-      "BR self-cast must use the configured combat Battle Res sound"
+      "Interface\\AddOns\\isiLive\\sounds\\BattleResUsed.ogg",
+      "BR self-cast must play the Battle Res voice line by default (rule 266)"
     )
     Assert.Equal(playedSounds[1].channel, "Master", "BR self-cast sound must use the Master channel")
   end)

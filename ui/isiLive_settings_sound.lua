@@ -301,6 +301,10 @@ local function SetDescription(control, text)
   end
 end
 
+-- Shared with the voice-option module (ui/isiLive_settings_sound_voice.lua).
+SettingsSound.DescriptionOptions = DescriptionOptions
+SettingsSound.SetDescription = SetDescription
+
 -- Retained DK VIP controls: all four helpers are now configured in isiBlightfallTracker.
 local MIGRATED_DK_CONTROL_KEYS = {
   "vipDkSoulReaperWarning",
@@ -492,6 +496,24 @@ local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, con
   return nextY
 end
 
+-- Moves a freshly created checkbox row to the child indent; the layout pass
+-- keeps the X anchor (ReadAnchorX), so relayouts and search keep the indent.
+local function IndentChildCheckbox(canvas, checkbox, yOffset)
+  if checkbox and checkbox.check and type(checkbox.check.ClearAllPoints) == "function" then
+    checkbox.check:ClearAllPoints()
+    checkbox.check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, yOffset)
+  end
+  if checkbox and checkbox.description and type(checkbox.description.GetPoint) == "function" then
+    local point, _, relativePoint, _, y = checkbox.description:GetPoint()
+    if point and type(checkbox.description.ClearAllPoints) == "function" then
+      checkbox.description:ClearAllPoints()
+      checkbox.description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
+    end
+  end
+end
+
+SettingsSound.IndentChildCheckbox = IndentChildCheckbox
+
 local function CreateOwnDeathSoundCheckbox(canvas, yOffset, labels, config, controls, entry)
   local checkbox, nextY = CreateSettingsCheckbox(
     canvas,
@@ -512,18 +534,7 @@ local function CreateOwnDeathSoundCheckbox(canvas, yOffset, labels, config, cont
     entry.labelKey,
     DescriptionOptions(labels[entry.descKey] or entry.descFallback)
   )
-
-  if checkbox and checkbox.check and type(checkbox.check.ClearAllPoints) == "function" then
-    checkbox.check:ClearAllPoints()
-    checkbox.check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, yOffset)
-  end
-  if checkbox and checkbox.description and type(checkbox.description.GetPoint) == "function" then
-    local point, _, relativePoint, _, y = checkbox.description:GetPoint()
-    if point and type(checkbox.description.ClearAllPoints) == "function" then
-      checkbox.description:ClearAllPoints()
-      checkbox.description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
-    end
-  end
+  IndentChildCheckbox(canvas, checkbox, yOffset)
 
   if checkbox and checkbox.check then
     checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
@@ -637,6 +648,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
     SetPreviewTooltip(controls.soundPreviewButtons[entry.key], labels)
     yOffset = nextY
+    yOffset = SettingsSound.CreateVoiceCheckbox(canvas, yOffset, labels, config, controls, entry.key)
     if LOOP_SETTINGS_BY_SOUND_KEY[entry.key] then
       yOffset = CreateLoopCheckbox(canvas, yOffset, labels, config, controls, LOOP_SETTINGS_BY_SOUND_KEY[entry.key])
     end
@@ -1011,6 +1023,9 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
       control.check:SetChecked(nextValue)
     end
   end
+
+  -- Also repaints the aggro and missed-kick voice options of the display section.
+  SettingsSound.RefreshVoiceControls(controls, labels, db)
 end
 
 function SettingsSound.RefreshVIPGuestControls(controls, labels, db)

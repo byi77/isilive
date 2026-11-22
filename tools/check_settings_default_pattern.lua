@@ -22,6 +22,17 @@
 --   * computed-boolean writes (db.X = (mode == "Y")) — those are
 --     deliberate and accompany migration blocks already
 --
+-- Sound registry keys (rule 266): the sound settings write their keys
+-- generically (`db[settingKey] = checked`, `db[voice.settingKey] = ...`), so
+-- the literal scan above cannot see them. The gate therefore also loads
+-- core/isiLive_sound_registry.lua and checks every `settingKey` and
+-- `voice.settingKey`: `defaultEnabled ~= false` demands Pattern A reads only,
+-- `defaultEnabled == false` Pattern B reads only; the schema default must
+-- match; and a write site must exist (the generic writers in
+-- ui/isiLive_settings_sound.lua for SettingsOrder entries and
+-- ui/isiLive_settings_sound_voice.lua for voice parts,
+-- otherwise a literal write or the key as a string in a settings file).
+--
 -- Exits 0 on clean, 1 on inconsistencies found, 2 on IO/setup errors.
 -- Run from repo root:
 --   lua tools/check_settings_default_pattern.lua
@@ -32,6 +43,12 @@ local SETTINGS_FILE_PATTERN = "^isiLive_settings.*%.lua$"
 -- One-time IsiLiveDB migrations (Pattern C) live in MigrateDBSettings.
 local FACTORY_FILE = "factory/isiLive_factory_db_settings.lua"
 local DB_SCHEMA_FILE = "core/isiLive_db_schema.lua"
+local SOUND_REGISTRY_FILE = "core/isiLive_sound_registry.lua"
+local SOUND_SETTINGS_FILE = "ui/isiLive_settings_sound.lua"
+local VOICE_SETTINGS_FILE = "ui/isiLive_settings_sound_voice.lua"
+-- Generic writers of the sound settings panel (registry-driven keys).
+local GENERIC_SOUND_WRITE = "db%[settingKey%]%s*=%s*checked"
+local GENERIC_VOICE_WRITE = "db%[voice%.settingKey%]%s*=%s*checked"
 
 -- Settings that are deliberately exempt (e.g. computed booleans that derive
 -- their value from a string-mode selector and use Pattern C migration).
@@ -280,6 +297,117 @@ local function classifyStatus(name, info)
 end
 
 -- ----------------------------------------------------------------------
+-- Sound registry keys (rule 266).
+-- Returns a list of { name, defaultOn, source, generic = "sound"|"voice"|nil }.
+-- ----------------------------------------------------------------------
+local function collectRegistrySettings()
+  local chunk, loadErr = loadfile(SOUND_REGISTRY_FILE)
+  if not chunk then
+    fail(2, "cannot load " .. SOUND_REGISTRY_FILE .. ": " .. tostring(loadErr))
+  end
+  local addonTable = {}
+  local ok, runErr = pcall(chunk, "isiLive", addonTable)
+  local registryData = ok and addonTable.SoundRegistry or nil
+  if type(registryData) ~= "table" or type(registryData.Registry) ~= "table" then
+    fail(2, SOUND_REGISTRY_FILE .. " does not export SoundRegistry.Registry: " .. tostring(runErr))
+  end
+  local inOrder = {}
+  for _, key in ipairs(registryData.SettingsOrder or {}) do
+    inOrder[key] = true
+  end
+  local keys = {}
+  for key in pairs(registryData.Registry) do
+    keys[#keys + 1] = key
+  end
+  table.sort(keys)
+  local list = {}
+  for _, key in ipairs(keys) do
+    local entry = registryData.Registry[key]
+    if type(entry) == "table" and type(entry.settingKey) == "string" then
+      list[#list + 1] = {
+        name = entry.settingKey,
+        defaultOn = entry.defaultEnabled ~= false,
+        source = key,
+        generic = inOrder[key] and "sound" or nil,
+      }
+    end
+    local voice = type(entry) == "table" and entry.voice or nil
+    if type(voice) == "table" and type(voice.settingKey) == "string" then
+      list[#list + 1] = {
+        name = voice.settingKey,
+        defaultOn = voice.defaultEnabled ~= false,
+        source = key .. ".voice",
+        generic = "voice",
+      }
+    end
+  end
+  return list
+end
+
+local function auditRegistrySettings(files, settingsSourceFiles, literalWrites, schemaDefaults, failures)
+  local list = collectRegistrySettings()
+  local names = {}
+  for _, item in ipairs(list) do
+    names[item.name] = true
+  end
+  local reads = classifyReads(names, files, settingsSourceFiles)
+  local soundSettings = readFile(SOUND_SETTINGS_FILE)
+  local hasGeneric = {
+    sound = soundSettings:find(GENERIC_SOUND_WRITE) ~= nil,
+    voice = readFile(VOICE_SETTINGS_FILE):find(GENERIC_VOICE_WRITE) ~= nil,
+  }
+  local settingsText = {}
+  for path in pairs(settingsSourceFiles) do
+    settingsText[#settingsText + 1] = readFile(path)
+  end
+  settingsText = table.concat(settingsText, "\n")
+
+  print("settings-default-pattern: " .. #list .. " sound registry keys audited")
+  for _, item in ipairs(list) do
+    local info = reads[item.name]
+    local expected = item.defaultOn and "A" or "B"
+    local problems = {}
+    if item.defaultOn and info.patternB then
+      problems[#problems + 1] = "registry default ON but a Pattern B read (`== true` / truthy) exists"
+    end
+    if not item.defaultOn and info.patternA then
+      problems[#problems + 1] = "registry default OFF but a Pattern A read (`~= false` / `== false`) exists"
+    end
+    if schemaDefaults[item.name] == nil then
+      problems[#problems + 1] = "no boolean default in " .. DB_SCHEMA_FILE
+    elseif schemaDefaults[item.name] ~= item.defaultOn then
+      problems[#problems + 1] = string.format(
+        "schema default %s differs from registry defaultEnabled %s",
+        tostring(schemaDefaults[item.name]),
+        tostring(item.defaultOn)
+      )
+    end
+    local written = (item.generic and hasGeneric[item.generic])
+      or literalWrites[item.name]
+      or settingsText:find('"' .. item.name .. '"', 1, true) ~= nil
+    if not written then
+      problems[#problems + 1] = "no write site in the settings panel"
+    end
+    local readLabel = (info.patternA and "A" or "") .. (info.patternB and "B" or "")
+    if readLabel == "" then
+      readLabel = "generic"
+    end
+    print(
+      string.format(
+        "  %-40s %-26s expect Pattern %s, literal reads: %s",
+        item.name,
+        "(" .. item.source .. ")",
+        expected,
+        readLabel
+      )
+    )
+    for _, problem in ipairs(problems) do
+      table.insert(failures, string.format("  %s (registry %s): %s", item.name, item.source, problem))
+    end
+  end
+end
+
+-- ----------------------------------------------------------------------
 -- Main.
 -- ----------------------------------------------------------------------
 local function main()
@@ -347,6 +475,8 @@ local function main()
     end
     print(string.format("  %-40s %-45s %s", entry.name, label, schemaLabel))
   end
+
+  auditRegistrySettings(files, settingsSourceFiles, settings, schemaDefaults, failures)
 
   if #failures > 0 then
     io.stderr:write("\n")

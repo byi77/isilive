@@ -163,15 +163,17 @@ end
 
 -- Counts one line against a per-run budget. The first refusal writes a single
 -- cap_reached line so a silent probe is never mistaken for "nothing happened".
+-- Counters the run state does not declare (party probes) start at 0.
 local function TakeBudget(counterKey, limit, probeName)
-  if run[counterKey] >= limit then
+  local used = run[counterKey] or 0
+  if used >= limit then
     if not run.capped[probeName] then
       run.capped[probeName] = true
       Append(string.format("[PROBE] event=cap_reached probe=%s limit=%d until=next_key_start", probeName, limit))
     end
     return false
   end
-  run[counterKey] = run[counterKey] + 1
+  run[counterKey] = used + 1
   return true
 end
 
@@ -651,6 +653,25 @@ function ProbeLog.OnReadyCheck()
   )
 end
 
+-- Narrow interface for the party probes (logic/isiLive_probe_party.lua) and
+-- the aura container probes (logic/isiLive_probe_auracontainer.lua), both
+-- after this file in the TOC, and the call back into them, looked up per call.
+ProbeLog.Internal = { Append = Append, TakeBudget = TakeBudget, YesNo = YesNo, IsKeyActive = IsKeyActive }
+ProbeLog.Internal.ReadInCombat = ReadInCombat
+ProbeLog.Internal.Now = Now
+ProbeLog.Internal.TimerAfter = TimerAfter
+local PROBE_MODULES = { "ProbeParty", "ProbeAuraContainer" }
+-- Calls hookName(moment) on every probe module that has it.
+local function CallParty(hookName, moment)
+  for _, moduleName in ipairs(PROBE_MODULES) do
+    local module = addonTable[moduleName]
+    local hook = type(module) == "table" and module[hookName] or nil
+    if type(hook) == "function" then
+      hook(moment)
+    end
+  end
+end
+
 --- Wires the log sink (runtime log AppendLog), the ring reader for the
 -- report, the version reader and the runtime log switch.
 -- @param opts table {appendLog = function(message), readLog = function(needle): table,
@@ -715,6 +736,9 @@ function ProbeLog.SetEnabled(enabled)
   if nextEnabled then
     EnsureRuntimeLogOn()
   end
+  if nextEnabled ~= wasEnabled then
+    CallParty(nextEnabled and "OnProbeEnabled" or "OnProbeDisabled", "probe_toggle")
+  end
   return nextEnabled
 end
 
@@ -723,6 +747,7 @@ function ProbeLog.OnKeyStart()
   if not ProbeLog.IsEnabled() then
     return
   end
+  CallParty("NextSegment", "key_start")
   run = NewRunState()
   keyEndedAt = nil
   pendingKicks = {}
@@ -768,6 +793,7 @@ function ProbeLog.OnKeyEnd(event)
   keyRunning = false
   keyEndedAt = Now()
   local phase = isReset and "key_reset" or "key_completed"
+  CallParty("NextSegment", phase)
   Append(
     string.format("[PROBE] event=key_end trigger=%s kind=%s", tostring(event), isReset and "abandoned" or "completed")
   )
@@ -785,6 +811,7 @@ function ProbeLog.OnCombatStart()
   if not ProbeLog.IsEnabled() then
     return
   end
+  CallParty("NextSegment", "combat_start")
   CheckChatLockdown("combat_start")
   if not IsKeyActive() then
     return
@@ -802,6 +829,7 @@ function ProbeLog.OnCombatEnd()
   if not ProbeLog.IsEnabled() then
     return
   end
+  CallParty("NextSegment", "combat_end")
   CheckChatLockdown("combat_end")
   if IsKeyActive() then
     TryMeterSnapshot("between_pulls")
@@ -856,6 +884,7 @@ function ProbeLog.OnZoneChanged()
   if not keyRunning and IsKeyActive() then
     keyRunning = true
   end
+  CallParty("OnZoneChanged", "zone_changed")
   if ReadInInstance() ~= false or not IsInPostKeyWindow() then
     return
   end
@@ -1145,6 +1174,8 @@ local function PrintReport(printFn, L)
   if type(report) ~= "table" or type(report.BuildLines) ~= "function" then
     return
   end
+  -- Open party tallies go out first so the report counts the running segment.
+  CallParty("FlushTally", "report")
   local entries = type(readLog) == "function" and readLog("[PROBE] ") or {}
   for _, line in ipairs(report.BuildLines(entries, L)) do
     printFn(line)

@@ -1,5 +1,18 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
+return function(baseTest, ctx)
+  -- The tests below replace the global IsiLiveDB; every test restores the
+  -- previous value, so no later test reads this file's table (a leaked
+  -- IsiLiveDB made the factory Bloodlust-reminder test order-dependent).
+  local function test(name, fn)
+    baseTest(name, function()
+      local saved = rawget(_G, "IsiLiveDB")
+      local ok, err = pcall(fn)
+      rawset(_G, "IsiLiveDB", saved)
+      if not ok then
+        error(err, 0)
+      end
+    end)
+  end
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules

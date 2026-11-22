@@ -3,8 +3,10 @@ local _, addonTable = ...
 addonTable = addonTable or {}
 
 -- Late run capture (rule 118, RULE-KEYENDE-RUN-IDENTITAET). All state lives on
--- the event-handler context: pendingLateRunCapture (the open window) and
--- lateRunCaptureArmedSignature (one window per run). The callers -- the
+-- the event-handler context: pendingLateRunCapture (the open window),
+-- lateRunCaptureArmedSignature (one window per run) and pendingLateRunKicks
+-- (the kicks-only read of a run captured while its Interrupts list was not
+-- fully readable). The callers -- the
 -- challenge and runtime lifecycles -- apply the raid gate.
 local LateRunCapture = {}
 addonTable.LateRunCapture = LateRunCapture
@@ -31,19 +33,29 @@ local function ReadNow(ctx)
   return now
 end
 
-local function LogLateRunCapture(ctx, eventName, pending, extra)
+-- label: "late_capture" (the whole run) or "late_kicks" (landed kicks only).
+local function LogLateWindow(ctx, label, eventName, pending, extra)
   if type(ctx.logRuntimeTracef) ~= "function" then
     return
   end
   local runInfo = type(pending) == "table" and pending.runInfo or nil
   ctx.logRuntimeTracef(
-    "[STATS] late_capture state=%s mapID=%s level=%s attempts=%s %s",
+    "[STATS] %s state=%s mapID=%s level=%s attempts=%s %s",
+    label,
     tostring(eventName),
     tostring(runInfo and runInfo.mapID),
     tostring(runInfo and runInfo.level),
     tostring(type(pending) == "table" and pending.attempts or 0),
     tostring(extra or "")
   )
+end
+
+local function LogLateRunCapture(ctx, eventName, pending, extra)
+  LogLateWindow(ctx, "late_capture", eventName, pending, extra)
+end
+
+local function LogLateKicks(ctx, eventName, pending, extra)
+  LogLateWindow(ctx, "late_kicks", eventName, pending, extra)
 end
 
 -- Names only: the late capture matches the meter against the group of the
@@ -91,6 +103,109 @@ function LateRunCapture.Cancel(ctx, reason)
   end
   ctx.pendingLateRunCapture = nil
   LogLateRunCapture(ctx, "cancel", pending, "reason=" .. tostring(reason))
+  return true
+end
+
+--- Drops a pending kicks-only read (late kicks).
+-- @param ctx table Event-handler context.
+-- @param reason string Trace label (key_start, combat, expired, attempts, closed, superseded).
+-- @return boolean true when a pending read was dropped.
+function LateRunCapture.CancelKicks(ctx, reason)
+  local pending = ctx.pendingLateRunKicks
+  if type(pending) ~= "table" then
+    return false
+  end
+  ctx.pendingLateRunKicks = nil
+  LogLateKicks(ctx, "cancel", pending, "reason=" .. tostring(reason))
+  return true
+end
+
+--- Drops both late windows: a new key resets the damage meter and new combat
+-- extends the Overall session past the run, for DPS and kicks alike.
+-- @return boolean true when anything was dropped.
+function LateRunCapture.CancelAll(ctx, reason)
+  local droppedRun = LateRunCapture.Cancel(ctx, reason)
+  local droppedKicks = LateRunCapture.CancelKicks(ctx, reason)
+  return droppedRun or droppedKicks
+end
+
+--- Opens the kicks-only window for a run whose DPS was captured while its
+-- Interrupts list was not fully readable (the stats controller keeps the
+-- landed kicks of that snapshot open). The window ends at `deadline` (the
+-- late window of the key end) or LATE_RUN_CAPTURE_WINDOW_SECONDS from now.
+-- @param ctx table Event-handler context.
+-- @param runInfo table {mapID, level, onTime, signature}.
+-- @param deadline number|nil GetTime() value the window ends at.
+-- @return boolean true when the window was opened.
+function LateRunCapture.ArmKicks(ctx, runInfo, deadline)
+  local now = ReadNow(ctx)
+  if type(runInfo) ~= "table" or not now then
+    return false
+  end
+  deadline = type(deadline) == "number" and deadline or (now + LATE_RUN_CAPTURE_WINDOW_SECONDS)
+  if deadline <= now then
+    return false
+  end
+  local pending = {
+    runInfo = runInfo,
+    signature = runInfo.signature,
+    deadline = deadline,
+    attempts = 0,
+  }
+  ctx.pendingLateRunKicks = pending
+  LogLateKicks(ctx, "armed", pending, "window=" .. tostring(deadline - now))
+  if type(ctx.timerAfter) == "function" then
+    ctx.timerAfter(deadline - now, function()
+      if ctx.pendingLateRunKicks == pending then
+        LateRunCapture.CancelKicks(ctx, "expired")
+      end
+    end)
+  end
+  return true
+end
+
+-- Kicks-only read on the same triggers as the late capture. Only a fully
+-- readable Overall Interrupts list fills the captured run (no partial values).
+local function TryKicks(ctx, trigger, opts)
+  local pending = ctx.pendingLateRunKicks
+  if type(pending) ~= "table" then
+    return false
+  end
+  if ctx.lastRecordedRunSignature ~= pending.signature then
+    LateRunCapture.CancelKicks(ctx, "superseded")
+    return false
+  end
+  local now = ReadNow(ctx)
+  if not now or now > pending.deadline then
+    LateRunCapture.CancelKicks(ctx, "expired")
+    return false
+  end
+
+  pending.attempts = pending.attempts + 1
+  local runInfo = pending.runInfo
+  local filled, kicksState = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
+    kicksOnly = true,
+    overallOnly = true,
+    phase = "late_kicks",
+    trigger = trigger,
+  })
+  if filled ~= true then
+    if kicksState == "none" then
+      -- The stats controller closed the slot (a newer capture or run start).
+      LateRunCapture.CancelKicks(ctx, "closed")
+    elseif pending.attempts >= LATE_RUN_CAPTURE_MAX_ATTEMPTS then
+      LateRunCapture.CancelKicks(ctx, "attempts")
+    end
+    return false
+  end
+
+  ctx.pendingLateRunKicks = nil
+  LogLateKicks(ctx, "captured", pending, "trigger=" .. tostring(trigger))
+  ctx.updateUI()
+  -- Peers get the completed snapshot at once, like after the late capture.
+  if not (type(opts) == "table" and opts.skipSync == true) and type(ctx.sendOwnKeySnapshot) == "function" then
+    ctx.sendOwnKeySnapshot(true, "late-run-kicks", true)
+  end
   return true
 end
 
@@ -145,7 +260,7 @@ end
 function LateRunCapture.Try(ctx, trigger, opts)
   local pending = ctx.pendingLateRunCapture
   if type(pending) ~= "table" then
-    return false
+    return TryKicks(ctx, trigger, opts)
   end
   if ctx.lastRecordedRunSignature == pending.signature and ctx.lastRecordedRunCaptured then
     LateRunCapture.Cancel(ctx, "captured")
@@ -159,13 +274,14 @@ function LateRunCapture.Try(ctx, trigger, opts)
 
   pending.attempts = pending.attempts + 1
   local runInfo = pending.runInfo
-  local captured = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, pending.roster, {
+  local result, kicksState = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, pending.roster, {
     overallOnly = true,
     phase = "late",
     trigger = trigger,
     kicksCast = runInfo.kicksCast,
     kicksMissed = runInfo.kicksMissed,
-  }) == true
+  })
+  local captured = result == true
   if not captured then
     if pending.attempts >= LATE_RUN_CAPTURE_MAX_ATTEMPTS then
       LateRunCapture.Cancel(ctx, "attempts")
@@ -179,6 +295,11 @@ function LateRunCapture.Try(ctx, trigger, opts)
     ctx.pendingRecordedRunRetrySignature = nil
   end
   LogLateRunCapture(ctx, "captured", pending, "trigger=" .. tostring(trigger))
+  -- DPS readable, Interrupts list not yet: the landed kicks stay open for the
+  -- rest of the same window.
+  if kicksState == "unreadable" then
+    LateRunCapture.ArmKicks(ctx, runInfo, pending.deadline)
+  end
   ctx.updateUI()
   -- Peers get the late value at once; the key-end snapshot carried none.
   if not (type(opts) == "table" and opts.skipSync == true) and type(ctx.sendOwnKeySnapshot) == "function" then
@@ -190,7 +311,10 @@ end
 --- Late-capture trigger for PLAYER_ENTERING_WORLD and ZONE_CHANGED_NEW_AREA:
 -- only a readable "not in any instance" counts.
 function LateRunCapture.TryOutsideInstance(ctx, trigger, opts)
-  if type(ctx.pendingLateRunCapture) ~= "table" or ReadIsInInstance() ~= false then
+  if type(ctx.pendingLateRunCapture) ~= "table" and type(ctx.pendingLateRunKicks) ~= "table" then
+    return false
+  end
+  if ReadIsInInstance() ~= false then
     return false
   end
   return LateRunCapture.Try(ctx, trigger, opts)

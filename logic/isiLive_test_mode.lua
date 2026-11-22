@@ -76,6 +76,10 @@ function TestMode.CreateController(opts)
     if type(statePatch) == "table" then
       deps.setState(statePatch)
     end
+    -- Show before the dummy roster: opening a hidden window rebuilds the solo
+    -- roster. After the state: in a group it replays GROUP_ROSTER_UPDATE,
+    -- which the event gate holds back only while the test mode runs.
+    deps.setMainFrameVisible(true)
     local dummyRoster = deps.buildDummyRoster({
       previewVariant = previewVariant,
       includeGhostMember = true,
@@ -89,7 +93,6 @@ function TestMode.CreateController(opts)
       deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
     end
     deps.setDemoFeatureData()
-    deps.setMainFrameVisible(true)
     deps.updateUI()
     deps.updateLeaderButtons()
 

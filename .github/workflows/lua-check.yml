@@ -98,6 +98,10 @@ jobs:
         run: |
           lua tools/check_sound_channel.lua
 
+      - name: Sound Assets Check
+        run: |
+          lua tools/check_sound_assets.lua
+
       - name: Chat Color Safety Check
         run: |
           lua tools/check_chat_color_safety.lua

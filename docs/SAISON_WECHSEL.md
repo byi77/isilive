@@ -168,6 +168,24 @@ PTR `/isilive selftest`.
 - [ ] Bloodlust und Battle Res: neue Drums oder Pet-Faehigkeiten in
   `lustCasts`/`lustSated`/`battleRes` (`data/isiLive_spells.lua`); der
   Selbsttest meldet nur entfernte IDs, neue muessen gesucht werden.
+- [ ] Defensiv- und External-Cooldowns (Regel 267, auch bei jedem Klassen-Patch
+  innerhalb einer Season): `lua tools/check_db2.lua --db2=<dir>` gegen den neuen
+  Build (die Tabellen `SpellCooldowns`, `SpellCategories`, `SpellCategory`
+  gehoeren dazu; der Patch-Waechter laedt sie). Er meldet jede entfernte Cast-
+  oder Aura-ID, jede Spec-Zuordnung ausserhalb der Klasse und jeden `cooldown`
+  in `data/isiLive_defensives.lua`, der nicht mehr zu DB2 passt; der Selbsttest
+  meldet `MISSING defensive spell <id> - Defensives`. Neue Defensives, Talent-
+  Umbauten und neue Specs sucht niemand automatisch: Liste je Klasse pruefen.
+  Cooldowns nur aus DB2 oder dem Spiel-Tooltip, nie aus Fremd-Addons.
+- [ ] Defensiv-Schaetzung (Regel 268) nach jedem Patch: `/isilive selftest` muss
+  `C_XMLUtil.GetTemplateInfo` (CustomAuraContainerTemplate) und
+  `C_CurveUtil.EvaluateColorValueFromBoolean` als ok melden und darf keine Zeile
+  `ERROR AuraContainer setup` zeigen; sonst ist die Schaetzung aus. Die
+  Sensor-Kette haengt an undokumentiertem Verhalten (Element-Layout +
+  `IsMouseOver`): in einem Key mit `defensiveEstimateEnabled` pruefen, dass ein
+  External eines Nicht-isiLive-Mitspielers den blauen Rahmen zeigt und danach
+  die Fuellung abnimmt; bei Bruch die Probe (`/isilive probe on`, Regel 239)
+  als Diagnose nutzen.
 - [ ] Mythic Keystone: neues Item nur in `ItemManifest.mythicKeystone`
   (`data/isiLive_items.lua`); der Selbsttest meldet ein unbekanntes Item.
 - [ ] Levelcap: `minimumPlayerLevel` der neuen Dungeons im Manifest.

@@ -60,13 +60,10 @@ function LeaderWatch.CreateController(opts)
     if IsLeadSoundBlockedByRaid() then
       return
     end
+    -- The registry resolves effect or voice line and locale (rule 266).
     local soundUtils = addonTable.SoundUtils
     if type(soundUtils) == "table" and type(soundUtils.PlayKey) == "function" then
       soundUtils.PlayKey("leader_transfer")
-      return
-    end
-    if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
-      soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg")
     end
   end
 

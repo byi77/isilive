@@ -332,6 +332,21 @@ function Units.GetInspectSpecName(unit)
   return nil
 end
 
+-- Plain inspected spec ID of a group member, or nil (not inspected yet,
+-- masked or unreadable). Used by the defensive estimate (rule 268) to pick
+-- spec-bound manifest spells; nil keeps it to the class-wide ones.
+function Units.GetInspectSpecID(unit)
+  local getInspectSpecialization = rawget(_G, "GetInspectSpecialization")
+  if not IsExistingUnit(unit) or type(getInspectSpecialization) ~= "function" then
+    return nil
+  end
+  local okSpec, specID = pcall(getInspectSpecialization, unit)
+  if not okSpec or IsSecretValue(specID) or type(specID) ~= "number" or specID <= 0 then
+    return nil
+  end
+  return specID
+end
+
 function Units.GetInspectSpecRole(unit)
   local getInspectSpecialization = rawget(_G, "GetInspectSpecialization")
   local getSpecializationRoleByID = rawget(_G, "GetSpecializationRoleByID")

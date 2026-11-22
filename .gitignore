@@ -50,6 +50,22 @@ sounds/*
 !sounds/Portal.ogg
 !sounds/Portal_deDE.ogg
 !sounds/SynthChord.ogg
+# Voice lines instead of effects (rule 266); tools/check_sound_assets.lua
+# keeps this list, the sound registry and docs/AUDIO_ASSETS.json in step.
+!sounds/LeaderTransfer.ogg
+!sounds/LeaderTransfer_deDE.ogg
+!sounds/GroupFull.ogg
+!sounds/GroupFull_deDE.ogg
+!sounds/ReadyCheckComplete.ogg
+!sounds/ReadyCheckComplete_deDE.ogg
+!sounds/BattleResUsed.ogg
+!sounds/BattleResUsed_deDE.ogg
+!sounds/BloodlustUsed.ogg
+!sounds/BloodlustUsed_deDE.ogg
+!sounds/Aggro.ogg
+!sounds/Aggro_deDE.ogg
+!sounds/MissedKick.ogg
+!sounds/MissedKick_deDE.ogg
 
 # Local LuaRocks tree (CI/local tooling)
 .luarocks/

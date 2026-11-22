@@ -187,6 +187,8 @@ local function BuildGroupControllerDepsFromContext(ctx)
       announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
       onGroupJoined = ctx.onGroupJoined,
       onMemberJoinedGroup = function()
+        -- Group full: the registry resolves effect or voice line and locale
+        -- (rule 266); no sound path outside the registry.
         local soundUtils = addonTable.SoundUtils
         if type(soundUtils) == "table" and type(soundUtils.PlayGroupJoin) == "function" then
           local played = soundUtils.PlayGroupJoin()
@@ -200,10 +202,6 @@ local function BuildGroupControllerDepsFromContext(ctx)
               tostring(result and result.channel)
             )
           end
-          return
-        end
-        if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
-          soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg")
         end
       end,
       setMainFrameVisible = ctx.setMainFrameVisible,
@@ -1017,6 +1015,11 @@ local function BuildEventHandlersDepsFromContext(ctx)
       if type(ctx.HandleKickTrackerEvent) == "function" then
         ctx.HandleKickTrackerEvent(event, ...)
       end
+      -- The defensive tracker (rule 267) reads the same own-cast, cooldown,
+      -- spell and roster events; it registers none of its own (rule 258).
+      if type(ctx.HandleDefensiveTrackerEvent) == "function" then
+        ctx.HandleDefensiveTrackerEvent(event, ...)
+      end
     end,
     handleLeaderWatchEvent = function(event, ...)
       if ctx.leaderWatchController and type(ctx.leaderWatchController.HandleEvent) == "function" then
@@ -1040,7 +1043,15 @@ local function BuildEventHandlersDepsFromContext(ctx)
       return runKicks.GetAttempts()
     end,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
-    sendOwnKickState = ctx.sendOwnKickState,
+    -- Own combat sync state for PLAYER_ENTERING_WORLD and the peer fan-out:
+    -- the kick state plus, when the feature is on, the DEF state (rule 267).
+    sendOwnKickState = type(ctx.sendOwnKickState) == "function" and function(...)
+      local result = ctx.sendOwnKickState(...)
+      if type(ctx.SendOwnDefensiveState) == "function" then
+        ctx.SendOwnDefensiveState(true)
+      end
+      return result
+    end or nil,
     runFullRefresh = function(opts)
       if ctx.refreshController then
         return ctx.refreshController.RunFullRefresh(opts)

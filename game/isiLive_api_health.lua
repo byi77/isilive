@@ -47,6 +47,29 @@ ApiHealth.CHECKS = {
   { "Cooldowns", "C_Spell", "GetSpellName" },
   { "Auras", "C_UnitAuras", "GetAuraDataByIndex" },
   { "Auras", "C_UnitAuras", "GetPlayerAuraBySpellID" },
+  -- Probe mode party auras (rule 239), groundwork for a group defensive tracker.
+  { "Auras", "C_UnitAuras", "GetAuraDataByAuraInstanceID" },
+  -- Probe mode aura container sensors (rule 239, logic/isiLive_probe_auracontainer.lua).
+  { "Aura sensor probe", "C_CurveUtil", "EvaluateColorValueFromBoolean" },
+  { "Aura sensor probe", "AuraUtil", "IsValidFilterString" },
+  { "Aura sensor probe", nil, "GetCursorPosition" },
+  { "Aura sensor probe", "C_Secrets", "ShouldAurasBeSecret" },
+  { "Aura sensor probe", "C_Secrets", "GetSpellAuraSecrecy" },
+  { "Aura sensor probe", "C_Secrets", "GetSpellCooldownSecrecy" },
+  { "Aura sensor probe", "C_Secrets", "ShouldSpellCooldownBeSecret" },
+  -- Own defensive cooldowns (rule 267, game/isiLive_defensive_tracker.lua); the
+  -- cooldown read itself, the aura read and C_Secrets.ShouldSpellCooldownBeSecret
+  -- are listed above.
+  { "Defensives", "C_Spell", "GetSpellCharges" },
+  { "Defensives", "C_Spell", "GetSpellCooldownDuration" },
+  { "Defensives", "C_SpellBook", "IsSpellKnown", { nil, "IsPlayerSpell" } },
+  -- Defensive estimate sensors (rule 268, game/isiLive_defensive_sensors.lua):
+  -- the AuraContainer template, the secret-capable select and frame creation.
+  -- Any of them missing switches the estimate off (fail-closed).
+  { "Defensive estimate", nil, "CreateFrame" },
+  { "Defensive estimate", "C_XMLUtil", "GetTemplateInfo" },
+  { "Defensive estimate", "C_CurveUtil", "EvaluateColorValueFromBoolean" },
+  { "Defensive estimate", nil, "GetCursorPosition" },
   { "Keystone link", "C_Container", "GetContainerItemLink" },
   -- The runtime reads C_Item.GetAverageItemLevel and falls back to the global
   -- (logic/isiLive_keysync.lua); 12.1 ships only the global (selftest 2026-11-20).
@@ -124,10 +147,44 @@ local function ProbeCurve()
   return true, "curve created"
 end
 
+-- The estimate sensors need Blizzard's CustomAuraContainerTemplate (12.1).
+local function ProbeAuraContainerTemplate()
+  local fn = ResolveFunction("C_XMLUtil", "GetTemplateInfo")
+  local ok, info = pcall(fn, "CustomAuraContainerTemplate")
+  if not ok then
+    return false, "error"
+  end
+  if IsSecretValue(info) or info == nil then
+    return false, "CustomAuraContainerTemplate missing"
+  end
+  return true, "CustomAuraContainerTemplate"
+end
+
 local PROBES = {
   ["C_ChallengeMode.GetMapTable"] = ProbeMapTable,
   ["C_CurveUtil.CreateCurve"] = ProbeCurve,
+  ["C_XMLUtil.GetTemplateInfo"] = ProbeAuraContainerTemplate,
 }
+
+-- Rule 268: a container setup the client refused this session (filter,
+-- group, unit or budget) switched the estimate off; it shows as an ERROR row.
+local function AppendDefensiveSensorRows(rows, counts)
+  local sensors = addonTable.DefensiveSensors
+  if type(sensors) ~= "table" or type(sensors.GetHealth) ~= "function" then
+    return
+  end
+  local okHealth, health = pcall(sensors.GetHealth)
+  if not okHealth or type(health) ~= "table" or type(health.failure) ~= "string" then
+    return
+  end
+  counts.error = counts.error + 1
+  rows[#rows + 1] = {
+    feature = "Defensive estimate",
+    name = "AuraContainer setup",
+    status = "error",
+    detail = health.failure,
+  }
+end
 
 --- Runs every check. Returns the result rows and the counts.
 -- Row: { feature, name, status = "ok" | "missing" | "error", detail }.
@@ -158,6 +215,7 @@ function ApiHealth.Run()
     rows[#rows + 1] = { feature = feature, name = name, status = status, detail = detail }
   end
   AppendEventRegistrationRows(rows, counts)
+  AppendDefensiveSensorRows(rows, counts)
   return rows, counts
 end
 
@@ -225,6 +283,23 @@ local function CollectSpellManifestIDs()
     Add(iconID)
   end
   Add(manifest.powerInfusion)
+  table.sort(ids)
+  return ids
+end
+
+-- Cast and aura IDs of data/isiLive_defensives.lua (rule 267), sorted.
+local function CollectDefensiveIDs()
+  local manifest = addonTable.DefensiveManifest
+  local spells = type(manifest) == "table" and type(manifest.spells) == "table" and manifest.spells or {}
+  local ids, seen = {}, {}
+  for castID, record in pairs(spells) do
+    for _, id in ipairs({ castID, type(record) == "table" and record.aura or nil }) do
+      if type(id) == "number" and not seen[id] then
+        seen[id] = true
+        ids[#ids + 1] = id
+      end
+    end
+  end
   table.sort(ids)
   return ids
 end
@@ -406,6 +481,7 @@ function ApiHealth.RunDataChecks()
       or nil
     CheckSpellList(rows, counts, readSpell, "Consumables", "buff", CollectConsumableIDs(seasonID))
     CheckSpellList(rows, counts, readSpell, "Kicks", "interrupt spell", CollectKickSpellIDs())
+    CheckSpellList(rows, counts, readSpell, "Defensives", "defensive spell", CollectDefensiveIDs())
   end
   CheckItems(rows, counts)
   CheckClientSpecs(rows, counts)

@@ -976,11 +976,49 @@ function SoundUtils.StopAllActiveSounds()
   activeSoundHandles = {}
 end
 
+-- Voice option of an entry with a spoken alternative (rule 266): Pattern A,
+-- nil -> on, so the voice line is the default once the alert itself plays.
+local function IsEntryVoiceEnabled(entry)
+  local voice = type(entry) == "table" and entry.voice or nil
+  if type(voice) ~= "table" then
+    return false
+  end
+  local db = rawget(_G, "IsiLiveDB")
+  local settingKey = type(voice.settingKey) == "string" and voice.settingKey or nil
+  if settingKey and type(db) == "table" and db[settingKey] ~= nil then
+    return db[settingKey] ~= false
+  end
+  return voice.defaultEnabled ~= false
+end
+
+--- True when `key` has a spoken alternative and its voice option is on.
+-- @param key string sound registry key
+-- @return boolean
+function SoundUtils.IsVoiceEnabled(key)
+  return IsEntryVoiceEnabled(SoundUtils.GetEntry(key))
+end
+
+-- A voice line the client refuses to start (e.g. a missing file) falls back to
+-- the effect so the alert never goes silent; the spam window does not.
+local VOICE_FALLBACK_REASONS = { play_rejected = true, play_error = true }
+
 local function PlayEntry(entry, key)
   if type(entry) ~= "table" then
     return false
   end
   local channel = SoundUtils.GetConfiguredOutputChannel(entry.defaultChannel)
+  if IsEntryVoiceEnabled(entry) then
+    local voiceFile = SoundUtils.ResolveSoundFile(entry.voice)
+    if type(voiceFile) == "string" and voiceFile ~= "" then
+      if SoundUtils.Play(voiceFile, channel, key) then
+        return true
+      end
+      local reason = type(lastPlayResult) == "table" and lastPlayResult.reason or nil
+      if not VOICE_FALLBACK_REASONS[reason] then
+        return false
+      end
+    end
+  end
   if entry.soundKit ~= nil then
     return SoundUtils.PlaySoundKit(entry.soundKit, channel)
   end

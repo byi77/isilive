@@ -454,7 +454,7 @@ local function BuildSettingsContent(canvas, scrollFrame, content, config, contro
 end
 
 -- Plain tables of controls inside `controls` (key prefix "<group>.").
-local NESTED_CONTROL_GROUPS = { "soundChecks" }
+local NESTED_CONTROL_GROUPS = { "soundChecks", "soundVoiceChecks" }
 
 -- Collects every built control that carries a label, as the source of the
 -- config-window search (rule 241): key, current label and description text

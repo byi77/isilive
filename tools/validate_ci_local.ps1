@@ -181,6 +181,7 @@ try {
   Invoke-CheckedCommand "Hardcoded Strings Check" "lua tools/check_hardcoded_strings.lua"
   Invoke-CheckedCommand "UI Color Tokens Check" "lua tools/check_ui_color_tokens.lua"
   Invoke-CheckedCommand "Sound Channel Check" "lua tools/check_sound_channel.lua"
+  Invoke-CheckedCommand "Sound Assets Check" "lua tools/check_sound_assets.lua"
   Invoke-CheckedCommand "Chat Color Safety Check" "lua tools/check_chat_color_safety.lua"
   Invoke-CheckedCommand "WoW 12.0 API Compliance Check" "lua tools/check_wow_api_compliance.lua"
   Invoke-CheckedCommand "Format String Consistency Check" "lua tools/check_format_string_consistency.lua"

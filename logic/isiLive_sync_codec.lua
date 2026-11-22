@@ -297,6 +297,140 @@ end
 -- must be known and well-formed, otherwise the full KICK payload is dropped.
 -- This preserves the no-guess contract for peer kick state.
 
+-- DEF bucket (rule 267): the own defensive cooldowns.
+--   DEF:<sid>,<st>,<rem>[,<ch>][;...]   or   DEF:-   (tracks nothing)
+-- st 0 = cooldown, 1 = ready, 2 = active (the buff runs); rem = whole seconds
+-- until the spell is ready again (ceil, 0..3600; for a charged spell the time
+-- to the next charge); ch = available charges 0..9, only for spells with more
+-- than one charge. At most 8 entries, sorted numerically by spell ID, at most
+-- 140 bytes, only spell IDs of data/isiLive_defensives.lua.
+local DEF_MAX_ENTRIES = 8
+local DEF_MAX_BYTES = 140
+local DEF_MAX_REMAIN = 3600
+local DEF_MAX_CHARGES = 9
+local DEF_STATE_CODES = { cd = 0, ready = 1, active = 2 }
+local DEF_STATE_NAMES = { [0] = "cd", [1] = "ready", [2] = "active" }
+
+local function IsDefensiveSpell(spellID)
+  local manifest = addonTable.DefensiveManifest
+  return type(manifest) == "table" and type(manifest.spells) == "table" and manifest.spells[spellID] ~= nil
+end
+
+-- Canonical non-negative integer text ("0", "17"; never "017" or "+1").
+local function ParseCanonicalInteger(text)
+  if type(text) ~= "string" or not text:find("^%d+$") then
+    return nil
+  end
+  if #text > 1 and text:sub(1, 1) == "0" then
+    return nil
+  end
+  return ToFiniteNumber(text)
+end
+
+--- Encodes the own defensive entries ({spellID, state, remain, charges}).
+-- Returns payload, dedupeKey (the payload without the remain seconds), or nil
+-- when an entry is unusable: an unknown spell, state or charge count, or a
+-- remain outside 0..3600, drops the whole payload rather than a guess.
+local function EncodeDefPayload(entries)
+  if type(entries) ~= "table" then
+    return nil
+  end
+  local list = {}
+  for _, entry in ipairs(entries) do
+    if type(entry) ~= "table" then
+      return nil
+    end
+    local sid = ToFiniteNumber(entry.spellID)
+    local code = DEF_STATE_CODES[entry.state]
+    local remain = ToFiniteNumber(entry.remain)
+    if not sid or sid % 1 ~= 0 or not IsDefensiveSpell(sid) or code == nil or not remain or remain < 0 then
+      return nil
+    end
+    local rem = math.ceil(remain)
+    if rem > DEF_MAX_REMAIN then
+      return nil
+    end
+    local charges = nil
+    if entry.charges ~= nil then
+      charges = ToFiniteNumber(entry.charges)
+      if not charges or charges % 1 ~= 0 or charges < 0 or charges > DEF_MAX_CHARGES then
+        return nil
+      end
+    end
+    list[#list + 1] = { sid = sid, code = code, rem = rem, charges = charges }
+  end
+  table.sort(list, function(a, b)
+    return a.sid < b.sid
+  end)
+  if #list == 0 then
+    return "DEF:-", "DEF:-"
+  end
+  local pieces, keys = {}, {}
+  for index = 1, math.min(#list, DEF_MAX_ENTRIES) do
+    local item = list[index]
+    if index > 1 and item.sid == list[index - 1].sid then
+      return nil
+    end
+    local chargeSuffix = item.charges ~= nil and string.format(",%d", item.charges) or ""
+    pieces[#pieces + 1] = string.format("%d,%d,%d%s", item.sid, item.code, item.rem, chargeSuffix)
+    keys[#keys + 1] = string.format("%d,%d%s", item.sid, item.code, chargeSuffix)
+  end
+  local payload = "DEF:" .. table.concat(pieces, ";")
+  if #payload > DEF_MAX_BYTES then
+    return nil
+  end
+  return payload, "DEF:" .. table.concat(keys, ";")
+end
+
+--- Strict DEF parser: returns { entries = { {spellID, state, remain, charges} } }
+-- or nil. Any malformed, oversized, unsorted, duplicate or foreign-ID entry
+-- drops the whole payload.
+local function ParseDefPayload(message)
+  if type(message) ~= "string" or #message > DEF_MAX_BYTES then
+    return nil
+  end
+  local body = message:match("^DEF:(.+)$")
+  if not body then
+    return nil
+  end
+  if body == "-" then
+    return { entries = {} }
+  end
+  if body:find("[^%d,;]") or body:sub(1, 1) == ";" or body:sub(-1) == ";" or body:find(";;", 1, true) then
+    return nil
+  end
+  local entries = {}
+  local lastSid = nil
+  for raw in body:gmatch("[^;]+") do
+    if #entries >= DEF_MAX_ENTRIES then
+      return nil
+    end
+    local sidText, stateText, remText, chargeText = raw:match("^(%d+),(%d+),(%d+),(%d+)$")
+    if not sidText then
+      sidText, stateText, remText = raw:match("^(%d+),(%d+),(%d+)$")
+    end
+    local sid = ParseCanonicalInteger(sidText)
+    local code = ParseCanonicalInteger(stateText)
+    local rem = ParseCanonicalInteger(remText)
+    local charges = chargeText ~= nil and ParseCanonicalInteger(chargeText) or nil
+    if not sid or not IsDefensiveSpell(sid) or not code or DEF_STATE_NAMES[code] == nil then
+      return nil
+    end
+    if not rem or rem > DEF_MAX_REMAIN or (chargeText ~= nil and (not charges or charges > DEF_MAX_CHARGES)) then
+      return nil
+    end
+    if lastSid ~= nil and sid <= lastSid then
+      return nil
+    end
+    lastSid = sid
+    entries[#entries + 1] = { spellID = sid, state = DEF_STATE_NAMES[code], remain = rem, charges = charges }
+  end
+  if #entries == 0 then
+    return nil
+  end
+  return { entries = entries }
+end
+
 local function NormalizeCapturedAtAndSource(capturedAt, source)
   local ts = ToFiniteNumber(capturedAt)
   if not ts or ts <= 0 then
@@ -552,6 +686,8 @@ SyncCodec.SplitPayload = SplitPayload
 SyncCodec.ParseKickPayload = ParseKickPayload
 SyncCodec.EncodeKickSpellSuffix = EncodeKickSpellSuffix
 SyncCodec.EncodeKickExtrasSuffix = EncodeKickExtrasSuffix
+SyncCodec.EncodeDefPayload = EncodeDefPayload
+SyncCodec.ParseDefPayload = ParseDefPayload
 SyncCodec.NormalizeKeyPayload = NormalizeKeyPayload
 SyncCodec.NormalizeStatsPayload = NormalizeStatsPayload
 SyncCodec.NormalizeDpsPayload = NormalizeDpsPayload

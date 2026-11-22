@@ -54,8 +54,18 @@ local function MaskedSession()
   return { combatSources = { { name = SECRET, amountPerSecond = SECRET, totalAmount = SECRET } } }
 end
 
--- meter.state: "readable", "masked", or "interrupts-masked" (DPS readable,
--- the Interrupts list masked).
+-- The Interrupts list as the two probe keys of 2026-11-21 showed it shortly
+-- after the key end: every member readable, one pet entry with a masked name
+-- (plain amount). A few seconds later the same entry reads as a plain name.
+local function InterruptSessionWithPet(landed, petName)
+  local session = InterruptSession(landed)
+  session.combatSources[#session.combatSources + 1] = { name = petName, totalAmount = 4, amountPerSecond = 0 }
+  return session
+end
+
+-- meter.state: "readable", "masked", "interrupts-masked" (DPS readable, the
+-- Interrupts list masked), "pet-secret" (DPS readable, one Interrupts name
+-- masked) or "pet-readable" (everything readable, the pet entry by name).
 local function Prepare(meter)
   return function(globals, session)
     session.inInstance = true
@@ -83,6 +93,12 @@ local function Prepare(meter)
         if meterType == INTERRUPTS_TYPE then
           if meter.state == "interrupts-masked" then
             return MaskedSession()
+          end
+          if meter.state == "pet-secret" then
+            return InterruptSessionWithPet(meter.landed or LANDED, SECRET)
+          end
+          if meter.state == "pet-readable" then
+            return InterruptSessionWithPet(meter.landed or LANDED, "Fixturepet")
           end
           return InterruptSession(meter.landed or LANDED)
         end
@@ -136,6 +152,35 @@ end
 
 local function RenderRoster(session)
   session.runtime.rosterPanelController.RenderRoster(session.runtime.GetRoster())
+end
+
+local function CountTrace(session, needle)
+  local count = 0
+  for _, line in ipairs(session.runtime.runtimeLogController.GetLogTail(400) or {}) do
+    local text = type(line) == "table" and tostring(line.message or line.text or "") or tostring(line)
+    if string.find(text, needle, 1, true) then
+      count = count + 1
+    end
+  end
+  return count
+end
+
+-- Restriction types as the client numbers them (Combat 0, Map 4); state 0 is
+-- Enum.AddOnRestrictionState.Inactive.
+local function LiftRestriction(session, restrictionType)
+  session.Dispatch("ADDON_RESTRICTION_STATE_CHANGED", restrictionType, 0)
+end
+
+-- The probe-key sequence up to the late capture: masked key end, then the
+-- combat restriction lifts while DamageDone is readable and the Interrupts
+-- list still masks one pet name.
+local function KeyEndWithMaskedPet(session, meter, kicks)
+  session.runtime.runtimeLogController.SetEnabled(true)
+  meter.state = "masked"
+  KickTimes(session, kicks)
+  CompleteKey(session)
+  meter.state = "pet-secret"
+  LiftRestriction(session, 0)
 end
 
 return function(test, ctx)
@@ -291,6 +336,135 @@ return function(test, ctx)
       Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "a masked Interrupts list gives no landed value")
       Assert.Nil(stats.GetPlayerLastRunKicks("Peer4", "Realm"), "and no member is taken for 0 landed")
     end, Prepare(partial))
+  end)
+
+  test("Run kicks fill later when the late capture met one masked Interrupts name", function()
+    local meter = { state = "masked" }
+    Stress.WithKey(ctx, Fixture, function(session)
+      local stats = session.runtime.statsController
+      KeyEndWithMaskedPet(session, meter, 37)
+      Assert.Equal(
+        math.floor(stats.GetPlayerLastRunDps("Tester", "Realm") or 0),
+        456789,
+        "the late capture takes the readable DPS"
+      )
+      Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "one masked Interrupts name gives no landed value")
+      Assert.Nil(stats.GetPlayerLastRunKicks("Peer4", "Realm"), "and no member is taken for 0 landed")
+      Assert.Equal(CountTrace(session, "late_capture state=captured"), 1, "the DPS is captured late")
+      Assert.Equal(CountTrace(session, "late_kicks state=armed"), 1, "the landed kicks stay open")
+      RenderRoster(session)
+      Assert.False(HasCellText(session, "37/32"), "the kick column has no run kicks yet")
+
+      -- A few seconds later the map restriction lifts and the whole list,
+      -- the pet included, reads as plain names.
+      session.Advance(5)
+      session.messages = {}
+      meter.state = "pet-readable"
+      LiftRestriction(session, 4)
+      local own = stats.GetPlayerLastRunKicks("Tester", "Realm")
+      Assert.Equal(own and own.landed, 32, "the kicks-only read fills the own landed kicks")
+      Assert.Equal(own and own.cast, 37, "next to the cast count of the run")
+      local peer = stats.GetPlayerLastRunKicks("Peer1", "Realm")
+      Assert.Equal(peer and peer.landed, 23, "a member's landed kicks are filled")
+      local healer = stats.GetPlayerLastRunKicks("Peer4", "Realm")
+      Assert.Equal(healer and healer.landed, 0, "a member missing from the readable list landed none")
+      Assert.Equal(CountTrace(session, "late_kicks state=captured"), 1, "the fill is visible in the [STATS] trace")
+      Assert.Equal(CountTrace(session, "run_kicks_fill trigger=restriction:4 kicks=read"), 1, "with its trigger")
+      RenderRoster(session)
+      Assert.True(HasCellText(session, "37/32"), "the own row shows cast/landed")
+      Assert.True(HasCellText(session, "23"), "a member without isiLive shows the landed count")
+
+      local payload = LastDpsPayload(session)
+      Assert.True(
+        payload ~= nil and string.find(payload, ":KC:37:" .. MAP_ID .. ":" .. KEY_LEVEL) ~= nil,
+        "the fill sends the own snapshot to the peers: " .. tostring(payload)
+      )
+      -- Those bytes reach a peer's receiver: it pairs the casts with its own
+      -- landed value of the same run.
+      session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", payload, "PARTY", "Peer1-Realm")
+      RenderRoster(session)
+      Assert.True(HasCellText(session, "37/23"), "the isiLive peer row shows cast/landed")
+
+      -- The window is closed: later triggers read nothing more.
+      LiftRestriction(session, 2)
+      Assert.Equal(CountTrace(session, "run_kicks_fill"), 1, "the kicks are read only once")
+    end, Prepare(meter))
+  end)
+
+  test("Run kicks stay empty without errors when the late kicks window runs out", function()
+    local meter = { state = "masked" }
+    Stress.WithKey(ctx, Fixture, function(session)
+      local stats = session.runtime.statsController
+      KeyEndWithMaskedPet(session, meter, 37)
+      session.Advance(601)
+      meter.state = "pet-readable"
+      LiftRestriction(session, 4)
+      session.inInstance = false
+      session.Dispatch("ZONE_CHANGED_NEW_AREA")
+      Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "an expired window reads no kicks")
+      Assert.NotNil(stats.GetPlayerLastRunDps("Tester", "Realm"), "the captured DPS stays")
+      Assert.Equal(CountTrace(session, "late_kicks state=cancel"), 1, "the window closes once")
+      Assert.Equal(CountTrace(session, "reason=expired"), 1, "because it expired")
+      Assert.Equal(CountTrace(session, "run_kicks_fill"), 0, "nothing is read after the window")
+      RenderRoster(session)
+      Assert.False(HasCellText(session, "37/32"), "the kick column keeps no run kicks")
+    end, Prepare(meter))
+  end)
+
+  test("Run kicks late read is cancelled by a new key start", function()
+    local meter = { state = "masked" }
+    Stress.WithKey(ctx, Fixture, function(session)
+      local stats = session.runtime.statsController
+      KeyEndWithMaskedPet(session, meter, 37)
+      session.active = true
+      session.Dispatch("CHALLENGE_MODE_START")
+      session.Advance(1)
+      meter.state = "pet-readable"
+      LiftRestriction(session, 4)
+      Assert.Equal(CountTrace(session, "late_kicks state=cancel"), 1, "the key start closes the window")
+      Assert.Equal(CountTrace(session, "reason=key_start"), 1, "with the key start as reason")
+      Assert.Equal(CountTrace(session, "run_kicks_fill"), 0, "the new key's meter is never read for the old run")
+      Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "the running key shows no run kicks")
+    end, Prepare(meter))
+  end)
+
+  test("Run kicks late read covers a key-end capture that met one masked Interrupts name", function()
+    local meter = { state = "pet-secret" }
+    Stress.WithKey(ctx, Fixture, function(session)
+      local stats = session.runtime.statsController
+      session.runtime.runtimeLogController.SetEnabled(true)
+      KickTimes(session, 37)
+      CompleteKey(session)
+      Assert.NotNil(stats.GetPlayerLastRunDps("Tester", "Realm"), "the key-end capture takes the DPS")
+      Assert.Nil(stats.GetPlayerLastRunKicks("Tester", "Realm"), "but no landed kicks")
+      Assert.Equal(CountTrace(session, "late_capture state=armed"), 0, "the run itself needs no late capture")
+      Assert.Equal(CountTrace(session, "late_kicks state=armed"), 1, "the landed kicks stay open")
+
+      session.messages = {}
+      meter.state = "pet-readable"
+      session.inInstance = false
+      session.Dispatch("PLAYER_ENTERING_WORLD")
+      local own = stats.GetPlayerLastRunKicks("Tester", "Realm")
+      Assert.Equal(own and own.landed, 32, "leaving the instance fills the landed kicks")
+      Assert.Equal(own and own.cast, 37, "next to the cast count")
+      Assert.True(LastDpsPayload(session) ~= nil, "the world snapshot carries the run to the peers")
+    end, Prepare(meter))
+  end)
+
+  test("Run kicks late read stays off when the late capture reads everything", function()
+    local meter = { state = "masked" }
+    Stress.WithKey(ctx, Fixture, function(session)
+      local stats = session.runtime.statsController
+      session.runtime.runtimeLogController.SetEnabled(true)
+      KickTimes(session, 37)
+      CompleteKey(session)
+      meter.state = "pet-readable"
+      LiftRestriction(session, 0)
+      local own = stats.GetPlayerLastRunKicks("Tester", "Realm")
+      Assert.Equal(own and own.landed, 32, "the late capture reads the landed kicks itself")
+      Assert.Equal(CountTrace(session, "late_kicks"), 0, "no kicks-only window opens")
+      Assert.Equal(CountTrace(session, "run_kicks_fill"), 0, "and nothing is read twice")
+    end, Prepare(meter))
   end)
 
   test("Run kicks drop the cast count after a masked own cast", function()

@@ -30,7 +30,7 @@ local AVENGERS_SHIELD = 31935
 local RAID_WARNING_KIT = 8959
 local ALERT_TEXT = "MISSED KICK"
 
--- opts: { alert, onlyInKey, sound, class = "MAGE"|"PALADIN" }
+-- opts: { alert, onlyInKey, sound, voice, class = "MAGE"|"PALADIN" }
 local function Prepare(opts)
   opts = opts or {}
   return function(globals, session)
@@ -39,6 +39,9 @@ local function Prepare(opts)
     db.missedKickAlertEnabled = opts.alert ~= false
     db.missedKickOnlyInKey = opts.onlyInKey
     db.missedKickSound = opts.sound == true
+    if opts.voice ~= nil then
+      db.missedKickVoiceEnabled = opts.voice
+    end
     if opts.class == "PALADIN" then
       local unitClass = globals.UnitClass
       globals.UnitClass = function(unit)
@@ -59,6 +62,20 @@ local function Prepare(opts)
     globals.PlaySound = function(kit, channel)
       session.sounds[#session.sounds + 1] = { kit = kit, channel = channel }
       return true, #session.sounds
+    end
+    -- Voice lines (rule 266, default on) play through PlaySoundFile. Only this
+    -- alert's own voice files count; other cues of the flow (group join etc.)
+    -- still reach the real client stand-in.
+    local playSoundFile = globals.PlaySoundFile
+    globals.PlaySoundFile = function(file, channel)
+      if type(file) == "string" and file:find("[\\/]MissedKick_?%a*%.ogg$") ~= nil then
+        session.sounds[#session.sounds + 1] = { file = file, channel = channel }
+        return true, #session.sounds
+      end
+      if type(playSoundFile) == "function" then
+        return playSoundFile(file, channel)
+      end
+      return true, 0
     end
   end
 end
@@ -148,7 +165,7 @@ return function(test, ctx)
       Kick(session)
       session.Advance(0.3)
       Assert.Equal(session.sounds[1].channel, "SFX", "the cue follows the configured output channel") -- sound-ok
-    end, Prepare({ sound = true }))
+    end, Prepare({ sound = true, voice = false }))
   end)
 
   test("Missed kick alert stays silent when a hostile interrupt lands inside the window", function()

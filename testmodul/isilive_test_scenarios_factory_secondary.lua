@@ -240,6 +240,7 @@ local function BuildControllerContext(state, addon, initial)
               return true
             end,
             ToggleStandardTestMode = function() end,
+            ToggleDemoMode = function() end,
             RefreshActivePreview = function()
               return false
             end,
@@ -1160,7 +1161,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       )
       state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 39, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 40, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -1783,19 +1784,23 @@ return function(test, ctx)
       },
     })
 
-    state.lustInfo = { remain = 2, icon = 132114 }
-    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
-    state.lustInfo = nil
-    state.ctx.UpdateCdTracker()
-    Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "first Bloodlust-ready alert must still play")
+    -- The reminder reads the global IsiLiveDB at refresh time: pin it to this
+    -- test's DB instead of whatever an earlier test left in _G.
+    WithGlobals({ IsiLiveDB = state.db }, function()
+      state.lustInfo = { remain = 2, icon = 132114 }
+      state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+      state.lustInfo = nil
+      state.ctx.UpdateCdTracker()
+      Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "first Bloodlust-ready alert must still play")
 
-    state.time = 60
-    state.ctx.UpdateCdTracker()
-    Assert.Equal(
-      state.bloodlustReadySoundCalls or 0,
-      1,
-      "disabled Bloodlust-ready reminder setting must suppress the 60-second repeat"
-    )
+      state.time = 60
+      state.ctx.UpdateCdTracker()
+      Assert.Equal(
+        state.bloodlustReadySoundCalls or 0,
+        1,
+        "disabled Bloodlust-ready reminder setting must suppress the 60-second repeat"
+      )
+    end)
   end)
 
   test("Factory CD refresh exposes BL: -- when ready display context is inactive", function()

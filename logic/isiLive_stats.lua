@@ -352,6 +352,25 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime, overa
   return snapshot, diagnostics
 end
 
+-- Kicks-only read after a capture whose Interrupts list was not fully
+-- readable (rule 118, late kicks): the Overall Interrupts session -- the one
+-- the late capture reads -- fills kicksLanded into the captured entries only
+-- when the whole list is readable; a member missing from it landed none. A
+-- list that is still masked changes nothing (no partial values).
+-- @return boolean true when the snapshot was filled.
+local function FillLandedKicks(snapshot)
+  local landed = ReadLandedInterrupts(DAMAGE_METER_SESSION_TYPE_OVERALL)
+  if not landed then
+    return false
+  end
+  for key, entry in pairs(snapshot) do
+    if type(entry) == "table" then
+      entry.kicksLanded = landed[key] or 0
+    end
+  end
+  return true
+end
+
 function Stats.CreateController(opts)
   opts = opts or {}
   local getRoster = opts.getRoster
@@ -374,6 +393,11 @@ function Stats.CreateController(opts)
   -- normalized player key from the Overall session (reset at the key start),
   -- read between pulls; nil until the first readable read of this key.
   local liveKicks = nil
+  -- True while the last captured run has DPS but no landed kicks because its
+  -- Interrupts list was not fully readable. Only a kicks-only read
+  -- (captureOpts.kicksOnly) fills that snapshot; the next capture or a run
+  -- start closes the slot, so the kicks never land on another run.
+  local runKicksOpen = false
 
   local function PersistOwnRun(selfRun)
     local db = rawget(_G, "IsiLiveDB")
@@ -402,16 +426,49 @@ function Stats.CreateController(opts)
 
   local controller = {}
 
+  -- Kicks-only mode of RecordRun: fills the open landed kicks of the last
+  -- captured run. Returns filled, kicksState ("read", "unreadable", or "none"
+  -- when no slot is open any more).
+  local function FillOpenRunKicks(captureOpts)
+    local kicksState = "none"
+    if runKicksOpen and not runKicksSuperseded then
+      kicksState = FillLandedKicks(sessionPlayerLastRuns) and "read" or "unreadable"
+    end
+    if logRuntimeTracef then
+      logRuntimeTracef(
+        "[STATS] run_kicks_fill trigger=%s kicks=%s playerKey=%s members=%s",
+        tostring(captureOpts.trigger or "-"),
+        kicksState,
+        tostring(localPlayerKey),
+        FormatKeysForTrace(sessionPlayerLastRuns)
+      )
+    end
+    if kicksState ~= "unreadable" then
+      runKicksOpen = false
+    end
+    if kicksState ~= "read" then
+      return false, kicksState
+    end
+    PersistOwnRun(localPlayerKey and sessionPlayerLastRuns[localPlayerKey] or nil)
+    return true, kicksState
+  end
+
   -- captureOpts (optional): overallOnly restricts the capture to the Overall
   -- session (late capture after the key), phase and trigger only label the
   -- trace line ("initial", "retry", "late"), kicksCast is the own interrupt
   -- cast count of the run and kicksMissed the own missed kicks of it (rule
-  -- 240); each is nil when unknown.
+  -- 240); each is nil when unknown. kicksOnly reads nothing but the open
+  -- landed kicks of the last captured run (see FillOpenRunKicks).
+  -- Returns captured, kicksState: the second value is "unreadable" when the
+  -- DPS was captured but the landed kicks stay open for a kicks-only read.
   function controller.RecordRun(mapID, level, onTime, rosterOverride, captureOpts)
     if not mapID then
       return false
     end
     captureOpts = type(captureOpts) == "table" and captureOpts or {}
+    if captureOpts.kicksOnly == true then
+      return FillOpenRunKicks(captureOpts)
+    end
 
     EnsureInitialized()
     EnsureStatsTables()
@@ -472,6 +529,7 @@ function Stats.CreateController(opts)
     sessionPlayerLastRuns = runSnapshot
     sessionPlayerLastRunMisses = {}
     runKicksSuperseded = false
+    runKicksOpen = diagnostics.kicksState == "unreadable"
     for _, info in pairs(roster or {}) do
       if type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
         local key = NormalizeName(info.name, info.realm)
@@ -483,7 +541,7 @@ function Stats.CreateController(opts)
 
     PersistOwnRun(localPlayerKey and runSnapshot[localPlayerKey] or nil)
 
-    return recordedAnyPlayer
+    return recordedAnyPlayer, diagnostics.kicksState
   end
 
   local function GetPlayerLastRunInfo(name, realm)
@@ -602,6 +660,7 @@ function Stats.CreateController(opts)
   -- CHALLENGE_MODE_START); the next captured run shows its own.
   function controller.MarkRunStarted(kind)
     runKicksSuperseded = true
+    runKicksOpen = false
     liveKicks = nil
     if logRuntimeTracef then
       logRuntimeTracef("[STATS] run_kicks_hidden kind=%s", tostring(kind or "key"))

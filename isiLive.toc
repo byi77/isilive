@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.531
+## Version: 0.9.550
 ## SavedVariables: IsiLiveDB
 ## OptionalDependencies: WagoAnalytics
 ## X-Wago-ID: rN4r1zKD
@@ -46,6 +46,7 @@ locale/isiLive_texts.lua
 data/isiLive_spells.lua
 data/isiLive_specs.lua
 data/isiLive_interrupts.lua
+data/isiLive_defensives.lua
 game/isiLive_spell_utils.lua
 game/isiLive_cd_tracker.lua
 ui/isiLive_bindings.lua
@@ -96,6 +97,7 @@ ui/isiLive_status.lua
 game/isiLive_units.lua
 logic/isiLive_demo.lua
 logic/isiLive_test_mode.lua
+logic/isiLive_defensive_store.lua
 logic/isiLive_sync_codec.lua
 logic/isiLive_sync_transport.lua
 logic/isiLive_sync_peer_state.lua
@@ -132,6 +134,8 @@ game/isiLive_aggro_alert.lua
 game/isiLive_consumable_check.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
+game/isiLive_defensive_tracker.lua
+game/isiLive_defensive_sensors.lua
 game/isiLive_combat_events.lua
 game/isiLive_pi_tracker.lua
 game/isiLive_bloodlust_button_warning.lua
@@ -143,6 +147,7 @@ game/isiLive_loadout_check.lua
 logic/isiLive_instance_reset.lua
 ui/isiLive_roster_panel_helpers.lua
 ui/isiLive_roster_panel_chrome.lua
+ui/isiLive_roster_defensive_cell.lua
 ui/isiLive_roster_panel_cd_row.lua
 ui/isiLive_roster_panel_kill_row_run_end.lua
 ui/isiLive_roster_panel_kill_row_time_pace.lua
@@ -155,6 +160,8 @@ ui/isiLive_run_focus_title.lua
 logic/isiLive_events.lua
 logic/isiLive_event_handlers_queue.lua
 logic/isiLive_probe_log.lua
+logic/isiLive_probe_party.lua
+logic/isiLive_probe_auracontainer.lua
 logic/isiLive_probe_report.lua
 logic/isiLive_late_run_capture.lua
 logic/isiLive_event_handlers_challenge.lua
@@ -182,6 +189,8 @@ ui/isiLive_settings_controls.lua
 ui/isiLive_settings_nameplates.lua
 ui/isiLive_settings_behavior.lua
 ui/isiLive_settings_sound.lua
+ui/isiLive_settings_sound_voice.lua
+ui/isiLive_settings_defensives.lua
 ui/isiLive_bug_report_window.lua
 ui/isiLive_settings_support.lua
 ui/isiLive_settings_general.lua
@@ -192,6 +201,7 @@ ui/isiLive_settings.lua
 core/isiLive_guards.lua
 factory/isiLive_factory_frame_bridge.lua
 factory/isiLive_factory_kick_tracker.lua
+factory/isiLive_factory_defensives.lua
 factory/isiLive_factory_cd_tracker.lua
 factory/isiLive_factory_status_helpers.lua
 factory/isiLive_factory_runtime_helpers.lua

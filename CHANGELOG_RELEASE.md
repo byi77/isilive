@@ -3,7 +3,22 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.531`.
+Current version: `0.9.550`.
+
+Version 0.9.550: voice announcements in one voice, and a defensives column.
+The English alerts now use the same calm male voice as the German ones. Lead
+transfer, group full, ready check complete, battle res used, Bloodlust, aggro
+and missed kick speak a short line instead of their sound effect; on by
+default, and "Voice instead of effect" under each sound toggle brings the
+effect back. Aggro and missed-kick sounds stay off until you switch them on.
+New, experimental and off by default (Settings > Display > M+: Defensives
+column): while a key runs, the DPS column shows the defensives and externals
+of the group. isiLive users can share exact cooldowns, which freeze once the
+game blocks addon chat in the key; for other players isiLive can show an
+estimate, always marked "~" and without talent reductions. Demo action C14
+previews the column. Fixed: the kick column showed "-" after a key, the demo
+started from a hidden window showed only you, and entering a dungeon did not
+end the demo.
 
 Version 0.9.531: the portal navigator shows its empty slots translated in
 French, Russian and Turkish. Internally the automatic checks now run every
@@ -324,9 +339,17 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.528 -->
+<!-- highlights-reviewed-for: 0.9.550 -->
 
 Highlights:
+- **Defensives column (experimental, off by default).** While a key runs,
+  see the group's defensives and externals in place of DPS: exact cooldowns
+  from isiLive users, frozen during the in-key chat block, and an estimate
+  marked "~" for everyone else. Settings > Display > M+: Defensives column.
+- **Voice announcements in one voice.** English and German alerts share
+  one calm male voice; lead transfer, group full, ready check, battle res
+  used, Bloodlust, aggro and missed kick speak a short line instead of an
+  effect (on by default, "Voice instead of effect" brings the effect back).
 - **isiLive in Blizzard's Edit Mode.** Move the main window in Esc > Edit
   Mode like any Blizzard frame, set layout, scale, opacity and the lock in its
   dialog; every Edit Mode layout keeps its own position, scale and layout. On
@@ -335,12 +358,7 @@ Highlights:
   non-tank in a key, live kick counts of the running key in the roster tooltip
   (on by default) and a consumable check on dungeon entry that flags a
   missing flask or weapon oil, or one ending within 40 minutes.
-- **Time pace during fights.** The ON TIME / CLOSE / TOO SLOW badge keeps
-  moving in combat: every kill updates it at the pull's kill tempo, so long
-  chain pulls no longer freeze it.
 - **Ready for patch day and season start.** After every client update
   isiLive checks itself once and tells you in chat only if something broke
   (details: /isilive selftest); a season it does not know yet no longer shows
   the previous season's portals.
-- **Update notice.** The chat tells you once per session when a group or
-  guild member runs a newer isiLive.

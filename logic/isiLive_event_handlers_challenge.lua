@@ -366,18 +366,26 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
   end
 
   local isRetry = retriesRemaining ~= nil and retriesRemaining < POST_RUN_CAPTURE_RETRIES
-  local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
+  local result, kicksState = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime, nil, {
     phase = isRetry and "retry" or "initial",
     kicksCast = runInfo.kicksCast,
     kicksMissed = runInfo.kicksMissed,
-  }) ~= false
+  })
+  local capturedNow = result ~= false
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
     ctx.pendingRecordedRunRetrySignature = nil
     ctx.activeChallengeRunIdentity = nil
     local pending = ctx.pendingLateRunCapture
+    local lateDeadline = nil
     if type(pending) == "table" and pending.signature == runInfo.signature then
+      lateDeadline = pending.deadline
       LateRunCapture.Cancel(ctx, "captured")
+    end
+    -- DPS readable, Interrupts list not yet (rule 118, late kicks): the
+    -- landed kicks are read later on the late-capture triggers.
+    if kicksState == "unreadable" then
+      LateRunCapture.ArmKicks(ctx, runInfo, lateDeadline)
     end
     return true
   end
@@ -451,7 +459,7 @@ end
 -- @param kind string "world", "zone" or "combat".
 function ChallengeLifecycle.NotifyLateRunCapture(ctx, kind)
   if kind == "combat" then
-    return LateRunCapture.Cancel(ctx, "combat")
+    return LateRunCapture.CancelAll(ctx, "combat")
   end
   if IsRaidModeActive(ctx) then
     return false
@@ -851,7 +859,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ClearKeyEndBanner(ctx)
     -- A new key resets the damage meter: the previous run can no longer be
     -- captured.
-    LateRunCapture.Cancel(ctx, "key_start")
+    LateRunCapture.CancelAll(ctx, "key_start")
     -- Abandoned-run signatures repeat for the same map and level; every key
     -- gets its own late window.
     ctx.lateRunCaptureArmedSignature = nil

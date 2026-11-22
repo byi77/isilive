@@ -6,11 +6,15 @@
 -- robots.txt allows exactly these CSV exports and /api/), and
 --
 --  1. checks every ID the addon ships in data/ against that build: spells
---     (spell manifest, interrupts, consumables, portals of the active and the
---     prepared season), items, challenge maps, LFG activities (exist, belong to
+--     (spell manifest, interrupts, defensive manifest casts and auras,
+--     consumables, portals of the active and the prepared season), items,
+--     challenge maps, LFG activities (exist, belong to
 --     the challenge map's instance and are keystone activities) and
 --     specializations (manifest specs exist; a regular spec of a playable class
---     missing from data/isiLive_specs.lua is reported);
+--     missing from data/isiLive_specs.lua is reported); every defensive spec
+--     must be a spec of the record's class in data/isiLive_specs.lua, and, when
+--     the cooldown tables are present, every defensive `cooldown` must match
+--     DB2 (rule 267, see DeriveCooldownSeconds);
 --  2. reads the newest Mythic+ dungeon rotation (MythicPlusSeasonTrackedMap).
 --     When no configured season has that map set, it drafts the next season:
 --     intake rows for docs/SEASON_INTAKE.md (Status `candidate`, with source
@@ -24,7 +28,9 @@
 --
 -- <dir> holds: SpellName.csv, Spell.csv, SpellFlyoutItem.csv, Item.csv,
 -- MapChallengeMode.csv, MapChallengeMode.deDE.csv, GroupFinderActivity.csv,
--- ChrSpecialization.csv, MythicPlusSeasonTrackedMap.csv.
+-- ChrSpecialization.csv, MythicPlusSeasonTrackedMap.csv; optional
+-- SpellCooldowns.csv, SpellCategories.csv and SpellCategory.csv for the
+-- defensive cooldown check (skipped with a note when one is missing).
 -- Exit codes: 0 all IDs found and the newest rotation is a configured season,
 -- 1 missing or inconsistent IDs or an unknown next season, 2 input error.
 
@@ -176,6 +182,12 @@ function M.CollectShippedIDs(data)
     AddSpell(id, "icon " .. key)
   end
   AddSpell(spells.powerInfusion, "Power Infusion")
+  local defensives = data.DefensiveManifest or {}
+  for castID, record in pairs(defensives.spells or {}) do
+    AddSpell(castID, "defensive cast " .. tostring(record.name))
+    AddSpell(record.aura, "defensive aura " .. tostring(record.name))
+  end
+  AddSpell(defensives.forbearance, "Forbearance")
   local interrupts = data.InterruptManifest or {}
   for specID, record in pairs(interrupts.specs or {}) do
     AddSpell(record.spellID, "interrupt spec " .. specID)
@@ -220,6 +232,84 @@ function M.CollectShippedIDs(data)
     end
   end
   return ids
+end
+
+--- Base cooldown of a spell in whole seconds from the DB2 rows (rule 267):
+-- the ChargeRecoveryTime of its ChargeCategory when that category has one,
+-- otherwise the larger of RecoveryTime and CategoryRecoveryTime. Only rows of
+-- DifficultyID 0. Returns nil when DB2 has no cooldown for the spell.
+function M.DeriveCooldownSeconds(spellID, cooldownTables)
+  local ms = nil
+  for _, row in ipairs(cooldownTables.categoriesBySpell[spellID] or {}) do
+    if Num(row.DifficultyID) == 0 then
+      local category = cooldownTables.categoryByID[Num(row.ChargeCategory)]
+      local recovery = category and Num(category.ChargeRecoveryTime) or 0
+      if recovery and recovery > 0 then
+        ms = recovery
+      end
+    end
+  end
+  if not ms then
+    for _, row in ipairs(cooldownTables.cooldownsBySpell[spellID] or {}) do
+      if Num(row.DifficultyID) == 0 then
+        local value = math.max(Num(row.RecoveryTime) or 0, Num(row.CategoryRecoveryTime) or 0)
+        if value > 0 then
+          ms = math.max(ms or 0, value)
+        end
+      end
+    end
+  end
+  return ms and math.floor(ms / 1000 + 0.5) or nil
+end
+
+-- Defensive manifest (rule 267): specs belong to the record's class, and the
+-- shipped cooldowns match DB2 when the cooldown tables were loaded.
+local function CheckDefensives(db2, data, lines, ErrorLine)
+  local defensives = (data.DefensiveManifest or {}).spells or {}
+  local specs = (data.SpecManifest or {}).specs or {}
+  local checked, withoutCooldown = 0, {}
+  for _, castID in ipairs(SortedKeys(defensives)) do
+    local record = defensives[castID]
+    checked = checked + 1
+    for _, specID in ipairs(record.specs or {}) do
+      local spec = specs[specID]
+      if not spec or spec.class ~= record.class then
+        ErrorLine(
+          string.format(
+            "defensive %d (%s): spec %d is no %s spec",
+            castID,
+            tostring(record.name),
+            specID,
+            tostring(record.class)
+          )
+        )
+      end
+    end
+    if record.cooldown == nil then
+      withoutCooldown[#withoutCooldown + 1] = tostring(castID)
+    elseif db2.cooldownTables then
+      local derived = M.DeriveCooldownSeconds(castID, db2.cooldownTables)
+      if derived ~= record.cooldown then
+        ErrorLine(
+          string.format(
+            "defensive cooldown %d (%s): manifest %s s, DB2 %s s",
+            castID,
+            tostring(record.name),
+            tostring(record.cooldown),
+            tostring(derived)
+          )
+        )
+      end
+    end
+  end
+  local cooldownStatus = db2.cooldownTables and "checked against DB2"
+    or "not checked (SpellCooldowns/SpellCategories/SpellCategory missing)"
+  lines[#lines + 1] = string.format(
+    "- Defensives: %d spells, cooldowns %s%s",
+    checked,
+    cooldownStatus,
+    #withoutCooldown > 0 and (", without verified cooldown: " .. table.concat(withoutCooldown, ", ")) or ""
+  )
 end
 
 local function FormatTimer(seconds)
@@ -316,6 +406,10 @@ function M.Evaluate(db2, data, opts)
       Problem(string.format("spec %d of data/isiLive_specs.lua in the client", specID))
     end
   end
+  CheckDefensives(db2, data, lines, function(text)
+    problems = problems + 1
+    lines[#lines + 1] = "- ERROR " .. text
+  end)
   lines[#lines + 1] = string.format(
     "- Checked: %d spells, %d items, %d challenge maps, %d LFG activities, %d specs",
     counts.spells,
@@ -507,7 +601,53 @@ function M.LoadTables(dir, data)
   for _, row in ipairs(spellRows) do
     db2.subtextBySpell[Num(row.ID)] = row.NameSubtext_lang
   end
+  db2.cooldownTables = M.LoadCooldownTables(dir, data)
   return db2
+end
+
+--- Optional cooldown tables for the defensive cooldown check (rule 267).
+-- Returns nil when one of the three files is missing.
+function M.LoadCooldownTables(dir, data)
+  local wanted = {}
+  for castID in pairs((data.DefensiveManifest or {}).spells or {}) do
+    wanted[tostring(castID)] = true
+  end
+  local function BySpell(rows)
+    local out = {}
+    for _, row in ipairs(rows) do
+      local id = Num(row.SpellID)
+      if id then
+        out[id] = out[id] or {}
+        out[id][#out[id] + 1] = row
+      end
+    end
+    return out
+  end
+  local function KeepSpell(path)
+    -- The spell ID is the last column; read every row and filter after parsing.
+    local rows = M.ReadCsv(path)
+    if not rows then
+      return nil
+    end
+    local kept = {}
+    for _, row in ipairs(rows) do
+      if wanted[tostring(Num(row.SpellID))] then
+        kept[#kept + 1] = row
+      end
+    end
+    return kept
+  end
+  local cooldowns = KeepSpell(dir .. "/SpellCooldowns.csv")
+  local categories = KeepSpell(dir .. "/SpellCategories.csv")
+  local categoryRows = M.ReadCsv(dir .. "/SpellCategory.csv")
+  if not cooldowns or not categories or not categoryRows then
+    return nil
+  end
+  local categoryByID = {}
+  for _, row in ipairs(categoryRows) do
+    categoryByID[Num(row.ID)] = row
+  end
+  return { cooldownsBySpell = BySpell(cooldowns), categoriesBySpell = BySpell(categories), categoryByID = categoryByID }
 end
 
 function M.LoadShippedData()
@@ -517,6 +657,7 @@ function M.LoadShippedData()
     "data/isiLive_spells.lua",
     "data/isiLive_specs.lua",
     "data/isiLive_interrupts.lua",
+    "data/isiLive_defensives.lua",
     "data/isiLive_consumables.lua",
     "data/isiLive_items.lua",
   }) do

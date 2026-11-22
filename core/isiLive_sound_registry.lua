@@ -2,6 +2,12 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Single source of every bundled sound path (tools/check_sound_assets.lua
+-- fails on a literal sounds path anywhere else). `file` is the default, i.e.
+-- the English voice line or the effect; `localizedFiles.deDE` the German line.
+-- `voice` (optional) is a spoken alternative to an effect or SoundKit: while
+-- its own setting is on (Pattern A, default on) SoundUtils plays the voice
+-- file instead, resolved by locale exactly like `file` (rule 266).
 local SoundRegistry = {
   Registry = {
     leader_transfer = {
@@ -9,6 +15,14 @@ local SoundRegistry = {
       labelKey = "SETTINGS_SOUND_LEAD_ENABLED",
       settingKey = "soundLeadEnabled",
       defaultEnabled = true,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\LeaderTransfer.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\LeaderTransfer_deDE.ogg",
+        },
+        settingKey = "soundLeadVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     group_join = {
@@ -16,6 +30,14 @@ local SoundRegistry = {
       labelKey = "SETTINGS_SOUND_GROUP_JOIN_ENABLED",
       settingKey = "soundGroupJoinEnabled",
       defaultEnabled = true,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\GroupFull.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\GroupFull_deDE.ogg",
+        },
+        settingKey = "soundGroupJoinVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     ready_check_complete = {
@@ -26,6 +48,14 @@ local SoundRegistry = {
       descFallback = "Plays a sound once when all five ready-check participants are marked ready.",
       settingKey = "soundReadyCheckCompleteEnabled",
       defaultEnabled = true,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\ReadyCheckComplete.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\ReadyCheckComplete_deDE.ogg",
+        },
+        settingKey = "soundReadyCheckCompleteVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     portal_available = {
@@ -70,6 +100,14 @@ local SoundRegistry = {
       labelKey = "SETTINGS_SOUND_BATTLE_RES",
       settingKey = "soundBattleResEnabled",
       defaultEnabled = true,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\BattleResUsed.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\BattleResUsed_deDE.ogg",
+        },
+        settingKey = "soundBattleResVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     battle_res_ready = {
@@ -90,6 +128,14 @@ local SoundRegistry = {
       labelKey = "SETTINGS_SOUND_BLOODLUST",
       settingKey = "soundBloodlustEnabled",
       defaultEnabled = true,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustUsed.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustUsed_deDE.ogg",
+        },
+        settingKey = "soundBloodlustVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     bloodlust_soon = {
@@ -170,11 +216,12 @@ local SoundRegistry = {
       defaultEnabled = true,
       defaultChannel = "Master",
     },
-    -- Missed-kick alert (rule 236). Blizzard SoundKit instead of a bundled
-    -- file; PlaySoundKit no-ops when the name does not resolve. Not part of
-    -- SettingsOrder: its toggle (missedKickSound, Pattern B) sits next to the
-    -- missed-kick alert in the display settings. VERIFY IN-GAME that the cue
-    -- is distinct enough from the client's own raid warnings.
+    -- Aggro (rule 244) and missed-kick alert (rule 236). Blizzard SoundKit as
+    -- the effect; PlaySoundKit no-ops when the name does not resolve. Not part
+    -- of SettingsOrder: their toggles (aggroAlertSound / missedKickSound,
+    -- Pattern B) and voice options sit next to the alerts in the display
+    -- settings. VERIFY IN-GAME that the SoundKit cue is distinct enough from
+    -- the client's own raid warnings.
     aggro = {
       soundKit = "ALARM_CLOCK_WARNING_3",
       labelKey = "SETTINGS_AGGRO_SOUND",
@@ -183,6 +230,14 @@ local SoundRegistry = {
       descFallback = "Also plays a short sound with the aggro alert.",
       settingKey = "aggroAlertSound",
       defaultEnabled = false,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\Aggro.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\Aggro_deDE.ogg",
+        },
+        settingKey = "aggroAlertVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
     missed_kick = {
@@ -193,6 +248,14 @@ local SoundRegistry = {
       descFallback = "Also plays a short sound with the missed-kick alert.",
       settingKey = "missedKickSound",
       defaultEnabled = false,
+      voice = {
+        file = "Interface\\AddOns\\isiLive\\sounds\\MissedKick.ogg",
+        localizedFiles = {
+          deDE = "Interface\\AddOns\\isiLive\\sounds\\MissedKick_deDE.ogg",
+        },
+        settingKey = "missedKickVoiceEnabled",
+        defaultEnabled = true,
+      },
       defaultChannel = "Master",
     },
   },

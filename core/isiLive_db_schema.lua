@@ -376,10 +376,19 @@ local SCHEMA = {
   -- Aggro alert for non-tanks (rule 244), both Pattern B.
   aggroAlertEnabled = { type = "boolean", default = false },
   aggroAlertSound = { type = "boolean", default = false },
+  -- Spoken line instead of the SoundKit once the sound is on (rule 266), Pattern A.
+  missedKickVoiceEnabled = { type = "boolean", default = true },
+  aggroAlertVoiceEnabled = { type = "boolean", default = true },
   -- Live kicks of the running key in the roster tooltip (rule 245), Pattern A.
   liveRunKicksEnabled = { type = "boolean", default = true },
   -- Ready-check consumable check (rule 246), Pattern B.
   consumableCheckEnabled = { type = "boolean", default = false },
+  -- Defensive / external cooldowns of the group (rule 267), both Pattern B:
+  -- the feature as a whole and the DEF sync between isiLive users; the
+  -- sensor estimate for members without isiLive (rule 268), Pattern B too.
+  defensiveTrackerEnabled = { type = "boolean", default = false },
+  defensiveSyncEnabled = { type = "boolean", default = false },
+  defensiveEstimateEnabled = { type = "boolean", default = false },
 
   -- Probe mode (logic/isiLive_probe_log.lua, rule 239): opt-in (Pattern B) and,
   -- unlike runtimeLogEnabled, kept across reloads.
@@ -410,6 +419,13 @@ local SCHEMA = {
   soundHealerDiedEnabled = { type = "boolean", default = true },
   soundOwnTankDiedEnabled = { type = "boolean", default = true },
   soundOwnHealerDiedEnabled = { type = "boolean", default = true },
+  -- Spoken line instead of the effect (rule 266), Pattern A; keyed in the
+  -- `voice` part of the sound registry entries.
+  soundLeadVoiceEnabled = { type = "boolean", default = true },
+  soundGroupJoinVoiceEnabled = { type = "boolean", default = true },
+  soundReadyCheckCompleteVoiceEnabled = { type = "boolean", default = true },
+  soundBattleResVoiceEnabled = { type = "boolean", default = true },
+  soundBloodlustVoiceEnabled = { type = "boolean", default = true },
   deathAlertEnabled = { type = "boolean", default = true },
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },

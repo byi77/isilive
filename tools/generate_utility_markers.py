@@ -43,8 +43,32 @@ def make_bonus_plus():
     return glow.resize((32, 32), Image.Resampling.LANCZOS)
 
 
+def make_clock():
+    # Frozen-sync marker of the defensives cell (rule 269): a white clock face
+    # with two hands; the cell tints it with SetVertexColor.
+    scale = 8
+    size = 32 * scale
+    image = Image.new("RGBA", (size, size))
+    draw = ImageDraw.Draw(image)
+    draw.ellipse((3 * scale, 3 * scale, 29 * scale, 29 * scale), outline=(255, 255, 255, 255), width=3 * scale)
+    draw.line([(16 * scale, 16 * scale), (16 * scale, 8 * scale)], fill=(255, 255, 255, 255), width=3 * scale)
+    draw.line([(16 * scale, 16 * scale), (22 * scale, 19 * scale)], fill=(255, 255, 255, 255), width=3 * scale)
+    return image.resize((32, 32), Image.Resampling.LANCZOS)
+
+
+def make_square_border():
+    # Active-buff border of the defensives cell (rule 269): a 2 px hollow
+    # white square, tinted cool blue and pulsed in alpha by the cell.
+    image = Image.new("RGBA", (32, 32))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 31, 31), outline=(255, 255, 255, 255), width=2)
+    return image
+
+
 def main():
     media = Path(__file__).resolve().parent.parent / "media"
+    make_clock().save(media / "defensive_clock.tga", compression=None)
+    make_square_border().save(media / "defensive_border.tga", compression=None)
     make_marker(
         [[(16, 3), (29, 16), (16, 29), (3, 16), (16, 3)]],
         (85, 215, 132, 255),

@@ -777,8 +777,8 @@ local function RegisterRaidSoundOptInTests(test, Assert, WithGlobals, LoadAddonM
       dispatch("PARTY_LEADER_CHANGED")
       Assert.Equal(#env.plays, 1, "the raid opt-in must play the lead-transfer sound")
       Assert.True(
-        env.plays[1].path:find("CartoonVoiceBaritone.ogg", 1, true) ~= nil,
-        "the lead-transfer alert keeps its sound"
+        env.plays[1].path:find("LeaderTransfer.ogg", 1, true) ~= nil,
+        "the lead-transfer alert keeps its sound (voice line by default, rule 266)"
       )
       Assert.Equal(lfgEvents, lfgBefore, "a raid leader change must not reach the M+ target pipeline")
 

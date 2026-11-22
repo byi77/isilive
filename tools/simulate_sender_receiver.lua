@@ -642,6 +642,98 @@ local function SimulateRoundtrip()
   end
 end
 
+-- ============================================================================
+-- Mode: def_roundtrip (rule 267)
+--
+-- Defensive cooldown sync end to end on the real factory (stress fixture):
+--   own cast UNIT_SPELLCAST_SUCCEEDED through the registered isiLive frame
+--     -> production ticker reads the stubbed client cooldown, Sync.SendDef
+--     -> bytes captured from the mocked C_ChatInfo.SendAddonMessage
+--     -> replayed as a peer's CHAT_MSG_ADDON through the real event frame
+--     -> DefensiveStore.GetForPlayer of that peer
+-- plus a malformed payload (dropped) and the chat lockdown (no send, forced
+-- send and REQSYNC after it). Exits 1 on any failed check.
+-- ============================================================================
+
+local function SimulateDefRoundtrip()
+  local Fixture = LoadLocal("testmodul/isilive_test_factory_fixture.lua")
+  local Stress = LoadLocal("testmodul/isilive_test_mplus_stress_helpers.lua")
+  local Assert = LoadLocal("testmodul/isilive_test_assert.lua")
+  local ctx = { assert = Assert, with_globals = Harness.WithGlobals, load_modules = Harness.LoadAddonModules }
+  local PAIN_SUPPRESSION = 33206
+  local fails = {}
+  local function Check(ok, label)
+    -- io.write: the stress fixture replaces print inside the session.
+    io.write(string.format("def_roundtrip.%s=%s", label, ok and "ok" or "FAIL"), "\n")
+    if not ok then
+      fails[#fails + 1] = label
+    end
+  end
+  local function Prepare(globals, session)
+    session.lockdown = false
+    session.cooldowns = {}
+    globals.IsiLiveDB.defensiveTrackerEnabled = true
+    globals.IsiLiveDB.defensiveSyncEnabled = true
+    globals.UnitClass = function()
+      return "Priest", "PRIEST", 5
+    end
+    globals.C_ChatInfo.InChatMessagingLockdown = function()
+      return session.lockdown
+    end
+    globals.C_SpellBook = {
+      IsSpellKnown = function(spellID)
+        return spellID == PAIN_SUPPRESSION
+      end,
+    }
+    globals.C_Spell.GetSpellCooldown = function(spellID)
+      local cd = session.cooldowns[spellID]
+      return { startTime = cd and cd.start or 0, duration = cd and cd.duration or 0, isEnabled = true, modRate = 1 }
+    end
+    globals.C_Spell.GetSpellCharges = function()
+      return nil
+    end
+  end
+  local function LastPayload(session, pattern)
+    local last = nil
+    for _, message in ipairs(session.messages) do
+      if message.prefix == "ISILIVE" and message.payload:find(pattern) then
+        last = message.payload
+      end
+    end
+    return last
+  end
+  local ok, err = pcall(Stress.WithKey, ctx, Fixture, function(session)
+    local store = session.addon.DefensiveStore
+    local peerKey = session.addon.Sync.NormalizePlayerKey("Peer1-Realm")
+    session.messages = {}
+    session.cooldowns[PAIN_SUPPRESSION] = { start = session.now, duration = 180 }
+    session.DispatchToFrames("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", PAIN_SUPPRESSION)
+    session.Advance(1)
+    local wire = LastPayload(session, "^DEF:")
+    Check(wire == "DEF:33206,0,180", "sender_bytes")
+    session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", wire or "", "PARTY", "Peer1-Realm")
+    local view = store.GetForPlayer(peerKey, session.now)
+    Check(view.source == "sync" and view.entries[1] and view.entries[1].remain == 180, "receiver_store")
+    session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", "DEF:33206,0,180;99999,1,0", "PARTY", "Peer2-Realm")
+    local foreign = store.GetForPlayer(session.addon.Sync.NormalizePlayerKey("Peer2-Realm"), session.now)
+    Check(foreign.source == "none", "foreign_id_dropped")
+    session.lockdown = true
+    session.messages = {}
+    session.Advance(30)
+    Check(LastPayload(session, "^DEF:") == nil, "lockdown_no_send")
+    Check(store.IsFrozen(), "lockdown_frozen")
+    session.lockdown = false
+    session.Advance(1)
+    Check(LastPayload(session, "^DEF:") ~= nil, "forced_send_after_lockdown")
+    Check(LastPayload(session, "^REQSYNC$") ~= nil, "reqsync_after_lockdown")
+  end, Prepare)
+  Check(ok, "no_error" .. (ok and "" or (": " .. tostring(err))))
+  print(string.format("---- def_roundtrip summary: %d fail", #fails))
+  if #fails > 0 then
+    os.exit(1)
+  end
+end
+
 local mode = tostring((...)) or "all"
 if mode == "sharekeys" then
   SimulateShareKeys()
@@ -657,6 +749,8 @@ elseif mode == "share_pipeline" then
   SimulateSharePipeline()
 elseif mode == "roundtrip" then
   SimulateRoundtrip()
+elseif mode == "def_roundtrip" then
+  SimulateDefRoundtrip()
 else
   SimulateShareKeys()
   SimulateKey()
@@ -665,4 +759,5 @@ else
   SimulateShareKeysEventHandler()
   SimulateSharePipeline()
   SimulateRoundtrip()
+  SimulateDefRoundtrip()
 end

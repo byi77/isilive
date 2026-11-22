@@ -312,11 +312,14 @@ return function(test, ctx)
       Assert.Equal(playCalls, 1, "leader-transfer sound helper should play exactly once")
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
-        "leader-transfer sound helper should use the transfer asset"
+        "Interface\\AddOns\\isiLive\\sounds\\LeaderTransfer.ogg",
+        "leader-transfer sound helper should play its voice line by default (rule 266)"
       )
       Assert.Equal(playedChannel, "Master", "leader-transfer sound helper should use the Master channel")
       db.soundGroupJoinEnabled = true
+      -- Voice options off: the effect assets stay reachable (rule 266).
+      db.soundGroupJoinVoiceEnabled = false
+      db.soundReadyCheckCompleteVoiceEnabled = false
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playCalls, 2, "group-join sound helper should play exactly once after the leader sound")
       Assert.Equal(
@@ -505,6 +508,7 @@ return function(test, ctx)
     WithGlobals({
       IsiLiveDB = {
         soundBattleResEnabled = true,
+        soundBattleResVoiceEnabled = false,
         soundBloodlustEnabled = true,
       },
       GetTime = function()
@@ -539,6 +543,7 @@ return function(test, ctx)
     WithGlobals({
       IsiLiveDB = {
         soundBloodlustEnabled = true,
+        soundBloodlustVoiceEnabled = false,
       },
       GetTime = function()
         return 200
@@ -693,10 +698,15 @@ return function(test, ctx)
         playedChannel = nil
         Assert.True(addon.SoundUtils.PlayPreviewKey(key), "preview sound key should play: " .. tostring(key))
         Assert.Equal(playedChannel, "SFX", "preview sound key must use configured SFX output: " .. tostring(key))
+        -- Entries with a voice line play it by default (rule 266).
+        local expectedPath = entry.file
+        if addon.SoundUtils.IsVoiceEnabled(key) then
+          expectedPath = entry.voice.file
+        end
         Assert.Equal(
-          playedByPath[entry.file],
+          playedByPath[expectedPath],
           "SFX",
-          "registry asset must be bound to configured SFX output: " .. tostring(entry.file)
+          "registry asset must be bound to configured SFX output: " .. tostring(expectedPath)
         )
       end
 

@@ -29,8 +29,11 @@ for _, name in ipairs({
 end
 
 local addonTable = {}
-local fakeDB = {}
+-- Aggro and missed kick are opt-in; switched on so their voice lines (rule
+-- 266, default on) are part of the run.
+local fakeDB = { aggroAlertSound = true, missedKickSound = true }
 _G.IsiLiveDB = fakeDB
+_G.SOUNDKIT = { ALARM_CLOCK_WARNING_3 = 12867, RAID_WARNING = 8959 }
 
 local playCalls = {}
 _G.PlaySoundFile = function(path, channel)
@@ -98,6 +101,19 @@ local helpers = {
     end,
   },
   { key = "group_join", fn = SoundUtils.PlayGroupJoin },
+  { key = "ready_check_complete", fn = SoundUtils.PlayReadyCheckComplete },
+  {
+    key = "aggro",
+    fn = function()
+      SoundUtils.PlayKey("aggro")
+    end,
+  },
+  {
+    key = "missed_kick",
+    fn = function()
+      SoundUtils.PlayKey("missed_kick")
+    end,
+  },
   { key = "portal_available", fn = SoundUtils.PlayPortalAvailable },
   { key = "portal_available", fn = SoundUtils.PlayIncomingSummon, label = "incoming_summon" },
   { key = "battle_res", fn = SoundUtils.PlayBattleRes },
@@ -158,12 +174,66 @@ end
 print(string.rep("-", 72))
 print(string.format(" total play calls captured: %d", #playCalls))
 
+-- Same helpers with every voice option off: the effects stay reachable.
+print(string.rep("-", 72))
+print(" Effects with the voice options off:")
+for _, key in ipairs({ "leader_transfer", "group_join", "ready_check_complete", "battle_res", "bloodlust" }) do
+  fakeDB[SoundUtils.Registry[key].voice.settingKey] = false
+end
+fakeDB.aggroAlertVoiceEnabled = false
+fakeDB.missedKickVoiceEnabled = false
+for i, h in ipairs(helpers) do
+  local entry = SoundUtils.Registry[h.key]
+  if type(entry.voice) == "table" and h.label == nil then
+    fakeNow = 1000 + i * 10
+    local before = #playCalls
+    h.fn()
+    local call = playCalls[#playCalls]
+    local ok = #playCalls == before + 1
+      and (
+        (entry.soundKit ~= nil and call.kind == "kit")
+        or (entry.soundKit == nil and call.kind == "file" and call.path == entry.file)
+      )
+    print(string.format("  [%s] %-22s effect", ok and "OK  " or "FAIL", h.key))
+    if not ok then
+      fail = true
+    end
+  end
+end
+
 -- Cross-check: every Registry entry resolves either to an existing file on
--- disk OR to a numeric SOUNDKIT id present in the (mocked) SOUNDKIT table.
+-- disk OR to a numeric SOUNDKIT id present in the (mocked) SOUNDKIT table,
+-- and every voice line (rule 266) exists in every locale.
+local function CheckVoiceFiles(key, voice)
+  if type(voice) ~= "table" then
+    return
+  end
+  local files = { { voice.file, "voice" } }
+  for locale, localizedFile in pairs(voice.localizedFiles or {}) do
+    files[#files + 1] = { localizedFile, "voice " .. locale }
+  end
+  for _, item in ipairs(files) do
+    local existsOk, full = file_exists(item[1])
+    print(string.format("  [%s] %-22s -> %s (%s)", existsOk and "OK  " or "MISS", key, item[1], item[2]))
+    if not existsOk then
+      print(string.format("         expected on disk: %s", full))
+      fail = true
+    end
+  end
+end
+
+local registryKeys = {}
+for _, key in ipairs(SoundUtils.SettingsOrder) do
+  registryKeys[#registryKeys + 1] = key
+end
+registryKeys[#registryKeys + 1] = "aggro"
+registryKeys[#registryKeys + 1] = "missed_kick"
+
 print(string.rep("-", 72))
 print(" Registry resolution:")
-for _, key in ipairs(SoundUtils.SettingsOrder) do
+for _, key in ipairs(registryKeys) do
   local entry = SoundUtils.Registry[key]
+  CheckVoiceFiles(key, entry.voice)
   if entry.soundKit ~= nil then
     local resolved = entry.soundKit
     if type(resolved) == "string" then

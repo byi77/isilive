@@ -265,6 +265,158 @@ local function AddRestrictionLine(acc, fields)
   end
 end
 
+-- party_tally lines carry the counts of every party cast and every examined
+-- party aura of one phase; inKey splits them into key and outside.
+local function AddPartyTallyLine(acc, fields)
+  local side
+  if fields.inKey == "yes" then
+    side = acc.party.inKey
+  elseif fields.inKey == "no" then
+    side = acc.party.outside
+  else
+    return
+  end
+  side.casts = side.casts + Count(fields.casts)
+  side.castSecret = side.castSecret + Count(fields.castSpellSecret)
+  side.castReadable = side.castReadable + Count(fields.castSpellReadable)
+  side.auras = side.auras + Count(fields.auras)
+  side.auraSecret = side.auraSecret + Count(fields.auraSecret)
+  side.auraReadable = side.auraReadable + Count(fields.auraReadable)
+  acc.party.auraErrors = acc.party.auraErrors + Count(fields.auraErrors)
+end
+
+local function NewPartySide()
+  return { casts = 0, castSecret = 0, castReadable = 0, auras = 0, auraSecret = 0, auraReadable = 0 }
+end
+
+-- Aura container probes (logic/isiLive_probe_auracontainer.lua), P1..P5.
+local AC_SETUP_COLUMNS = { "ids", "ext", "big", "sensor" }
+local AC_OPS_FIELDS = { "setUnit", "setEnabledOff", "setEnabledOn", "hide", "show" }
+
+local function NewAcSide()
+  return { reads = 0, readable = 0, active = 0, secret = 0, errors = 0, curveErrors = 0, barErrors = 0 }
+end
+
+local function NewAcSummary()
+  return {
+    setupOk = 0,
+    setupFailed = 0,
+    key = NewAcSide(),
+    outside = NewAcSide(),
+    cursorIn = 0,
+    cursorOut = 0,
+    cursorReadable = 0,
+    cursorUnreadable = 0,
+    opsRuns = 0,
+    opsFailed = 0,
+    opsBlocked = 0,
+    opsWindow = nil,
+    aurasSecret = { yes = "-", no = "-" },
+    auraLevels = {},
+    cooldownLevels = {},
+    cooldownSecretInKey = {},
+  }
+end
+
+-- One ac_setup line: every column status counts; a column skipped for an
+-- invalid filter is no failure.
+local function AddAcSetupLine(acc, fields)
+  local ac = acc.ac
+  local statuses = {}
+  if fields.unit == "ops" or fields.unit == "frame" then
+    statuses[1] = fields.status
+  else
+    for _, column in ipairs(AC_SETUP_COLUMNS) do
+      statuses[#statuses + 1] = fields[column]
+    end
+  end
+  for _, status in ipairs(statuses) do
+    if status == "ok" then
+      ac.setupOk = ac.setupOk + 1
+    elseif status ~= nil and status ~= "deferred_in_combat" and not status:find("^skipped_filter") then
+      ac.setupFailed = ac.setupFailed + 1
+    end
+  end
+end
+
+local function AddAcTallyLine(acc, fields)
+  local ac = acc.ac
+  local side
+  if fields.inKey == "yes" then
+    side = ac.key
+  elseif fields.inKey == "no" then
+    side = ac.outside
+  else
+    return
+  end
+  side.reads = side.reads + Count(fields.reads)
+  side.active = side.active + Count(fields.overTrue)
+  side.readable = side.readable + Count(fields.overTrue) + Count(fields.overFalse)
+  side.secret = side.secret + Count(fields.overSecret)
+  side.errors = side.errors + Count(fields.overError) + Count(fields.overOther)
+  side.curveErrors = side.curveErrors + Count(fields.curveError)
+  side.barErrors = side.barErrors + Count(fields.barError)
+  ac.cursorIn = ac.cursorIn + Count(fields.cursorIn)
+  ac.cursorOut = ac.cursorOut + Count(fields.cursorOut)
+  ac.cursorReadable = ac.cursorReadable + Count(fields.cursorReadable)
+  ac.cursorUnreadable = ac.cursorUnreadable + Count(fields.cursorSecret) + Count(fields.cursorUnknown)
+end
+
+-- Blocked calls between the begin and end markers of a combat test, and the
+-- ones that follow the end marker directly, belong to that test.
+local function AddAcCombatOpsLine(acc, fields)
+  local ac = acc.ac
+  if fields.stage == "begin" then
+    ac.opsWindow = "open"
+    return
+  end
+  if fields.stage ~= "end" then
+    return
+  end
+  ac.opsRuns = ac.opsRuns + 1
+  ac.opsWindow = "trailing"
+  for _, key in ipairs(AC_OPS_FIELDS) do
+    if fields[key] ~= nil and fields[key] ~= "ok" then
+      ac.opsFailed = ac.opsFailed + 1
+    end
+  end
+end
+
+local function AddActionBlockedLine(acc, _fields)
+  if acc.ac.opsWindow ~= nil then
+    acc.ac.opsBlocked = acc.ac.opsBlocked + 1
+  end
+end
+
+local function AddAcSecretsLine(acc, fields)
+  if (fields.inKey == "yes" or fields.inKey == "no") and fields.aurasSecret ~= nil then
+    acc.ac.aurasSecret[fields.inKey] = fields.aurasSecret
+  end
+end
+
+-- ac_secrecy values: id:level (aura) or id:level/should (cooldown). The last
+-- answer per ID wins; the contextual cooldown answer is kept per key side.
+local function AddAcSecrecyLine(acc, fields)
+  local values = fields.values
+  if type(values) ~= "string" then
+    return
+  end
+  local ac = acc.ac
+  for item in values:gmatch("[^,]+") do
+    local id, level, should = item:match("^(%d+):([%w_]+)/?([%w_]*)$")
+    if id then
+      if fields.kind == "aura" then
+        ac.auraLevels[id] = level
+      elseif fields.kind == "cooldown" then
+        ac.cooldownLevels[id] = level
+        if fields.inKey == "yes" and should ~= "" then
+          ac.cooldownSecretInKey[id] = should
+        end
+      end
+    end
+  end
+end
+
 local function AddCapLine(acc, fields)
   local probe = fields.probe
   if type(probe) ~= "string" or probe == "" then
@@ -284,7 +436,14 @@ local LINE_HANDLERS = {
   chat_lockdown = AddChatLockdownLine,
   kick = AddKickLine,
   restriction = AddRestrictionLine,
+  party_tally = AddPartyTallyLine,
   cap_reached = AddCapLine,
+  ac_setup = AddAcSetupLine,
+  ac_tally = AddAcTallyLine,
+  ac_combat_ops = AddAcCombatOpsLine,
+  action_blocked = AddActionBlockedLine,
+  ac_secrets = AddAcSecretsLine,
+  ac_secrecy = AddAcSecrecyLine,
 }
 
 --- Tallies probe lines (oldest first) into the counters the report prints.
@@ -309,12 +468,18 @@ function ProbeReport.Summarize(entries)
     chat = { inKey = 0, yes = 0, no = 0, secret = 0 },
     kicks = { total = 0, landed = 0, missed = 0, excluded = 0, timings = {} },
     restriction = { total = 0, secret = 0, types = {}, seen = {} },
+    party = { inKey = NewPartySide(), outside = NewPartySide(), auraErrors = 0 },
+    ac = NewAcSummary(),
     caps = { seen = {}, order = {} },
   }
   for _, entry in ipairs(type(entries) == "table" and entries or {}) do
     local fields = ProbeReport.ParseLine(entry)
     if fields then
       acc.lines = acc.lines + 1
+      -- The window of a combat test closes at the first other line after its end.
+      if acc.ac.opsWindow == "trailing" and fields.event ~= "action_blocked" then
+        acc.ac.opsWindow = nil
+      end
       if fields.event == "meter" then
         AddMeterLine(acc, fields)
       else
@@ -471,6 +636,123 @@ function ProbeReport.BuildLines(entries, L)
     restriction.total,
     restriction.secret,
     #restriction.types > 0 and table.concat(restriction.types, ", ") or "-"
+  )
+  -- Party casts and auras (groundwork for a group defensive tracker), from
+  -- the party_tally counters: a cast counts by its spell ID, an aura is
+  -- secret when any of its examined fields is.
+  local inKey, outside = s.party.inKey, s.party.outside
+  Add(
+    L.PROBE_REPORT_PARTY_CASTS,
+    "Party cast spell IDs readable: in the key %s (n=%d, secret=%d), outside the key %s (n=%d, secret=%d)",
+    Word(Verdict(inKey.castReadable, inKey.castSecret)),
+    inKey.casts,
+    inKey.castSecret,
+    Word(Verdict(outside.castReadable, outside.castSecret)),
+    outside.casts,
+    outside.castSecret
+  )
+  Add(
+    L.PROBE_REPORT_PARTY_AURAS,
+    "Party auras readable: in the key %s (n=%d, secret=%d), outside the key %s (n=%d, secret=%d), read errors: %d",
+    Word(Verdict(inKey.auraReadable, inKey.auraSecret)),
+    inKey.auras,
+    inKey.auraSecret,
+    Word(Verdict(outside.auraReadable, outside.auraSecret)),
+    outside.auras,
+    outside.auraSecret,
+    s.party.auraErrors
+  )
+  local ac = s.ac
+  -- P1: the screenshots decide what the containers showed; the log only
+  -- says whether they were set up.
+  Add(
+    L.PROBE_REPORT_AC_VISIBLE,
+    "P1 visible aura containers set up: %s (%d ok, %d failed) - compare with the screenshots",
+    Word(Verdict(ac.setupOk, ac.setupFailed)),
+    ac.setupOk,
+    ac.setupFailed
+  )
+  -- P2: in the key the chain works when every read ran without error (the
+  -- answer itself may be secret); outside the key "active" must be readable.
+  local key, outsideAc = ac.key, ac.outside
+  local keyErrors = key.errors + key.curveErrors + key.barErrors
+  local keyChain = "unknown"
+  if key.reads > 0 then
+    if keyErrors == 0 then
+      keyChain = "yes"
+    elseif keyErrors >= key.reads then
+      keyChain = "no"
+    else
+      keyChain = "partly"
+    end
+  end
+  Add(
+    L.PROBE_REPORT_AC_SENSOR,
+    "P2 sensor chain in the key: %s (reads=%d, secret=%d, errors=%d); outside the key readable: %s "
+      .. "(reads=%d, active=%d, secret=%d, errors=%d)",
+    Word(keyChain),
+    key.reads,
+    key.secret,
+    keyErrors,
+    Word(Verdict(outsideAc.readable, outsideAc.secret)),
+    outsideAc.reads,
+    outsideAc.active,
+    outsideAc.secret,
+    outsideAc.errors + outsideAc.curveErrors + outsideAc.barErrors
+  )
+  local combatOk = "unknown"
+  if ac.opsRuns > 0 then
+    combatOk = (ac.opsFailed + ac.opsBlocked) == 0 and "yes" or "no"
+  end
+  Add(
+    L.PROBE_REPORT_AC_COMBAT,
+    "P3 container calls in combat without errors: %s (%d tests, %d failed calls, %d blocked)",
+    Word(combatOk),
+    ac.opsRuns,
+    ac.opsFailed,
+    ac.opsBlocked
+  )
+  local function LevelText(levels)
+    local counts, names = {}, {}
+    for _, level in pairs(levels) do
+      if not counts[level] then
+        counts[level] = 0
+        names[#names + 1] = level
+      end
+      counts[level] = counts[level] + 1
+    end
+    table.sort(names)
+    local parts = {}
+    for _, name in ipairs(names) do
+      parts[#parts + 1] = string.format("%s:%d", name, counts[name])
+    end
+    return #parts > 0 and table.concat(parts, ",") or "-"
+  end
+  local cooldownSecret, cooldownAnswered = 0, 0
+  for _, should in pairs(ac.cooldownSecretInKey) do
+    cooldownAnswered = cooldownAnswered + 1
+    if should == "yes" then
+      cooldownSecret = cooldownSecret + 1
+    end
+  end
+  Add(
+    L.PROBE_REPORT_AC_SECRETS,
+    "P4 C_Secrets: auras secret outside %s, in the key %s; aura secrecy %s; cooldown secrecy %s, "
+      .. "cooldowns secret in the key %d/%d",
+    ac.aurasSecret.no,
+    ac.aurasSecret.yes,
+    LevelText(ac.auraLevels),
+    LevelText(ac.cooldownLevels),
+    cooldownSecret,
+    cooldownAnswered
+  )
+  Add(
+    L.PROBE_REPORT_AC_CURSOR,
+    "P5 cursor readable at the sensor reads: %s (in the window %d, outside %d, unreadable %d)",
+    Word(Verdict(ac.cursorIn + ac.cursorOut + ac.cursorReadable, ac.cursorUnreadable)),
+    ac.cursorIn,
+    ac.cursorOut,
+    ac.cursorUnreadable
   )
   if #s.caps.order > 0 then
     local parts = {}

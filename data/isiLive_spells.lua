@@ -70,6 +70,9 @@ addonTable.SpellManifest = {
 
   -- Power Infusion (Priest): tracked on the player's auras and synced to peers.
   powerInfusion = 10060,
+
+  -- The defensive / external IDs of the aura container probe (rule 239) live
+  -- in data/isiLive_defensives.lua (DefensiveManifest, records with probe = true).
 }
 
 -- Lookup helpers shared by every consumer. Kept next to the data so the TOC

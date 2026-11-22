@@ -89,6 +89,49 @@ local function IsRejectedWhisper(Sync, channel, sender, senderKey, isDeepActive,
   return true
 end
 
+-- KICK bucket. Returns payloadValid, kickUpdated.
+local function ApplyKickMessage(deps, message, sender, isSelf)
+  local parsedKick = deps.ParseKickPayload(message)
+  if not parsedKick then
+    return false, false
+  end
+  -- Skip self-echo: the local kick poll already stored the unrounded own
+  -- state. The echo carries ceil(remain), which always differed from it and
+  -- reported a kick change -- and a roster refresh -- every second while the
+  -- own kick was on cooldown.
+  if isSelf then
+    return true, false
+  end
+  local updated = deps.Sync.SetPlayerKickInfo(
+    sender,
+    nil,
+    parsedKick.state == 1,
+    parsedKick.remain,
+    nil,
+    parsedKick.hasKick,
+    parsedKick.extras,
+    parsedKick.spellID
+  )
+  return true, updated
+end
+
+-- DEF bucket (rule 267). The strict parser drops a malformed, oversized or
+-- foreign-ID payload as a whole. The own echo is valid but never stored: the
+-- own state comes from the live client. Returns payloadValid, defUpdated.
+local function ApplyDefMessage(deps, message, senderKey, isSelf)
+  local parse = deps.ParseDefPayload
+  local parsedDef = type(parse) == "function" and parse(message) or nil
+  if not parsedDef then
+    return false, false
+  end
+  if isSelf or type(deps.ApplyDefPayload) ~= "function" then
+    return true, false
+  end
+  local getTimeFn = rawget(_G, "GetTime")
+  local receivedAt = type(getTimeFn) == "function" and getTimeFn() or 0
+  return true, deps.ApplyDefPayload(senderKey, parsedDef.entries, receivedAt) == true
+end
+
 local function AlwaysActive()
   return true
 end
@@ -130,7 +173,6 @@ BuildPartyReceiver = function(deps)
   local IsSyncLogDeepActive = type(deps.IsSyncLogDeepActive) == "function" and deps.IsSyncLogDeepActive or AlwaysActive
   local FormatBytes = deps.FormatBytes
   local SplitPayload = deps.SplitPayload
-  local ParseKickPayload = deps.ParseKickPayload
   local IsSyncEnabled = deps.IsSyncEnabled
   local MAX_ADDON_MESSAGE_LENGTH = 255
 
@@ -233,6 +275,7 @@ BuildPartyReceiver = function(deps)
   -- @return table|nil Result with fields: shouldAck, shouldRequestRefresh, shouldShareKeys, sender,
   --   peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource,
   --   keyUpdated, statsUpdated, dpsUpdated, locUpdated, targetUpdated, kickUpdated,
+  --   defUpdated (a peer's DEF state reached the defensive store, rule 267),
   --   shareKeysCooldownRemain (number|nil, mirrored share-keys lock from a peer),
   --   shareKeysReplySuppressed (boolean, the sync setting forbids the automatic chat reply).
   --   Returns nil when the message is rejected or the prefix is unrecognized.
@@ -280,6 +323,7 @@ BuildPartyReceiver = function(deps)
     local dpsUpdated = false
     local locUpdated = false
     local kickUpdated = false
+    local defUpdated = false
     local targetUpdated = false
     local combatAnnounce = nil
     local powerInfusionAnnounce = nil
@@ -353,26 +397,9 @@ BuildPartyReceiver = function(deps)
         targetUpdated = Sync.SetPlayerTargetInfo(sender, nil, mapID, level, capturedAt, parts[5], levelText)
       end
     elseif bucket == "KICK" then
-      local parsedKick = ParseKickPayload(message)
-      -- Skip self-echo: the local kick poll already stored the unrounded own
-      -- state. The echo carries ceil(remain), which always differed from it
-      -- and reported a kick change -- and a roster refresh -- every second
-      -- while the own kick was on cooldown.
-      if parsedKick and senderKey == selfKey then
-        payloadValid = true
-      elseif parsedKick then
-        payloadValid = true
-        kickUpdated = Sync.SetPlayerKickInfo(
-          sender,
-          nil,
-          parsedKick.state == 1,
-          parsedKick.remain,
-          nil,
-          parsedKick.hasKick,
-          parsedKick.extras,
-          parsedKick.spellID
-        )
-      end
+      payloadValid, kickUpdated = ApplyKickMessage(deps, message, sender, senderKey == selfKey)
+    elseif bucket == "DEF" then
+      payloadValid, defUpdated = ApplyDefMessage(deps, message, senderKey, senderKey == selfKey)
     elseif bucket == "SKCD" and parts[2] then
       -- Mirrored share-keys button lock from a peer (hello-ack / REQSYNC fan-out).
       -- Self-echo is skipped: the local button is already on cooldown.
@@ -522,6 +549,7 @@ BuildPartyReceiver = function(deps)
       locUpdated = locUpdated and true or false,
       targetUpdated = targetUpdated and true or false,
       kickUpdated = kickUpdated and true or false,
+      defUpdated = defUpdated,
       shouldShareKeys = shouldShareKeys and true or false,
       shareKeysReplySuppressed = shouldShareKeys and not IsSyncEnabled() or false,
       shareKeysCooldownRemain = shareKeysCooldownRemain,

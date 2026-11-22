@@ -42,6 +42,7 @@ local NormalizeLocPayload = SyncCodec.NormalizeLocPayload
 local NormalizeTargetPayload = SyncCodec.NormalizeTargetPayload
 local EncodeKickSpellSuffix = SyncCodec.EncodeKickSpellSuffix
 local EncodeKickExtrasSuffix = SyncCodec.EncodeKickExtrasSuffix
+local EncodeDefPayload = SyncCodec.EncodeDefPayload
 local IsSyncEnabled = SyncTransport.IsSyncEnabled
 local SafeBooleanCall = SyncTransport.SafeBooleanCall
 local ResolveSendChannel = SyncTransport.ResolveSendChannel
@@ -84,6 +85,13 @@ local lastKickPayloadSent = nil
 local lastKickTrace = {}
 local kickTraceRepeats = 0
 local kickSendLockedDown = false
+-- DEF bucket (rule 267): last send time, dedupe key (payload without the
+-- remain seconds) and the lockdown flag that forces the first send after it.
+local ISILIVE_DEF_GATE_SECONDS = 1
+local ISILIVE_DEF_HEARTBEAT_SECONDS = 15
+local lastIsiLiveDefAt = nil
+local lastDefDedupeKey = nil
+local defSendLockedDown = false
 local NORMALIZED_KEY_CACHE_LIMIT = 256
 local normalizedKeyCache = {}
 local normalizedKeyCacheSize = 0
@@ -305,6 +313,13 @@ function Sync.ClearKnownUsers()
   lastKickPayloadSent = nil
   lastKickTrace = {}
   kickTraceRepeats = 0
+  lastIsiLiveDefAt = nil
+  lastDefDedupeKey = nil
+  defSendLockedDown = false
+  local defensiveStore = addonTable.DefensiveStore
+  if type(defensiveStore) == "table" and type(defensiveStore.ClearPeers) == "function" then
+    defensiveStore.ClearPeers()
+  end
 end
 
 --- Whispers the HELLO acknowledgement to one peer.
@@ -638,6 +653,65 @@ function Sync.SendKick(opts)
   end
   TraceKickSend(hasKick, onCooldown, remain, channel, tostring(sent == true))
   return sent == true
+end
+
+--- Broadcasts the own defensive cooldowns (DEF bucket, rule 267).
+-- Event-driven: a changed state (spell, state or charges; the remain seconds
+-- alone are no change) goes out at most once per second; an unchanged state
+-- is repeated as a heartbeat every 15 s. `force` (REQSYNC answer, explicit
+-- resend) skips both gates. While addon chat is locked down nothing is
+-- dispatched; the first send after it is forced. NORMAL priority.
+-- The caller owns the feature gates (settings, KEY profile, rule 109).
+-- @param opts table {entries:table, force:boolean}
+-- @return boolean true when the payload was accepted for dispatch.
+function Sync.SendDef(opts)
+  opts = opts or {}
+  local channel = ResolveSendChannel(opts)
+  if not channel then
+    return false
+  end
+  local payload, dedupeKey = EncodeDefPayload(opts.entries)
+  if not payload then
+    SyncLog("send_def", "channel=%s sent=invalid", tostring(channel))
+    return false
+  end
+  if IsAddonChatLockedDown() then
+    if not defSendLockedDown then
+      SyncLog("send_def", "channel=%s sent=lockdown", tostring(channel))
+    end
+    defSendLockedDown = true
+    return false
+  end
+  local getTimeFn = rawget(_G, "GetTime")
+  local now = type(getTimeFn) == "function" and getTimeFn() or 0
+  local force = opts.force == true or defSendLockedDown or lastIsiLiveDefAt == nil
+  if not force then
+    local since = now - lastIsiLiveDefAt
+    if since < ISILIVE_DEF_GATE_SECONDS then
+      return false
+    end
+    if dedupeKey == lastDefDedupeKey and since < ISILIVE_DEF_HEARTBEAT_SECONDS then
+      return false
+    end
+  end
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  if sent == true then
+    lastIsiLiveDefAt = now
+    lastDefDedupeKey = dedupeKey
+    defSendLockedDown = false
+  end
+  SyncLog("send_def", "channel=%s bytes=%d sent=%s", tostring(channel), #payload, tostring(sent == true))
+  return sent == true
+end
+
+-- Received DEF entries go to the defensive store, which applies its own
+-- intake gate (settings, KEY profile, raid; wired by the factory).
+local function ApplyDefPayload(senderKey, entries, receivedAt)
+  local defensiveStore = addonTable.DefensiveStore
+  if type(defensiveStore) ~= "table" or type(defensiveStore.SetPeer) ~= "function" then
+    return false
+  end
+  return defensiveStore.SetPeer(senderKey, entries, receivedAt) == true
 end
 
 --- Broadcasts the local player's current location to the group: legacy
@@ -989,6 +1063,8 @@ if type(receiveFactory) == "function" then
     FormatBytes = FormatBytes,
     SplitPayload = SyncCodec.SplitPayload,
     ParseKickPayload = SyncCodec.ParseKickPayload,
+    ParseDefPayload = SyncCodec.ParseDefPayload,
+    ApplyDefPayload = ApplyDefPayload,
     IsSyncEnabled = IsSyncEnabled,
   })
 end

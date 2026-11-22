@@ -168,6 +168,72 @@ local function EndPull(session)
   session.Dispatch("PLAYER_REGEN_ENABLED")
 end
 
+-- Party casts / party auras: the client stubs behind the two probes. Party
+-- buffs come from session.partyAuras[unit], instance lookups from
+-- session.instanceAuras[id]; session.guidSecret[unit] masks UnitGUID for one
+-- unit and session.partyScanError makes the index scan throw.
+local function PrepareParty(opts)
+  return function(globals, session)
+    Prepare(opts)(globals, session)
+    session.partyAuras = {}
+    session.instanceAuras = {}
+    session.guidSecret = {}
+    local playerByIndex = globals.C_UnitAuras.GetAuraDataByIndex
+    globals.C_UnitAuras.GetAuraDataByIndex = function(unit, index, filter)
+      if type(unit) == "string" and unit:find("^party%d$") then
+        session.calls.partyAuras = (session.calls.partyAuras or 0) + 1
+        if session.partyScanError then
+          error("test: party aura scan failed")
+        end
+        local list = session.partyAuras[unit]
+        if filter ~= "HELPFUL" or type(list) ~= "table" then
+          return nil
+        end
+        return list[index]
+      end
+      return playerByIndex(unit, index, filter)
+    end
+    globals.C_UnitAuras.GetAuraDataByAuraInstanceID = function(_, auraInstanceID)
+      session.calls.byInstance = (session.calls.byInstance or 0) + 1
+      return session.instanceAuras[auraInstanceID]
+    end
+    local unitGUID = globals.UnitGUID
+    globals.UnitGUID = function(unit)
+      local masked = session.guidSecret[unit]
+      if masked ~= nil then
+        return masked
+      end
+      return unitGUID(unit)
+    end
+  end
+end
+
+local function PartyCast(session, unit, spellID, castGUID)
+  return Deliver(session, "UNIT_SPELLCAST_SUCCEEDED", unit, castGUID or "party-cast", spellID)
+end
+
+local function PartyAura(session, unit, updateInfo)
+  return Deliver(session, "UNIT_AURA", unit, updateInfo)
+end
+
+-- Sum of one numeric field over the party_tally lines that match `needle`.
+local function SumTally(session, needle, field)
+  local sum = 0
+  for _, line in ipairs((ProbeLines(session, "event=party_tally"))) do
+    local text = tostring(line)
+    if text:find(needle, 1, true) then
+      sum = sum + (tonumber(text:match(" " .. field .. "=(%d+)")) or 0)
+    end
+  end
+  return sum
+end
+
+local function AssertNoTableText(lines, Assert)
+  for _, line in ipairs(lines) do
+    Assert.Nil(tostring(line):find("table:", 1, true), "no secret is ever stringified: " .. tostring(line))
+  end
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
 
@@ -575,8 +641,10 @@ return function(test, ctx)
 
       session.printed = {}
       slash("probe status")
+      -- Session header, probe_enabled and the aura container setup (ac_config,
+      -- four rows, the test container, ac_secrets without C_Secrets).
       Assert.NotNil(
-        FindLine(session.printed, "Probe mode: ON | runtime log: ON | probe lines this session: 2"),
+        FindLine(session.printed, "Probe mode: ON | runtime log: ON | probe lines this session: 9"),
         "status"
       )
 
@@ -768,7 +836,7 @@ return function(test, ctx)
 
       session.globals.SlashCmdList.ISILIVE("probe on")
       printed = Report(session)
-      AssertReportLine(printed, "Probe report (2 probe lines, 0 key starts in the runtime log):", "header")
+      AssertReportLine(printed, "Probe report (9 probe lines, 0 key starts in the runtime log):", "header")
       AssertReportLine(printed, "between pulls readable: unknown (0 snapshots, 0 secret)", "no meter data")
       AssertReportLine(
         printed,
@@ -784,7 +852,7 @@ return function(test, ctx)
 
       session.runtime.SetLanguage("deDE")
       printed = Report(session)
-      AssertReportLine(printed, "Probe-Bericht (2 Probe-Zeilen, 0 Key-Starts im Laufzeit-Log):", "German header")
+      AssertReportLine(printed, "Probe-Bericht (9 Probe-Zeilen, 0 Key-Starts im Laufzeit-Log):", "German header")
       AssertReportLine(
         printed,
         "K9 Schadensmesser zwischen Pulls lesbar: unbekannt (0 Schnappschüsse, 0 secret)",
@@ -1079,6 +1147,315 @@ return function(test, ctx)
       onEvent(frame, "ADDON_ACTION_BLOCKED", "isiLive", "Show()")
       Assert.Equal(select(2, ProbeLines(session, "event=action_blocked")), 2, "probe off: nothing logged")
     end, Prepare())
+  end)
+
+  -- Party casts / party auras (rule 239, groundwork for a group defensive
+  -- tracker): casts arrive on the probe's own unit-filtered frames, auras on
+  -- the real dispatcher (dispatcher frame plus the split auxiliary frames).
+  test("Probe mode logs party cast readability per phase on unit-filtered frames", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local party = session.addon.ProbeParty
+      local frames = party._partyCastFrames
+      Assert.True(party._partyCastFiltered, "four party units fit two RegisterUnitEvent frames (rule 149)")
+      Assert.Equal(#frames, 2, "one frame per unit pair")
+      local first = frames[1]._registeredEvents.UNIT_SPELLCAST_SUCCEEDED
+      local second = frames[2]._registeredEvents.UNIT_SPELLCAST_SUCCEEDED
+      Assert.Equal(table.concat(first, ","), "party1,party2", "first pair")
+      Assert.Equal(table.concat(second, ","), "party3,party4", "second pair")
+
+      PartyCast(session, "party1", FIREBALL)
+      Pull(session)
+      session.guidSecret.party3 = secret
+      PartyCast(session, "party3", secret, secret)
+      session.guidSecret.party3 = nil
+      EndPull(session)
+      Deliver(session, "UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "hostile-cast", FIREBALL)
+
+      local lines = ProbeLines(session, "event=party_cast")
+      Assert.Equal(#lines, 2, "party units only")
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party1 phase=between inKey=yes inCombat=no spellIDSecret=no spellID=133 castGUIDSecret=no "
+            .. "unitGUID=readable unitName=readable"
+        ),
+        "a readable cast between pulls"
+      )
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party3 phase=pull inKey=yes inCombat=yes spellIDSecret=yes spellID=secret castGUIDSecret=yes "
+            .. "unitGUID=secret unitName=readable"
+        ),
+        "a masked cast in the pull: the ID is never written"
+      )
+      local tallies = ProbeLines(session, "event=party_tally")
+      Assert.NotNil(
+        FindLine(
+          tallies,
+          "at=combat_start phase=between inKey=yes casts=1 castSpellSecret=0 castSpellReadable=1 castGuidSecret=0"
+        ),
+        "the combat start closes the segment between pulls"
+      )
+      Assert.NotNil(
+        FindLine(
+          tallies,
+          "at=combat_end phase=pull inKey=yes casts=1 castSpellSecret=1 castSpellReadable=0 castGuidSecret=1"
+        ),
+        "the combat end closes the pull"
+      )
+
+      session.raid = true
+      PartyCast(session, "party2", FIREBALL)
+      session.raid = false
+      Assert.Equal(select(2, ProbeLines(session, "event=party_cast")), 2, "no probe in a raid (rule 11)")
+
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      PartyCast(session, "party2", FIREBALL)
+      Assert.NotNil(
+        FindLine(ProbeLines(session, "event=party_cast"), "unit=party2 phase=outside inKey=no"),
+        "outside the key"
+      )
+      local printed = Report(session)
+      AssertReportLine(
+        printed,
+        "Party cast spell IDs readable: in the key partly (n=2, secret=1), outside the key yes (n=1, secret=0)",
+        "party cast verdict split by key"
+      )
+      AssertNoTableText(ProbeLines(session), Assert)
+      AssertNoTableText(printed, Assert)
+    end, function(globals, session)
+      PrepareParty()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  -- Probe log 2026-11-21: every party_cast line said castGUIDSecret=yes while
+  -- the tally stayed at castGuidSecret=0 (it counted a masked UnitGUID).
+  test("Probe mode tallies masked party castGUIDs, not masked unit GUIDs", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("string")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      Pull(session)
+      PartyCast(session, "party1", FIREBALL, secret)
+      PartyCast(session, "party2", FIREBALL, secret)
+      session.guidSecret.party3 = secret
+      PartyCast(session, "party3", FIREBALL, "plain-cast-guid")
+      session.guidSecret.party3 = nil
+      EndPull(session)
+      local lines = ProbeLines(session, "event=party_cast")
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party1 phase=pull inKey=yes inCombat=yes spellIDSecret=no spellID=133 castGUIDSecret=yes "
+            .. "unitGUID=readable"
+        ),
+        "a masked castGUID with a readable unit GUID"
+      )
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party3 phase=pull inKey=yes inCombat=yes spellIDSecret=no spellID=133 "
+            .. "castGUIDSecret=no unitGUID=secret"
+        ),
+        "a readable castGUID with a masked unit GUID"
+      )
+      Assert.Equal(SumTally(session, "phase=pull", "castGuidSecret"), 2, "the tally counts the masked castGUIDs")
+      Assert.Equal(SumTally(session, "phase=pull", "casts"), 3, "every cast is counted")
+      AssertNoTableText(ProbeLines(session), Assert)
+    end, function(globals, session)
+      PrepareParty()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe mode caps party lines per segment and phase and still tallies every cast", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local limits = session.addon.ProbeParty.LIMITS
+      for _ = 1, 20 do
+        PartyCast(session, "party2", FIREBALL)
+      end
+      Assert.Equal(
+        select(2, ProbeLines(session, "event=party_cast")),
+        limits.partyLinesPerSegment,
+        "one segment writes at most partyLinesPerSegment lines"
+      )
+      local pulls = limits.partyCastLinesPerPhase / limits.partyLinesPerSegment + 3
+      for _ = 1, pulls do
+        Pull(session)
+        for _ = 1, 10 do
+          PartyCast(session, "party1", FIREBALL)
+        end
+        EndPull(session)
+      end
+      Assert.Equal(
+        select(2, ProbeLines(session, "event=party_cast unit=party1 phase=pull")),
+        limits.partyCastLinesPerPhase,
+        "the pull phase is capped per key"
+      )
+      Assert.Equal(
+        select(2, ProbeLines(session, "event=cap_reached probe=party_cast_pull")),
+        1,
+        "one cap line for the phase"
+      )
+      Assert.Equal(SumTally(session, "phase=pull", "casts"), pulls * 10, "the tally counts every cast in the pulls")
+      Assert.Equal(SumTally(session, "phase=between", "casts"), 20, "and every cast between pulls")
+    end, PrepareParty())
+  end)
+
+  test("Probe mode logs party aura readability, instance lookups and one scan per segment", function()
+    local secret, secretGlobals = ctx.fixtures.MakeStrictSecret("number")
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      local readableAura = {
+        spellId = 1022,
+        auraInstanceID = 11,
+        expirationTime = 150,
+        duration = 10,
+        sourceUnit = "party1",
+        isHelpful = true,
+      }
+      session.partyAuras.party1 = { readableAura }
+      session.instanceAuras[11] = readableAura
+      PartyAura(session, "party1", { isFullUpdate = false, addedAuras = { readableAura } })
+      PartyAura(session, "party2", { isFullUpdate = true })
+
+      Pull(session)
+      local maskedAura = {
+        spellId = secret,
+        auraInstanceID = secret,
+        expirationTime = secret,
+        duration = secret,
+        sourceUnit = secret,
+        isHelpful = true,
+      }
+      session.partyAuras.party2 = { secret, maskedAura }
+      PartyAura(session, "party2", {
+        isFullUpdate = secret,
+        addedAuras = {
+          {
+            spellId = secret,
+            auraInstanceID = secret,
+            expirationTime = secret,
+            duration = secret,
+            sourceUnit = "party2",
+            isHelpful = true,
+          },
+        },
+      })
+      PartyAura(session, "party3", { isFullUpdate = false, addedAuras = secret })
+      EndPull(session)
+      session.partyScanError = true
+      PartyAura(session, "party4", nil)
+
+      local lines = ProbeLines(session, "event=party_aura ")
+      Assert.Equal(#lines, 5, "one line per party aura event")
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party1 phase=between inKey=yes inCombat=no info=table fullUpdate=no added=1 spellId=readable "
+            .. "auraInstanceID=readable expirationTime=readable duration=readable sourceUnit=readable "
+            .. "isHelpful=readable byInstanceID=readable error=none"
+        ),
+        "a readable added aura with a readable instance lookup"
+      )
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party2 phase=between inKey=yes inCombat=no info=table fullUpdate=yes added=none spellId=n/a"
+        ),
+        "a full update without added auras"
+      )
+      Assert.NotNil(
+        FindLine(
+          lines,
+          "unit=party2 phase=pull inKey=yes inCombat=yes info=table fullUpdate=secret added=1 spellId=secret "
+            .. "auraInstanceID=secret expirationTime=secret duration=secret sourceUnit=readable isHelpful=readable "
+            .. "byInstanceID=no_id error=none"
+        ),
+        "masked fields are named, never read; no lookup without a readable instance ID"
+      )
+      Assert.NotNil(
+        FindLine(lines, "unit=party3 phase=pull inKey=yes inCombat=yes info=table fullUpdate=no added=secret"),
+        "a masked list"
+      )
+      Assert.NotNil(
+        FindLine(lines, "unit=party4 phase=between inKey=yes inCombat=no info=nil"),
+        "an event without payload"
+      )
+      Assert.Equal(session.calls.byInstance, 1, "GetAuraDataByAuraInstanceID only for a readable instance ID")
+
+      local scans = ProbeLines(session, "event=party_aura_scan")
+      Assert.Equal(#scans, 3, "one scan per segment (between, pull, between)")
+      Assert.NotNil(
+        FindLine(
+          scans,
+          "unit=party1 phase=between inKey=yes inCombat=no auras=1 auraSecret=0 readable=1 spellIdSecret=0 "
+            .. "auraInstanceIDSecret=0 expirationTimeSecret=0 durationSecret=0 sourceUnitSecret=0 isHelpfulSecret=0 "
+            .. "errors=0 error=none"
+        ),
+        "the readable scan"
+      )
+      Assert.NotNil(
+        FindLine(
+          scans,
+          "unit=party2 phase=pull inKey=yes inCombat=yes auras=2 auraSecret=1 readable=0 spellIdSecret=2 "
+            .. "auraInstanceIDSecret=2 expirationTimeSecret=2 durationSecret=2 sourceUnitSecret=2 isHelpfulSecret=1 "
+            .. "errors=0 error=none"
+        ),
+        "the masked scan counts per field"
+      )
+      Assert.NotNil(
+        FindLine(scans, "unit=party4 phase=between inKey=yes inCombat=no auras=0 auraSecret=0 readable=0"),
+        "the throwing scan"
+      )
+      Assert.NotNil(FindLine(scans, "errors=1 error=call"), "a throwing API is logged as error=, never raised")
+
+      session.active = false
+      session.Dispatch("CHALLENGE_MODE_COMPLETED")
+      local printed = Report(session)
+      AssertReportLine(
+        printed,
+        "Party auras readable: in the key partly (n=5, secret=3), outside the key unknown (n=0, secret=0), "
+          .. "read errors: 1",
+        "party aura verdict split by key"
+      )
+      AssertReportLine(
+        printed,
+        "Party cast spell IDs readable: in the key unknown (n=0, secret=0), outside the key unknown (n=0, secret=0)",
+        "no party cast"
+      )
+      AssertNoTableText(ProbeLines(session), Assert)
+      AssertNoTableText(printed, Assert)
+    end, function(globals, session)
+      PrepareParty()(globals, session)
+      for key, value in pairs(secretGlobals) do
+        globals[key] = value
+      end
+    end)
+  end)
+
+  test("Probe mode off ignores party casts and party auras", function()
+    Stress.WithKey(ctx, FixtureWithSchema, function(session)
+      session.runtime.runtimeLogController.SetEnabled(true)
+      local aura = { spellId = 1022, auraInstanceID = 11, expirationTime = 150, duration = 10, isHelpful = true }
+      session.partyAuras.party1 = { aura }
+      session.instanceAuras[11] = aura
+      PartyCast(session, "party1", FIREBALL)
+      PartyAura(session, "party1", { isFullUpdate = false, addedAuras = { aura } })
+      Pull(session)
+      PartyCast(session, "party4", FIREBALL)
+      PartyAura(session, "party2", { isFullUpdate = true })
+      EndPull(session)
+      Assert.Equal(select(2, ProbeLines(session)), 0, "probe mode off writes no [PROBE] line")
+      -- GetAuraDataByIndex on party units is also read by the existing aura
+      -- trackers; only the probe calls GetAuraDataByAuraInstanceID.
+      Assert.Equal(session.calls.byInstance or 0, 0, "probe mode off never looks up an aura instance")
+    end, PrepareParty({ probe = false }))
   end)
 
   test("DBSchema declares probeLogEnabled as a default-off boolean", function()

@@ -491,6 +491,11 @@ Typische Ursachen fuer Brueche:
   lizenziert bezeichnet, obwohl die Einzelzuordnung fehlt.
 - Ein neues Sound-/Texturasset wird committed, ohne Herkunft und Lizenzstatus
   in `docs/ASSET_PROVENANCE.md` nachzuziehen.
+- Eine neue oder ersetzte Sounddatei: Pfad nur in
+  `core/isiLive_sound_registry.lua`, Datei in `sounds/`, Eintrag
+  `!sounds/<Name>` in `.gitignore`, Pruefwerte in `docs/AUDIO_ASSETS.json` per
+  `python tools/update_audio_assets.py --manifest <manifest.json> ...`;
+  `lua tools/check_sound_assets.lua` (Regel 266) meldet jede fehlende Stelle.
 - Ein Mockup-Asset landet durch eine abweichende Ausschlussliste im
   CurseForge-/WowUp-Paket.
 

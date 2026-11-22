@@ -2500,8 +2500,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(#previewCalls, 1, "previewing a disabled sound should still play once")
       Assert.Equal(
         previewCalls[1].path,
-        "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
-        "leader-transfer preview should play the configured sound asset"
+        "Interface\\AddOns\\isiLive\\sounds\\LeaderTransfer.ogg",
+        "leader-transfer preview should play the default voice line (rule 266)"
       )
       Assert.Equal(previewCalls[1].channel, "SFX", "sound previews should use the configured SFX channel")
 
@@ -2860,7 +2860,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        73,
+        76,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls (and the retired reduced-motion option)"
           .. " while keeping the startup/key-end, navigator, sound,"
@@ -2873,6 +2873,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " the two auto-close split checkboxes, the run focus switches, the three raid sound opt-ins and the"
           .. " forces-/time-pace, both TTK toggles, the pre-key loadout check and the"
           .. " instance reset button and announce toggles and the three missed-kick toggles visible"
+          .. " plus the three defensives switches (rule 269)"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
 
@@ -2880,7 +2881,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        73,
+        76,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
@@ -2891,7 +2892,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " the two auto-close split checkboxes, the run focus switches,"
           .. " the three raid sound opt-ins, the pace/TTK toggles"
-          .. ", the loadout check, the two instance reset toggles and the three missed-kick toggles"
+          .. ", the loadout check, the two instance reset toggles, the three missed-kick toggles"
+          .. " and the three defensives switches"
       )
     end)
   end)

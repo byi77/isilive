@@ -1228,7 +1228,7 @@ local function RegisterStaticDeathWavTests(test, ctx)
       HealerDied = ReadOggInfo("sounds/HealerDied.ogg"),
     }) do
       Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.Equal(info.sampleRate, 24000, label .. ".ogg must use the 24 kHz voice-6 format (rule 266)")
       Assert.True(info.durationSeconds <= 1.2, label .. ".ogg must contain only one short spoken announcement")
       Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
@@ -1239,7 +1239,7 @@ local function RegisterStaticDeathWavTests(test, ctx)
       GroupRemoved = ReadOggInfo("sounds/GroupRemoved.ogg"),
     }) do
       Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.Equal(info.sampleRate, 24000, label .. ".ogg must use the 24 kHz voice-6 format (rule 266)")
       Assert.True(info.durationSeconds <= 2, label .. ".ogg must contain only one short spoken announcement")
       Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
@@ -1250,7 +1250,7 @@ local function RegisterStaticDeathWavTests(test, ctx)
       GroupInvite = ReadOggInfo("sounds/GroupInvite.ogg"),
     }) do
       Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.Equal(info.sampleRate, 24000, label .. ".ogg must use the 24 kHz voice-6 format (rule 266)")
       Assert.True(info.durationSeconds <= 1.5, label .. ".ogg must fit one announcement into the 5-second loop")
       Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
     end
@@ -1261,9 +1261,30 @@ local function RegisterStaticDeathWavTests(test, ctx)
       PetStuck = ReadOggInfo("sounds/PetStuck.ogg"),
     }) do
       Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
-      Assert.Equal(info.sampleRate, 44100, label .. ".ogg must use the addon sound sample rate")
+      Assert.Equal(info.sampleRate, 24000, label .. ".ogg must use the 24 kHz voice-6 format (rule 266)")
       Assert.True(info.durationSeconds <= 1.2, label .. ".ogg must contain only one short spoken announcement")
       Assert.True(info.byteCount < 30000, label .. ".ogg must remain compact")
+    end
+  end)
+
+  test("SoundUtils voice-instead-of-effect Ogg lines stay compact", function()
+    for _, stem in ipairs({
+      "LeaderTransfer",
+      "GroupFull",
+      "ReadyCheckComplete",
+      "BattleResUsed",
+      "BloodlustUsed",
+      "Aggro",
+      "MissedKick",
+    }) do
+      for _, suffix in ipairs({ "", "_deDE" }) do
+        local label = stem .. suffix
+        local info = ReadOggInfo("sounds/" .. label .. ".ogg")
+        Assert.Equal(info.channels, 1, label .. ".ogg must be mono")
+        Assert.Equal(info.sampleRate, 24000, label .. ".ogg must use the 24 kHz voice-6 format")
+        Assert.True(info.durationSeconds <= 2.5, label .. ".ogg must contain only one short spoken announcement")
+        Assert.True(info.byteCount < 25000, label .. ".ogg must remain compact")
+      end
     end
   end)
 

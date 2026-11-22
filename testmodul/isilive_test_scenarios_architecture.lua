@@ -1522,6 +1522,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       workflowContent,
+      "lua tools/check_sound_assets.lua",
+      "workflow must keep the sound-assets gate (rule 266)"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
       "lua tools/check_chat_color_safety.lua",
       "workflow must keep the chat-color-safety gate"
     )
@@ -2007,6 +2013,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Invoke-CheckedCommand "Sound Channel Check" "lua tools/check_sound_channel.lua"',
       "local preflight must run the sound-channel gate"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Sound Assets Check" "lua tools/check_sound_assets.lua"',
+      "local preflight must run the sound-assets gate (rule 266)"
     )
     AssertContains(
       Assert,

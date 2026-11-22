@@ -445,12 +445,32 @@ local function CreatePatternBCheckbox(canvas, yOffset, config, field, labelKey, 
   end, labelKey, CheckboxDescriptionOptions(labels[descKey] or desc))
 end
 
--- Short alerts: missed kick (rule 236: alert, only-in-key, sound) and aggro
--- (rule 244: alert, sound), in this order.
+-- "Voice instead of effect" child option under a sound toggle (rule 266); the
+-- shared builder lives in the sound section, which also repaints it.
+local function CreateDisplayVoiceCheckbox(canvas, yOffset, labels, config, controls, soundKey)
+  local settingsSound = addonTable.SettingsSound
+  if type(settingsSound) ~= "table" or type(settingsSound.CreateVoiceCheckbox) ~= "function" then
+    return yOffset
+  end
+  return settingsSound.CreateVoiceCheckbox(
+    canvas,
+    yOffset,
+    labels,
+    config,
+    controls,
+    soundKey,
+    "SETTINGS_SECTION_DISPLAY"
+  )
+end
+
+-- Short alerts: missed kick (rule 236: alert, only-in-key, sound, voice) and
+-- aggro (rule 244: alert, sound, voice), in this order; then the defensives
+-- column switches (rule 269).
 local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, controls)
   controls.missedKickAlert, yOffset = CreateMissedKickAlertCheckbox(canvas, yOffset, labels, config)
   controls.missedKickOnlyInKey, yOffset = CreateMissedKickOnlyInKeyCheckbox(canvas, yOffset, labels, config)
   controls.missedKickSound, yOffset = CreateMissedKickSoundCheckbox(canvas, yOffset, labels, config)
+  yOffset = CreateDisplayVoiceCheckbox(canvas, yOffset, labels, config, controls, "missed_kick")
   controls.aggroAlert, yOffset = CreatePatternBCheckbox(
     canvas,
     yOffset,
@@ -497,6 +517,12 @@ local function CreateMissedKickCheckboxes(canvas, yOffset, labels, config, contr
     FALLBACK_AGGRO_SOUND_DESC,
     labels
   )
+  yOffset = CreateDisplayVoiceCheckbox(canvas, yOffset, labels, config, controls, "aggro")
+  -- Defensives column (rules 267-269): feature switch, sync and estimate.
+  local settingsDefensives = addonTable.SettingsDefensives
+  if type(settingsDefensives) == "table" then
+    yOffset = settingsDefensives.Build(canvas, yOffset, labels, config, controls, CheckboxDescriptionOptions)
+  end
   return yOffset
 end
 
@@ -567,10 +593,15 @@ local DISPLAY_DEFAULTS = {
   missedKickAlertEnabled = false,
   missedKickOnlyInKey = true,
   missedKickSound = false,
+  missedKickVoiceEnabled = true,
   aggroAlertEnabled = false,
   aggroAlertSound = false,
+  aggroAlertVoiceEnabled = true,
   liveRunKicksEnabled = true,
   consumableCheckEnabled = false,
+  defensiveTrackerEnabled = false,
+  defensiveSyncEnabled = false,
+  defensiveEstimateEnabled = false,
   lfgFlagsEnabled = true,
   lfgGroupBonusesEnabled = true,
   tooltipFlagsEnabled = true,
@@ -623,10 +654,15 @@ local DISPLAY_DEFAULT_ORDER = {
   "missedKickAlertEnabled",
   "missedKickOnlyInKey",
   "missedKickSound",
+  "missedKickVoiceEnabled",
   "aggroAlertEnabled",
   "aggroAlertSound",
+  "aggroAlertVoiceEnabled",
   "liveRunKicksEnabled",
   "consumableCheckEnabled",
+  "defensiveTrackerEnabled",
+  "defensiveSyncEnabled",
+  "defensiveEstimateEnabled",
   "lfgFlagsEnabled",
   "lfgGroupBonusesEnabled",
   "tooltipFlagsEnabled",
@@ -639,6 +675,7 @@ local DISPLAY_DEFAULT_ORDER = {
 local function RestoreDisplayDefaults(config)
   local db = config.getDB()
   local statsOptionsChanged = false
+  local defensivesChanged = false
   for _, field in ipairs(DISPLAY_DEFAULT_ORDER) do
     local default = DISPLAY_DEFAULTS[field]
     if db[field] ~= default then
@@ -655,7 +692,13 @@ local function RestoreDisplayDefaults(config)
       if field == "statsBoxDisplayMode" or field:find("^statsBoxShow") then
         statsOptionsChanged = true
       end
+      if field:find("^defensive") then
+        defensivesChanged = true
+      end
     end
+  end
+  if defensivesChanged and type(addonTable.SettingsDefensives) == "table" then
+    addonTable.SettingsDefensives.ApplyRuntime()
   end
   if statsOptionsChanged and type(config.onStatsBoxOptionsChange) == "function" then
     config.onStatsBoxOptionsChange()
@@ -1418,6 +1461,9 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.missedKickSound.check:SetChecked(db.missedKickSound == true)
   end
   RefreshAggroControls(controls, labels, db)
+  if type(addonTable.SettingsDefensives) == "table" then
+    addonTable.SettingsDefensives.Refresh(controls, labels, db)
+  end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")
     SetControlDescription(

@@ -22,7 +22,7 @@ local FixtureWithSound = {
 local ALARM_KIT = 12867
 local ALERT_TEXT = "AGGRO"
 
--- opts: { enabled, sound, ownRole }
+-- opts: { enabled, sound, voice, ownRole }
 local function Prepare(opts)
   opts = opts or {}
   return function(globals, session)
@@ -33,6 +33,9 @@ local function Prepare(opts)
     local db = globals.IsiLiveDB
     db.aggroAlertEnabled = opts.enabled ~= false
     db.aggroAlertSound = opts.sound == true
+    if opts.voice ~= nil then
+      db.aggroAlertVoiceEnabled = opts.voice
+    end
     globals.UnitThreatSituation = function(unit, mob)
       if unit == "player" and mob == nil then
         return session.threat
@@ -59,6 +62,20 @@ local function Prepare(opts)
     globals.PlaySound = function(kit, channel)
       session.sounds[#session.sounds + 1] = { kit = kit, channel = channel }
       return true, #session.sounds
+    end
+    -- Voice lines (rule 266, default on) play through PlaySoundFile. Only this
+    -- alert's own voice files count; other cues of the flow (group join etc.)
+    -- still reach the real client stand-in.
+    local playSoundFile = globals.PlaySoundFile
+    globals.PlaySoundFile = function(file, channel)
+      if type(file) == "string" and file:find("[\\/]Aggro_?%a*%.ogg$") ~= nil then
+        session.sounds[#session.sounds + 1] = { file = file, channel = channel }
+        return true, #session.sounds
+      end
+      if type(playSoundFile) == "function" then
+        return playSoundFile(file, channel)
+      end
+      return true, 0
     end
   end
 end
@@ -121,6 +138,21 @@ return function(test, ctx)
       Threat(session, 3)
       session.Advance(1)
       Assert.True(AlertShown(session), "the next pull may alert again")
+    end, Prepare({ sound = true, voice = false }))
+  end)
+
+  test("Aggro alert speaks the voice line by default when its sound is on (rule 266)", function()
+    Stress.WithKey(ctx, FixtureWithSound, function(session)
+      Pull(session)
+      Threat(session, 3)
+      session.Advance(0.6)
+      Assert.True(AlertShown(session), "aggro that held shows AGGRO")
+      Assert.Equal(#session.sounds, 1, "one cue")
+      Assert.Nil(session.sounds[1].kit, "no SoundKit while the voice option is at its default")
+      Assert.True(
+        type(session.sounds[1].file) == "string" and session.sounds[1].file:find("Aggro%.ogg$") ~= nil,
+        "the English voice line Aggro.ogg plays"
+      )
     end, Prepare({ sound = true }))
   end)
 

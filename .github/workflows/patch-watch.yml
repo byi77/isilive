@@ -116,7 +116,8 @@ jobs:
             exit 0
           fi
           failed=0
-          for table in SpellName Spell SpellFlyoutItem Item MapChallengeMode GroupFinderActivity ChrSpecialization MythicPlusSeasonTrackedMap; do
+          # SpellCooldowns, SpellCategories, SpellCategory: defensive cooldowns (rule 267).
+          for table in SpellName Spell SpellFlyoutItem Item MapChallengeMode GroupFinderActivity ChrSpecialization MythicPlusSeasonTrackedMap SpellCooldowns SpellCategories SpellCategory; do
             curl -fsS -m 300 "https://wago.tools/db2/${table}/csv?version=${target}" -o "${out}/db2/${table}.csv" || failed=1
           done
           curl -fsS -m 120 "https://wago.tools/db2/MapChallengeMode/csv?version=${target}&locale=deDE" \

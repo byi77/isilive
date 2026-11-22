@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.531`
-Zuletzt aktualisiert: `2026-11-20`
+Versionsbasis: `0.9.550`
+Zuletzt aktualisiert: `2026-11-22`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
 
@@ -642,6 +642,16 @@ Ziel: Der Spieler sieht im Key-Kampf, wie lange sein Ziel noch etwa lebt (Regel 
 3. Output: `18s` ueber der Ziel-Nameplate und `TTK 18s` rechts unter dem Killtracker-Balken; unter drei Sekunden `…` bzw. `TTK …`.
 4. Erfolgskriterium: Ausserhalb von Key-Kaempfen, ohne lebendes angreifbares Ziel oder bei ausgeschaltetem `ttkEnabled` ist nichts zu sehen; das M+-Regressionsbudget bleibt unveraendert.
 
+## UC-32 Defensiv-Spalte im laufenden Key
+
+Ziel: Der Spieler sieht im Key, welche Defensives und Externals der Gruppe bereit sind (Regeln 267 bis 269).
+
+1. Trigger: Keystart mit `defensiveTrackerEnabled`; Factory-Takt 1 s, eigene Casts, `DEF`-Sync der isiLive-Nutzer, Sensor-Takt 0,5 s mit `defensiveEstimateEnabled`, eigene Chat-Sperre, Keyende.
+2. Verarbeitung: eigener Stand vom Live-Client, Sync-Stand aus `DefensiveStore` (eingefroren waehrend der eigenen Chat-Sperre), fuer Mitspieler ohne Sync-Stand unsichtbare Aura-Container je Slot-Spell, deren secret Antwort ueber `C_CurveUtil.EvaluateColorValueFromBoolean` in die Fuellung der Zelle laeuft.
+3. Output: 70-px-Zelle statt DPS (RIO 54 px ohne "(+N)", Kick unveraendert): bereit hell, CD grau mit Sekunden ("Xm" ab 100 s), aktiv blauer Rahmen mit Alpha-Puls, eingefroren gedimmt mit Uhr, geschaetzt "~" mit Fuellung; Zeilen-Tooltip mit allen Defensives, Quelle und Alter.
+4. Erfolgskriterium: Ausserhalb des Keys, im Raid, im Run-Fokus und mit ausgeschaltetem Schalter bleibt die bisherige DPS-Darstellung; kein Sensorwert erreicht Lua-Logik; Container entstehen nur ausserhalb des Kampfs und unter dem Budget von 56.
+5. Vorschau (Regel 270): `/isilive testall` bzw. `/isilive sim`, Reiter M+, Aktion C14 zeigt alle Zustaende samt Tooltip ohne Key und Gruppe aus einer eigenen Demo-Quelle; sie endet mit der Demo und aendert oder sendet nichts.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -801,7 +811,7 @@ Der grosse Teleport-Button der Karte zeigt seit 0.9.452 das Bild des Dungeons au
 
 ## Audiovereinheitlichung 2026-10-20
 
-Die zehn deutschen Sprachansagen verwenden die bestaetigte maennliche Stimme 6 mit kompakten Ogg-Dateien (24 kHz mono, -19,1 LUFS +/-0,25 LU). Die englischen Sprachansagen liegen als kompakte Ogg-Dateien vor (44,1 kHz mono, Vorbis). Alle sechs bestehenden Effektdateien einschliesslich Battle-Res-Ersatzdatei sind auf dieselbe Lautheit angeglichen; der Ready-Check nutzt jetzt `BttF_Tinkle.ogg`. Zuordnung und Pruefwerte stehen in `docs/AUDIO_ASSETS.json`. Settings, Event-Gates und Wiederholungsintervalle bleiben bestehen.
+Die zehn deutschen Sprachansagen verwenden die bestaetigte maennliche Stimme 6 mit kompakten Ogg-Dateien (24 kHz mono, -19,1 LUFS +/-0,25 LU). Die englischen Sprachansagen liegen als kompakte Ogg-Dateien vor; seit 2026-11-21 ebenfalls mit Stimme 6 auf Englisch erzeugt (24 kHz mono, Vorbis, gleiche Dateinamen). Seit 2026-11-21 haben Leiterwechsel, Gruppe voll, Ready-Check komplett, Battle-Res benutzt, Bloodlust, Aggro und verfehlter Kick je eine Option "Sprache statt Effekt" (Default an, Regel 266). Alle sechs bestehenden Effektdateien einschliesslich Battle-Res-Ersatzdatei sind auf dieselbe Lautheit angeglichen; der Ready-Check nutzt jetzt `BttF_Tinkle.ogg`. Zuordnung und Pruefwerte stehen in `docs/AUDIO_ASSETS.json`. Settings, Event-Gates und Wiederholungsintervalle bleiben bestehen.
 
 ## UI-Design-Umschalter (Regel 233)
 

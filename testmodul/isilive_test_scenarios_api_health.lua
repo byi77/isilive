@@ -27,6 +27,10 @@ return function(test, ctx)
     globals.C_CurveUtil.CreateCurve = function()
       return {}
     end
+    -- Rule 268: the estimate sensors need Blizzard's aura container template.
+    globals.C_XMLUtil.GetTemplateInfo = function(name)
+      return name == "CustomAuraContainerTemplate" and { type = "AuraContainer" } or nil
+    end
     return globals
   end
 

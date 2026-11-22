@@ -119,6 +119,10 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/check_sound_channel.lua
 
+      - name: Sound Assets Check
+        if: steps.diff.outputs.changed == 'true'
+        run: lua tools/check_sound_assets.lua
+
       - name: Chat Color Safety Check
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/check_chat_color_safety.lua

@@ -624,6 +624,262 @@ local function RestoreDemoQueueTarget(ctx)
   end
 end
 
+-- Defensives in the key (rule 270, demo action C14). A demo source in the
+-- roster cell, separate from DefensiveStore and the sensors: it never writes
+-- the store, a setting or the sync and sends nothing. The full preview has
+-- four live rows, so each carries one scenario: the player its own state, one
+-- isiLive user an active buff and a minute cooldown, one the frozen sync and
+-- the member without isiLive the estimate (the departed ghost row stays
+-- empty). The values count down in plain Lua and loop. It ends with the demo
+-- timer data (demo end, F3, C5, a real key start).
+local DEMO_DEFENSIVES_TICK_SECONDS = 1
+local DEMO_PARTY_UNITS = { "party1", "party2", "party3", "party4" }
+-- Slot: state, remain (seconds at the start of a loop), cycle (seconds per
+-- loop; none = no countdown; remain <= 0 reads as ready) or share (estimate
+-- fill at the start of a loop). `single` replaces the slots of a member with
+-- just one defensive.
+local DEMO_DEFENSIVE_SCENARIOS = {
+  own = {
+    mode = "own",
+    slots = { { state = "ready" }, { state = "cd", remain = 45, cycle = 60 } },
+    -- One icon has to show both exact states: 12 s cooldown, then 8 s ready.
+    single = { { state = "cd", remain = 12, cycle = 20 } },
+  },
+  sync = {
+    mode = "sync",
+    age = 15,
+    -- The minute cooldown restarts above 100 s, so "Xm" is always on screen.
+    slots = { { state = "active", remain = 12, cycle = 12 }, { state = "cd", remain = 170, cycle = 60 } },
+  },
+  estimate = {
+    mode = "estimate",
+    slots = { { share = 0.85, cycle = 90 }, { share = 0.4, cycle = 60 } },
+  },
+  frozen = {
+    mode = "sync",
+    frozen = true,
+    frozenAge = 20,
+    slots = { { state = "cd", remain = 75 }, { state = "ready" } },
+  },
+}
+
+local function DemoNow()
+  local getTime = rawget(_G, "GetTime")
+  local ok, value = false, nil
+  if type(getTime) == "function" then
+    ok, value = pcall(getTime)
+  end
+  if ok and not IsSecretValue(value) and type(value) == "number" then
+    return value
+  end
+  return 0
+end
+
+-- Manifest defensives of a class (and spec, when the member carries one),
+-- externals before group cooldowns before personal ones, then list order.
+local function DemoCandidateSpells(manifest, classToken, specID)
+  local out = {}
+  for index, record in ipairs(manifest.list) do
+    local specMatch = record.specs == nil
+    for _, id in ipairs(record.specs or {}) do
+      specMatch = specMatch or id == specID
+    end
+    if record.class == classToken and specMatch then
+      out[#out + 1] = { spellID = record.cast, kind = record.kind, order = index }
+    end
+  end
+  table.sort(out, function(a, b)
+    local rankA, rankB = manifest.kindOrder[a.kind] or 99, manifest.kindOrder[b.kind] or 99
+    if rankA ~= rankB then
+      return rankA < rankB
+    end
+    return a.order < b.order
+  end)
+  return out
+end
+
+local function DemoDefensiveEntry(candidate, slot, elapsed)
+  if slot.share ~= nil then
+    local t = elapsed % slot.cycle
+    return { spellID = candidate.spellID, kind = candidate.kind, share = math.max(0, slot.share - t / slot.cycle) }
+  end
+  local remain = slot.remain or 0
+  if slot.cycle then
+    remain = remain - (elapsed % slot.cycle)
+  end
+  local state = slot.state
+  if remain <= 0 then
+    remain = 0
+    state = "ready"
+  end
+  return { spellID = candidate.spellID, kind = candidate.kind, state = state, remain = remain }
+end
+
+-- One resolved cell view (RosterDefensiveCell.ResolvePlayer) at `now`.
+local function BuildDemoDefensiveView(assignment, now)
+  local scenario = assignment.scenario
+  local elapsed = math.max(0, now - assignment.startedAt)
+  local slots = #assignment.spells == 1 and scenario.single or scenario.slots
+  local entries = {}
+  for index, candidate in ipairs(assignment.spells) do
+    if slots[index] then
+      entries[index] = DemoDefensiveEntry(candidate, slots[index], elapsed)
+    end
+  end
+  local view = { mode = scenario.mode, entries = entries }
+  if scenario.frozen then
+    view.frozen = true
+    view.ageSeconds = scenario.frozenAge + elapsed
+  elseif scenario.age then
+    view.ageSeconds = elapsed % scenario.age
+  end
+  if scenario.mode == "estimate" then
+    view.unseen = {}
+    for index = #entries + 1, #assignment.spells do
+      view.unseen[#view.unseen + 1] = assignment.spells[index]
+    end
+  end
+  return view
+end
+
+-- The dummy roster carries no spec for the player; read it from the client.
+local function DemoPlayerSpecID()
+  local getIndex = rawget(_G, "GetSpecialization")
+  local getInfo = rawget(_G, "GetSpecializationInfo")
+  if type(getIndex) ~= "function" or type(getInfo) ~= "function" then
+    return nil
+  end
+  local okIndex, specIndex = pcall(getIndex)
+  if not okIndex or IsSecretValue(specIndex) or type(specIndex) ~= "number" or specIndex <= 0 then
+    return nil
+  end
+  local okInfo, specID = pcall(getInfo, specIndex)
+  if not okInfo or IsSecretValue(specID) or type(specID) ~= "number" then
+    return nil
+  end
+  return specID
+end
+
+-- Scenario per live row of the dummy roster, keyed like the cell
+-- (Sync.NormalizePlayerKey). The active / minute pair needs two icons, so it
+-- goes to an isiLive user with two defensives.
+local function BuildDemoDefensiveAssignments(ctx, startedAt)
+  local manifest = ctx.addonTable and ctx.addonTable.DefensiveManifest
+  local sync = ctx.addonTable and ctx.addonTable.Sync
+  local roster = type(ctx.GetRoster) == "function" and ctx.GetRoster() or nil
+  local assignments = {}
+  if type(manifest) ~= "table" or type(manifest.list) ~= "table" or type(roster) ~= "table" then
+    return assignments
+  end
+  if type(sync) ~= "table" or type(sync.NormalizePlayerKey) ~= "function" then
+    return assignments
+  end
+
+  local function Member(info, specID)
+    if type(info) ~= "table" or info.isGhost == true or type(info.name) ~= "string" or info.name == "" then
+      return nil
+    end
+    return {
+      key = sync.NormalizePlayerKey(info.name, info.realm),
+      hasIsiLive = info.hasIsiLive == true,
+      spells = DemoCandidateSpells(manifest, info.class, specID or info.specID),
+    }
+  end
+  local function Assign(member, scenario)
+    if member and member.key and #member.spells > 0 then
+      assignments[member.key] = { scenario = scenario, spells = member.spells, startedAt = startedAt }
+    end
+  end
+
+  Assign(Member(roster.player, DemoPlayerSpecID()), DEMO_DEFENSIVE_SCENARIOS.own)
+  local others = {}
+  local syncMember, estimateMember
+  for _, unit in ipairs(DEMO_PARTY_UNITS) do
+    local member = Member(roster[unit])
+    if member then
+      others[#others + 1] = member
+      if not member.hasIsiLive then
+        estimateMember = estimateMember or member
+      elseif #member.spells >= 2 then
+        syncMember = syncMember or member
+      end
+    end
+  end
+  -- Every dummy runs isiLive when the player is the healer.
+  for _, member in ipairs(others) do
+    if not estimateMember and member ~= syncMember then
+      estimateMember = member
+    end
+  end
+  for _, member in ipairs(others) do
+    if member == syncMember then
+      Assign(member, DEMO_DEFENSIVE_SCENARIOS.sync)
+    elseif member == estimateMember then
+      Assign(member, DEMO_DEFENSIVE_SCENARIOS.estimate)
+    else
+      Assign(member, DEMO_DEFENSIVE_SCENARIOS.frozen)
+    end
+  end
+  return assignments
+end
+
+local function DemoDefensiveCell(ctx)
+  local cell = ctx.addonTable and ctx.addonTable.RosterDefensiveCell
+  if type(cell) == "table" and type(cell.SetDemoProvider) == "function" then
+    return cell
+  end
+  return nil
+end
+
+local function RenderDemoDefensives(ctx)
+  if type(ctx.UpdateUI) == "function" then
+    pcall(ctx.UpdateUI)
+  end
+end
+
+local function ClearDemoDefensives(ctx)
+  local ticker = ctx._demoDefensivesTicker
+  ctx._demoDefensivesTicker = nil
+  if ticker and type(ticker.Cancel) == "function" then
+    ticker:Cancel()
+  end
+  if ctx._demoDefensivesActive ~= true then
+    return
+  end
+  ctx._demoDefensivesActive = false
+  local cell = DemoDefensiveCell(ctx)
+  if cell then
+    cell.SetDemoProvider(nil)
+  end
+  RenderDemoDefensives(ctx)
+end
+
+local function ShowDemoDefensives(ctx)
+  local cell = DemoDefensiveCell(ctx)
+  if not cell then
+    return false
+  end
+  local assignments = BuildDemoDefensiveAssignments(ctx, DemoNow())
+  cell.SetDemoProvider(function(playerKey, now)
+    local assignment = type(playerKey) == "string" and assignments[playerKey] or nil
+    if not assignment then
+      return nil
+    end
+    return BuildDemoDefensiveView(assignment, type(now) == "number" and now or DemoNow())
+  end)
+  ctx._demoDefensivesActive = true
+  RenderDemoDefensives(ctx)
+  local timerApi = rawget(_G, "C_Timer")
+  if ctx._demoDefensivesTicker == nil and type(timerApi) == "table" and type(timerApi.NewTicker) == "function" then
+    ctx._demoDefensivesTicker = timerApi.NewTicker(DEMO_DEFENSIVES_TICK_SECONDS, function()
+      if ctx._demoDefensivesActive == true then
+        cell.RefreshAll()
+      end
+    end)
+  end
+  return true
+end
+
 -- Bumped on every demo timer set and clear. The deferred cooldown-tracker
 -- write below only lands while its own preview is still the current one, so
 -- leaving the preview within the delay cannot leave fake BR / Lust behind.
@@ -636,6 +892,9 @@ local ClearDemoTimerData
 
 -- A real key start must never be hidden behind demo timer data that a tablet
 -- action left behind outside the test mode (the timer reports demo data first).
+-- The same frame ends the preview on dungeon entry: the main event gate holds
+-- PLAYER_ENTERING_WORLD back while the test mode runs, so the exit in its
+-- handler cannot fire from there.
 local function EnsureDemoKeyStartWatcher(ctx)
   if ctx._demoKeyStartWatcher ~= nil then
     return
@@ -650,7 +909,21 @@ local function EnsureDemoKeyStartWatcher(ctx)
     return
   end
   addonTable.EventUtils.SafeRegisterEvent(watcher, "CHALLENGE_MODE_START")
-  watcher:SetScript("OnEvent", function()
+  addonTable.EventUtils.SafeRegisterEvent(watcher, "PLAYER_ENTERING_WORLD")
+  watcher:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_ENTERING_WORLD" then
+      if
+        FactoryDemo.IsPreviewModeActive(ctx)
+        and type(ctx.IsInPartyInstance) == "function"
+        and ctx.IsInPartyInstance() == true
+        and type(ctx.ExitTestModeForCombat) == "function"
+      then
+        ctx.ExitTestModeForCombat()
+      end
+      return
+    end
+    -- A real key shows its own defensives, also while the preview still runs.
+    ClearDemoDefensives(ctx)
     if ctx._demoTimerDataActive == true and not FactoryDemo.IsPreviewModeActive(ctx) then
       ClearDemoTimerData(ctx)
     end
@@ -742,6 +1015,8 @@ end
 -- sweep and the pulsing target. C1 brings the running key back.
 local function SetDemoPreKeyData(ctx, runtimeState)
   ClearDemoKeyEndBanner(ctx)
+  -- Before the key start the DPS column is back: no defensives demo.
+  ClearDemoDefensives(ctx)
   -- Cancels a pending C1 cooldown write: the pre-key state shows no run.
   NextDemoTimerGeneration(ctx)
   ctx._demoTimerDataActive = true
@@ -767,6 +1042,7 @@ end
 
 ClearDemoTimerData = function(ctx)
   ClearDemoKeyEndBanner(ctx)
+  ClearDemoDefensives(ctx)
   NextDemoTimerGeneration(ctx)
   ctx._demoTimerDataActive = false
   ctx._demoTargetKey = nil
@@ -835,7 +1111,8 @@ local function AppendDemoKeyEndActions(ctx, actions)
 end
 
 -- Demo toggles for the instance reset button (rule 235, M+ tab), the run
--- focus (rule 248, M+ tab) and the resize grip (rule 234, extras tab). Kept apart from the main palette builder
+-- focus (rule 248, M+ tab), the defensives in the key (rule 270, M+ tab) and
+-- the resize grip (rule 234, extras tab). Kept apart from the main palette builder
 -- so it stays within the function size gate.
 local function AppendDemoToggleActions(ctx, actions)
   local function done()
@@ -871,6 +1148,45 @@ local function AppendDemoToggleActions(ctx, actions)
       description = "Collapses or expands the M+ window to its run zone with the real animation.",
       run = function()
         SetDemoRunFocus(ctx, ctx._demoRunFocusActive ~= true)
+        return done()
+      end,
+    },
+    {
+      id = "C14",
+      category = "mplus",
+      status = "green",
+      titleKey = "SIM_ACTION_C14_TITLE",
+      descKey = "SIM_ACTION_C14_DESC",
+      title = "Defensives in key",
+      description = "Toggles the defensives column of a running key for the demo members; settings stay untouched.",
+      run = function()
+        if ctx._demoDefensivesActive == true then
+          ClearDemoDefensives(ctx)
+          return done()
+        end
+        -- The key state comes from the demo itself (dummy roster, running
+        -- key timer). Without one the action starts it like the demo toggle,
+        -- which owns the stop, pause and combat gates and the idle end.
+        if not FactoryDemo.IsPreviewModeActive(ctx) and type(ctx.ToggleDemoMode) == "function" then
+          ctx.ToggleDemoMode()
+        end
+        if not FactoryDemo.IsPreviewModeActive(ctx) then
+          local locale = ctx.GetL and ctx.GetL() or {}
+          return locale.SIM_ACTION_BLOCKED or "Blocked by active rule."
+        end
+        SetDemoTimerData(ctx, ctx._demoRuntimeState or {})
+        -- The collapsed run focus hides every roster cell.
+        if ctx._demoRunFocusActive == true then
+          SetDemoRunFocus(ctx, false)
+        end
+        -- The demo cards stack over the window; A1 and C3 bring them back.
+        if type(ctx.SetDemoCenterNoticesVisible) == "function" then
+          ctx.SetDemoCenterNoticesVisible(false)
+        end
+        if type(ctx.SetPortalNavigatorVisible) == "function" then
+          ctx.SetPortalNavigatorVisible(false)
+        end
+        ShowDemoDefensives(ctx)
         return done()
       end,
     },

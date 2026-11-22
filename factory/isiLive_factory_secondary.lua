@@ -48,6 +48,18 @@ local function InitializeFactorySecondaryControllers(ctx)
       IsGroupSyncActive
     )
   end
+  -- Defensive / external cooldowns (rule 267); default off, see the factory.
+  if type(FI.InitializeFactoryDefensives) == "function" then
+    FI.InitializeFactoryDefensives(
+      ctx,
+      modules,
+      getTime,
+      getUnitName,
+      getRealmName,
+      IsRaidModeActive,
+      IsGroupSyncActive
+    )
+  end
 end
 
 FI.InitializeFactorySecondaryControllers = InitializeFactorySecondaryControllers

@@ -99,8 +99,8 @@ return function(test, ctx)
         soundCalls = soundCalls + 1
         Assert.Equal(
           path,
-          "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
-          "leader gain must use the transfer sound"
+          "Interface\\AddOns\\isiLive\\sounds\\LeaderTransfer.ogg",
+          "leader gain must use the transfer voice line by default (rule 266)"
         )
         Assert.Equal(channel, "Master", "leader gain must play on the Master channel")
       end,

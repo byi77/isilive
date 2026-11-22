@@ -995,6 +995,12 @@ local function ShowRosterInfoTooltip(
     end
   end
 
+  -- Defensives block (rule 269): only while the cell replaces the DPS column.
+  local defensiveCell = addonTable.RosterDefensiveCell
+  if type(defensiveCell) == "table" and type(defensiveCell.AppendTooltip) == "function" then
+    defensiveCell.AppendTooltip(tooltip, info, getL, unit)
+  end
+
   if type(tooltip.Show) == "function" then
     tooltip:Show()
   end

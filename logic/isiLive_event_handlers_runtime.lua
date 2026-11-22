@@ -854,6 +854,38 @@ local function NotifyProbe(ctx, hookName)
   end
 end
 
+-- Party aura readability (rule 239, logic/isiLive_probe_party.lua) and the
+-- aura container sensors (logic/isiLive_probe_auracontainer.lua, the event
+-- only as a trigger): one table read and one boolean check when off; never
+-- in a raid.
+local function NotifyProbeParty(ctx, unit, updateInfo)
+  local party = addonTable.ProbeParty
+  if type(party) == "table" and party.IsEnabled() and not IsRaidModeActive(ctx) then
+    party.OnPartyAura(unit, updateInfo)
+    local sensors = addonTable.ProbeAuraContainer
+    if type(sensors) == "table" then
+      sensors.OnPartyAura(unit)
+    end
+  end
+end
+
+-- Aura container probe (rule 239) after GROUP_ROSTER_UPDATE: off in a raid,
+-- the row names follow the roster. Once per raid transition, not for every
+-- roster change inside a raid; one table read and one boolean check when off.
+local lastProbeRosterRaid = false
+local function WithProbeRoster(ctx, handler)
+  return function(self, ...)
+    handler(self, ...)
+    local inRaid = IsRaidModeActive(ctx)
+    local steadyRaid = inRaid and lastProbeRosterRaid
+    lastProbeRosterRaid = inRaid
+    local sensors = addonTable.ProbeAuraContainer
+    if not steadyRaid and type(sensors) == "table" and sensors.IsEnabled() then
+      sensors.OnRosterUpdate(inRaid)
+    end
+  end
+end
+
 -- Runs the probe hook after the handler (combat edges).
 local function WithProbe(ctx, handler, hookName)
   return function(self, ...)
@@ -1270,6 +1302,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     ctx.handlePiTrackerEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
     if unit ~= "player" then
+      -- Party aura readability (rule 239); the probe filters party1..4.
+      NotifyProbeParty(ctx, unit, unitAuraUpdateInfo)
       return
     end
     if not UnitAuraUpdateRequiresCdScan(unitAuraUpdateInfo) then
@@ -1279,7 +1313,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local handlers = WithInstanceResetTap(ctx, {
-    GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
+    GROUP_ROSTER_UPDATE = WithProbeRoster(ctx, HandleGroupRosterUpdateEvent),
     ADDON_LOADED = HandleAddonLoadedEvent,
     PLAYER_LOGIN = HandlePlayerLoginEvent,
     PLAYER_ENTERING_WORLD = HandlePlayerEnteringWorldEvent,

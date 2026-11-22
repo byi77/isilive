@@ -174,6 +174,15 @@ end
 -- Keep the runtime behavior hard-forced until the controls are re-enabled.
 local FORCE_SHOW_DPS_COLUMN = true
 
+-- Defensives cell (ui/isiLive_roster_defensive_cell.lua, rule 269); a no-op
+-- when the module is not loaded.
+local function DefensiveCellHideRow(row)
+  local defensiveCell = RI.RosterDefensiveCell
+  if type(defensiveCell) == "table" then
+    defensiveCell.HideRow(row)
+  end
+end
+
 local CLASS_ACCENT_WIDTH = 2
 local READY_CHECK_HOLD_BAR_HEIGHT = 2
 local READY_CHECK_HOLD_BAR_ALPHA = 0.9
@@ -579,7 +588,7 @@ end
 -- deliberately left alone (see ClearMemberRow).
 local INACTIVE_ROW_DATA_ALPHA = 0.45
 local INACTIVE_ROW_NAME_ALPHA = 0.75
-local ROW_DATA_FIELDS = { "spec", "specIcon", "roleIcon", "realm", "key", "ilvl", "rio", "dps", "kick" }
+local ROW_DATA_FIELDS = { "spec", "specIcon", "roleIcon", "realm", "key", "ilvl", "rio", "dps", "defCell", "kick" }
 
 local function SetRowFieldAlpha(fontString, alpha)
   if type(fontString) == "table" and type(fontString.SetAlpha) == "function" then
@@ -893,6 +902,7 @@ local function RenderRosterImpl(state, roster)
     SetReadableText(row.ilvl, "")
     SetReadableText(row.rio, "")
     SetReadableText(row.dps, "")
+    DefensiveCellHideRow(row)
     if row.kick then
       SetReadableText(row.kick, "")
     end
@@ -959,6 +969,12 @@ local function RenderRosterImpl(state, roster)
     end
     setHeaderVisible("dpsHeader", showDpsColumn)
     setHeaderVisible("kickHeader", showDpsColumn)
+  end
+  -- Rule 269: in a running key the defensives cell takes the DPS column.
+  local defensiveCell = RI.RosterDefensiveCell
+  local showDefensives = showDpsColumn and type(defensiveCell) == "table" and defensiveCell.IsActive()
+  if type(defensiveCell) == "table" then
+    defensiveCell.ApplyHeaders(state.uiRef, showDefensives, getL)
   end
 
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
@@ -1066,9 +1082,18 @@ local function RenderRosterImpl(state, roster)
       SetReadableText(row.key, displayData.keyText)
     end
     SetReadableText(row.ilvl, displayData.ilvlText)
-    SetReadableText(row.rio, displayData.rioText)
+    local rioText = displayData.rioText
+    if type(defensiveCell) == "table" then
+      rioText = defensiveCell.ApplyRio(row, rioText, showDefensives)
+    end
+    SetReadableText(row.rio, rioText)
     local showDps = FORCE_SHOW_DPS_COLUMN and not isCollapsed
-    if showDps then
+    if showDefensives then
+      SetReadableText(row.dps, "")
+      row.dps:Hide()
+      defensiveCell.ApplyRow(row, info, mainFrame, index)
+    elseif showDps then
+      DefensiveCellHideRow(row)
       local dpsText = "-"
       if type(getPlayerLastRunDps) == "function" then
         dpsText = FormatCompactTooltipNumber(getPlayerLastRunDps(info.name, info.realm)) or "-"
@@ -1079,6 +1104,7 @@ local function RenderRosterImpl(state, roster)
       SetReadableText(row.dps, dpsText)
       row.dps:Show()
     else
+      DefensiveCellHideRow(row)
       SetReadableText(row.dps, "")
       row.dps:Hide()
     end

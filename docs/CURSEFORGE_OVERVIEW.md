@@ -94,7 +94,7 @@ Every saved loadout and every loot spec can be switched with one click out of co
 Open the right dungeon portal from one compact grid. Cooldowns, ready states, and verified LFG target highlights stay visible at a glance.
 
 🟥 RED ALERTS: deaths and run utility
-Tank and healer deaths during active Mythic+ keys trigger a large on-screen warning and bundled audio; German alerts use one clear voice with consistent loudness. Battle Res, Bloodlust, ready sounds, and death counts stay visible where you need them.
+Tank and healer deaths during active Mythic+ keys trigger a large on-screen warning and bundled audio; German and English alerts use one clear male voice with consistent loudness, and lead transfer, full group, ready check, Battle Res used, Bloodlust, aggro and missed kick can speak a short line instead of an effect (on by default). Battle Res, Bloodlust, ready sounds, and death counts stay visible where you need them.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHAT isiLive GIVES YOU
@@ -102,6 +102,7 @@ WHAT isiLive GIVES YOU
 
 ✅ Better LFG scanning with green class-bonus plus signs.
 ✅ One compact Mythic+ roster with key, item level, Raider.IO, DPS, language, role, and interrupt state.
+✅ Optional, experimental defensives column during keys: shared cooldowns from isiLive users (frozen during the in-key chat block) and an estimate marked "~" for other players.
 ✅ Automatic key, target, stats, DPS, location, and kick sync between isiLive users, routed through verified party or instance chat channels.
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A talent and loot check before the key, remembered per dungeon and spec, with one-click loadout and loot spec switches.

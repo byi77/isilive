@@ -271,6 +271,10 @@ end
 function Contracts.CombatUtilities(ctx)
   return {
     HandleKickTrackerEvent = ctx.HandleKickTrackerEvent,
+    -- Defensive tracker (rule 267): rides on the kick tracker's event stream
+    -- and on the own kick state's fan-out (controller wiring).
+    HandleDefensiveTrackerEvent = ctx.HandleDefensiveTrackerEvent,
+    SendOwnDefensiveState = ctx.SendOwnDefensiveState,
     ShowCombatAnnounce = ctx.ShowCombatAnnounce,
     ShowPowerInfusionAnnounce = ctx.ShowPowerInfusionAnnounce,
     UpdateCdTracker = ctx.UpdateCdTracker,
