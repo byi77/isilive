@@ -3,27 +3,27 @@ addonTable = addonTable or {}
 
 -- Defensives cell of the M+ roster (rule 269, vorhaben V1 stage 2).
 --
--- While a key runs and the defensive tracker is on, a 70 px cell (two slots
--- of 34 px: icon 14 + gap 2 + text 18) takes the place of the DPS column; the
--- RIO column shrinks to 54 px and drops its "(+N)" delta, the kick column
--- stays. Outside a key, with the tracker off, in the compact layouts and in
+-- While a key runs and the defensive tracker is on, a 78 px cell (up to five
+-- 14 px icons, 2 px apart, right-aligned; every number sits on its icon)
+-- takes the place of the DPS column; the RIO column shrinks to 46 px and
+-- drops its "(+N)" delta, the kick column stays. Outside a key, with the tracker off, in the compact layouts and in
 -- the run focus (the cell is a child of the main frame) nothing changes.
 --
 -- Slot states (externals before group cooldowns before personal ones):
 --   ready      bright icon, no text                         (own / sync)
---   cooldown   grey icon, seconds, "Xm" from 100 s on         (own / sync)
+--   cooldown   grey icon, white seconds, "Xm" from 100 s on   (own / sync)
 --   active     cool blue border with an alpha pulse, seconds  (own / sync)
 --   hidden     own cooldown the client masks (every key): the same looks,
 --              the seconds are Blizzard's countdown of the duration object
 --   frozen     isiLive sync while the own addon chat is locked down: dimmed
---              icon and a clock glyph instead of seconds
---   unclear    estimate with several possible casters or unknown talent:
---              "?", no fill
+--              icon and a small clock glyph in its corner
+--   unclear    estimate with several possible casters, unknown talent or no
+--              free sensor: "?", no fill
 --   estimated  members in the key (rule 268; isiLive users once their sync
---              is locked): "~", the
---              remaining estimated cooldown as a dark fill over the icon and,
---              while the buff runs, Blizzard's own aura icon with its
---              duration and the pulsing blue border
+--              is locked): blue-grey seconds on the icon, the remaining
+--              estimated cooldown as a dark fill over it and, while the buff
+--              runs, Blizzard's own aura icon with its duration and the
+--              pulsing blue border
 -- The full list, the source and its age are in the row tooltip.
 --
 -- Demo source (rule 270, tablet action C14): while a demo provider is set the
@@ -39,23 +39,29 @@ RI.RosterDefensiveCell = RosterDefensiveCell
 
 local IsSecretValue = addonTable.Validators.IsSecretValue
 
+-- The numbers sit on the icon (user decision 2026-11-23), so a slot is just
+-- the icon and five fit: the most defensives one spec has in the manifest.
 local ICON_SIZE = 14
-local TEXT_OFFSET = 2
-local TEXT_WIDTH = 18
-local SLOT_WIDTH = ICON_SIZE + TEXT_OFFSET + TEXT_WIDTH -- 34
+local SLOT_WIDTH = ICON_SIZE
 local SLOT_GAP = 2
-local CELL_WIDTH = 2 * SLOT_WIDTH + SLOT_GAP -- 70
+local MAX_SLOTS = 5
+local CELL_WIDTH = MAX_SLOTS * SLOT_WIDTH + (MAX_SLOTS - 1) * SLOT_GAP -- 78
 local ROW_HEIGHT = 16
+-- Outlined small font: readable on top of the icon (Blizzard uses it for the
+-- countdown of small arena cooldown icons).
+local ICON_FONT = "GameFontHighlightSmallOutline"
 local RIO_COL_X = RI.RIO_COL_X or 318
 local RIO_COL_WIDTH = RI.RIO_COL_WIDTH or 84
 local KICK_COL_X = RI.KICK_COL_X or 448
 -- The cell ends 2 px left of the kick column; RIO keeps a 4 px gap to it.
 local CELL_RIGHT = KICK_COL_X - 2
 local CELL_X = CELL_RIGHT - CELL_WIDTH
-local RIO_KEY_WIDTH = CELL_X - 4 - RIO_COL_X -- 54
+local RIO_KEY_WIDTH = CELL_X - 4 - RIO_COL_X -- 46
 
 RosterDefensiveCell.ICON_SIZE = ICON_SIZE
 RosterDefensiveCell.SLOT_WIDTH = SLOT_WIDTH
+RosterDefensiveCell.SLOT_GAP = SLOT_GAP
+RosterDefensiveCell.MAX_SLOTS = MAX_SLOTS
 RosterDefensiveCell.CELL_WIDTH = CELL_WIDTH
 RosterDefensiveCell.CELL_X = CELL_X
 RosterDefensiveCell.RIO_KEY_WIDTH = RIO_KEY_WIDTH
@@ -64,18 +70,18 @@ local MEDIA = "Interface\\AddOns\\isiLive\\media\\"
 local CLOCK_TEXTURE = MEDIA .. "defensive_clock"
 local BORDER_TEXTURE = MEDIA .. "defensive_border"
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
-local ESTIMATE_MARK = "~"
 local AMBIGUOUS_MARK = "?"
--- Number strip: "~" stays, the digits right of it are a clipped column.
-local STRIP_X = 7
-local STRIP_WIDTH = 13
+-- Number strip: a clipped column of numbers on the icon.
+local STRIP_WIDTH = ICON_SIZE
 local STRIP_ROW = ICON_SIZE
 local BYTE_STEPS = 255
 
+-- An estimate carries no "~" any more: its numbers are blue-grey, exact
+-- ones white, and the tooltip names the estimate.
 local COLORS = {
-  cdText = { 0.92, 0.92, 0.92, 1 },
+  cdText = { 0.95, 0.95, 0.95, 1 },
   activeText = { 0.55, 0.82, 1, 1 },
-  estimateText = { 0.78, 0.82, 0.88, 1 },
+  estimateText = { 0.62, 0.7, 0.82, 1 },
   border = { 0.35, 0.7, 1, 1 },
   clock = { 0.62, 0.7, 0.8, 0.9 },
   estimateFill = { 0, 0, 0, 0.65 },
@@ -309,41 +315,54 @@ local function CreateSlot(cell, index)
     slot.pulse = pulse
   end
 
-  slot.text = slot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  slot.text:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + TEXT_OFFSET, -1)
-  slot.text:SetSize(TEXT_WIDTH, ICON_SIZE)
-  slot.text:SetJustifyH("LEFT")
+  -- Everything drawn on the icon lives one level above the estimate fill.
+  local overlay = CreateFrame("Frame", nil, holder)
+  overlay:SetAllPoints(holder)
+  overlay:SetFrameLevel((holder:GetFrameLevel() or 1) + 2)
+  slot.overlay = overlay
+
+  -- Plain digits and "?" only, so the outlined game font needs no locale font.
+  slot.text = overlay:CreateFontString(nil, "OVERLAY", ICON_FONT)
+  slot.text:SetPoint("CENTER", holder, "CENTER", 0, 0)
+  slot.text:SetSize(ICON_SIZE + 4, ICON_SIZE)
+  slot.text:SetJustifyH("CENTER")
   if type(slot.text.SetWordWrap) == "function" then
     slot.text:SetWordWrap(false)
   end
-  local uiCommon = addonTable.UICommon
-  if type(uiCommon) == "table" and type(uiCommon.ApplyLocaleFont) == "function" then
-    uiCommon.ApplyLocaleFont(slot.text)
-  end
 
-  slot.clock = slot:CreateTexture(nil, "OVERLAY")
+  slot.clock = overlay:CreateTexture(nil, "OVERLAY")
   slot.clock:SetTexture(CLOCK_TEXTURE)
-  slot.clock:SetSize(9, 9)
-  slot.clock:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + 3, -3)
+  slot.clock:SetSize(8, 8)
+  slot.clock:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", 2, -2)
   SetColor(slot.clock, "SetVertexColor", COLORS.clock)
   slot.clock:Hide()
   return slot
 end
 
--- "~seconds" of an estimate (variant A). Lua does not know the number: an
+-- Places the shown slots right-aligned like the old DPS numbers.
+local function LayoutSlots(cell, count)
+  local firstX = (MAX_SLOTS - count) * (SLOT_WIDTH + SLOT_GAP)
+  for index, slot in ipairs(cell.slots) do
+    slot:ClearAllPoints()
+    slot:SetPoint("TOPLEFT", cell, "TOPLEFT", firstX + (index - 1) * (SLOT_WIDTH + SLOT_GAP), 0)
+  end
+end
+
+-- Seconds of an estimate, on the icon. Lua does not know the number: an
 -- invisible StatusBar from -1/255 to 1 fills (code + 1) rows for the (maybe
 -- secret) byte, a column of prepared numbers hangs on the top edge of that
--- fill, and a clip frame lets one row show. Only the plain "now" moves the
--- bar. A run out estimate has no row in the window, so only "~" is left.
+-- fill, and a clip frame of the icon's size lets one row show. Only the
+-- plain "now" moves the bar. A run out estimate has no row in the window, so
+-- the icon stays bare.
 local function CreateStrip(slot)
-  local clip = CreateFrame("Frame", nil, slot)
+  local clip = CreateFrame("Frame", nil, slot.overlay)
   if type(clip.SetClipsChildren) ~= "function" then
     clip:Hide()
     return nil
   end
   clip:SetClipsChildren(true)
   clip:SetSize(STRIP_WIDTH, STRIP_ROW)
-  clip:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + TEXT_OFFSET + STRIP_X, -1)
+  clip:SetPoint("TOPLEFT", slot.iconHolder, "TOPLEFT", 0, 0)
 
   local bar = CreateFrame("StatusBar", nil, clip)
   bar:SetSize(STRIP_WIDTH, (BYTE_STEPS + 1) * STRIP_ROW)
@@ -374,10 +393,10 @@ local function CreateStrip(slot)
     for left = 1, math.max(steps, #self.labels) do
       local label = self.labels[left]
       if not label then
-        label = column:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label = column:CreateFontString(nil, "OVERLAY", ICON_FONT)
         label:SetSize(STRIP_WIDTH, STRIP_ROW)
         label:SetPoint("TOPLEFT", column, "TOPLEFT", 0, -left * STRIP_ROW)
-        label:SetJustifyH("LEFT")
+        label:SetJustifyH("CENTER")
         if type(label.SetWordWrap) == "function" then
           label:SetWordWrap(false)
         end
@@ -418,16 +437,15 @@ local function EnsureCountdown(slot)
   if slot.countdown then
     return slot.countdown
   end
-  local countdown = CreateFrame("Cooldown", nil, slot, "CooldownFrameTemplate")
-  countdown:SetSize(TEXT_WIDTH, ICON_SIZE)
-  countdown:SetPoint("TOPLEFT", slot, "TOPLEFT", ICON_SIZE + TEXT_OFFSET, -1)
+  local countdown = CreateFrame("Cooldown", nil, slot.overlay, "CooldownFrameTemplate")
+  countdown:SetAllPoints(slot.iconHolder)
   local setup = {
     { "EnableMouse", false },
     { "SetDrawSwipe", false },
     { "SetDrawEdge", false },
     { "SetDrawBling", false },
     { "SetHideCountdownNumbers", false },
-    { "SetCountdownFont", "GameFontHighlightSmall" },
+    { "SetCountdownFont", ICON_FONT },
   }
   for _, step in ipairs(setup) do
     if type(countdown[step[1]]) == "function" then
@@ -474,7 +492,10 @@ local function EnsureCell(row, mainFrame)
   if type(cell.EnableMouse) == "function" then
     cell:EnableMouse(false)
   end
-  cell.slots = { CreateSlot(cell, 1), CreateSlot(cell, 2) }
+  cell.slots = {}
+  for index = 1, MAX_SLOTS do
+    cell.slots[index] = CreateSlot(cell, index)
+  end
   cell:Hide()
   row.defCell = cell
   return cell
@@ -548,7 +569,7 @@ local function ApplyEstimateSlot(slot, entry, playerKey)
   local sensors = Sensors()
   slot.state = "estimate"
   SetColor(slot.text, "SetTextColor", COLORS.estimateText)
-  if entry.ambiguous or entry.unverified then
+  if entry.ambiguous or entry.unverified or entry.untracked then
     if slot.strip then
       slot.strip:Clear()
     end
@@ -561,7 +582,6 @@ local function ApplyEstimateSlot(slot, entry, playerKey)
     end
     return
   end
-  slot.text:SetText(ESTIMATE_MARK)
   if sensors then
     slot.estimateBar:Show()
     sensors.BindBar(slot.estimateBar, playerKey, entry.slotIndex, EnsureStrip(slot))
@@ -569,8 +589,9 @@ local function ApplyEstimateSlot(slot, entry, playerKey)
   end
 end
 
--- Demo estimate: "~" and a plain Lua share (0..1) in the fill bar; no sensor
--- is bound, so nothing secret is involved.
+-- Demo estimate: a plain Lua share (0..1) in the fill bar and the plain
+-- remaining seconds in the estimate color; no sensor is bound, so nothing
+-- secret is involved.
 local function ApplyDemoEstimateSlot(slot, entry)
   local sensors = Sensors()
   if sensors then
@@ -581,7 +602,8 @@ local function ApplyDemoEstimateSlot(slot, entry)
     slot.strip:Clear()
   end
   slot.state = "estimate"
-  slot.text:SetText(ESTIMATE_MARK)
+  local remain = tonumber(entry.remain) or 0
+  slot.text:SetText(remain > 0 and RosterDefensiveCell.FormatShort(remain) or "")
   SetColor(slot.text, "SetTextColor", COLORS.estimateText)
   slot.estimateBar:SetMinMaxValues(0, 1)
   slot.estimateBar:SetValue(math.max(0, math.min(1, tonumber(entry.share) or 0)))
@@ -590,7 +612,8 @@ end
 
 local function ApplySlots(cell, resolved, playerKey)
   local entries = resolved.entries
-  for slotIndex = 1, 2 do
+  local shown = math.min(#entries, MAX_SLOTS)
+  for slotIndex = 1, MAX_SLOTS do
     local slot = cell.slots[slotIndex]
     local entry = entries[slotIndex]
     local nextState = nil
@@ -614,10 +637,7 @@ local function ApplySlots(cell, resolved, playerKey)
       slot:Hide()
     end
   end
-  -- One-icon cells align right like the old DPS numbers.
-  cell.slots[1]:ClearAllPoints()
-  local firstX = entries[2] and 0 or (SLOT_WIDTH + SLOT_GAP)
-  cell.slots[1]:SetPoint("TOPLEFT", cell, "TOPLEFT", firstX, 0)
+  LayoutSlots(cell, shown)
 end
 
 --- Hides the cell of a row (no key, tracker off, cleared row).
@@ -783,13 +803,13 @@ local function AddEstimateLines(tooltip, getL, playerKey, info)
         Text(getL, "DEF_STATE_AMBIGUOUS", "? several possible casters"),
         STATE_COLORS.frozen
       )
-    elseif entry then
+    elseif entry and not entry.untracked then
       AddEntryLine(
         tooltip,
         getL,
         candidate.spellID,
         candidate.kind,
-        Text(getL, "DEF_STATE_ESTIMATED", "~ estimated, see the icon"),
+        Text(getL, "DEF_STATE_ESTIMATED", "estimated, see the icon"),
         STATE_COLORS.estimate
       )
     else
@@ -814,7 +834,7 @@ local function AddDemoEstimateLines(tooltip, getL, resolved)
       getL,
       entry.spellID,
       entry.kind,
-      Text(getL, "DEF_STATE_ESTIMATED", "~ estimated, see the icon"),
+      Text(getL, "DEF_STATE_ESTIMATED", "estimated, see the icon"),
       STATE_COLORS.estimate
     )
   end
@@ -832,7 +852,7 @@ end
 
 --- Defensives block of the roster row tooltip (rule 269): every defensive of
 -- the player with icon, client-localized name, kind and state, then the
--- source (own client, isiLive sync with its age, estimated "~").
+-- source (own client, isiLive sync with its age, estimated).
 function RosterDefensiveCell.AppendTooltip(tooltip, info, getL, unit)
   if type(tooltip) ~= "table" or type(tooltip.AddLine) ~= "function" or type(info) ~= "table" then
     return false
@@ -852,10 +872,10 @@ function RosterDefensiveCell.AppendTooltip(tooltip, info, getL, unit)
   local source
   if resolved.mode == "estimate" and resolved.demo then
     AddDemoEstimateLines(tooltip, getL, resolved)
-    source = Text(getL, "DEF_SOURCE_ESTIMATED", "Source: estimated (~)")
+    source = Text(getL, "DEF_SOURCE_ESTIMATED", "Source: estimated, cooldown shown as a fill")
   elseif resolved.mode == "estimate" then
     AddEstimateLines(tooltip, getL, playerKey, { class = info.class, unit = unit })
-    source = Text(getL, "DEF_SOURCE_ESTIMATED", "Source: estimated (~)")
+    source = Text(getL, "DEF_SOURCE_ESTIMATED", "Source: estimated, cooldown shown as a fill")
   else
     for _, entry in ipairs(resolved.entries) do
       local status = ExactStatus(getL, entry)

@@ -343,7 +343,7 @@ local function RegisterCellTests(test, ctx)
       local slot = FindSlot(session, PAIN_SUPPRESSION)
       Assert.NotNil(slot, "the own external fills a slot of the own row")
       Assert.Equal(slot.text._text, "", "ready: no text")
-      Assert.True(CountWidth(session, 54) >= 2, "RIO header and rows shrink to 54 px in the key")
+      Assert.True(CountWidth(session, 46) >= 2, "RIO header and rows shrink to 46 px in the key")
       Assert.Equal(CountWidth(session, 84), 0, "no 84 px RIO cell in the key")
       -- COMPONENT-ONLY: the "(+N)" strip is a pure text step of the render.
       local cell = session.addon.RosterDefensiveCell
@@ -368,7 +368,7 @@ local function RegisterCellTests(test, ctx)
       headers = HeaderTexts(session)
       Assert.True((headers.DPS or 0) >= 1, "after the key the DPS header is back")
       Assert.Equal(#VisibleCells(session), 0, "no defensives cell outside the key")
-      Assert.Equal(CountWidth(session, 54), 0, "RIO is back to its full width")
+      Assert.Equal(CountWidth(session, 46), 0, "RIO is back to its full width")
     end, Prepare({ design = design }))
   end
 
@@ -378,6 +378,52 @@ local function RegisterCellTests(test, ctx)
 
   test("Defensives cell replaces the DPS column only in a running key (Classic)", function()
     RunCellPhase("classic")
+  end)
+
+  -- x offset of a slot inside its cell (last SetPoint: TOPLEFT, cell, TOPLEFT, x, y).
+  local function SlotX(slot)
+    local point = slot._points[#slot._points]
+    return point and point[4]
+  end
+
+  test("Defensives cell shows up to five icons right-aligned with the numbers on the icons", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      Receive(session, "DEF:498,0,20;642,1,0;1022,1,0;6940,0,40;31821,0,100", "Peer2-Realm")
+      session.Advance(1)
+      Render(session)
+      local slot, cell = FindSlot(session, 6940)
+      cell = Assert.NotNil(cell, "the synced paladin has a cell")
+      local layout = session.addon.RosterDefensiveCell
+      Assert.Equal(layout.MAX_SLOTS, 5, "five slots")
+      Assert.Equal(layout.CELL_WIDTH, 78, "five 14 px icons, 2 px apart")
+      Assert.Equal(layout.RIO_KEY_WIDTH, 46, "RIO gives up the 8 px")
+      Assert.Equal(cell._size[1], 78, "the cell is 78 px wide")
+      local shown = 0
+      for index, each in ipairs(cell.slots) do
+        if each._shown then
+          shown = shown + 1
+          Assert.Equal(SlotX(each), (index - 1) * 16, "slot " .. index .. " sits at its stride")
+          Assert.Equal(each._size[1], 14, "a slot is just its icon")
+        end
+      end
+      Assert.Equal(shown, 5, "all five synced spells are on screen")
+      Assert.Equal(slot.text._text, "39", "the seconds sit on the icon")
+      Assert.Equal(slot.text._points[1][1], "CENTER", "centered on the icon")
+      Assert.Equal(slot.text._points[1][2], slot.iconHolder, "anchored to the icon")
+
+      local mage = select(2, FindSlot(session, ICE_BLOCK))
+      if mage then
+        local visible = {}
+        for _, each in ipairs(mage.slots) do
+          if each._shown then
+            visible[#visible + 1] = each
+          end
+        end
+        Assert.Equal(#visible, 1, "the mage has one defensive")
+        Assert.Equal(SlotX(visible[1]), 64, "a single icon aligns right")
+      end
+    end, Prepare({}))
   end)
 
   test("Defensives cell stays away with the tracker off", function()
@@ -460,10 +506,11 @@ local function RegisterSensorTests(test, ctx)
       session.Advance(2)
       Render(session)
       Assert.Equal(session.createdInCombat, 0, "nothing was built in combat")
-      -- party1 Prot: Rallying Cry + Shield Wall; party2 Paladin (no spec):
-      -- Sacrifice + Protection; party3 Mage: Ice Block; party4 Resto: Ironbark
-      -- + Barkskin.
-      Assert.Equal(#EnabledSensors(session), 23, "externals and group cooldowns on five targets, personal on one")
+      -- party1 Prot: Rallying Cry + Shield Wall + Last Stand (5 + 1 + 1);
+      -- party2 Paladin (no spec): Sacrifice + Protection + Divine Shield
+      -- (5 + 5 + 1); party3 Mage: Ice Block (1); party4 Resto: Ironbark +
+      -- Barkskin (5 + 1).
+      Assert.Equal(#EnabledSensors(session), 25, "externals and group cooldowns on five targets, personal on one")
       Assert.NotNil(SensorFor(session, "player", BLESSING_OF_SACRIFICE), "an external is watched on the player too")
       Assert.Nil(SensorFor(session, "party1", ICE_BLOCK), "a personal one only on its caster")
       Assert.NotNil(SensorFor(session, "party1", RALLYING_CRY_AURA), "group cooldown first for the warrior")
@@ -473,10 +520,10 @@ local function RegisterSensorTests(test, ctx)
       Assert.Nil(SensorFor(session, "party2", 31821), "no spec-bound spell without an inspected spec")
       local sensors = session.addon.DefensiveSensors
       Assert.True(sensors.GetContainerCount() <= sensors.LIMITS.maxContainers, "budget")
-      Assert.True(sensors.GetContainerCount() < 60, "below the V1 frame budget")
+      Assert.Equal(sensors.LIMITS.slotsPerUnit, 5, "five spells per member, as many as the cell shows")
       Assert.Equal(#VisibleCells(session), 5, "every row has a cell: own, four estimated")
       local slot = FindSlot(session, ICE_BLOCK)
-      Assert.Equal(slot.text._text, "~", "estimated slots carry the ~ mark")
+      Assert.Equal(slot.text._text, "", "an estimate without a cast shows no number and no ~ mark")
       Assert.Equal(slot.state, "estimate", "estimate state")
       local paladinHover
       for _, child in ipairs(session.runtime.mainFrame._children) do
@@ -486,9 +533,9 @@ local function RegisterSensorTests(test, ctx)
       end
       paladinHover._scripts.OnEnter(paladinHover)
       local joined = table.concat(RosterTooltipLines(session), "\n")
-      Assert.True(joined:find("Spell6940 |cff8a96a8(external)|r: ~ estimated, see the icon", 1, true) ~= nil, "est.")
-      Assert.True(joined:find("Spell642 |cff8a96a8(personal)|r: not tracked", 1, true) ~= nil, "unseen")
-      Assert.True(joined:find("Source: estimated (~)", 1, true) ~= nil, "estimated source")
+      Assert.True(joined:find("Spell6940 |cff8a96a8(external)|r: estimated, see the icon", 1, true) ~= nil, "est.")
+      Assert.True(joined:find("Spell642 |cff8a96a8(personal)|r: estimated, see the icon", 1, true) ~= nil, "third slot")
+      Assert.True(joined:find("Source: estimated, cooldown shown as a fill", 1, true) ~= nil, "estimated source")
       Assert.Nil(joined:find("Spell31821", 1, true), "no spec-bound spell without a spec")
 
       -- party4 turns out to run isiLive: the synced list names the spells,
@@ -646,6 +693,35 @@ local function RegisterAttributionTests(test, ctx)
     end, Prepare({}))
   end)
 
+  test("Defensive estimate keeps running when the container budget runs out", function()
+    Stress.WithKey(ctx, Fixture, function(session)
+      StubTalents(session)
+      local sensors = session.addon.DefensiveSensors
+      local budget = sensors.LIMITS.maxContainers
+      sensors.LIMITS.maxContainers = 12
+      session.Advance(2)
+      Render(session)
+      local unclear, estimated = 0, 0
+      for _, cell in ipairs(VisibleCells(session)) do
+        for _, slot in ipairs(cell.slots) do
+          if slot._shown and slot.state == "estimate" then
+            if slot.text._text == "?" then
+              unclear = unclear + 1
+            else
+              estimated = estimated + 1
+            end
+          end
+        end
+      end
+      sensors.LIMITS.maxContainers = budget
+      Assert.True(unclear > 0, "a slot without a free container reads ?")
+      Assert.True(estimated > 0, "the other slots keep their estimate")
+      Assert.True(sensors.GetContainerCount() <= 12, "the budget holds")
+      Assert.Nil(sensors.GetHealth().failure, "a full budget is no setup failure")
+      Assert.True(sensors.IsSupported(), "the estimate stays switched on")
+    end, Prepare({}))
+  end)
+
   test("Defensive estimate shows a question mark for a talent it cannot read", function()
     Stress.WithKey(ctx, Fixture, function(session)
       StubTalents(session)
@@ -654,7 +730,7 @@ local function RegisterAttributionTests(test, ctx)
       local slot = FindSlot(session, IRONBARK)
       Assert.Equal(slot.text._text, "?", "unknown talent: no estimate, never ready")
       Assert.Nil(SensorFor(session, "party4", IRONBARK), "and no sensor")
-      Assert.Equal(FindSlot(session, 22812).text._text, "~", "a baseline spell needs no talent")
+      Assert.Equal(FindSlot(session, 22812).state, "estimate", "a baseline spell needs no talent")
     end, Prepare({ talents = "unknown" }))
   end)
 

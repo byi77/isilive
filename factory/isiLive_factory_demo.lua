@@ -636,12 +636,19 @@ local DEMO_DEFENSIVES_TICK_SECONDS = 1
 local DEMO_PARTY_UNITS = { "party1", "party2", "party3", "party4" }
 -- Slot: state, remain (seconds at the start of a loop), cycle (seconds per
 -- loop; none = no countdown; remain <= 0 reads as ready) or share (estimate
--- fill at the start of a loop). `single` replaces the slots of a member with
--- just one defensive.
+-- fill at the start of a loop; the seconds are share x cycle). Five slots
+-- each, as many as the cell shows; a member uses as many as its spec has.
+-- `single` replaces the slots of a member with just one defensive.
 local DEMO_DEFENSIVE_SCENARIOS = {
   own = {
     mode = "own",
-    slots = { { state = "ready" }, { state = "cd", remain = 45, cycle = 60 } },
+    slots = {
+      { state = "ready" },
+      { state = "cd", remain = 45, cycle = 60 },
+      { state = "cd", remain = 20, cycle = 30 },
+      { state = "ready" },
+      { state = "cd", remain = 150, cycle = 90 },
+    },
     -- One icon has to show both exact states: 12 s cooldown, then 8 s ready.
     single = { { state = "cd", remain = 12, cycle = 20 } },
   },
@@ -649,17 +656,35 @@ local DEMO_DEFENSIVE_SCENARIOS = {
     mode = "sync",
     age = 15,
     -- The minute cooldown restarts above 100 s, so "Xm" is always on screen.
-    slots = { { state = "active", remain = 12, cycle = 12 }, { state = "cd", remain = 170, cycle = 60 } },
+    slots = {
+      { state = "active", remain = 12, cycle = 12 },
+      { state = "cd", remain = 170, cycle = 60 },
+      { state = "ready" },
+      { state = "cd", remain = 35, cycle = 40 },
+      { state = "ready" },
+    },
   },
   estimate = {
     mode = "estimate",
-    slots = { { share = 0.85, cycle = 90 }, { share = 0.4, cycle = 60 } },
+    slots = {
+      { share = 0.85, cycle = 90 },
+      { share = 0.4, cycle = 60 },
+      { share = 0.6, cycle = 120 },
+      { share = 0.3, cycle = 45 },
+      { share = 0.5, cycle = 80 },
+    },
   },
   frozen = {
     mode = "sync",
     frozen = true,
     frozenAge = 20,
-    slots = { { state = "cd", remain = 75 }, { state = "ready" } },
+    slots = {
+      { state = "cd", remain = 75 },
+      { state = "ready" },
+      { state = "cd", remain = 30 },
+      { state = "ready" },
+      { state = "ready" },
+    },
   },
 }
 
@@ -677,10 +702,12 @@ end
 
 -- Manifest defensives of a class (and spec, when the member carries one),
 -- externals before group cooldowns before personal ones, then list order.
-local function DemoCandidateSpells(manifest, classToken, specID)
+-- `allSpecs` takes every spec of the class: the dummy specs carry at most
+-- three defensives, so only this way the preview shows a full cell of five.
+local function DemoCandidateSpells(manifest, classToken, specID, allSpecs)
   local out = {}
   for index, record in ipairs(manifest.list) do
-    local specMatch = record.specs == nil
+    local specMatch = record.specs == nil or allSpecs == true
     for _, id in ipairs(record.specs or {}) do
       specMatch = specMatch or id == specID
     end
@@ -701,7 +728,8 @@ end
 local function DemoDefensiveEntry(candidate, slot, elapsed)
   if slot.share ~= nil then
     local t = elapsed % slot.cycle
-    return { spellID = candidate.spellID, kind = candidate.kind, share = math.max(0, slot.share - t / slot.cycle) }
+    local share = math.max(0, slot.share - t / slot.cycle)
+    return { spellID = candidate.spellID, kind = candidate.kind, share = share, remain = share * slot.cycle }
   end
   local remain = slot.remain or 0
   if slot.cycle then
@@ -775,14 +803,15 @@ local function BuildDemoDefensiveAssignments(ctx, startedAt)
     return assignments
   end
 
-  local function Member(info, specID)
+  -- The player keeps its real spec; the dummies show their whole class.
+  local function Member(info, specID, allSpecs)
     if type(info) ~= "table" or info.isGhost == true or type(info.name) ~= "string" or info.name == "" then
       return nil
     end
     return {
       key = sync.NormalizePlayerKey(info.name, info.realm),
       hasIsiLive = info.hasIsiLive == true,
-      spells = DemoCandidateSpells(manifest, info.class, specID or info.specID),
+      spells = DemoCandidateSpells(manifest, info.class, specID or info.specID, allSpecs),
     }
   end
   local function Assign(member, scenario)
@@ -795,7 +824,7 @@ local function BuildDemoDefensiveAssignments(ctx, startedAt)
   local others = {}
   local syncMember, estimateMember
   for _, unit in ipairs(DEMO_PARTY_UNITS) do
-    local member = Member(roster[unit])
+    local member = Member(roster[unit], nil, true)
     if member then
       others[#others + 1] = member
       if not member.hasIsiLive then

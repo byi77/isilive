@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 - Version 0.9.555 (patch)
+
+- Change (defensives column, rules 268-270): the numbers sit on the icons, so a cell shows up to five defensives per player (as many as one spec has); the cell is 78 px wide, RIO 46 px in the key. Estimates lose the "~": their seconds are blue-grey, exact ones white, and the tooltip says "estimated". The container budget rises from 56 to 100 (Blizzard sets no limit); a spell without a free container now shows "?" instead of switching the whole estimate off. Demo C14 shows the dummies with every defensive of their class, so a full cell of five is visible.
+
 ## 2026-11-23 - Version 0.9.554 (patch)
 
 - Fix: the What's new card no longer replaces another notice on the card (for example the season break hint or an invite) and does not appear during the demo or a key; it waits for a free moment and stays pending otherwise (rule 256).

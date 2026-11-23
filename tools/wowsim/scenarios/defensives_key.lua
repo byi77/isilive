@@ -2,7 +2,8 @@
 -- Outside the key the DPS column stays; while the key runs the Def cell takes
 -- its place: own cooldown (exact), isiLive peers through the real DEF sync
 -- (ready / cooldown, then frozen with the clock in the own chat lockdown) and
--- the estimate for members without isiLive ("~", remaining fill, and the
+-- the estimate for members without isiLive (blue-grey seconds on the icon,
+-- remaining fill, and the
 -- running buff shown by the container with its duration and blue border).
 --
 -- The client's AuraContainer (CustomAuraContainerTemplate) cannot run here:
@@ -213,7 +214,7 @@ local function SlotOf(sim, spellID)
   return nil
 end
 
--- The cell sits between RIO (54 px in the key) and the kick column.
+-- The cell sits between RIO (46 px in the key) and the kick column.
 local function Measure(sim, label)
   local frame = sim.Env().isiLiveMainFrame
   local left = frame:GetLeft()
@@ -255,7 +256,7 @@ end
 
 return {
   name = "defensives_key",
-  description = "Defensives column replaces DPS in a running key: own, isiLive sync, frozen, estimate (~)",
+  description = "Defensives column replaces DPS in a running key: own, isiLive sync, frozen, estimate",
   timeLimits = { [MAP_ID] = 33 * 60 },
   setup = {
     locale = "deDE",
@@ -357,7 +358,13 @@ return {
       ironbark ~= nil and ironbark.state == "cd" and (ironbark.text:GetText() or ""):find("^%d+$") ~= nil,
       "synced Ironbark cooldown in exact seconds: " .. tostring(ironbark and ironbark.text:GetText())
     )
-    sim.ExpectText("^~$", "estimated slots carry the ~ mark")
+    local marked = false
+    for _, cell in ipairs(Cells(sim)) do
+      for _, slot in ipairs(cell.slots) do
+        marked = marked or (slot:IsVisible() and slot.text:GetText() == "~")
+      end
+    end
+    sim.Expect(not marked, "no ~ mark any more: estimates are blue-grey numbers on the icon")
     sim.Expect(SlotOf(sim, ICE_BLOCK) ~= nil, "own Ice Block slot")
     sim.Expect(SlotOf(sim, SACRIFICE) ~= nil, "synced paladin external first")
     Measure(sim, "step2")
@@ -377,7 +384,7 @@ return {
     AURA_UP[tostring(dkUnit) .. ":" .. AMZ_AURA] = sim.Now() + 6
     sim.Wait(30)
     SyncAuraFrames(sim)
-    sim.Step("4 Geschaetzt: Abklingzeit als Fuellung ab Buff-Start (~)")
+    sim.Step("4 Geschaetzt: Abklingzeit als Fuellung ab Buff-Start")
     local bar = wall and wall.estimateBar
     if bar then
       local minValue, maxValue = bar:GetMinMaxValues()
@@ -389,7 +396,7 @@ return {
     sim.Wait(0.2)
     sim.Step("5 Zeilen-Tooltip Nicht-isiLive-Nutzer (geschaetzt)")
     sim.ExpectText("geschätzt, siehe Symbol", "estimated entries point at the icon")
-    sim.ExpectText("nicht verfolgt", "untracked defensives")
+    sim.Expect(SlotOf(sim, 12975) ~= nil, "the tank's third defensive (Last Stand) has its own icon")
     HideTooltip(tip)
     tip = ShowTooltip(sim, UnitOf(env, NAMES[3]))
     sim.Wait(0.2)
@@ -400,7 +407,7 @@ return {
     lockdown = true
     sim.Wait(3)
     SyncAuraFrames(sim)
-    sim.Step("7 Eigene Chat-Sperre: Schaetzung ab dem geteilten Stand (~)")
+    sim.Step("7 Eigene Chat-Sperre: Schaetzung ab dem geteilten Stand")
     local locked = SlotOf(sim, IRONBARK)
     sim.Expect(locked ~= nil and locked.state == "estimate", "Ironbark estimated in the lockdown")
     if locked then

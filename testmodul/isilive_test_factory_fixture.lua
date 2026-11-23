@@ -221,7 +221,9 @@ local function BuildFrameStub()
     function fs:GetFont()
       return self._font[1], self._font[2], self._font[3]
     end
-    function fs:SetTextColor(_r, _g, _b, _a) end
+    function fs:SetTextColor(r, g, b, a)
+      self._textColor = { r, g, b, a }
+    end
     function fs:SetJustifyH(_j) end
     function fs:SetJustifyV(_j) end
     self._fontStrings[#self._fontStrings + 1] = fs

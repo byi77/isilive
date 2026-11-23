@@ -20,7 +20,7 @@ local OPTIONS = {
     label = "M+: Defensives column",
     descKey = "SETTINGS_DEFENSIVE_TRACKER_DESC",
     desc = "Shows the group's defensives and externals in the key instead of DPS, shares yours with "
-      .. "isiLive users and estimates the others (~).",
+      .. "isiLive users and estimates the others.",
   },
 }
 SettingsDefensives.OPTIONS = OPTIONS

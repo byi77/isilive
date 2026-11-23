@@ -257,7 +257,7 @@ local function RegisterDisplayTests(test, ctx)
       ClickAction(session, "C14")
       Assert.True(HasHeader(session, "Def"), "the DPS header reads Def")
       Assert.False(HasHeader(session, "DPS"), "no DPS header")
-      Assert.True(CountWidth(session, 54) >= 2, "RIO shrinks to 54 px like in a key")
+      Assert.True(CountWidth(session, 46) >= 2, "RIO shrinks to 46 px like in a key")
       Assert.False(session.addon.RuntimeMode.IsActiveChallenge(), "no key state is faked")
 
       local seen = ReadSlots(session)
@@ -272,8 +272,21 @@ local function RegisterDisplayTests(test, ctx)
       Assert.True(frozen.clock._shown == true, "frozen: clock glyph")
       Assert.Equal(frozen.text._text, "", "frozen: no seconds")
       local estimate = Assert.NotNil(seen.estimate, "estimated slot")
-      Assert.Equal(estimate.text._text, "~", "estimate: ~ mark")
+      Assert.True(tostring(estimate.text._text):match("^%d+m?$") ~= nil, "estimate: seconds on the icon, no ~ mark")
+      local color = estimate.text._textColor or {}
+      Assert.True(color[3] ~= nil and color[3] > color[1], "estimate: blue-grey, not the white of an exact number")
       Assert.True(estimate.estimateBar._shown == true, "estimate: fill bar")
+      local fullest = 0
+      for _, child in ipairs(session.runtime.mainFrame._children or {}) do
+        if type(child.slots) == "table" and child._shown then
+          local count = 0
+          for _, slot in ipairs(child.slots) do
+            count = count + (slot._shown and 1 or 0)
+          end
+          fullest = math.max(fullest, count)
+        end
+      end
+      Assert.Equal(fullest, 5, "one demo row fills all five slots")
 
       for _, slot in ipairs(seen.slots) do
         Assert.NotNil(session.addon.DefensiveManifest.spells[slot.spellID], "demo spells come from the manifest")
@@ -326,8 +339,8 @@ local function RegisterDisplayTests(test, ctx)
       Assert.True(sync:find("Source: isiLive sync, 0:04 ago", 1, true) ~= nil, "sync row: source with age")
       Assert.True(sync:find("active, 0:08 left", 1, true) ~= nil, "sync row: running buff")
       local estimate = TooltipFor(session, "party2")
-      Assert.True(estimate:find("~ estimated, see the icon", 1, true) ~= nil, "estimated row: entries")
-      Assert.True(estimate:find("Source: estimated (~)", 1, true) ~= nil, "estimated row: source")
+      Assert.True(estimate:find("estimated, see the icon", 1, true) ~= nil, "estimated row: entries")
+      Assert.True(estimate:find("Source: estimated, cooldown shown as a fill", 1, true) ~= nil, "estimated row: source")
       local frozen = TooltipFor(session, "party3")
       Assert.True(frozen:find("0:24 ago (locked during the key)", 1, true) ~= nil, "frozen row: age and note")
     end, Prepare())
@@ -417,21 +430,21 @@ local function RegisterIsolationTests(test, ctx)
 
   test("Defensives demo leaves the real store and sync state untouched", function()
     Stress.WithKey(ctx, FixtureWithTablet, function(session)
-      session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", "DEF:102342,0,90", "PARTY", "Peer4-Realm")
+      session.Dispatch("CHAT_MSG_ADDON", "ISILIVE", "DEF:104773,0,90", "PARTY", "Peer4-Realm")
       local key = session.addon.Sync.NormalizePlayerKey("Peer4", "Realm")
       local store = session.addon.DefensiveStore
       Assert.Equal(store.GetForPlayer(key, session.now).source, "sync", "setup: real sync state")
       StartDefensivesDemo(session)
       for _, slot in ipairs(ReadSlots(session).slots) do
-        Assert.True(slot.spellID ~= 102342, "the demo rows show demo data only")
+        Assert.True(slot.spellID ~= 104773, "the demo rows show demo data only")
       end
       local view = store.GetForPlayer(key, session.now)
       Assert.Equal(view.source, "sync", "the real record survives the demo")
-      Assert.Equal(view.entries[1].spellID, 102342, "the real record is unchanged")
+      Assert.Equal(view.entries[1].spellID, 104773, "the real record is unchanged")
       Assert.Equal(#view.entries, 1, "nothing was added to the record")
       ClickAction(session, "C14")
       Assert.False(session.addon.RosterDefensiveCell.IsDemoActive(), "switching off drops the demo source")
-      Assert.Equal(store.GetForPlayer(key, session.now).entries[1].spellID, 102342, "still the real record")
+      Assert.Equal(store.GetForPlayer(key, session.now).entries[1].spellID, 104773, "still the real record")
     end, Prepare({ settings = true, grouped = true }))
   end)
 end
@@ -444,7 +457,7 @@ local function RegisterLifecycleTests(test, ctx)
     Assert.Nil(session.runtime._demoDefensivesTicker, how .. ": ticker stopped")
     Assert.Equal(#VisibleCells(session), 0, how .. ": no defensives cell")
     Assert.True(HasHeader(session, "DPS"), how .. ": DPS column back")
-    Assert.Equal(CountWidth(session, 54), 0, how .. ": RIO back to full width")
+    Assert.Equal(CountWidth(session, 46), 0, how .. ": RIO back to full width")
   end
 
   local endings = {

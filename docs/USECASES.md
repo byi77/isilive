@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.554`
+Versionsbasis: `0.9.555`
 Zuletzt aktualisiert: `2026-11-23`
 
 Audit-Zwischenstand (2026-10-30, unveroeffentlicht): Deterministische Regressionen pruefen abgelehnte Same-Realm-Aliase, mehrdeutige und unresolved Owner-Hinweise, Party-Wechsel im laufenden Key mit Datenerhalt sowie veraltete Sync-Snapshots nach Updates und Clears. Die Folgefindings aus Audit und Nachaudit sind als deterministische Regressionen abgedeckt und behoben; das Nachaudit brach vor der Pruefung von Events/Tracker, Factory/Core, UI und Locale ab. Reproduktionen verwenden simulierte Blizzard-APIs; ein Ingame-Nachweis liegt nicht vor.
@@ -650,8 +650,8 @@ Stand 2026-11-22: korrigiert nach Konzept (drei Stufen), nur offline geprueft, i
 
 1. Trigger: Keystart mit `defensiveTrackerEnabled`; Factory-Takt 1 s, eigene Casts, `DEF`-Sync der isiLive-Nutzer bis zur Chat-Sperre (ab Keystart), Sensor-Takt 0,5 s, `INSPECT_READY` fuer Talente, Keyende.
 2. Verarbeitung: eigener Zustand aus den `NeverSecret`-Feldern mit Blizzards Countdown, Sync-Stand bis zum Keystart als Startwert, danach unsichtbare Aura-Container je Slot-Spell (Externals auf allen fuenf Zielen, nur bei genau einem moeglichen Zaubernden), deren secret Antwort ueber `C_CurveUtil.EvaluateColorValueFromBoolean` als Byte in Fuellung und Zahlenstreifen laeuft.
-3. Output: 70-px-Zelle statt DPS (RIO 54 px ohne "(+N)", Kick unveraendert): bereit hell, CD grau mit Sekunden ("Xm" ab 100 s), aktiv blauer Rahmen mit Alpha-Puls, geschaetzt "~" mit Sekunden und Fuellung, unklar "?", ohne Sensor-Client eingefroren gedimmt mit Uhr; Zeilen-Tooltip mit allen Defensives, Quelle und Alter.
-4. Erfolgskriterium: Ausserhalb des Keys, im Raid, im Run-Fokus und mit ausgeschaltetem Schalter bleibt die bisherige DPS-Darstellung; kein Sensorwert erreicht Lua-Logik; Container entstehen nur ausserhalb des Kampfs und unter dem Budget von 56.
+3. Output: 78-px-Zelle statt DPS mit bis zu fuenf Symbolen, Zahlen auf dem Symbol (RIO 46 px ohne "(+N)", Kick unveraendert): bereit hell, CD grau mit weissen Sekunden ("Xm" ab 100 s), aktiv blauer Rahmen mit Alpha-Puls, geschaetzt graublaue Sekunden und Fuellung, unklar "?", ohne Sensor-Client eingefroren gedimmt mit Uhr; Zeilen-Tooltip mit allen Defensives, Quelle und Alter.
+4. Erfolgskriterium: Ausserhalb des Keys, im Raid, im Run-Fokus und mit ausgeschaltetem Schalter bleibt die bisherige DPS-Darstellung; kein Sensorwert erreicht Lua-Logik; Container entstehen nur ausserhalb des Kampfs und unter dem Budget von 100; ohne freien Container zeigt nur der betroffene Slot "?".
 5. Vorschau (Regel 270): `/isilive testall` bzw. `/isilive sim`, Reiter M+, Aktion C14 zeigt alle Zustaende samt Tooltip ohne Key und Gruppe aus einer eigenen Demo-Quelle; sie endet mit der Demo und aendert oder sendet nichts.
 
 ## Nichtfunktionale Regeln

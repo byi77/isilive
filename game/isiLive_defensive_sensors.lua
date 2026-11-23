@@ -8,7 +8,7 @@ addonTable = addonTable or {}
 -- or sorting.
 --
 -- Sensor chain (probe result 2026-11-21, rule 239, archived probe log):
---   * per member up to two manifest spells. A personal spell is watched on
+--   * per member up to five manifest spells (LIMITS.slotsPerUnit). A personal spell is watched on
 --     the caster; an external or group cooldown on all five possible targets
 --     (player, party1..4), and only while exactly one group member can cast
 --     it, otherwise the slot says "?" and has no sensor. One invisible
@@ -57,10 +57,14 @@ local GROUP_TARGETS = { "player", "party1", "party2", "party3", "party4" }
 local BORDER_TEXTURE = "Interface\\AddOns\\isiLive\\media\\defensive_border"
 
 local LIMITS = {
-  slotsPerUnit = 2,
-  -- Frame budget of the V1 plan (< 60). Worst case: 4 members x 2 spells x
-  -- 5 targets + 10 cell slots = 50.
-  maxContainers = 56,
+  -- The most defensives one spec has in the manifest (Holy and Protection
+  -- Paladin); the cell shows all of them.
+  slotsPerUnit = 5,
+  -- Own frame budget; Blizzard_CustomAuraContainer sets no limit on the
+  -- number of containers. Worst case: 4 members x (3 group spells x 5
+  -- targets + 2 personal) = 68 sensors + 5 rows x 5 cell slots = 93. A slot
+  -- without a free container reads "?" (`untracked`), the rest keeps working.
+  maxContainers = 100,
   tickSeconds = 0.5,
   -- One byte: code 0 = no cast, 1..254 = steps from the window epoch.
   byteSteps = 255,
@@ -74,7 +78,6 @@ local GEOMETRY = {
   sensorOffsetX = -16,
   mouseOverReach = 100000,
   activeIcon = 14,
-  durationTextOffset = 9,
 }
 DefensiveSensors.GEOMETRY = GEOMETRY
 
@@ -276,7 +279,7 @@ local function CandidatesOf(classToken, specID, knownSpells, talents)
   return list
 end
 
--- The (at most two) spells a member's estimate shows: candidates with a
+-- The (at most five) spells a member's estimate shows: candidates with a
 -- verified manifest cooldown, in display order.
 function DefensiveSensors.SelectSpells(classToken, specID, knownSpells, talents)
   local out = {}
@@ -372,9 +375,9 @@ local function SeedLatch(sensor, readyIn, now)
   end
 end
 
+-- Out of budget is no setup failure: the caller leaves that slot out.
 local function NewFrame(frameType, parent, template)
   if containerCount >= LIMITS.maxContainers and frameType == "AuraContainer" then
-    NoteFailure("budget", "container budget exhausted")
     return nil
   end
   local createFrame = rawget(_G, "CreateFrame")
@@ -454,6 +457,11 @@ local function ConfigureSensor(unitIndex, slotIndex, unit, playerKey, spell)
     return true
   end
   local targets = spell.kind == "personal" and { unit } or GROUP_TARGETS
+  if containerCount + math.max(0, #targets - #sensor.containers) > LIMITS.maxContainers then
+    spell.untracked = true
+    DisableSensor(sensor)
+    return true
+  end
   for index, target in ipairs(targets) do
     local container = sensor.containers[index]
     if not container then
@@ -701,7 +709,7 @@ end
 
 local function HasItsSensors(playerKey, slots)
   for index, spell in ipairs(slots) do
-    if not (spell.ambiguous or spell.unverified) and FindSensor(playerKey, index) == nil then
+    if not (spell.ambiguous or spell.unverified or spell.untracked) and FindSensor(playerKey, index) == nil then
       return false
     end
   end
@@ -779,7 +787,7 @@ function DefensiveSensors.Configure(members, player)
     local unchanged = current ~= nil
       and current.unitIndex == want.unitIndex
       and SameSpells(current.slots, want.slots)
-      and HasItsSensors(playerKey, want.slots)
+      and HasItsSensors(playerKey, current.slots)
     if unchanged then
       current.classToken, current.specID = want.classToken, want.specID
       current.knownSpells, current.readyIn = want.knownSpells, want.readyIn
@@ -857,7 +865,7 @@ function DefensiveSensors.Suspend()
 end
 
 --- The estimated slots of a player: { { spellID, auraID, kind, cooldown,
--- ambiguous } }
+-- ambiguous, unverified, untracked, slotIndex } }
 -- (copies), empty without an assignment. The kind and IDs are plain manifest
 -- data; the estimate itself never leaves the widgets.
 function DefensiveSensors.GetEstimate(playerKey)
@@ -867,10 +875,11 @@ function DefensiveSensors.GetEstimate(playerKey)
     return out
   end
   for slotIndex, spell in ipairs(assignment.slots) do
-    if spell.ambiguous or spell.unverified or FindSensor(playerKey, slotIndex) then
+    if spell.ambiguous or spell.unverified or spell.untracked or FindSensor(playerKey, slotIndex) then
       out[#out + 1] = {
         unverified = spell.unverified == true or nil,
         ambiguous = spell.ambiguous == true or nil,
+        untracked = spell.untracked == true or nil,
         spellID = spell.spellID,
         auraID = spell.auraID,
         kind = spell.kind,
@@ -912,7 +921,7 @@ function DefensiveSensors.BindBar(bar, playerKey, slotIndex, strip)
 end
 
 -- Aura frame of the visible cell container: icon, Blizzard duration text
--- right of the icon and the blue border whose pulse Blizzard plays while the
+-- on the icon and the blue border whose pulse Blizzard plays while the
 -- aura frame is shown.
 local function InitActiveButton(button)
   local size = GEOMETRY.activeIcon
@@ -943,9 +952,9 @@ local function InitActiveButton(button)
       CallMethod(button, "AddAuraShownAnimation", pulse)
     end
   end
-  local okText, text = CallMethod(button, "CreateFontString", nil, "OVERLAY", "GameFontHighlightSmall")
+  local okText, text = CallMethod(button, "CreateFontString", nil, "OVERLAY", "GameFontHighlightSmallOutline")
   if okText and type(text) == "table" then
-    CallMethod(text, "SetPoint", "LEFT", button, "RIGHT", GEOMETRY.durationTextOffset, 0)
+    CallMethod(text, "SetPoint", "CENTER", button, "CENTER", 0, 0)
     CallMethod(text, "SetTextColor", 0.55, 0.82, 1, 1)
     CallMethod(button, "SetDurationText", text, {})
   end
