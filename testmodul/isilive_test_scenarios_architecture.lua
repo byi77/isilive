@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 local ioLib = rawget(_G, "io")
 
 -- Lua module paths come from the shared test harness (single source of truth).

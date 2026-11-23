@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 -- Headless WoW widget engine for the wowsim simulator.
 --
 -- Implements enough of the WoW widget API (Frame, Button, Texture, FontString,

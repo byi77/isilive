@@ -28,6 +28,8 @@ local function CreateDemoIdleWatch(ctx, modules, runtimeState)
       ctx.ExitTestModeForCombat()
     end,
     newTicker = cTimer.NewTicker,
+    -- os.time is only reached outside the client (tests), where GetTime is missing.
+    ---@diagnostic disable-next-line: undefined-global
     getTime = rawget(_G, "GetTime") or os.time,
     getCursor = type(getCursor) == "function" and getCursor or nil,
     isMoving = type(isMoving) == "function" and isMoving or nil,

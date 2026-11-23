@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 local REFERENCE_ACTIVE_SEASON_ID =
   assert(loadfile("testmodul/isilive_test_fixture_seasons.lua"))().ReferenceActiveSeasonID()
 

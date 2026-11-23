@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 -- Season smoke test for any configured season (rule 263, maintainability
 -- package 4 H; replaces the per-season copy season_s2_smoke). Blizzard runs
 -- the chosen season in the simulation, so a prepared season must switch at

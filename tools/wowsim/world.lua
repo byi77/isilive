@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 -- Shared world model for the wowsim simulator.
 --
 -- Owns everything that is common to all simulated clients: the simulated

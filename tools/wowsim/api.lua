@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+-- Runs in standalone Lua (io, os, loadfile), not in the WoW client.
 -- WoW API surface for one simulated client in the wowsim simulator.
 --
 -- Builds the global environment a client's copy of isiLive runs in. Every
