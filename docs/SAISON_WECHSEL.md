@@ -177,10 +177,20 @@ PTR `/isilive selftest`.
   meldet `MISSING defensive spell <id> - Defensives`. Neue Defensives, Talent-
   Umbauten und neue Specs sucht niemand automatisch: Liste je Klasse pruefen.
   Cooldowns nur aus DB2 oder dem Spiel-Tooltip, nie aus Fremd-Addons.
+  Gate statt Handrechnung: der Test "Defensive manifest fits the five cell
+  slots and the container budget" rechnet aus dem Manifest, ob jede Spec
+  hoechstens fuenf Defensives hat (so viele zeigt die Zelle) und ob der
+  schlimmste Fall der Sensor-Container (heute 93) ins Budget von 100 passt.
+  Schlaegt er nach einer Manifest-Aenderung fehl, nicht still kuerzen:
+  Benutzer entscheiden lassen (Zelle breiter, Auswahl, Budget).
 - [ ] Defensiv-Schaetzung (Regel 268) nach jedem Patch: `/isilive selftest` muss
   `C_XMLUtil.GetTemplateInfo` (CustomAuraContainerTemplate) und
   `C_CurveUtil.EvaluateColorValueFromBoolean` als ok melden und darf keine Zeile
   `ERROR AuraContainer setup` zeigen; sonst ist die Schaetzung aus. Die
+  Zahlen auf den Defensiv-Symbolen nutzen Blizzards Schriftobjekt
+  `GameFontHighlightSmallOutline`; fehlt es nach einem Patch, meldet der
+  Selbsttest `MISSING GameFontHighlightSmallOutline - Defensives` und die
+  Zelle nimmt die normale Schrift (ohne Umriss, schlechter lesbar). Die
   Sensor-Kette haengt an undokumentiertem Verhalten (Element-Layout +
   `IsMouseOver`): in einem Key mit `defensiveTrackerEnabled` pruefen, dass ein
   External eines Nicht-isiLive-Mitspielers den blauen Rahmen zeigt und danach

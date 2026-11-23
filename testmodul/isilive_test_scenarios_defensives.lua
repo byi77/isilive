@@ -220,6 +220,56 @@ local function RegisterManifestTests(test, ctx)
     end
   end)
 
+  -- Patch gate (rule 268): a patch that gives a spec more defensives or more
+  -- group cooldowns must fail here instead of being cut off silently or
+  -- running out of containers in a key.
+  test("Defensive manifest fits the five cell slots and the container budget", function()
+    local addon = ctx.load_modules({ "isiLive_defensives.lua", "isiLive_specs.lua", "isiLive_defensive_sensors.lua" })
+    local manifest, sensors = addon.DefensiveManifest, addon.DefensiveSensors
+    local slots = sensors.LIMITS.slotsPerUnit
+    local specsByClass = {}
+    for specID, spec in pairs(addon.SpecManifest.specs) do
+      specsByClass[spec.class] = specsByClass[spec.class] or {}
+      table.insert(specsByClass[spec.class], specID)
+    end
+    -- Containers one party unit can hold: a slot that ever shows a group
+    -- spell keeps five containers, a personal slot one.
+    local worstSlot = {}
+    local function Visit(class, specID)
+      local list = {}
+      for _, candidate in ipairs(sensors.GetCandidateSpells(class, specID)) do
+        if type(candidate.cooldown) == "number" and type(candidate.auraID) == "number" then
+          list[#list + 1] = candidate
+        end
+      end
+      Assert.True(
+        #list <= slots,
+        string.format("%s spec %s has %d defensives, the cell shows %d", class, tostring(specID), #list, slots)
+      )
+      for index, candidate in ipairs(list) do
+        local cost = candidate.kind == "personal" and 1 or 5
+        worstSlot[index] = math.max(worstSlot[index] or 0, cost)
+      end
+    end
+    for class, specIDs in pairs(specsByClass) do
+      Visit(class, nil)
+      for _, specID in ipairs(specIDs) do
+        Visit(class, specID)
+      end
+    end
+    local perUnit = 0
+    for _, cost in pairs(worstSlot) do
+      perUnit = perUnit + cost
+    end
+    -- Four party units plus one visible container per slot of the five rows.
+    local worst = 4 * perUnit + 5 * slots
+    Assert.True(
+      worst <= sensors.LIMITS.maxContainers,
+      string.format("worst case %d containers, budget %d", worst, sensors.LIMITS.maxContainers)
+    )
+    Assert.True(#manifest.list > 0, "manifest loaded")
+  end)
+
   test("Defensive manifest keeps the former probe aura list for the aura container probe", function()
     local addon = ctx.load_modules({ "isiLive_defensives.lua" })
     local probeAuras = {}

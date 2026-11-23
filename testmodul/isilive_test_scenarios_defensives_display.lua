@@ -396,6 +396,7 @@ local function RegisterCellTests(test, ctx)
       cell = Assert.NotNil(cell, "the synced paladin has a cell")
       local layout = session.addon.RosterDefensiveCell
       Assert.Equal(layout.MAX_SLOTS, 5, "five slots")
+      Assert.Equal(layout.MAX_SLOTS, session.addon.DefensiveSensors.LIMITS.slotsPerUnit, "cell and sensors agree")
       Assert.Equal(layout.CELL_WIDTH, 78, "five 14 px icons, 2 px apart")
       Assert.Equal(layout.RIO_KEY_WIDTH, 46, "RIO gives up the 8 px")
       Assert.Equal(cell._size[1], 78, "the cell is 78 px wide")

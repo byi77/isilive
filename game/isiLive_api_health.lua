@@ -166,8 +166,9 @@ local PROBES = {
   ["C_XMLUtil.GetTemplateInfo"] = ProbeAuraContainerTemplate,
 }
 
--- Rule 268: a container setup the client refused this session (filter,
--- group, unit or budget) switched the estimate off; it shows as an ERROR row.
+-- Rule 268: a container setup the client refused this session (create,
+-- filter, group or unit) switched the estimate off; it shows as an ERROR row.
+-- A full container budget is no failure (that slot reads "?").
 local function AppendDefensiveSensorRows(rows, counts)
   local sensors = addonTable.DefensiveSensors
   if type(sensors) ~= "table" or type(sensors.GetHealth) ~= "function" then
@@ -183,6 +184,25 @@ local function AppendDefensiveSensorRows(rows, counts)
     name = "AuraContainer setup",
     status = "error",
     detail = health.failure,
+  }
+end
+
+-- Rule 269: the numbers on the defensive icons use Blizzard's outlined font
+-- object; a patch that drops it leaves the plain font (MISSING row, the cell
+-- keeps working).
+local function AppendDefensiveFontRow(rows, counts)
+  local cell = addonTable.RosterDefensiveCell
+  if type(cell) ~= "table" or type(cell.ICON_FONT) ~= "string" then
+    return
+  end
+  local present = rawget(_G, cell.ICON_FONT) ~= nil
+  local status = present and "ok" or "missing"
+  counts[status] = counts[status] + 1
+  rows[#rows + 1] = {
+    feature = "Defensives",
+    name = cell.ICON_FONT,
+    status = status,
+    detail = present and "font object" or "plain font used instead",
   }
 end
 
@@ -216,6 +236,7 @@ function ApiHealth.Run()
   end
   AppendEventRegistrationRows(rows, counts)
   AppendDefensiveSensorRows(rows, counts)
+  AppendDefensiveFontRow(rows, counts)
   return rows, counts
 end
 

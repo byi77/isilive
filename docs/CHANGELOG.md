@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 - Version 0.9.556 (patch)
+
+- Maintenance (defensives column, rules 268, 269): a test now derives from the defensives manifest that every spec fits the five cell slots and that the worst case of sensor containers (93 today) fits the budget of 100, so a patch that adds defensives fails the checks instead of cutting spells off silently. If a patch drops the outlined font of the icon numbers, the cell falls back to the plain font and `/isilive selftest` reports it.
+
 ## 2026-11-23 - Version 0.9.555 (patch)
 
 - Change (defensives column, rules 268-270): the numbers sit on the icons, so a cell shows up to five defensives per player (as many as one spec has); the cell is 78 px wide, RIO 46 px in the key. Estimates lose the "~": their seconds are blue-grey, exact ones white, and the tooltip says "estimated". The container budget rises from 56 to 100 (Blizzard sets no limit); a spell without a free container now shows "?" instead of switching the whole estimate off. Demo C14 shows the dummies with every defensive of their class, so a full cell of five is visible.

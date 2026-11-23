@@ -920,6 +920,15 @@ function DefensiveSensors.BindBar(bar, playerKey, slotIndex, strip)
   return true
 end
 
+-- Same font as the numbers of the cell (outlined, with a fallback).
+local function IconFont()
+  local cell = addonTable.RosterDefensiveCell
+  if type(cell) == "table" and type(cell.ResolveIconFont) == "function" then
+    return cell.ResolveIconFont()
+  end
+  return "GameFontHighlightSmall"
+end
+
 -- Aura frame of the visible cell container: icon, Blizzard duration text
 -- on the icon and the blue border whose pulse Blizzard plays while the
 -- aura frame is shown.
@@ -952,7 +961,7 @@ local function InitActiveButton(button)
       CallMethod(button, "AddAuraShownAnimation", pulse)
     end
   end
-  local okText, text = CallMethod(button, "CreateFontString", nil, "OVERLAY", "GameFontHighlightSmallOutline")
+  local okText, text = CallMethod(button, "CreateFontString", nil, "OVERLAY", IconFont())
   if okText and type(text) == "table" then
     CallMethod(text, "SetPoint", "CENTER", button, "CENTER", 0, 0)
     CallMethod(text, "SetTextColor", 0.55, 0.82, 1, 1)

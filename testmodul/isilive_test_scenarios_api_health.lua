@@ -48,6 +48,32 @@ return function(test, ctx)
     Assert.True(lines[1]:find(string.format("%d ok, 0 missing, 0 error", #checks), 1, true) ~= nil, "summary")
   end)
 
+  -- Rule 269: the outlined font of the defensive icon numbers can vanish in a
+  -- patch; the self test names it, the cell keeps the plain font.
+  test("ApiHealth reports a missing defensive icon font as MISSING", function()
+    local checks = LoadAddonModules({ "isiLive_api_health.lua" }).ApiHealth.CHECKS
+    local globals = BuildAllPresentGlobals(checks)
+    local present, missing
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_api_health.lua" })
+      addon.RosterDefensiveCell = { ICON_FONT = "TestIconFontOutline" }
+      _G.TestIconFontOutline = {}
+      local _, counts = addon.ApiHealth.BuildReportLines(false)
+      present = counts
+      _G.TestIconFontOutline = nil
+      local lines
+      lines, missing = addon.ApiHealth.BuildReportLines(false)
+      missing.text = table.concat(lines, "\n")
+    end)
+    Assert.Equal(present.missing, 0, "the font object is there")
+    Assert.Equal(present.ok, #checks + 1, "one extra row for the font")
+    Assert.Equal(missing.missing, 1, "a dropped font object is missing")
+    Assert.True(
+      missing.text:find("MISSING TestIconFontOutline - Defensives (plain font used instead)", 1, true) ~= nil,
+      "the line names the font and the fallback"
+    )
+  end)
+
   test("ApiHealth lists missing APIs and failed probes first and every check in verbose mode", function()
     local checks = LoadAddonModules({ "isiLive_api_health.lua" }).ApiHealth.CHECKS
     local globals = BuildAllPresentGlobals(checks)

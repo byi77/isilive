@@ -3,7 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.555`.
+Current version: `0.9.556`.
+
+Version 0.9.556: maintenance with no visible changes; the checks catch a
+patch that gives a specialization more defensives than the column shows, and
+the self test reports a missing icon font.
 
 Version 0.9.555: the experimental defensives column (off by default) puts
 the numbers on the icons, so each player shows up to five defensives;
@@ -363,7 +367,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.555 -->
+<!-- highlights-reviewed-for: 0.9.556 -->
 
 Highlights:
 - **Voice announcements in one voice.** English and German alerts share

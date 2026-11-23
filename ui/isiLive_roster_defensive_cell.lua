@@ -48,8 +48,10 @@ local MAX_SLOTS = 5
 local CELL_WIDTH = MAX_SLOTS * SLOT_WIDTH + (MAX_SLOTS - 1) * SLOT_GAP -- 78
 local ROW_HEIGHT = 16
 -- Outlined small font: readable on top of the icon (Blizzard uses it for the
--- countdown of small arena cooldown icons).
+-- countdown of small arena cooldown icons). A patch that drops the font
+-- object falls back to the plain small font; /isilive selftest reports it.
 local ICON_FONT = "GameFontHighlightSmallOutline"
+local ICON_FONT_FALLBACK = "GameFontHighlightSmall"
 local RIO_COL_X = RI.RIO_COL_X or 318
 local RIO_COL_WIDTH = RI.RIO_COL_WIDTH or 84
 local KICK_COL_X = RI.KICK_COL_X or 448
@@ -62,6 +64,13 @@ RosterDefensiveCell.ICON_SIZE = ICON_SIZE
 RosterDefensiveCell.SLOT_WIDTH = SLOT_WIDTH
 RosterDefensiveCell.SLOT_GAP = SLOT_GAP
 RosterDefensiveCell.MAX_SLOTS = MAX_SLOTS
+RosterDefensiveCell.ICON_FONT = ICON_FONT
+
+--- The font object for numbers on the icon: the outlined one while the
+-- client has it, else the plain small font.
+function RosterDefensiveCell.ResolveIconFont()
+  return rawget(_G, ICON_FONT) ~= nil and ICON_FONT or ICON_FONT_FALLBACK
+end
 RosterDefensiveCell.CELL_WIDTH = CELL_WIDTH
 RosterDefensiveCell.CELL_X = CELL_X
 RosterDefensiveCell.RIO_KEY_WIDTH = RIO_KEY_WIDTH
@@ -322,7 +331,7 @@ local function CreateSlot(cell, index)
   slot.overlay = overlay
 
   -- Plain digits and "?" only, so the outlined game font needs no locale font.
-  slot.text = overlay:CreateFontString(nil, "OVERLAY", ICON_FONT)
+  slot.text = overlay:CreateFontString(nil, "OVERLAY", RosterDefensiveCell.ResolveIconFont())
   slot.text:SetPoint("CENTER", holder, "CENTER", 0, 0)
   slot.text:SetSize(ICON_SIZE + 4, ICON_SIZE)
   slot.text:SetJustifyH("CENTER")
@@ -393,7 +402,7 @@ local function CreateStrip(slot)
     for left = 1, math.max(steps, #self.labels) do
       local label = self.labels[left]
       if not label then
-        label = column:CreateFontString(nil, "OVERLAY", ICON_FONT)
+        label = column:CreateFontString(nil, "OVERLAY", RosterDefensiveCell.ResolveIconFont())
         label:SetSize(STRIP_WIDTH, STRIP_ROW)
         label:SetPoint("TOPLEFT", column, "TOPLEFT", 0, -left * STRIP_ROW)
         label:SetJustifyH("CENTER")
@@ -445,7 +454,7 @@ local function EnsureCountdown(slot)
     { "SetDrawEdge", false },
     { "SetDrawBling", false },
     { "SetHideCountdownNumbers", false },
-    { "SetCountdownFont", ICON_FONT },
+    { "SetCountdownFont", RosterDefensiveCell.ResolveIconFont() },
   }
   for _, step in ipairs(setup) do
     if type(countdown[step[1]]) == "function" then
