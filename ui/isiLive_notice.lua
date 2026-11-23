@@ -1035,6 +1035,10 @@ local function BuildCenterNoticeController(state)
     ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   end
 
+  local function IsActive()
+    return IsCenterNoticeActive(state)
+  end
+
   local function RefreshLocalized()
     if not IsCenterNoticeActive(state) or not state.rebuild then
       return
@@ -1074,6 +1078,7 @@ local function BuildCenterNoticeController(state)
     closeButton = state.closeButton,
     teleportButton = state.teleportButton,
     SetVisible = SetVisible,
+    IsActive = IsActive,
     Show = Show,
     ConfigureTeleportButton = ConfigureTeleportButton,
     UpdateTeleportButtonVisual = UpdateTeleportButtonVisual,

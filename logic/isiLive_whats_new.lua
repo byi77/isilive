@@ -40,6 +40,11 @@ WhatsNew.ENTRIES = {
 WhatsNew.LOGIN_DELAY_SECONDS = 8
 -- How long the card stays (it can be closed earlier).
 WhatsNew.DURATION_SECONDS = 60
+-- While another notice holds the card or a key runs, the card waits: it
+-- asks again every RETRY_SECONDS, at most RETRY_LIMIT times per session, and
+-- stays pending (not seen) when it never got a free moment.
+WhatsNew.RETRY_SECONDS = 30
+WhatsNew.RETRY_LIMIT = 40
 
 --- The newest entry, or nil when there is none.
 function WhatsNew.GetLatest()
@@ -92,19 +97,35 @@ local function DefaultAfter(delay, fn)
 end
 
 --- Creates the login hook.
--- @param deps table { getDB, getL, showCenterNotice, after? }
+-- @param deps table { getDB, getL, showCenterNotice, isBusy?, after? }
 -- @return table { OnLogin, ShowPending }
 function WhatsNew.Create(deps)
   deps = type(deps) == "table" and deps or {}
   local after = type(deps.after) == "function" and deps.after or DefaultAfter
   local scheduled = false
+  local retries = 0
   local controller = {}
+
+  local function IsBusy()
+    if type(deps.isBusy) ~= "function" then
+      return false
+    end
+    local ok, busy = pcall(deps.isBusy)
+    return not ok or busy == true
+  end
 
   --- Shows the pending card now and marks it seen. Returns true when shown.
   function controller.ShowPending()
     local db = type(deps.getDB) == "function" and deps.getDB() or nil
     local entry = WhatsNew.GetPending(db)
     if not entry or type(db) ~= "table" or type(deps.showCenterNotice) ~= "function" then
+      return false
+    end
+    if IsBusy() then
+      if retries < WhatsNew.RETRY_LIMIT then
+        retries = retries + 1
+        after(WhatsNew.RETRY_SECONDS, controller.ShowPending)
+      end
       return false
     end
     local function Build()

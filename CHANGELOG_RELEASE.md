@@ -3,7 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.553`.
+Current version: `0.9.554`.
+
+Version 0.9.554: the one-time What's new card waits until no other notice,
+demo or key is running instead of replacing another hint.
 
 Version 0.9.553: rework of the experimental defensives column, still off by
 default and so far tested offline only, not yet verified in a real key. The
@@ -355,7 +358,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.553 -->
+<!-- highlights-reviewed-for: 0.9.554 -->
 
 Highlights:
 - **Voice announcements in one voice.** English and German alerts share

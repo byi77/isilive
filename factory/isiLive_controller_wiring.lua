@@ -737,6 +737,30 @@ local function BuildWhatsNew(ctx)
     end,
     getL = ctx.getL,
     showCenterNotice = ctx.showCenterNotice,
+    -- Another card on screen, a demo or a running key: the card waits.
+    isBusy = function()
+      local notice = ctx.centerNotice
+      if type(notice) == "table" and type(notice.IsActive) == "function" and notice.IsActive() == true then
+        return true
+      end
+      local cardStack = addonTable.CardStack
+      local container = type(cardStack) == "table"
+          and type(cardStack.GetContainer) == "function"
+          and cardStack.GetContainer()
+        or nil
+      if type(container) == "table" and type(container.IsShown) == "function" and container:IsShown() then
+        return true
+      end
+      for _, isDemo in ipairs({ ctx.isTestMode, ctx.isTestAllMode }) do
+        if type(isDemo) == "function" and isDemo() == true then
+          return true
+        end
+      end
+      local runtimeMode = addonTable.RuntimeMode
+      return type(runtimeMode) == "table"
+        and type(runtimeMode.IsActiveChallenge) == "function"
+        and runtimeMode.IsActiveChallenge() == true
+    end,
   })
 end
 

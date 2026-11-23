@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 - Version 0.9.554 (patch)
+
+- Fix: the What's new card no longer replaces another notice on the card (for example the season break hint or an invite) and does not appear during the demo or a key; it waits for a free moment and stays pending otherwise (rule 256).
+
 ## 2026-11-22 - Version 0.9.553 (patch)
 
 - Fix (experimental, off by default, tested offline only): defensives column inside keys (rules 267-269). The own cooldown keeps ready/cooldown from the NeverSecret fields and the game draws the seconds; `DEF` only goes out as a complete list, never as an empty one for masked cooldowns; addon chat is locked from the key start, not from the first pull. The estimate stores one byte per spell in two overlapping windows (the curve function rounds to 1/255), watches externals and group cooldowns on all five targets, credits them only to a single possible caster (else "?"), continues an isiLive user's shared state into the key, reads talents from the existing inspect (unknown = "?") and draws "~seconds" as a clipped number strip.

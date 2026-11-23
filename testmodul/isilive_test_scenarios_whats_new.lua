@@ -49,6 +49,22 @@ local function FindFontString(session, text)
   return nil
 end
 
+-- The mock client has no frame loop: play the OnUpdate scripts (the center
+-- notice hides itself there once its time ran out).
+local function Pump(session, seconds)
+  local step = 0.5
+  for _ = 1, math.floor(seconds / step) do
+    for index = 1, #session.frames do
+      local frame = session.frames[index]
+      local onUpdate = frame.GetScript and frame:GetScript("OnUpdate")
+      if onUpdate then
+        onUpdate(frame, step)
+      end
+    end
+    session.Advance(step)
+  end
+end
+
 local function SeenBefore(id)
   return function(globals)
     globals.IsiLiveDB.whatsNewSeen = id
@@ -120,6 +136,52 @@ return function(test, ctx)
         end
       end
     end)
+  end)
+
+  test("WhatsNew waits while another notice holds the card and shows afterwards", function()
+    Stress.WithParty(ctx, Fixture, function(session)
+      local WhatsNew = session.addon.WhatsNew
+      AddTestEntry(session)
+      session.runtime.ShowCenterNotice("Other notice", 45)
+      session.Advance(WhatsNew.LOGIN_DELAY_SECONDS + 1)
+      Assert.Nil(ShownTexts(session)[TITLE_EN], "the other notice keeps the card")
+      Assert.True(ShownTexts(session)["Other notice"] == true, "and stays readable")
+      Assert.True(session.globals.IsiLiveDB.whatsNewSeen ~= TEST_ENTRY.id, "still pending")
+      Pump(session, 45 + WhatsNew.RETRY_SECONDS)
+      Assert.True(ShownTexts(session)[TITLE_EN] == true, "the card follows once the card is free")
+      Assert.Equal(session.globals.IsiLiveDB.whatsNewSeen, TEST_ENTRY.id, "and is marked seen")
+    end)
+  end)
+
+  test("WhatsNew stays pending during a running key", function()
+    local WhatsNew = LoadAddonModules({ "isiLive_whats_new.lua" }).WhatsNew
+    WhatsNew.ENTRIES[#WhatsNew.ENTRIES + 1] = TEST_ENTRY
+    local db, shown, waits = {}, 0, 0
+    local busy = true
+    local controller = WhatsNew.Create({
+      getDB = function()
+        return db
+      end,
+      showCenterNotice = function()
+        shown = shown + 1
+      end,
+      isBusy = function()
+        return busy
+      end,
+      after = function(_, fn)
+        waits = waits + 1
+        if waits <= WhatsNew.RETRY_LIMIT + 5 then
+          fn()
+        end
+      end,
+    })
+    controller.OnLogin()
+    Assert.Equal(shown, 0, "nothing during the key")
+    Assert.Equal(waits, WhatsNew.RETRY_LIMIT + 1, "it asks again only up to the limit")
+    Assert.Nil(db.whatsNewSeen, "and stays pending for the next session")
+    busy = false
+    Assert.True(controller.ShowPending(), "free again: shown")
+    Assert.Equal(db.whatsNewSeen, TEST_ENTRY.id, "and marked seen")
   end)
 
   test("WhatsNew shows again only for a newer entry", function()
