@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-25 - Version 0.9.557 (patch)
+
+- Fix (patch safety): the specialization, the inspected specialization, weapon oil and party chat messages are read and sent through Blizzard's current `C_SpecializationInfo`, `C_PaperDollInfo` and `C_ChatInfo` functions. In 12.1.5 the old global names only exist as compatibility shims that load while the `loadDeprecationFallbacks` CVar is on and are announced for removal with the next expansion; without them the kick tracker, stats box, key sync, LFG group bonus, defensive estimate and consumable check would have stopped silently. `/isilive selftest` lists the new functions.
+- Fix: LFG invites, own listings and applicants no longer compare group, leader or comment text that Blizzard masks during the chat lockdown of a key or boss fight (an invite is handled in combat too, rule 213). Masked names stay empty; the dungeon is still recognised from the activity IDs.
+- Maintenance: the secret-value check watches all 56 Blizzard functions isiLive calls that can return masked values (was 31), also through `Validators.ResolveApiFunction`; every remaining call site is guarded or carries its reason.
+
 ## 2026-11-23 - Version 0.9.556 (patch)
 
 - Maintenance (defensives column, rules 268, 269): a test now derives from the defensives manifest that every spec fits the five cell slots and that the worst case of sensor containers (93 today) fits the budget of 100, so a patch that adds defensives fails the checks instead of cutting spells off silently. If a patch drops the outlined font of the icon numbers, the cell falls back to the plain font and `/isilive selftest` reports it.

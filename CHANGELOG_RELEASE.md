@@ -3,7 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.556`.
+Current version: `0.9.557`.
+
+Version 0.9.557: maintenance with no visible changes; isiLive moved off old
+game function names Blizzard keeps only until the next expansion (kick
+tracker, stats box, key sync and weapon oil check would otherwise stop), and
+an LFG invite during a key or boss fight no longer risks an error.
 
 Version 0.9.556: maintenance with no visible changes; the checks catch a
 patch that gives a specialization more defensives than the column shows, and
@@ -367,7 +372,7 @@ markers, and a Bloodlust lockout follow-up.
 
 Version 0.9.440: the Bloodlust timer and all Bloodlust alerts work inside keys again.
 
-<!-- highlights-reviewed-for: 0.9.556 -->
+<!-- highlights-reviewed-for: 0.9.557 -->
 
 Highlights:
 - **Voice announcements in one voice.** English and German alerts share

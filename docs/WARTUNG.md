@@ -300,6 +300,22 @@ Typische Ursachen fuer Brueche:
 - Ein neues Blizzard-Feld wird direkt gelesen → Crash pro Event, Chat-Wall, und alles hinter dem Handler-Aufruf faellt still aus. Feldname in `WATCHED_PAYLOAD_FIELDS` ergaenzen, damit der Gate ihn sieht.
 - Jemand ersetzt die strukturelle Ableitung durch „immer scannen“ → 40-Slot-Aura-Scan pro Unit mehrfach pro Sekunde genau im Key.
 
+### 3.6a Deprecated-Shims und Secret-Return-Annotationen (Stand 12.1.5)
+
+Pruefen:
+- `core/isiLive_validation_helpers.lua` (`ResolveApiFunction`, `ResolveWeaponEnchantReader`, `ReadNonEmptyString`)
+- `game/isiLive_api_health.lua` (`CHECKS`: Spec, Inspect-Spec, Waffenoel, Party-Chat)
+- `tools/check_secret_value_guards.lua` (`WATCHED_APIS`)
+
+Aktueller Soll-Zustand:
+- `GetSpecialization`, `GetSpecializationInfo`, `GetInspectSpecialization`, `GetWeaponEnchantInfo` und `SendChatMessage` existieren in Retail 12.1.5 nur als `Blizzard_Deprecated*`-Shims. Diese laden nur bei aktiver CVar `loadDeprecationFallbacks` und sind fuer die naechste Erweiterung zur Entfernung angekuendigt. isiLive liest zuerst `C_SpecializationInfo.*`, `C_PaperDollInfo.GetTemporaryEnchantmentInfo` und `C_ChatInfo.SendChatMessage`; die globalen Namen bleiben nur Fallback.
+- `C_LFGList`-Suchergebnis-, Bewerber- und Active-Entry-Strukturen sind `SecretInChatMessagingLockdown`; nur `activityIDs` und `partyGUID` sind `NeverSecret`. Alle anderen Felder laufen ueber `Validators.ReadPlainField` / `ReadNonEmptyString`.
+- `WATCHED_APIS` enthaelt jede API, die isiLive aufruft und deren Retail-Deklaration `SecretReturns`, `SecretWhen*` oder `SecretIn*` traegt (56 Stand 2026-11-25, abgeleitet aus Gethe/wow-ui-source `297d7aaa`).
+
+Nach jedem WoW-Patch:
+- `Interface/AddOns/Blizzard_Deprecated*/` im neuen Client-Stand nach Namen durchsuchen, die isiLive noch global liest; gefundene Stellen auf `ResolveApiFunction` umstellen und in `ApiHealth.CHECKS` aufnehmen.
+- Die Secret-Return-Annotationen der genutzten APIs neu ableiten und `WATCHED_APIS` ergaenzen; neue Treffer des Gates einzeln pruefen und entweder haerten oder mit Begruendung `-- secret-value-ok:` markieren.
+
 ### 3.6 ChatThrottleLib und Addon-Message-Prioritaeten
 
 Pruefen:
