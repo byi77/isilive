@@ -237,8 +237,10 @@ local function ResolvePlayerClassToken()
 end
 
 local function ResolvePlayerSpecID()
-  local getSpecialization = rawget(_G, "GetSpecialization")
-  local getSpecializationInfo = rawget(_G, "GetSpecializationInfo")
+  local getSpecialization =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+  local getSpecializationInfo =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecializationInfo", "GetSpecializationInfo")
   if type(getSpecialization) ~= "function" or type(getSpecializationInfo) ~= "function" then
     return nil
   end

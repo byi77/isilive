@@ -299,7 +299,10 @@ function ContextHelpers.SendPartyChatMessage(message)
     return false
   end
 
-  local sendChatMessage = rawget(_G, "SendChatMessage")
+  -- C_ChatInfo.SendChatMessage first: in 12.1.5 the global SendChatMessage is
+  -- only a Blizzard_DeprecatedChatInfo shim (CVar loadDeprecationFallbacks).
+  local chatInfo = rawget(_G, "C_ChatInfo")
+  local sendChatMessage = type(chatInfo) == "table" and chatInfo.SendChatMessage or nil
   if type(sendChatMessage) == "function" then
     local ok = pcall(sendChatMessage, message, channel)
     if ok then
@@ -307,10 +310,9 @@ function ContextHelpers.SendPartyChatMessage(message)
     end
   end
 
-  local chatInfo = rawget(_G, "C_ChatInfo")
-  local sendChatMessageCompat = type(chatInfo) == "table" and chatInfo.SendChatMessage or nil
-  if type(sendChatMessageCompat) == "function" then
-    local ok = pcall(sendChatMessageCompat, message, channel)
+  local legacySendChatMessage = rawget(_G, "SendChatMessage")
+  if type(legacySendChatMessage) == "function" then
+    local ok = pcall(legacySendChatMessage, message, channel)
     if ok then
       return true
     end

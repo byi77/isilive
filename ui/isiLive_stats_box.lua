@@ -523,8 +523,14 @@ local function ResolvePlayerClassToken(opts)
 end
 
 local function ResolvePlayerSpecID(opts)
-  local getSpecialization = opts.GetSpecialization or rawget(_G, "GetSpecialization")
-  local getSpecializationInfo = opts.GetSpecializationInfo or rawget(_G, "GetSpecializationInfo")
+  local getSpecialization = opts.GetSpecialization
+    or addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+  local getSpecializationInfo = opts.GetSpecializationInfo
+    or addonTable.Validators.ResolveApiFunction(
+      "C_SpecializationInfo",
+      "GetSpecializationInfo",
+      "GetSpecializationInfo"
+    )
   if type(getSpecialization) ~= "function" or type(getSpecializationInfo) ~= "function" then
     return nil
   end

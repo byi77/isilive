@@ -772,8 +772,11 @@ end
 
 -- The dummy roster carries no spec for the player; read it from the client.
 local function DemoPlayerSpecID()
-  local getIndex = rawget(_G, "GetSpecialization")
-  local getInfo = rawget(_G, "GetSpecializationInfo")
+  local resolveApi = addonTable.Validators and addonTable.Validators.ResolveApiFunction
+  local getIndex = resolveApi and resolveApi("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+    or rawget(_G, "GetSpecialization")
+  local getInfo = resolveApi and resolveApi("C_SpecializationInfo", "GetSpecializationInfo", "GetSpecializationInfo")
+    or rawget(_G, "GetSpecializationInfo")
   if type(getIndex) ~= "function" or type(getInfo) ~= "function" then
     return nil
   end

@@ -174,6 +174,69 @@ function Validators.GetInstanceInfoSafe()
   return VerifyInstanceInfo(pcall(getInstanceInfo))
 end
 
+--- Resolves a Blizzard API function, preferring the namespaced member over
+--- its legacy global. Retail 12.1.5 keeps several legacy globals only as
+--- Blizzard_Deprecated* shims (GetSpecialization, GetSpecializationInfo,
+--- GetInspectSpecialization, GetWeaponEnchantInfo, SendChatMessage); a shim
+--- loads only while the CVar loadDeprecationFallbacks is on and is scheduled
+--- for removal at the next expansion. The legacy global stays the fallback
+--- for clients that predate the namespaced member.
+--- @param namespace string -- e.g. "C_SpecializationInfo"
+--- @param member string -- function name inside the namespace
+--- @param legacyGlobal string|nil -- global fallback name
+--- @return function|nil
+function Validators.ResolveApiFunction(namespace, member, legacyGlobal)
+  local ns = rawget(_G, namespace)
+  local fn = type(ns) == "table" and ns[member] or nil
+  if type(fn) == "function" then
+    return fn
+  end
+  if legacyGlobal then
+    fn = rawget(_G, legacyGlobal)
+    if type(fn) == "function" then
+      return fn
+    end
+  end
+  return nil
+end
+
+-- Mirrors the GetWeaponEnchantInfo tuple (has, remainingMs, charges, enchantID
+-- per slot: main hand, off hand) from C_PaperDollInfo.GetTemporaryEnchantmentInfo,
+-- exactly as Blizzard's own shim in Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua
+-- builds it. Field values are copied untouched, secret or not; callers keep
+-- their own secret checks.
+local function ReadTemporaryWeaponEnchants(getEnchantInfo, mainSlot, offSlot)
+  local main = getEnchantInfo(mainSlot)
+  local off = getEnchantInfo(offSlot)
+  local hasMain = main ~= nil
+  local hasOff = off ~= nil
+  return hasMain,
+    hasMain and main.remainingTimeMs or nil,
+    hasMain and main.chargesRemaining or nil,
+    hasMain and main.enchantID or nil,
+    hasOff,
+    hasOff and off.remainingTimeMs or nil,
+    hasOff and off.chargesRemaining or nil,
+    hasOff and off.enchantID or nil
+end
+
+--- Resolves a reader with the GetWeaponEnchantInfo return shape (main hand,
+--- then off hand). Prefers C_PaperDollInfo.GetTemporaryEnchantmentInfo; the
+--- global only remains as a deprecated shim in 12.1.5. Call the result under pcall.
+--- @return function|nil
+function Validators.ResolveWeaponEnchantReader()
+  local getEnchantInfo = Validators.ResolveApiFunction("C_PaperDollInfo", "GetTemporaryEnchantmentInfo")
+  local mainSlot = rawget(_G, "INVSLOT_MAINHAND")
+  local offSlot = rawget(_G, "INVSLOT_OFFHAND")
+  if getEnchantInfo and type(mainSlot) == "number" and type(offSlot) == "number" then
+    return function()
+      return ReadTemporaryWeaponEnchants(getEnchantInfo, mainSlot, offSlot)
+    end
+  end
+  local legacy = rawget(_G, "GetWeaponEnchantInfo")
+  return type(legacy) == "function" and legacy or nil
+end
+
 -- Blizzard uses three separate ID spaces for a dungeon. Ingame 2026-10-08,
 -- Murder Row: challenge-mode map ID 587 (season data, ResolveStatusTargetMapID),
 -- instance ID 2813 (8th return of GetInstanceInfo, 6th return of

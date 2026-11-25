@@ -67,8 +67,10 @@ local CD_REDUCTION_DEFS = {
 }
 
 local function ResolveSpecData()
-  local GetSpecialization_ref = rawget(_G, "GetSpecialization")
-  local GetSpecializationInfo_ref = rawget(_G, "GetSpecializationInfo")
+  local GetSpecialization_ref =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+  local GetSpecializationInfo_ref =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecializationInfo", "GetSpecializationInfo")
   if type(GetSpecialization_ref) ~= "function" or type(GetSpecializationInfo_ref) ~= "function" then
     return {
       availabilityResolved = false,

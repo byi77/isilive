@@ -336,7 +336,11 @@ end
 -- masked or unreadable). Used by the defensive estimate (rule 268) to pick
 -- spec-bound manifest spells; nil keeps it to the class-wide ones.
 function Units.GetInspectSpecID(unit)
-  local getInspectSpecialization = rawget(_G, "GetInspectSpecialization")
+  local getInspectSpecialization = addonTable.Validators.ResolveApiFunction(
+    "C_SpecializationInfo",
+    "GetInspectSpecialization",
+    "GetInspectSpecialization"
+  )
   if not IsExistingUnit(unit) or type(getInspectSpecialization) ~= "function" then
     return nil
   end
@@ -348,7 +352,11 @@ function Units.GetInspectSpecID(unit)
 end
 
 function Units.GetInspectSpecRole(unit)
-  local getInspectSpecialization = rawget(_G, "GetInspectSpecialization")
+  local getInspectSpecialization = addonTable.Validators.ResolveApiFunction(
+    "C_SpecializationInfo",
+    "GetInspectSpecialization",
+    "GetInspectSpecialization"
+  )
   local getSpecializationRoleByID = rawget(_G, "GetSpecializationRoleByID")
   if
     not IsExistingUnit(unit)

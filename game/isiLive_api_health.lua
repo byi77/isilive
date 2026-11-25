@@ -43,6 +43,7 @@ ApiHealth.CHECKS = {
   { "Sync", "C_ChatInfo", "SendAddonMessage" },
   { "Sync", "C_ChatInfo", "RegisterAddonMessagePrefix" },
   { "Sync", "C_ChatInfo", "InChatMessagingLockdown" },
+  { "Party chat", "C_ChatInfo", "SendChatMessage", { nil, "SendChatMessage" } },
   { "Cooldowns", "C_Spell", "GetSpellCooldown" },
   { "Cooldowns", "C_Spell", "GetSpellName" },
   { "Auras", "C_UnitAuras", "GetAuraDataByIndex" },
@@ -75,6 +76,11 @@ ApiHealth.CHECKS = {
   -- (logic/isiLive_keysync.lua); 12.1 ships only the global (selftest 2026-11-20).
   { "Item level", "C_Item", "GetAverageItemLevel", { nil, "GetAverageItemLevel" } },
   { "Inspect", "C_PaperDollInfo", "GetInspectItemLevel" },
+  -- 12.1.5 keeps the globals only as Blizzard_Deprecated* shims (loadDeprecationFallbacks).
+  { "Spec", "C_SpecializationInfo", "GetSpecialization", { nil, "GetSpecialization" } },
+  { "Spec", "C_SpecializationInfo", "GetSpecializationInfo", { nil, "GetSpecializationInfo" } },
+  { "Inspect", "C_SpecializationInfo", "GetInspectSpecialization", { nil, "GetInspectSpecialization" } },
+  { "Weapon oil", "C_PaperDollInfo", "GetTemporaryEnchantmentInfo", { nil, "GetWeaponEnchantInfo" } },
   { "Invite navigation", "C_EncounterJournal", "GetDungeonEntrancesForMap" },
   { "Timers", "C_Timer", "After" },
   { "Secret values", nil, "issecretvalue" }, -- secret-value-ok: presence check only, never called

@@ -37,6 +37,26 @@ local function Prepare(opts)
     globals.GetWeaponEnchantInfo = function()
       return unpack(session.weapon, 1, 8)
     end
+    if opts.modernEnchantApi then
+      -- 12.1.5: the global is only a Blizzard_Deprecated shim; without
+      -- loadDeprecationFallbacks the client offers the namespaced API alone.
+      globals.GetWeaponEnchantInfo = nil
+      globals.INVSLOT_MAINHAND = 16
+      globals.INVSLOT_OFFHAND = 17
+      globals.C_PaperDollInfo = globals.C_PaperDollInfo or {}
+      globals.C_PaperDollInfo.GetTemporaryEnchantmentInfo = function(slot)
+        local offset = (slot == 16 and 0) or (slot == 17 and 4) or nil
+        if offset == nil or not session.weapon[offset + 1] then
+          return nil
+        end
+        return {
+          remainingTimeMs = session.weapon[offset + 2],
+          chargesRemaining = session.weapon[offset + 3],
+          enchantID = session.weapon[offset + 4],
+          hasExpirationTime = true,
+        }
+      end
+    end
     globals.C_UnitAuras = globals.C_UnitAuras or {}
     globals.C_UnitAuras.GetPlayerAuraBySpellID = function(spellID)
       return session.auras[spellID]
@@ -103,6 +123,28 @@ return function(test, ctx)
       EnterDungeon(session)
       Assert.Equal(#cards, 2, "everything fine: no card, and no off hand without oil is a finding")
     end, Prepare())
+  end)
+
+  test("Consumable check reads weapon oil through C_PaperDollInfo when the deprecated global is gone", function()
+    Stress.WithParty(ctx, FixtureWithSchema, function(session)
+      session.addon.ConsumableData.sets = {}
+      local cards = RecordCards(session)
+      EnterDungeon(session)
+      Assert.Equal(#cards, 1, "a missing main-hand oil shows one card")
+      Assert.Equal(FieldText(cards[1]), "Weapon oil (main hand): missing !", "the missing oil is a warning row")
+
+      session.weapon = { true, 35 * 60000, 0, 7495, true, 45 * 60000, 0, 7495 }
+      EnterDungeon(session)
+      Assert.Equal(
+        FieldText(cards[2]),
+        "Weapon oil (main hand): 35 min left ! | Weapon oil (off hand): 45 min left",
+        "both hands come from GetTemporaryEnchantmentInfo"
+      )
+
+      session.weapon = { true, 50 * 60000, 0, 7495, false, nil, 0, nil }
+      EnterDungeon(session)
+      Assert.Equal(#cards, 2, "everything fine: no card")
+    end, Prepare({ modernEnchantApi = true }))
   end)
 
   test("Consumable check finds a buff set for every season of the manifest", function()

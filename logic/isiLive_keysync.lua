@@ -174,8 +174,10 @@ KeySync.ResolveAverageItemLevel = ResolveAverageItemLevel
 
 local function GetOwnedStatsSnapshot(getUnitRio)
   local specID = nil
-  local getSpecialization = rawget(_G, "GetSpecialization")
-  local getSpecializationInfo = rawget(_G, "GetSpecializationInfo")
+  local getSpecialization =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+  local getSpecializationInfo =
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecializationInfo", "GetSpecializationInfo")
   if type(getSpecialization) == "function" and type(getSpecializationInfo) == "function" then
     local okIndex, specIndex = pcall(getSpecialization)
     if okIndex and not IsSecretValue(specIndex) and type(specIndex) == "number" and specIndex > 0 then

@@ -98,7 +98,9 @@ end
 -- Own role from the active specialization (verified, unlike the assigned
 -- group role); the shared unit helper is the fallback.
 local function OwnRole()
-  local specIndex = ReadPlain(rawget(_G, "GetSpecialization"))
+  local specIndex = ReadPlain(
+    addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")
+  )
   if type(specIndex) == "number" and specIndex > 0 then
     local role = ReadPlain(rawget(_G, "GetSpecializationRole"), specIndex)
     if role == "TANK" or role == "HEALER" or role == "DAMAGER" then

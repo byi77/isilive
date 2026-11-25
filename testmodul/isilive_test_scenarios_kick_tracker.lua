@@ -84,6 +84,47 @@ local function RegisterBasicKickTests(test, Assert, WithGlobals, LoadAddonModule
     Assert.False(info.onCooldown, "fresh Devourer interrupt must start ready")
   end)
 
+  -- 12.1.5 keeps GetSpecialization/GetSpecializationInfo only as
+  -- Blizzard_DeprecatedSpecialization shims; the namespaced API must win.
+  test("KickTracker reads the spec from C_SpecializationInfo before the deprecated globals", function()
+    ---@type KickController|nil
+    local controller = nil
+    WithGlobals({
+      UnitExists = function()
+        return true
+      end,
+      C_SpecializationInfo = {
+        GetSpecialization = function()
+          return 1
+        end,
+        GetSpecializationInfo = function(index)
+          if index == 1 then
+            return 1480
+          end
+          return nil
+        end,
+      },
+      -- A stale shim answering differently proves which source is read.
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function()
+        return 65
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return 100
+        end,
+      })
+    end)
+
+    local kickController = RequireController(controller, "kick info must exist with C_SpecializationInfo", Assert)
+    local info = kickController.GetKickInfo()
+    Assert.Equal(info.spellID, 183752, "the C_SpecializationInfo spec (Devourer) maps to Disrupt")
+  end)
+
   test("KickTracker keeps unresolved kick availability distinct from exact no-kick", function()
     ---@type KickController|nil
     local controller = nil

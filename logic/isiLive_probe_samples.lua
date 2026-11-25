@@ -79,7 +79,7 @@ function ProbeSamples.OwnAuras(maxAuras)
     #spellIds > 0 and table.concat(spellIds, ",") or "none"
 end
 
--- One weapon slot of GetWeaponEnchantInfo: has / minutes left / enchant ID.
+-- One weapon slot of the weapon enchant reader (GetWeaponEnchantInfo shape): has / minutes left / enchant ID.
 local function DescribeWeaponSlot(prefix, has, expirationMs, enchantId)
   local hasText
   if IsSecretValue(has) then
@@ -102,9 +102,9 @@ local function DescribeWeaponSlot(prefix, has, expirationMs, enchantId)
   return string.format("%s=%s %sMin=%s %sEnchant=%s", prefix, hasText, prefix, minutes, prefix, enchant)
 end
 
--- Weapon oil (K4): GetWeaponEnchantInfo needs no season ID list.
+-- Weapon oil (K4): the temporary enchant API needs no season ID list.
 function ProbeSamples.WeaponEnchants()
-  local getInfo = rawget(_G, "GetWeaponEnchantInfo")
+  local getInfo = addonTable.Validators.ResolveWeaponEnchantReader()
   if type(getInfo) ~= "function" then
     return "weapon=api_missing"
   end

@@ -5,7 +5,7 @@ addonTable = addonTable or {}
 -- When the player enters a dungeon (a party instance, user decision
 -- 2026-11-12: entry, not the ready check) outside combat, outside raids and
 -- outside a running key, the own weapon oil (main and off hand,
--- GetWeaponEnchantInfo, no ID list needed) and food, flask and augment rune
+-- C_PaperDollInfo.GetTemporaryEnchantmentInfo, no ID list needed) and food, flask and augment rune
 -- (C_UnitAuras.GetPlayerAuraBySpellID with the buff set of
 -- data/isiLive_consumables.lua) are checked ENTRY_DELAY_SECONDS after the
 -- loading screen. The probe key of 2026-11-12 found all of it readable in the
@@ -64,7 +64,7 @@ local function Judge(has, minutes)
 end
 
 local function ReadWeapons()
-  local getInfo = rawget(_G, "GetWeaponEnchantInfo")
+  local getInfo = addonTable.Validators.ResolveWeaponEnchantReader()
   if type(getInfo) ~= "function" then
     return nil, nil
   end
