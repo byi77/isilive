@@ -339,6 +339,7 @@ local function EvaluateTargetTtk(elapsedAtHit, sinceHit)
   end
   -- Unpredicted health: it changes exactly with the UNIT_HEALTH events the
   -- last-hit time comes from.
+  -- secret-value-ok: SecretReturns by design; the value only reaches FontString:SetFormattedText
   local ok, value = pcall(healthPercent, "target", false, sharedCurve)
   if not ok then
     NoteEvalFailure("evaluate", value)

@@ -27,6 +27,14 @@
 --   * GetActiveChallengeMapID, GetActiveKeystoneInfo and
 --     IsChallengeModeActive
 --   * CombatLogGetCurrentEventInfo (also forbidden in 12.0; double-belt)
+--   * since 2026-11-25 every other API isiLive calls whose retail 12.1.5
+--     declaration carries SecretReturns / SecretWhen* / SecretIn* (Blizzard
+--     generated API docs, Gethe/wow-ui-source 297d7aaa): cooldowns, auras,
+--     damage meter, LFG search/applicant/active-entry structs (secret in chat
+--     messaging lockdown), unit stats, threat, UnitHealthPercent,
+--     UnitTokenFromGUID. Re-derive the list when a patch adds annotations.
+--   * aliases resolved through Validators.ResolveApiFunction count like
+--     rawget aliases, also when StyLua wraps the call over several lines.
 --
 -- Entry channels for a masked value (what this gate does and does not see):
 --   1. Return value of a watched Blizzard API  -> covered by the call-site
@@ -85,37 +93,62 @@ local CANONICAL_DETECTOR_FILE = "core/isiLive_validation_helpers.lua"
 -- Pattern fragments ordered: longer/more specific names first so they are
 -- matched before shorter prefixes (e.g. UnitFullName vs UnitName).
 local WATCHED_APIS = {
+  "GetUnitCriteriaProgressValues",
+  "CombatLogGetCurrentEventInfo",
+  "GetAuraDataByAuraInstanceID",
   "GetSpecializationRoleByID",
-  "GetInspectSpecialization",
   "GetSpecializationInfoByID",
+  "GetSearchResultPlayerInfo",
+  "GetInspectSpecialization",
+  "GetCombatSessionFromType",
+  "GetIncomingSummonStatus",
+  "GetActiveChallengeMapID",
+  "UnitGroupRolesAssigned",
+  "GetPlayerAuraBySpellID",
   "GetSpecializationInfo",
   "GetSpecializationRole",
-  "GetIncomingSummonStatus",
   "IsChallengeModeActive",
   "GetActiveKeystoneInfo",
+  "GetCombatRatingBonus",
   "GetInspectItemLevel",
-  "GetSpellCharges",
-  "UnitGroupRolesAssigned",
+  "GetAverageItemLevel",
+  "GetSearchResultInfo",
+  "GetRangedCritChance",
+  "GetVersatilityBonus",
+  "UnitThreatSituation",
+  "GetActiveEntryInfo",
+  "GetAuraDataByIndex",
+  "GetSpellCritChance",
   "UnitIsDeadOrGhost",
   "UnitIsGroupLeader",
-  "UnitIsConnected",
-  "UnitIsPlayer",
-  "CombatLogGetCurrentEventInfo",
-  "GetActiveChallengeMapID",
-  "GetAverageItemLevel",
   "GetBestMapForUnit",
   "GetSpecialization",
-  "UnitFullName",
+  "UnitHealthPercent",
+  "UnitTokenFromGUID",
+  "GetApplicantInfo",
+  "GetSpellCooldown",
+  "GetMasteryEffect",
+  "GetSpellCharges",
+  "UnitIsConnected",
+  "GetCombatRating",
   "GetStringWidth",
-  "UnitIsUnit",
+  "UnitSpellHaste",
   "UnitIsVisible",
+  "GetCritChance",
+  "UnitIsPlayer",
+  "UnitFullName",
   "UnitReaction",
+  "GetAvoidance",
+  "GetLifesteal",
+  "UnitIsUnit",
   "UnitExists",
   "UnitLevel",
   "UnitClass",
   "UnitRace",
   "UnitGUID",
   "UnitName",
+  "GetSpeed",
+  "UnitStat",
 }
 
 local WATCHED_API_SET = {}
@@ -287,6 +320,16 @@ local function registerAliases(code, watchedAliasByName)
     watchedAliasByName[alias] = rawgetApi
     return
   end
+  -- Validators.ResolveApiFunction("C_Namespace", "Member", "LegacyGlobal")
+  -- resolves a watched API exactly like a rawget alias does.
+  local member, legacy = rhs:match('ResolveApiFunction%(%s*"[%w_]+"%s*,%s*"([%w_]+)"%s*,?%s*"?([%w_]*)"?')
+  local resolvedApi = (member and WATCHED_API_SET[member] and member)
+    or (legacy and legacy ~= "" and WATCHED_API_SET[legacy] and legacy)
+    or nil
+  if resolvedApi then
+    watchedAliasByName[alias] = resolvedApi
+    return
+  end
 
   for _, api in ipairs(WATCHED_APIS) do
     if
@@ -433,6 +476,29 @@ local function analyzePayloadFields(path, lines)
   return hits
 end
 
+local function countChar(text, char)
+  local _, count = text:gsub("%" .. char, "")
+  return count
+end
+
+-- StyLua wraps a long `local x = Resolve(...)` over several lines. Alias
+-- detection needs the whole right-hand side, so a statement that ends in `=`
+-- or leaves a parenthesis open is joined with its continuation lines.
+local function joinStatement(lines, lineno, code)
+  local text = code
+  local depth = countChar(code, "(") - countChar(code, ")")
+  local index = lineno
+  local pending = code:match("=%s*$") ~= nil
+  while (pending or depth > 0) and index < #lines and index < lineno + 6 do
+    index = index + 1
+    local nextCode = stripComment(lines[index])
+    text = text .. " " .. trim(nextCode)
+    depth = depth + countChar(nextCode, "(") - countChar(nextCode, ")")
+    pending = false
+  end
+  return text
+end
+
 local function analyzeLines(path, lines)
   local hits = {}
   local watchedAliasByName = {}
@@ -441,7 +507,7 @@ local function analyzeLines(path, lines)
     local previous = lineno > 1 and lines[lineno - 1] or ""
     local overridden = hasInlineOverride(raw) or hasInlineOverride(previous)
     local code = stripComment(raw)
-    registerAliases(code, watchedAliasByName)
+    registerAliases(joinStatement(lines, lineno, code), watchedAliasByName)
     local localFunctionName = code:match("^%s*local%s+function%s+([%w_]+)%s*%(")
     if localFunctionName then
       localWrapperByName[localFunctionName] = true

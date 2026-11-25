@@ -35,19 +35,37 @@ local function TryGet(obj, key1, key2, key3)
   return nil
 end
 
+-- C_LFGList.GetActiveEntryInfo is SecretInChatMessagingLockdown: only
+-- activityIDs is NeverSecret. Masked fields become nil instead of reaching a
+-- comparison.
+local IsSecretValue = addonTable.Validators.IsSecretValue
+
+local function Plain(value)
+  if IsSecretValue(value) then
+    return nil
+  end
+  return value
+end
+
+local function PlainString(value)
+  value = Plain(value)
+  return type(value) == "string" and value or nil
+end
+
 local function GetNormalizedActiveEntryInfo()
   local lfgListApi = rawget(_G, "C_LFGList")
   if type(lfgListApi) ~= "table" or type(lfgListApi.GetActiveEntryInfo) ~= "function" then
     return nil
   end
 
+  -- secret-value-ok: table fields and the tuple values pass through Plain/PlainString before use
   local ok, r1, r2, _, _, r5, r6, r7 = pcall(lfgListApi.GetActiveEntryInfo)
   if not ok then
     return nil
   end
 
   if type(r1) == "table" then
-    local activityID = tonumber(TryGet(r1, "activityID", "activity", nil))
+    local activityID = tonumber(Plain(TryGet(r1, "activityID", "activity", nil)))
 
     if not activityID then
       local activityIDsTable = TryGet(r1, "activityIDs", "activities", nil)
@@ -67,19 +85,19 @@ local function GetNormalizedActiveEntryInfo()
     end
 
     return {
-      active = TryGet(r1, "active", "isActive", nil),
+      active = Plain(TryGet(r1, "active", "isActive", nil)),
       activityID = activityID,
-      primaryActivityID = tonumber(TryGet(r1, "primaryActivityID", "primaryActivity", nil)),
-      mapID = tonumber(TryGet(r1, "mapID", "mapId", nil)),
+      primaryActivityID = tonumber(Plain(TryGet(r1, "primaryActivityID", "primaryActivity", nil))),
+      mapID = tonumber(Plain(TryGet(r1, "mapID", "mapId", nil))),
       activityIDs = TryGet(r1, "activityIDs", "activities", nil),
-      name = type(TryGet(r1, "name", "listingName", nil)) == "string" and TryGet(r1, "name", "listingName", nil) or nil,
-      activityName = type(TryGet(r1, "activityName", nil, nil)) == "string" and TryGet(r1, "activityName", nil, nil)
-        or nil,
-      title = type(TryGet(r1, "title", "groupTitle", nil)) == "string" and TryGet(r1, "title", "groupTitle", nil)
-        or nil,
+      name = PlainString(TryGet(r1, "name", "listingName", nil)),
+      activityName = PlainString(TryGet(r1, "activityName", nil, nil)),
+      title = PlainString(TryGet(r1, "title", "groupTitle", nil)),
     }
   end
 
+  -- Pre-12.0 tuple form: masked values become nil before any comparison.
+  r1, r2, r5, r6, r7 = Plain(r1), Plain(r2), Plain(r5), Plain(r6), Plain(r7)
   local entry = {}
   if type(r1) == "boolean" then
     entry.active = r1

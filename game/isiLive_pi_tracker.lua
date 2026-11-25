@@ -49,6 +49,7 @@ local function DefaultGetPlayerAuraBySpellID(spellID)
   if type(getPlayerAura) ~= "function" then
     return nil
   end
+  -- secret-value-ok: callers read the aura only through ReadSpellID/ReadSourceUnit/ReadAuraInstanceID
   local ok, aura = pcall(getPlayerAura, spellID)
   if ok and type(aura) == "table" then
     return aura
@@ -65,6 +66,7 @@ local function DefaultGetAuraDataByIndex(unit, index, filter)
   if type(getAuraDataByIndex) ~= "function" then
     return nil
   end
+  -- secret-value-ok: callers read the aura only through ReadSpellID/ReadSourceUnit/ReadAuraInstanceID
   local ok, aura = pcall(getAuraDataByIndex, unit, index, filter)
   if ok and type(aura) == "table" then
     return aura

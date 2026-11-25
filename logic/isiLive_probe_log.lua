@@ -496,6 +496,7 @@ local function SampleThreat()
       end
     end
   end
+  -- secret-value-ok: DescribeThreat runs pcall and IsSecretValue on the result
   local selfThreat = DescribeThreat(pcall(threatSituation, "player"))
   Append(
     string.format(

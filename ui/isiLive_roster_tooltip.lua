@@ -585,6 +585,7 @@ local function ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTool
         guid = tooltipData.healthGUID
       end
       if type(guid) == "string" and not IsSecretValue(guid) then
+        -- secret-value-ok: IsSecretValue(tooltipUnit) runs on the next line before the comparison
         local okToken, tooltipUnit = pcall(unitTokenFromGUID, guid)
         if okToken and type(tooltipUnit) == "string" and not IsSecretValue(tooltipUnit) and tooltipUnit ~= "" then
           return tooltipUnit

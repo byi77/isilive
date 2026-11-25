@@ -787,6 +787,51 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     end)
   end)
 
+  -- C_LFGList result structs are SecretInChatMessagingLockdown and an invite
+  -- is resolved in combat too (rule 213): only activityIDs stays readable.
+  -- Masked names must neither be compared nor end up in the state.
+  test("LFGDetect keeps masked LFG names out of the invite and listing state", function()
+    local SECRET = {
+      ["Masked-Leader"] = true,
+      ["Masked group +12"] = true,
+      ["Masked comment"] = true,
+      ["Masked listing"] = true,
+    }
+    local globals, fire = BuildLFGDetectEnv({
+      globals = {
+        issecretvalue = function(value)
+          return SECRET[value] == true
+        end,
+        C_LFGList = BuildC_LFGList({
+          [1] = {
+            activityIDs = { 514 },
+            leaderName = "Masked-Leader",
+            name = "Masked group +12",
+            comment = "Masked comment",
+          },
+        }, { activityIDs = { 514 }, name = "Masked listing", leaderName = "Masked-Leader" }),
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "the NeverSecret activityIDs still resolve the dungeon")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), "a masked leader name is not stored")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteGroupName(), "a masked group name is not stored")
+      Assert.Nil(addon.LFGDetect.GetActiveInviteTitleLevel(), "no key level is parsed from a masked title")
+
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+      Assert.Nil(addon.LFGDetect.GetActiveQueueListingGroupName(), "a masked listing name is not stored")
+      Assert.True(
+        addon.LFGDetect.GetActiveQueueListingLeaderName() ~= "Masked-Leader",
+        "a masked listing leader is replaced by the local player name"
+      )
+    end)
+  end)
+
   test("LFGDetect GetActiveInviteLeader is nil for queue-set detectedMapID", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {

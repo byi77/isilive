@@ -90,6 +90,7 @@ function SpellUtils.GetSpellCooldownSafe(spellID)
   if not spellID or type(cSpell) ~= "table" or type(cSpell.GetSpellCooldown) ~= "function" then
     return 0, 0, true
   end
+  -- secret-value-ok: start/duration/isEnabled pass IsSecretValue below before any arithmetic or comparison
   local ok, info = pcall(cSpell.GetSpellCooldown, spellID)
   if not ok or type(info) ~= "table" then
     return 0, 0, true

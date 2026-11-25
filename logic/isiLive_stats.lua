@@ -149,6 +149,7 @@ local function GetCombatSessionFromTypeSafe(api, sessionType, damageMeterType)
 
   -- Blizzard signature (DamageMeterDocumentation, 12.1.0): (sessionType, type).
   -- sessionType 0=Overall / 1=Current; type 0=DamageDone.
+  -- secret-value-ok: combatSources and its entries are read through ReadPlainField/ReadPlain*
   local ok, session = pcall(api.GetCombatSessionFromType, sessionType, damageMeterType)
   if not ok or type(session) ~= "table" then
     return nil
@@ -224,6 +225,7 @@ local function ReadLandedInterrupts(sessionType, memberKeys)
   if not api or not interruptsType or sessionType == nil then
     return nil
   end
+  -- secret-value-ok: combatSources and its entries are read through ReadPlainField/ReadPlain*
   local ok, session = pcall(api.GetCombatSessionFromType, sessionType, interruptsType)
   if not ok or type(session) ~= "table" then
     return nil

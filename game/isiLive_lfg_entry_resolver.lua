@@ -5,6 +5,12 @@ addonTable = addonTable or {}
 local Resolver = {}
 addonTable.LFGEntryResolver = Resolver
 
+-- C_LFGList search result structs are SecretInChatMessagingLockdown (an invite
+-- is resolved in combat too, rule 213): only activityIDs and partyGUID are
+-- NeverSecret, every other field is read through these.
+local ReadPlainField = addonTable.Validators.ReadPlainField
+local ReadNonEmptyString = addonTable.Validators.ReadNonEmptyString
+
 -- Runtime cache for Blizzard-resolved activity IDs that are not present in the
 -- active season manifest. Verified static mappings remain owned by SeasonData.
 local ACTIVITY_TO_MAP = {}
@@ -136,6 +142,7 @@ function Resolver.ResolveInviteEntry(searchResultID, log)
 
   local info = nil
   if type(searchResultID) == "number" and searchResultID > 0 then
+    -- secret-value-ok: activityIDs is NeverSecret; other fields via ReadPlainField/ReadNonEmptyString
     local ok, result = pcall(lfgList.GetSearchResultInfo, searchResultID)
     if ok then
       info = result
@@ -145,8 +152,8 @@ function Resolver.ResolveInviteEntry(searchResultID, log)
   local mapID = nil
   if type(info) == "table" and type(info.activityIDs) == "table" and next(info.activityIDs) ~= nil then
     mapID = Resolver.MapIDFromActivityIDs(info.activityIDs)
-  elseif type(info) == "table" and info.activityID then
-    mapID = Resolver.MapIDFromActivityID(info.activityID)
+  elseif type(info) == "table" and ReadPlainField(info, "activityID") then
+    mapID = Resolver.MapIDFromActivityID(ReadPlainField(info, "activityID"))
   end
 
   if type(log) == "function" then
@@ -154,7 +161,7 @@ function Resolver.ResolveInviteEntry(searchResultID, log)
       "invite_received",
       "searchResultID=%s activityID=%s mapID=%s",
       tostring(searchResultID),
-      tostring(info and info.activityID),
+      tostring(ReadPlainField(info, "activityID")),
       tostring(mapID)
     )
   end
@@ -162,22 +169,15 @@ function Resolver.ResolveInviteEntry(searchResultID, log)
     return nil
   end
 
-  local leaderName = nil
-  if type(info) == "table" and type(info.leaderName) == "string" and info.leaderName ~= "" then
-    leaderName = info.leaderName
-  end
+  local leaderName = ReadNonEmptyString(info, "leaderName")
   local titleLevel = nil
   local groupName = nil
   local primaryActivityID = nil
   local comment = nil
   if type(info) == "table" then
-    titleLevel = Resolver.ParseTitleKeyLevel(info.name)
-    if type(info.name) == "string" and info.name ~= "" then
-      groupName = info.name
-    end
-    if type(info.comment) == "string" and info.comment ~= "" then
-      comment = info.comment
-    end
+    groupName = ReadNonEmptyString(info, "name")
+    titleLevel = Resolver.ParseTitleKeyLevel(groupName)
+    comment = ReadNonEmptyString(info, "comment")
     if type(info.activityIDs) == "table" then
       for _, actID in ipairs(info.activityIDs) do
         local numericActID = tonumber(actID)
@@ -187,8 +187,8 @@ function Resolver.ResolveInviteEntry(searchResultID, log)
         end
       end
     end
-    if not primaryActivityID and info.activityID then
-      local numericActID = tonumber(info.activityID)
+    if not primaryActivityID and ReadPlainField(info, "activityID") then
+      local numericActID = tonumber(ReadPlainField(info, "activityID"))
       if numericActID and numericActID > 0 then
         primaryActivityID = numericActID
       end
@@ -241,6 +241,7 @@ function Resolver.ResolveRaidInviteEntry(searchResultID)
   if type(searchResultID) ~= "number" or searchResultID <= 0 then
     return nil
   end
+  -- secret-value-ok: activityIDs is NeverSecret; other fields via ReadPlainField/ReadNonEmptyString
   local ok, info = pcall(lfgList.GetSearchResultInfo, searchResultID)
   if not ok or type(info) ~= "table" then
     return nil
@@ -258,15 +259,15 @@ function Resolver.ResolveRaidInviteEntry(searchResultID)
       end
     end
   end
-  if not mapID and info.activityID then
-    mapID = MapIDFromRaidActivityID(info.activityID)
+  if not mapID and ReadPlainField(info, "activityID") then
+    mapID = MapIDFromRaidActivityID(ReadPlainField(info, "activityID"))
   end
   if not mapID then
     return nil
   end
-  local leaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName or nil
-  local groupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
-  local comment = type(info.comment) == "string" and info.comment ~= "" and info.comment or nil
+  local leaderName = ReadNonEmptyString(info, "leaderName")
+  local groupName = ReadNonEmptyString(info, "name")
+  local comment = ReadNonEmptyString(info, "comment")
   return {
     mapID = mapID,
     leaderName = leaderName,

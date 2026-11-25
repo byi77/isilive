@@ -177,6 +177,7 @@ local function ResolveAvailabilityState(spellID)
 
   local C_Spell_ref = rawget(_G, "C_Spell")
   if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellCooldown) == "function" then
+    -- secret-value-ok: only type(info) is inspected; no field is read
     local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
     if ok then
       resolved = true
@@ -315,6 +316,7 @@ local function ReadExactCooldownStateForSpell(spellID)
     return nil
   end
 
+  -- secret-value-ok: fields go through ReadCooldownField (secret check) below
   local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
   if not ok or type(info) ~= "table" then
     return nil

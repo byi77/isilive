@@ -324,6 +324,7 @@ local function ReadUnitStat(statIndex, opts)
   if type(unitStat) ~= "function" then
     return nil
   end
+  -- secret-value-ok: ReadDisplayNumber: a secret only reaches pcall(string.format) and the FontString
   local ok, _, effective = pcall(unitStat, "player", statIndex)
   if not ok then
     return nil
@@ -345,6 +346,7 @@ local function ReadCombatRating(globalName, opts)
   if type(getCombatRating) ~= "function" or ratingID == nil then
     return nil
   end
+  -- secret-value-ok: ReadDisplayNumber: a secret only reaches pcall(string.format) and the FontString
   local ok, value = pcall(getCombatRating, ratingID)
   if not ok then
     return nil
@@ -444,6 +446,7 @@ local function ReadVersatilityPercent(opts)
   if ratingID == nil or type(getCombatRatingBonus) ~= "function" then
     return nil
   end
+  -- secret-value-ok: ReadDisplayNumber: a secret only reaches pcall(string.format) and the FontString
   local ok, value = pcall(getCombatRatingBonus, ratingID)
   if not ok then
     return nil
@@ -491,11 +494,13 @@ local function ReadPlayerSpellHaste(opts)
   if type(unitSpellHaste) ~= "function" then
     return nil
   end
+  -- secret-value-ok: ReadDisplayNumber: a secret only reaches pcall(string.format) and the FontString
   local ok, value = pcall(unitSpellHaste, "player")
   value = ok and ReadDisplayNumber(value, false) or nil
   if value ~= nil then
     return value
   end
+  -- secret-value-ok: ReadDisplayNumber: a secret only reaches pcall(string.format) and the FontString
   ok, value = pcall(unitSpellHaste)
   if not ok then
     return nil

@@ -141,6 +141,30 @@ return function(test, ctx)
       "return IsChallengeModeActive()",
     })
     Assert.Equal(#wrapperHits, 0, "file-local wrappers must not be mistaken for Blizzard method calls")
+
+    -- Validators.ResolveApiFunction replaced rawget for the deprecated spec
+    -- globals; its alias must stay audited, also when StyLua wraps the call.
+    local resolverHits = checker.AnalyzeLines("fixture.lua", {
+      "local getInspect = addonTable.Validators.ResolveApiFunction(",
+      '  "C_SpecializationInfo",',
+      '  "GetInspectSpecialization",',
+      '  "GetInspectSpecialization"',
+      ")",
+      "local ok, specID = pcall(getInspect, unit)",
+      "if ok and specID > 0 then",
+      "end",
+    })
+    Assert.Equal(#resolverHits, 1, "a wrapped ResolveApiFunction alias must be audited")
+
+    local resolverGuardedHits = checker.AnalyzeLines("fixture.lua", {
+      "local getSpecialization =",
+      '  addonTable.Validators.ResolveApiFunction("C_SpecializationInfo", "GetSpecialization", "GetSpecialization")',
+      "local ok, specIndex = pcall(getSpecialization)",
+      "if not ok or IsSecretValue(specIndex) then",
+      "  return nil",
+      "end",
+    })
+    Assert.Equal(#resolverGuardedHits, 0, "a guarded ResolveApiFunction alias must pass")
   end)
 
   -- The API-name rules above cannot see a masked value that arrives as a FIELD

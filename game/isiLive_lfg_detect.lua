@@ -13,6 +13,10 @@ local LFGDetect = {}
 addonTable.LFGDetect = LFGDetect
 local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 local Validators = addonTable.Validators or {}
+-- C_LFGList.GetActiveEntryInfo is SecretInChatMessagingLockdown: only
+-- activityIDs is NeverSecret, every other field is read through these.
+local ReadPlainField = Validators.ReadPlainField
+local ReadNonEmptyString = Validators.ReadNonEmptyString
 local StringUtils = addonTable.StringUtils
 local EntryResolver = assert(addonTable.LFGEntryResolver, "isiLive: LFGEntryResolver missing")
 local MapIDFromActivityID =
@@ -704,6 +708,7 @@ local function CheckActiveGroup()
     return
   end
 
+  -- secret-value-ok: activityIDs is NeverSecret; other fields via ReadPlainField/ReadNonEmptyString
   local ok, info = pcall(C_LFGList_ref.GetActiveEntryInfo)
   if not ok or not info then
     -- No active listing:
@@ -730,8 +735,9 @@ local function CheckActiveGroup()
   if hasActivityIDs then
     mapID = MapIDFromActivityIDs(info.activityIDs)
   end
-  if not mapID and not hasActivityIDs and info.activityID then
-    mapID = MapIDFromActivityID(info.activityID)
+  local activityID = ReadPlainField(info, "activityID")
+  if not mapID and not hasActivityIDs and activityID then
+    mapID = MapIDFromActivityID(activityID)
   end
 
   -- A cleared target with the listing still active counts as new as well, or
@@ -749,9 +755,8 @@ local function CheckActiveGroup()
     end
     lastQueueMapID = mapID
     detectedMapID = mapID
-    activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
-    activeQueueListingLeaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName
-      or GetLocalPlayerFullName()
+    activeQueueListingGroupName = ReadNonEmptyString(info, "name")
+    activeQueueListingLeaderName = ReadNonEmptyString(info, "leaderName") or GetLocalPlayerFullName()
     Log(
       "state_set",
       "source=queue_listing lastQueueMapID=%s detectedMapID=%s group=%s leader=%s",
@@ -762,9 +767,8 @@ local function CheckActiveGroup()
     )
     TriggerHighlightUpdate("queue") -- BUG-1: own listing → suppress portal sound
   elseif mapID then
-    activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
-    activeQueueListingLeaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName
-      or GetLocalPlayerFullName()
+    activeQueueListingGroupName = ReadNonEmptyString(info, "name")
+    activeQueueListingLeaderName = ReadNonEmptyString(info, "leaderName") or GetLocalPlayerFullName()
   elseif not mapID and lastQueueMapID ~= nil then
     Log("queue_listing_cleared", "no_active_entry")
     lastQueueMapID = nil

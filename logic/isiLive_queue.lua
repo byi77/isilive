@@ -5,6 +5,7 @@ addonTable = addonTable or {}
 local Queue = {}
 addonTable.Queue = Queue
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local ReadPlainString = addonTable.Validators.ReadPlainString
 
 local queueDebugEnabled = false
 local queueDebugLogger
@@ -286,6 +287,7 @@ local function GetSearchResultInfoSafe(searchResultID)
     return nil
   end
 
+  -- secret-value-ok: fields go through AddUniqueActivityCandidate (IsSecretValue) and ReadPlainString
   local ok, info = pcall(lfgListApi.GetSearchResultInfo, searchResultID)
   if not ok or type(info) ~= "table" then
     return nil
@@ -300,7 +302,8 @@ local function ResolveActivityIDFromSearchResultID(searchResultID, resolveTelepo
   end
 
   local activityID = Queue.GetSearchResultActivityID(searchResultInfo, resolveTeleportSpellIDByActivityID)
-  local groupName = searchResultInfo.name or searchResultInfo.leaderName
+  -- SecretInChatMessagingLockdown: masked names stay nil.
+  local groupName = ReadPlainString(searchResultInfo, "name") or ReadPlainString(searchResultInfo, "leaderName")
   return activityID, groupName, true
 end
 
@@ -319,7 +322,9 @@ local function ReadApplicationInfoStruct(data, resolveTeleportSpellIDByActivityI
 
   if type(searchResultInfo) == "table" then
     activityID = Queue.GetSearchResultActivityID(searchResultInfo, resolveTeleportSpellIDByActivityID)
-    groupName = groupName or searchResultInfo.name or searchResultInfo.leaderName
+    groupName = groupName
+      or ReadPlainString(searchResultInfo, "name")
+      or ReadPlainString(searchResultInfo, "leaderName")
   end
 
   if not activityID and searchResultID then

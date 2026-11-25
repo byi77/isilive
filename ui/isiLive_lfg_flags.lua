@@ -22,6 +22,13 @@ local SPEC_CLASS_TOKENS = BonusModel.SPEC_CLASS_TOKENS
 local IsSecretValue = assert(BonusModel.IsSecretValue, "isiLive: LFGBonusModel.IsSecretValue missing")
 local ResolveClassToken = assert(BonusModel.ResolveClassToken, "isiLive: LFGBonusModel.ResolveClassToken missing")
 local ReadPositiveNumber = assert(BonusModel.ReadPositiveNumber, "isiLive: LFGBonusModel.ReadPositiveNumber missing")
+local ReadPlainField = addonTable.Validators.ReadPlainField
+
+-- C_LFGList search result and applicant structs are SecretInChatMessagingLockdown.
+local function ReadMemberCountField(info)
+  return ReadPlainField(info, "numMembers") or ReadPlainField(info, "numMember") or ReadPlainField(info, "memberCount")
+end
+
 local ResolveSpecIDFromText =
   assert(BonusModel.ResolveSpecIDFromText, "isiLive: LFGBonusModel.ResolveSpecIDFromText missing")
 local ResolvePlayerBonusProfile =
@@ -272,11 +279,13 @@ local function GetSearchResultMemberCount(resultID)
   if type(C_LFGList_ref) ~= "table" or type(C_LFGList_ref.GetSearchResultInfo) ~= "function" then
     return nil
   end
+  -- secret-value-ok: member count is read through ReadPlainField
   local ok, info = pcall(C_LFGList_ref.GetSearchResultInfo, resultID)
   if not ok or type(info) ~= "table" or IsSecretValue(info) then
     return nil
   end
-  return ReadPositiveNumber(info.numMembers or info.numMember or info.memberCount)
+  -- SecretInChatMessagingLockdown: masked counts read as nil.
+  return ReadPositiveNumber(ReadMemberCountField(info))
 end
 
 local function ReadSearchResultMemberInfo(resultID, memberIndex)
@@ -373,6 +382,7 @@ local function ReadApplicantInfo(applicantID)
   if type(C_LFGList_ref) ~= "table" or type(C_LFGList_ref.GetApplicantInfo) ~= "function" then
     return nil
   end
+  -- secret-value-ok: the only caller reads the member count through ReadPlainField
   local ok, info = pcall(C_LFGList_ref.GetApplicantInfo, applicantID)
   if not ok or type(info) ~= "table" or IsSecretValue(info) then
     return nil
@@ -412,7 +422,7 @@ local function BuildApplicantMemberBonuses(applicantID)
     return nil
   end
   local info = ReadApplicantInfo(applicantID)
-  local memberCount = info and ReadPositiveNumber(info.numMembers or info.numMember or info.memberCount)
+  local memberCount = info and ReadPositiveNumber(ReadMemberCountField(info))
   if not memberCount then
     return nil
   end

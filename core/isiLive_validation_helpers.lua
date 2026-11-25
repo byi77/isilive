@@ -110,6 +110,20 @@ function Validators.ReadPlainString(source, key)
   return value
 end
 
+--- ReadPlainString restricted to a non-empty string. C_LFGList result structs
+--- (search result, applicant, active entry) are SecretInChatMessagingLockdown;
+--- comparing their name fields with "" raises there.
+--- @param source table|nil
+--- @param key any
+--- @return string|nil -- nil when the field is missing, masked, not a string or empty
+function Validators.ReadNonEmptyString(source, key)
+  local value = Validators.ReadPlainString(source, key)
+  if value == nil or value == "" then
+    return nil
+  end
+  return value
+end
+
 -- Takes the pcall results as parameters instead of a `{ pcall(...) }` table
 -- plus a vararg scan: the runtime-profile resolver reaches this on per-event
 -- paths.

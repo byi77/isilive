@@ -39,6 +39,7 @@ function PersonalBest.GetText(resultID)
   then
     return nil
   end
+  -- secret-value-ok: every field passes IsSecret before use
   local ok, info = pcall(lfg.GetSearchResultInfo, resultID)
   if not ok or IsSecret(info) or type(info) ~= "table" then
     return nil
